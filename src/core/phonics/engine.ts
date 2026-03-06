@@ -5,20 +5,20 @@ import { patterns, type PatternEntry } from './patterns.ts';
 import { splitSyllables } from './syllabifier.ts';
 import { generateHint } from './hints.ts';
 
-// Patterns sorted by grapheme length descending so longer matches take priority
-const sortedPatterns = [...patterns].sort(
-  (a, b) => b.grapheme.length - a.grapheme.length,
-);
-
 // Patterns that use the "X_e" notation for silent-e (e.g., "a_e", "i_e")
-const SILENT_E_PATTERNS = sortedPatterns.filter(
-  p => p.category === 'long-vowel-silent-e' && p.grapheme.includes('_'),
+const SILENT_E_BASE_PATTERNS = patterns.filter(
+  p => p.category === 'long-vowel-silent-e' && /^[aeiou]_e$/.test(p.grapheme),
 );
 
-// Non-silent-e patterns for direct substring matching
-const DIRECT_PATTERNS = sortedPatterns.filter(
-  p => !p.grapheme.includes('_'),
+// More specific silent-e patterns (e.g., silent-e-a-ke, silent-e-i-ce)
+const SILENT_E_SPECIFIC = patterns.filter(
+  p => p.category === 'long-vowel-silent-e' && p.grapheme.includes('_') && p.id !== 'silent-e-a' && p.id !== 'silent-e-i' && p.id !== 'silent-e-o' && p.id !== 'silent-e-u',
 );
+
+// Non-silent-e patterns for direct substring matching, sorted by grapheme length desc
+const DIRECT_PATTERNS = patterns
+  .filter(p => !p.grapheme.includes('_'))
+  .sort((a, b) => b.grapheme.length - a.grapheme.length);
 
 /**
  * Analyze a word for phonics patterns, phonemes, syllables, and difficulty.
@@ -56,18 +56,20 @@ export function getPatternFamily(patternId: string): string[] {
 function detectPatterns(word: string): DetectedPattern[] {
   const detected: DetectedPattern[] = [];
   const usedIds = new Set<string>();
+  // Track which character positions are "claimed" by higher-priority patterns
+  const covered = new Array<boolean>(word.length).fill(false);
 
-  // 1. Check silent-e patterns (a_e, i_e, o_e, u_e)
-  detectSilentEPatterns(word, detected, usedIds);
+  // 1. Check silent-e patterns — pick the most specific match
+  detectSilentEPatterns(word, detected, usedIds, covered);
 
   // 2. Check suffix patterns (match at end of word)
-  detectPositionalPatterns(word, detected, usedIds, 'suffix');
+  detectPositionalPatterns(word, detected, usedIds, covered, 'suffix');
 
   // 3. Check prefix patterns (match at start of word)
-  detectPositionalPatterns(word, detected, usedIds, 'prefix');
+  detectPositionalPatterns(word, detected, usedIds, covered, 'prefix');
 
-  // 4. Check all other direct-match patterns
-  detectDirectPatterns(word, detected, usedIds);
+  // 4. Check all other direct-match patterns (longer graphemes first, with coverage)
+  detectDirectPatterns(word, detected, usedIds, covered);
 
   return detected;
 }
@@ -76,30 +78,58 @@ function detectSilentEPatterns(
   word: string,
   detected: DetectedPattern[],
   usedIds: Set<string>,
+  covered: boolean[],
 ): void {
   if (!word.endsWith('e') || word.length < 4) return;
 
-  for (const pattern of SILENT_E_PATTERNS) {
-    if (usedIds.has(pattern.id)) continue;
-    const vowel = pattern.grapheme[0];
-    // Look for vowel-consonant-e pattern
-    for (let i = 0; i < word.length - 2; i++) {
-      if (
-        word[i] === vowel &&
-        isConsonant(word[i + 1]) &&
-        word[i + 2] === 'e' &&
-        (i + 2 === word.length - 1) // the 'e' is at the end (or near end)
-      ) {
-        // Verify this word is in the examples or it broadly matches
-        detected.push({
-          id: pattern.id,
-          category: pattern.category,
-          grapheme: pattern.grapheme,
-          hint: pattern.hint,
-        });
-        usedIds.add(pattern.id);
-        break;
-      }
+  // Find the vowel-consonant-e position first
+  let matchVowel = '';
+  let matchPos = -1;
+  for (let i = 0; i < word.length - 2; i++) {
+    if (
+      'aeiou'.includes(word[i]) &&
+      isConsonant(word[i + 1]) &&
+      word[i + 2] === 'e' &&
+      i + 2 === word.length - 1
+    ) {
+      // Exclude cases where the vowel is preceded by another vowel (vowel team like "au")
+      if (i > 0 && 'aeiouy'.includes(word[i - 1])) continue;
+      matchVowel = word[i];
+      matchPos = i;
+      break;
+    }
+  }
+  if (matchPos < 0) return;
+
+  // Check if a specific silent-e pattern matches (e.g., silent-e-a-ke for "cake")
+  const ending = word.slice(matchPos); // e.g., "ake" for cake
+  let bestMatch: PatternEntry | null = null;
+
+  for (const sp of SILENT_E_SPECIFIC) {
+    if (sp.grapheme[0] !== matchVowel) continue;
+    // Check if the word's ending matches this specific pattern's examples
+    if (sp.examples.some(ex => ex.endsWith(ending))) {
+      bestMatch = sp;
+      break;
+    }
+  }
+
+  // Fall back to the base pattern (e.g., silent-e-a)
+  if (!bestMatch) {
+    bestMatch = SILENT_E_BASE_PATTERNS.find(p => p.grapheme[0] === matchVowel) ?? null;
+  }
+
+  if (bestMatch) {
+    detected.push({
+      id: bestMatch.id,
+      category: bestMatch.category,
+      grapheme: bestMatch.grapheme,
+      hint: bestMatch.hint,
+    });
+    usedIds.add(bestMatch.id);
+    // Mark the vowel-consonant-e positions as covered
+    for (let j = matchPos; j <= matchPos + 2 && j < word.length; j++) {
+      covered[j] = true;
     }
   }
 }
@@ -108,9 +138,12 @@ function detectPositionalPatterns(
   word: string,
   detected: DetectedPattern[],
   usedIds: Set<string>,
+  covered: boolean[],
   position: 'prefix' | 'suffix',
 ): void {
   const matchPatterns = DIRECT_PATTERNS.filter(p => p.category === position);
+  // Track which grapheme has been matched for this position to avoid duplicates
+  let matchedGrapheme = '';
 
   for (const pattern of matchPatterns) {
     if (usedIds.has(pattern.id)) continue;
@@ -122,6 +155,9 @@ function detectPositionalPatterns(
         : word.startsWith(grapheme) && word.length > grapheme.length;
 
     if (matches) {
+      // Only allow one match per grapheme for positional patterns
+      if (matchedGrapheme === grapheme) continue;
+
       detected.push({
         id: pattern.id,
         category: pattern.category,
@@ -129,6 +165,15 @@ function detectPositionalPatterns(
         hint: pattern.hint,
       });
       usedIds.add(pattern.id);
+      matchedGrapheme = grapheme;
+
+      // Mark covered positions
+      if (position === 'suffix') {
+        const start = word.length - grapheme.length;
+        for (let j = start; j < word.length; j++) covered[j] = true;
+      } else {
+        for (let j = 0; j < grapheme.length; j++) covered[j] = true;
+      }
     }
   }
 }
@@ -137,28 +182,55 @@ function detectDirectPatterns(
   word: string,
   detected: DetectedPattern[],
   usedIds: Set<string>,
+  covered: boolean[],
 ): void {
   const nonPositional = DIRECT_PATTERNS.filter(
     p => p.category !== 'suffix' && p.category !== 'prefix',
   );
 
+  // Track which grapheme at which position has been matched (to prevent
+  // multiple patterns with the same grapheme, like th-voiced and th-unvoiced)
+  const matchedGraphemePositions = new Set<string>();
+
   for (const pattern of nonPositional) {
     if (usedIds.has(pattern.id)) continue;
 
-    if (word.includes(pattern.grapheme)) {
-      // For short vowels, be more selective — only match if the vowel is in a
-      // short-vowel context (not followed by another vowel or silent-e)
-      if (pattern.category === 'short-vowel') {
-        if (!isShortVowelContext(word, pattern)) continue;
-      }
+    const grapheme = pattern.grapheme;
+    const idx = word.indexOf(grapheme);
+    if (idx < 0) continue;
 
-      detected.push({
-        id: pattern.id,
-        category: pattern.category,
-        grapheme: pattern.grapheme,
-        hint: pattern.hint,
-      });
-      usedIds.add(pattern.id);
+    // Skip if positions are already covered by a higher-priority pattern
+    const posKey = `${grapheme}@${idx}`;
+    if (matchedGraphemePositions.has(posKey)) continue;
+
+    // For short vowels, check if the vowel position is already covered
+    // by a vowel team or other higher-priority pattern
+    if (pattern.category === 'short-vowel') {
+      if (covered[idx]) continue;
+      if (!isShortVowelContext(word, pattern)) continue;
+    } else {
+      // For non-short-vowel patterns, check if any position is covered
+      let anyCovered = false;
+      for (let j = idx; j < idx + grapheme.length; j++) {
+        if (covered[j]) { anyCovered = true; break; }
+      }
+      if (anyCovered) continue;
+    }
+
+    detected.push({
+      id: pattern.id,
+      category: pattern.category,
+      grapheme: pattern.grapheme,
+      hint: pattern.hint,
+    });
+    usedIds.add(pattern.id);
+    matchedGraphemePositions.add(posKey);
+
+    // Mark positions as covered (for multi-character graphemes)
+    if (grapheme.length > 1) {
+      for (let j = idx; j < idx + grapheme.length; j++) {
+        if (j < covered.length) covered[j] = true;
+      }
     }
   }
 }
