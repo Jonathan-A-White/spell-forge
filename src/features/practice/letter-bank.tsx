@@ -30,6 +30,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
   const [selected, setSelected] = useState<string[]>([]);
   const [startTime] = useState(() => Date.now());
   const [wrongFlash, setWrongFlash] = useState(false);
+  const [mistakeCount, setMistakeCount] = useState(0);
 
   const targetLetters = useMemo(() => word.toLowerCase().split(''), [word]);
   const bankLetters = useMemo(() => {
@@ -56,14 +57,15 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
 
         if (newSelected.length === targetLetters.length) {
           const responseTimeMs = Date.now() - startTime;
-          onComplete(true, responseTimeMs);
+          onComplete(mistakeCount === 0, responseTimeMs);
         }
       } else {
+        setMistakeCount((prev) => prev + 1);
         setWrongFlash(true);
         setTimeout(() => setWrongFlash(false), 300);
       }
     },
-    [selected, targetLetters, onComplete, startTime],
+    [selected, targetLetters, onComplete, startTime, mistakeCount],
   );
 
   const handleUndo = useCallback(() => {
