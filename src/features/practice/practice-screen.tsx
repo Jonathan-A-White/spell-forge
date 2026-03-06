@@ -71,10 +71,10 @@ export function PracticeScreen({
   }, [currentWord, onSpeak]);
 
   const handleWordComplete = useCallback(
-    (correct: boolean, responseTimeMs: number) => {
+    (correct: boolean, responseTimeMs: number, mistakes: number) => {
       if (!session || !session.currentWord) return;
 
-      const struggled = responseTimeMs > 15000 || !correct;
+      const struggled = responseTimeMs > 15000 || mistakes > 0;
       const currentWordStats = allStats.find(
         (s) => s.wordId === session.currentWord!.id,
       ) ?? null;

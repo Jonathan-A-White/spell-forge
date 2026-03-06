@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 
 interface LetterBankProps {
   word: string;
-  onComplete: (correct: boolean, responseTimeMs: number) => void;
+  onComplete: (correct: boolean, responseTimeMs: number, mistakes: number) => void;
   scaffolding?: { chunks: string[]; hints: string[] } | null;
   tapTargetSize: number;
 }
@@ -57,7 +57,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
 
         if (newSelected.length === targetLetters.length) {
           const responseTimeMs = Date.now() - startTime;
-          onComplete(mistakeCount === 0, responseTimeMs);
+          onComplete(true, responseTimeMs, mistakeCount);
         }
       } else {
         setMistakeCount((prev) => prev + 1);
