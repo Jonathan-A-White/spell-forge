@@ -46,12 +46,18 @@ export function ProgressView({
 
   return (
     <div className="min-h-screen bg-sf-bg p-4 max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="text-sf-muted hover:text-sf-secondary">
-          Back
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={onBack}
+          className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+          aria-label="Go back"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
         </button>
         <h1 className="text-xl font-bold text-sf-heading">Progress</h1>
-        <div />
       </div>
 
       {/* Streak */}

@@ -18,18 +18,21 @@ import { wordRepo } from './data/repositories/word-repo';
 import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
-import { applySettings, mergeSetting } from './accessibility/settings';
+import { applySettings, mergeSetting, validateSettings } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
+import { HomeScreen } from './features/dashboard/home-screen';
 import { ProgressView } from './features/dashboard/progress-view';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { ListEditor } from './features/word-lists/list-editor';
+import { WordListsView } from './features/word-lists/word-lists-view';
 import { FeedbackForm } from './features/feedback/feedback-form';
-import { ThemeToggle } from './features/settings/theme-toggle';
+import { SettingsPanel } from './features/settings/settings-panel';
 import { AudioManagerImpl, TtsProvider } from './audio';
+import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'onboarding' | 'profile-select' | 'home' | 'practice' | 'list-editor' | 'feedback';
+type AppView = 'loading' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'list-editor' | 'word-lists' | 'settings' | 'feedback';
 
 const eventBus = createEventBus();
 
@@ -187,6 +190,23 @@ function App() {
     [activeProfile],
   );
 
+  const handlePresetApply = useCallback(
+    async (preset: NamedPreset) => {
+      if (!activeProfile) return;
+      // Keep the current contrast mode when applying a preset (unless preset specifies high-contrast)
+      const newSettings = validateSettings({
+        ...preset.settings,
+        contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : activeProfile.settings.contrastMode,
+      });
+      applySettings(newSettings);
+      const updated = { ...activeProfile, settings: newSettings };
+      await profileRepo.update(updated.id, { settings: newSettings });
+      setActiveProfile(updated);
+      eventBus.emit({ type: 'settings:changed', payload: { profileId: updated.id, settings: newSettings } });
+    },
+    [activeProfile],
+  );
+
   const handleFeedback = useCallback(async (text: string) => {
     await db.syncQueue.add({
       id: uuidv4(),
@@ -268,8 +288,7 @@ function App() {
         />
       );
 
-    case 'home':
-    default:
+    case 'progress':
       if (!activeProfile) return null;
       return (
         <div className="bg-sf-bg min-h-screen">
@@ -281,25 +300,49 @@ function App() {
             daysUntilTest={daysUntilTest}
             onStartPractice={() => setView('practice')}
             onAddWords={() => setView('list-editor')}
-            onBack={() => setView(profiles.length > 1 ? 'profile-select' : 'home')}
+            onBack={() => setView('home')}
           />
-
-          {/* Theme toggle + bottom actions */}
-          <div className="max-w-lg mx-auto px-4 pb-4 space-y-3">
-            <div className="flex justify-center">
-              <ThemeToggle
-                current={activeProfile.settings.contrastMode}
-                onChange={handleContrastModeChange}
-              />
-            </div>
-            <button
-              onClick={() => setView('feedback')}
-              className="w-full bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-muted py-2 rounded-lg text-sm transition-colors"
-            >
-              Send Feedback
-            </button>
-          </div>
         </div>
+      );
+
+    case 'settings':
+      if (!activeProfile) return null;
+      return (
+        <SettingsPanel
+          profile={activeProfile}
+          settings={activeProfile.settings}
+          onContrastModeChange={handleContrastModeChange}
+          onPresetApply={handlePresetApply}
+          onBack={() => setView('home')}
+        />
+      );
+
+    case 'word-lists':
+      if (!activeProfile) return null;
+      return (
+        <WordListsView
+          wordLists={wordLists}
+          allWords={allWords}
+          allStats={allStats}
+          onAddList={() => setView('list-editor')}
+          onBack={() => setView('home')}
+        />
+      );
+
+    case 'home':
+    default:
+      if (!activeProfile) return null;
+      return (
+        <HomeScreen
+          profile={activeProfile}
+          wordLists={wordLists}
+          allWords={allWords}
+          allStats={allStats}
+          streakData={streakData}
+          onNavigate={(target) => setView(target)}
+          onSwitchProfile={() => setView('profile-select')}
+          hasMultipleProfiles={profiles.length > 1}
+        />
       );
   }
 }

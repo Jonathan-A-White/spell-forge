@@ -1,0 +1,223 @@
+// src/features/settings/settings-panel.tsx — Full settings screen with theme toggle and accessibility presets
+
+import type { AccessibilitySettings } from '../../contracts/types';
+import { PRESETS, type NamedPreset } from '../../accessibility/presets';
+
+type ContrastMode = AccessibilitySettings['contrastMode'];
+
+interface SettingsPanelProps {
+  profile: { name: string; themeId: string };
+  settings: AccessibilitySettings;
+  onContrastModeChange: (mode: ContrastMode) => void;
+  onPresetApply: (preset: NamedPreset) => void;
+  onBack: () => void;
+}
+
+const contrastModes: { value: ContrastMode; label: string; description: string; icon: string }[] = [
+  { value: 'light', label: 'Light', description: 'Warm, easy on the eyes', icon: 'sun' },
+  { value: 'dark', label: 'Dark', description: 'Easier in low light', icon: 'moon' },
+  { value: 'high-contrast', label: 'Enhanced', description: 'Maximum readability', icon: 'eye' },
+];
+
+export function SettingsPanel({
+  profile,
+  settings,
+  onContrastModeChange,
+  onPresetApply,
+  onBack,
+}: SettingsPanelProps) {
+  return (
+    <div className="min-h-screen bg-sf-bg">
+      {/* Header */}
+      <div className="bg-sf-surface border-b border-sf-border px-4 py-4">
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+            aria-label="Go back"
+          >
+            <BackArrowIcon />
+          </button>
+          <h1 className="text-xl font-bold text-sf-heading">Settings</h1>
+        </div>
+      </div>
+
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* Appearance section */}
+        <section>
+          <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+            Appearance
+          </h2>
+          <div className="space-y-2">
+            {contrastModes.map((mode) => (
+              <button
+                key={mode.value}
+                onClick={() => onContrastModeChange(mode.value)}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                  settings.contrastMode === mode.value
+                    ? 'border-sf-primary bg-sf-surface shadow-md'
+                    : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                }`}
+                aria-pressed={settings.contrastMode === mode.value}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  settings.contrastMode === mode.value
+                    ? 'bg-sf-primary text-sf-primary-text'
+                    : 'bg-sf-track text-sf-muted'
+                }`}>
+                  <ModeIcon icon={mode.icon} />
+                </div>
+                <div className="text-left flex-1">
+                  <p className={`font-bold text-sm ${
+                    settings.contrastMode === mode.value ? 'text-sf-heading' : 'text-sf-text'
+                  }`}>
+                    {mode.label}
+                  </p>
+                  <p className="text-xs text-sf-muted">{mode.description}</p>
+                </div>
+                {settings.contrastMode === mode.value && (
+                  <div className="text-sf-primary">
+                    <CheckIcon />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Accessibility presets section */}
+        <section>
+          <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+            Accessibility Presets
+          </h2>
+          <div className="space-y-2">
+            {PRESETS.map((preset) => {
+              const isActive = isPresetActive(preset, settings);
+              return (
+                <button
+                  key={preset.name}
+                  onClick={() => onPresetApply(preset)}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                    isActive
+                      ? 'border-sf-primary bg-sf-surface shadow-md'
+                      : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
+                    isActive ? 'bg-sf-primary text-sf-primary-text' : 'bg-sf-track'
+                  }`}>
+                    {getPresetEmoji(preset.name)}
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className={`font-bold text-sm ${isActive ? 'text-sf-heading' : 'text-sf-text'}`}>
+                      {preset.name}
+                    </p>
+                    <p className="text-xs text-sf-muted">{preset.description}</p>
+                  </div>
+                  {isActive && (
+                    <div className="text-sf-primary">
+                      <CheckIcon />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Current settings summary */}
+        <section>
+          <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+            Current Settings
+          </h2>
+          <div className="bg-sf-surface rounded-xl border border-sf-border p-4 space-y-2">
+            <SettingRow label="Font Size" value={`${settings.fontSize}px`} />
+            <SettingRow label="Font Weight" value={settings.fontWeight} />
+            <SettingRow label="Letter Spacing" value={`${settings.letterSpacing}em`} />
+            <SettingRow label="Line Height" value={`${settings.lineHeight}`} />
+            <SettingRow label="Tap Target" value={`${settings.tapTargetSize}px`} />
+            <SettingRow label="Reduced Motion" value={settings.reducedMotion ? 'On' : 'Off'} />
+            <SettingRow label="Theme" value={profile.themeId.replace(/-/g, ' ')} />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function SettingRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className="text-sm text-sf-muted">{label}</span>
+      <span className="text-sm font-medium text-sf-text capitalize">{value}</span>
+    </div>
+  );
+}
+
+function isPresetActive(preset: NamedPreset, current: AccessibilitySettings): boolean {
+  const p = preset.settings;
+  return (
+    p.fontSize === current.fontSize &&
+    p.fontWeight === current.fontWeight &&
+    p.letterSpacing === current.letterSpacing &&
+    p.lineHeight === current.lineHeight &&
+    p.tapTargetSize === current.tapTargetSize &&
+    p.reducedMotion === current.reducedMotion
+  );
+}
+
+function getPresetEmoji(name: string): string {
+  switch (name.toLowerCase()) {
+    case 'default': return 'Aa';
+    case 'high visibility': return 'Aa';
+    case 'dyslexia friendly': return 'Dy';
+    case 'minimal': return 'Mi';
+    default: return 'Aa';
+  }
+}
+
+// ─── SVG Icons ───────────────────────────────────────────────
+
+function BackArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M19 12H5" />
+      <path d="M12 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-5 h-5">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function ModeIcon({ icon }: { icon: string }) {
+  switch (icon) {
+    case 'sun':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <circle cx="12" cy="12" r="5" />
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+      );
+    case 'moon':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      );
+    case 'eye':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
