@@ -28,10 +28,10 @@ export function ReadinessIndicator({
   const gaugeRotation = (percentage / 100) * 180 - 90; // -90 to 90 degrees
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-amber-200 mb-4">
-      <h3 className="font-bold text-amber-900 mb-1">{listName}</h3>
+    <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border mb-4">
+      <h3 className="font-bold text-sf-heading mb-1">{listName}</h3>
       {daysUntilTest !== null && (
-        <p className="text-sm text-amber-600 mb-3">
+        <p className="text-sm text-sf-muted mb-3">
           {daysUntilTest === 0
             ? 'Test is today!'
             : daysUntilTest === 1
@@ -43,22 +43,22 @@ export function ReadinessIndicator({
       {/* Gauge visualization */}
       <div className="flex justify-center mb-3">
         <div className="relative w-32 h-16 overflow-hidden">
-          <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full border-8 border-gray-200" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full border-8 border-sf-track" />
           <div
-            className="absolute bottom-0 left-0 w-32 h-32 rounded-full border-8 border-amber-500"
+            className="absolute bottom-0 left-0 w-32 h-32 rounded-full border-8 border-sf-track-fill"
             style={{
               clipPath: `polygon(50% 50%, 50% 0%, ${50 + percentage * 0.5}% 0%)`,
             }}
           />
           <div
-            className="absolute bottom-0 left-1/2 w-1 h-14 bg-amber-800 rounded-full origin-bottom"
+            className="absolute bottom-0 left-1/2 w-1 h-14 bg-sf-secondary rounded-full origin-bottom"
             style={{ transform: `translateX(-50%) rotate(${gaugeRotation}deg)` }}
           />
         </div>
       </div>
 
       <p className={`text-center text-lg font-bold ${color}`}>{label}</p>
-      <p className="text-center text-sm text-amber-600 mt-1">
+      <p className="text-center text-sm text-sf-muted mt-1">
         {wordsReady} of {wordsTotal} words ready
       </p>
     </div>

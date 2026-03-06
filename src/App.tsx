@@ -18,13 +18,14 @@ import { wordRepo } from './data/repositories/word-repo';
 import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
-import { applySettings } from './accessibility/settings';
+import { applySettings, mergeSetting } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
 import { ProgressView } from './features/dashboard/progress-view';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { ListEditor } from './features/word-lists/list-editor';
 import { FeedbackForm } from './features/feedback/feedback-form';
+import { ThemeToggle } from './features/settings/theme-toggle';
 import { AudioManagerImpl, TtsProvider } from './audio';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -173,6 +174,19 @@ function App() {
     [activeProfile],
   );
 
+  const handleContrastModeChange = useCallback(
+    async (mode: AccessibilitySettings['contrastMode']) => {
+      if (!activeProfile) return;
+      const newSettings = mergeSetting(activeProfile.settings, 'contrastMode', mode);
+      applySettings(newSettings);
+      const updated = { ...activeProfile, settings: newSettings };
+      await profileRepo.update(updated.id, { settings: newSettings });
+      setActiveProfile(updated);
+      eventBus.emit({ type: 'settings:changed', payload: { profileId: updated.id, settings: { contrastMode: mode } } });
+    },
+    [activeProfile],
+  );
+
   const handleFeedback = useCallback(async (text: string) => {
     await db.syncQueue.add({
       id: uuidv4(),
@@ -204,8 +218,8 @@ function App() {
   switch (view) {
     case 'loading':
       return (
-        <div className="min-h-screen bg-amber-50 flex items-center justify-center">
-          <p className="text-amber-700 text-lg">Loading...</p>
+        <div className="min-h-screen bg-sf-bg flex items-center justify-center">
+          <p className="text-sf-text text-lg">Loading...</p>
         </div>
       );
 
@@ -258,7 +272,7 @@ function App() {
     default:
       if (!activeProfile) return null;
       return (
-        <div>
+        <div className="bg-sf-bg min-h-screen">
           <ProgressView
             streakData={streakData}
             allWords={allWords}
@@ -270,11 +284,17 @@ function App() {
             onBack={() => setView(profiles.length > 1 ? 'profile-select' : 'home')}
           />
 
-          {/* Bottom actions */}
-          <div className="max-w-lg mx-auto px-4 pb-4">
+          {/* Theme toggle + bottom actions */}
+          <div className="max-w-lg mx-auto px-4 pb-4 space-y-3">
+            <div className="flex justify-center">
+              <ThemeToggle
+                current={activeProfile.settings.contrastMode}
+                onChange={handleContrastModeChange}
+              />
+            </div>
             <button
               onClick={() => setView('feedback')}
-              className="w-full bg-white border border-amber-200 hover:bg-amber-50 text-amber-600 py-2 rounded-lg text-sm transition-colors"
+              className="w-full bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-muted py-2 rounded-lg text-sm transition-colors"
             >
               Send Feedback
             </button>

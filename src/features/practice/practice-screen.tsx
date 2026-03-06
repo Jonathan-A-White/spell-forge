@@ -114,9 +114,9 @@ export function PracticeScreen({
 
   if (!session || !session.currentWord) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-amber-700 text-lg">No words to practice!</p>
-        <button onClick={onBack} className="ml-4 text-amber-600 underline">
+      <div className="flex items-center justify-center min-h-screen bg-sf-bg">
+        <p className="text-sf-text text-lg">No words to practice!</p>
+        <button onClick={onBack} className="ml-4 text-sf-muted underline">
           Go Back
         </button>
       </div>
@@ -128,25 +128,25 @@ export function PracticeScreen({
     : 0;
 
   return (
-    <div className="min-h-screen bg-amber-50 p-4 flex flex-col">
+    <div className="min-h-screen bg-sf-bg p-4 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={handleQuit}
-          className="text-amber-600 hover:text-amber-800 font-medium"
+          className="text-sf-muted hover:text-sf-secondary font-medium"
           aria-label="Quit session"
         >
           Quit
         </button>
-        <div className="text-sm text-amber-600">
+        <div className="text-sm text-sf-muted">
           {session.currentIndex + 1} / {session.words.length}
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-amber-200 rounded-full h-2 mb-8">
+      <div className="w-full bg-sf-track rounded-full h-2 mb-8">
         <div
-          className="bg-amber-600 h-2 rounded-full transition-all duration-300"
+          className="bg-sf-track-fill h-2 rounded-full transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -154,10 +154,10 @@ export function PracticeScreen({
       {/* Current word */}
       <div className="flex-1 flex flex-col items-center justify-center gap-8">
         <div className="text-center">
-          <p className="text-amber-600 text-sm mb-2">Spell this word:</p>
+          <p className="text-sf-muted text-sm mb-2">Spell this word:</p>
           <button
             onClick={() => onSpeak?.(session.currentWord!.text)}
-            className="text-2xl font-bold text-amber-900 hover:text-amber-700 transition-colors"
+            className="text-2xl font-bold text-sf-heading hover:text-sf-text transition-colors"
             aria-label={`Hear the word ${session.currentWord.text}`}
           >
             Hear it again
@@ -182,7 +182,7 @@ export function PracticeScreen({
         />
 
         {session.attemptCount > 0 && !session.scaffoldingActive && (
-          <p className="text-amber-700 text-center">
+          <p className="text-sf-text text-center">
             Almost! Try sounding it out.
           </p>
         )}

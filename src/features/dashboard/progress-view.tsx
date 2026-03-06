@@ -45,25 +45,25 @@ export function ProgressView({
     : 0;
 
   return (
-    <div className="min-h-screen bg-amber-50 p-4 max-w-lg mx-auto">
+    <div className="min-h-screen bg-sf-bg p-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="text-amber-600 hover:text-amber-800">
+        <button onClick={onBack} className="text-sf-muted hover:text-sf-secondary">
           Back
         </button>
-        <h1 className="text-xl font-bold text-amber-900">Progress</h1>
+        <h1 className="text-xl font-bold text-sf-heading">Progress</h1>
         <div />
       </div>
 
       {/* Streak */}
       {streakData && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-amber-200 mb-4">
+        <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border mb-4">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-2xl font-bold text-amber-800">{streakData.currentStreak}</p>
-              <p className="text-sm text-amber-600">Day Streak</p>
+              <p className="text-2xl font-bold text-sf-secondary">{streakData.currentStreak}</p>
+              <p className="text-sm text-sf-muted">Day Streak</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-amber-500">Best: {streakData.longestStreak}</p>
+              <p className="text-sm text-sf-faint">Best: {streakData.longestStreak}</p>
             </div>
           </div>
           {/* Weekly dots */}
@@ -74,7 +74,7 @@ export function ProgressView({
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
                   day.completed
                     ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-500'
+                    : 'bg-sf-track text-sf-faint'
                 }`}
                 title={day.date}
               >
@@ -97,29 +97,29 @@ export function ProgressView({
       )}
 
       {/* Lifetime Health */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-amber-200 mb-4">
-        <h3 className="font-bold text-amber-900 mb-3">Lifetime Word Health</h3>
-        <p className="text-amber-700 mb-3">
+      <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border mb-4">
+        <h3 className="font-bold text-sf-heading mb-3">Lifetime Word Health</h3>
+        <p className="text-sf-text mb-3">
           {mastered} of {allWords.length} words mastered
         </p>
         <div className="space-y-2">
           <HealthBar label="Mastered" count={mastered} total={allWords.length} color="bg-green-500" />
           <HealthBar label="Familiar" count={familiar} total={allWords.length} color="bg-yellow-500" />
           <HealthBar label="Learning" count={learning} total={allWords.length} color="bg-orange-500" />
-          <HealthBar label="New" count={newWords} total={allWords.length} color="bg-gray-400" />
+          <HealthBar label="New" count={newWords} total={allWords.length} color="bg-sf-track" />
         </div>
       </div>
 
       {/* Empty state — guide user to add words first */}
       {allWords.length === 0 && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-dashed border-amber-300 mb-4 text-center">
-          <p className="text-amber-800 font-medium text-lg mb-2">No spelling words yet!</p>
-          <p className="text-amber-600 text-sm mb-4">
+        <div className="bg-sf-surface rounded-xl p-6 shadow-sm border-2 border-dashed border-sf-border-strong mb-4 text-center">
+          <p className="text-sf-secondary font-medium text-lg mb-2">No spelling words yet!</p>
+          <p className="text-sf-muted text-sm mb-4">
             Add your spelling words to start practicing.
           </p>
           <button
             onClick={onAddWords}
-            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-colors shadow-md"
+            className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-4 px-8 rounded-xl text-lg transition-colors shadow-md"
           >
             Add Spelling Words
           </button>
@@ -131,13 +131,13 @@ export function ProgressView({
         <div className="space-y-3">
           <button
             onClick={onStartPractice}
-            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-colors shadow-md"
+            className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-4 px-8 rounded-xl text-lg transition-colors shadow-md"
           >
             Start Practice
           </button>
           <button
             onClick={onAddWords}
-            className="w-full bg-white border-2 border-amber-300 hover:bg-amber-50 text-amber-800 font-medium py-3 rounded-xl transition-colors"
+            className="w-full bg-sf-surface border-2 border-sf-border-strong hover:bg-sf-surface-hover text-sf-secondary font-medium py-3 rounded-xl transition-colors"
           >
             Add More Words
           </button>
@@ -151,11 +151,11 @@ function HealthBar({ label, count, total, color }: { label: string; count: numbe
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-amber-700 w-20">{label}</span>
-      <div className="flex-1 bg-gray-200 rounded-full h-3">
+      <span className="text-sm text-sf-text w-20">{label}</span>
+      <div className="flex-1 bg-sf-track rounded-full h-3">
         <div className={`${color} h-3 rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-sm text-amber-600 w-8 text-right">{count}</span>
+      <span className="text-sm text-sf-muted w-8 text-right">{count}</span>
     </div>
   );
 }

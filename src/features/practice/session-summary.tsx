@@ -16,26 +16,26 @@ export function SessionSummary({ session, reward, streakCount, onDone }: Session
 
   return (
     <div className="flex flex-col items-center gap-6 p-8 text-center max-w-md mx-auto">
-      <h2 className="text-3xl font-bold text-amber-900">Amazing Work!</h2>
+      <h2 className="text-3xl font-bold text-sf-heading">Amazing Work!</h2>
 
       <div className="grid grid-cols-2 gap-4 w-full">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-amber-200">
-          <p className="text-2xl font-bold text-amber-800">{session.wordsAttempted}</p>
-          <p className="text-sm text-amber-600">Words Practiced</p>
+        <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border">
+          <p className="text-2xl font-bold text-sf-secondary">{session.wordsAttempted}</p>
+          <p className="text-sm text-sf-muted">Words Practiced</p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-amber-200">
+        <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border">
           <p className="text-2xl font-bold text-green-700">{accuracy}%</p>
-          <p className="text-sm text-amber-600">Accuracy</p>
+          <p className="text-sm text-sf-muted">Accuracy</p>
         </div>
       </div>
 
       {reward && reward.unitsEarned > 0 && (
-        <div className="bg-amber-100 rounded-xl p-4 w-full">
-          <p className="text-lg font-bold text-amber-900">
+        <div className="bg-sf-surface-active rounded-xl p-4 w-full">
+          <p className="text-lg font-bold text-sf-heading">
             +{reward.unitsEarned} earned!
           </p>
           {reward.milestoneReached && (
-            <p className="text-amber-700 mt-1">
+            <p className="text-sf-text mt-1">
               Milestone reached: {reward.milestoneReached}!
             </p>
           )}
@@ -43,14 +43,14 @@ export function SessionSummary({ session, reward, streakCount, onDone }: Session
       )}
 
       {streakCount > 0 && (
-        <p className="text-lg text-amber-700">
+        <p className="text-lg text-sf-text">
           {streakCount}-day streak! Keep it going!
         </p>
       )}
 
       <button
         onClick={onDone}
-        className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-colors"
+        className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-4 px-8 rounded-xl text-lg transition-colors"
       >
         Done
       </button>

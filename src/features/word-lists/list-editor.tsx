@@ -33,17 +33,17 @@ export function ListEditor({ list, existingWords, onSave, onCancel }: ListEditor
     .filter((w) => w.trim().length > 0).length;
 
   return (
-    <div className="min-h-screen bg-amber-50 p-4 max-w-lg mx-auto">
+    <div className="min-h-screen bg-sf-bg p-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={onCancel} className="text-amber-600 hover:text-amber-800">
+        <button onClick={onCancel} className="text-sf-muted hover:text-sf-secondary">
           Cancel
         </button>
-        <h1 className="text-xl font-bold text-amber-900">
+        <h1 className="text-xl font-bold text-sf-heading">
           {list ? 'Edit List' : 'New Word List'}
         </h1>
         <button
           onClick={handleSave}
-          className="text-amber-600 hover:text-amber-800 font-bold"
+          className="text-sf-muted hover:text-sf-secondary font-bold"
           disabled={name.trim() === '' || wordCount === 0}
         >
           Save
@@ -52,7 +52,7 @@ export function ListEditor({ list, existingWords, onSave, onCancel }: ListEditor
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">
+          <label className="block text-sm font-medium text-sf-secondary mb-1">
             List Name
           </label>
           <input
@@ -60,24 +60,24 @@ export function ListEditor({ list, existingWords, onSave, onCancel }: ListEditor
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g., Week 12"
-            className="w-full border border-amber-300 rounded-lg px-4 py-3 text-amber-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full border border-sf-input-border rounded-lg px-4 py-3 text-sf-heading bg-sf-input-bg focus:outline-none focus:ring-2 focus:ring-sf-primary"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">
+          <label className="block text-sm font-medium text-sf-secondary mb-1">
             Test Date (optional)
           </label>
           <input
             type="date"
             value={testDate}
             onChange={(e) => setTestDate(e.target.value)}
-            className="w-full border border-amber-300 rounded-lg px-4 py-3 text-amber-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full border border-sf-input-border rounded-lg px-4 py-3 text-sf-heading bg-sf-input-bg focus:outline-none focus:ring-2 focus:ring-sf-primary"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">
+          <label className="block text-sm font-medium text-sf-secondary mb-1">
             Words (one per line or comma-separated)
           </label>
           <textarea
@@ -85,9 +85,9 @@ export function ListEditor({ list, existingWords, onSave, onCancel }: ListEditor
             onChange={(e) => setWordsText(e.target.value)}
             rows={10}
             placeholder="knight&#10;bridge&#10;light&#10;because"
-            className="w-full border border-amber-300 rounded-lg px-4 py-3 text-amber-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+            className="w-full border border-sf-input-border rounded-lg px-4 py-3 text-sf-heading bg-sf-input-bg focus:outline-none focus:ring-2 focus:ring-sf-primary font-mono"
           />
-          <p className="text-sm text-amber-600 mt-1">{wordCount} words</p>
+          <p className="text-sm text-sf-muted mt-1">{wordCount} words</p>
         </div>
       </div>
     </div>
