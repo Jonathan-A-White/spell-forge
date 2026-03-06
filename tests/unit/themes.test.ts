@@ -1,0 +1,397 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { themeEngine } from '../../src/themes/engine.ts';
+import { dragonForgeTheme } from '../../src/themes/dragon-forge/theme.ts';
+import { monsterLabTheme } from '../../src/themes/monster-lab/theme.ts';
+import { starTrailTheme } from '../../src/themes/star-trail/theme.ts';
+import { rewardTracker } from '../../src/features/rewards/reward-tracker.ts';
+import type { AppEvent, Theme } from '../../src/contracts/types.ts';
+
+// ─── Theme Loading ───────────────────────────────────────────
+
+describe('Theme Loading', () => {
+  it('loads all 3 themes', () => {
+    const themes = themeEngine.getAllThemes();
+    expect(themes).toHaveLength(3);
+  });
+
+  it('retrieves Dragon Forge theme by id', () => {
+    const theme = themeEngine.getTheme('dragon-forge');
+    expect(theme).toBe(dragonForgeTheme);
+  });
+
+  it('retrieves Monster Lab theme by id', () => {
+    const theme = themeEngine.getTheme('monster-lab');
+    expect(theme).toBe(monsterLabTheme);
+  });
+
+  it('retrieves Star Trail theme by id', () => {
+    const theme = themeEngine.getTheme('star-trail');
+    expect(theme).toBe(starTrailTheme);
+  });
+
+  it('throws for unknown theme id', () => {
+    expect(() => themeEngine.getTheme('nonexistent')).toThrow('Theme not found: nonexistent');
+  });
+});
+
+// ─── Theme Definitions ───────────────────────────────────────
+
+describe('Dragon Forge Theme', () => {
+  it('has correct reward mechanic', () => {
+    expect(dragonForgeTheme.rewardMechanic.type).toBe('build');
+    expect(dragonForgeTheme.rewardMechanic.unitName).toBe('scales');
+    expect(dragonForgeTheme.rewardMechanic.progressPerCorrect).toBe(1);
+    expect(dragonForgeTheme.rewardMechanic.progressPerSession).toBe(3);
+  });
+
+  it('has 5 milestones in correct order', () => {
+    expect(dragonForgeTheme.rewardMechanic.milestoneNames).toEqual([
+      'Egg', 'Hatching', 'Baby Dragon', 'Young Dragon', 'Full Dragon',
+    ]);
+  });
+
+  it('has fiery palette colors', () => {
+    const { palette } = dragonForgeTheme;
+    // Primary should be a reddish hue
+    expect(palette.primary).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(palette.secondary).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(palette.accent).toMatch(/^#[0-9A-Fa-f]{6}$/);
+  });
+});
+
+describe('Monster Lab Theme', () => {
+  it('has correct reward mechanic', () => {
+    expect(monsterLabTheme.rewardMechanic.type).toBe('build');
+    expect(monsterLabTheme.rewardMechanic.unitName).toBe('blocks');
+    expect(monsterLabTheme.rewardMechanic.progressPerCorrect).toBe(1);
+    expect(monsterLabTheme.rewardMechanic.progressPerSession).toBe(3);
+  });
+
+  it('has 5 milestones in correct order', () => {
+    expect(monsterLabTheme.rewardMechanic.milestoneNames).toEqual([
+      'Blueprint', 'Base', 'Body', 'Details', 'Complete Creature',
+    ]);
+  });
+
+  it('has vibrant palette colors', () => {
+    const { palette } = monsterLabTheme;
+    expect(palette.primary).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(palette.secondary).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(palette.accent).toMatch(/^#[0-9A-Fa-f]{6}$/);
+  });
+});
+
+describe('Star Trail Theme', () => {
+  it('has correct reward mechanic', () => {
+    expect(starTrailTheme.rewardMechanic.type).toBe('collect');
+    expect(starTrailTheme.rewardMechanic.unitName).toBe('stars');
+    expect(starTrailTheme.rewardMechanic.progressPerCorrect).toBe(1);
+    expect(starTrailTheme.rewardMechanic.progressPerSession).toBe(3);
+  });
+
+  it('has 5 milestones in correct order', () => {
+    expect(starTrailTheme.rewardMechanic.milestoneNames).toEqual([
+      'First Light', 'Cluster', 'Constellation', 'Galaxy', 'Universe',
+    ]);
+  });
+
+  it('has navy/gold/silver palette colors', () => {
+    const { palette } = starTrailTheme;
+    expect(palette.primary).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(palette.secondary).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(palette.accent).toMatch(/^#[0-9A-Fa-f]{6}$/);
+  });
+});
+
+// ─── Theme Palette Validation ────────────────────────────────
+
+describe('Theme Palette Validation', () => {
+  const allThemes: Theme[] = [dragonForgeTheme, monsterLabTheme, starTrailTheme];
+
+  for (const theme of allThemes) {
+    describe(`${theme.name} palette`, () => {
+      const paletteKeys: (keyof typeof theme.palette)[] = [
+        'primary', 'secondary', 'accent', 'background', 'text', 'success', 'error',
+      ];
+
+      for (const key of paletteKeys) {
+        it(`has valid hex color for ${key}`, () => {
+          expect(theme.palette[key]).toMatch(/^#[0-9A-Fa-f]{6}$/);
+        });
+      }
+    });
+  }
+});
+
+// ─── Reward Calculation ──────────────────────────────────────
+
+describe('Reward Calculation', () => {
+  it('awards 1 unit for a correct word attempt', () => {
+    const event: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    const reward = themeEngine.calculateReward(event, 'dragon-forge', 0);
+    expect(reward.unitsEarned).toBe(1);
+    expect(reward.totalProgress).toBe(1);
+    expect(reward.themeId).toBe('dragon-forge');
+  });
+
+  it('awards 0 units for an incorrect word attempt', () => {
+    const event: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: false, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    const reward = themeEngine.calculateReward(event, 'dragon-forge', 5);
+    expect(reward.unitsEarned).toBe(0);
+    expect(reward.totalProgress).toBe(5);
+  });
+
+  it('awards session completion bonus of 3 units', () => {
+    const event: AppEvent = {
+      type: 'session:ended',
+      payload: {
+        sessionLog: {
+          id: 's1',
+          profileId: 'p1',
+          startedAt: new Date(),
+          endedAt: new Date(),
+          wordsAttempted: 10,
+          wordsCorrect: 8,
+          engagementScore: 0.9,
+          endReason: 'completed',
+          rewardEarned: null,
+        },
+      },
+    };
+    const reward = themeEngine.calculateReward(event, 'star-trail', 5);
+    expect(reward.unitsEarned).toBe(3);
+    expect(reward.totalProgress).toBe(8);
+  });
+
+  it('awards streak bonus equal to current streak count', () => {
+    const event: AppEvent = {
+      type: 'streak:updated',
+      payload: {
+        profileId: 'p1',
+        currentStreak: 5,
+        longestStreak: 10,
+        lastSessionDate: new Date(),
+        weeklyProgress: [],
+      },
+    };
+    const reward = themeEngine.calculateReward(event, 'monster-lab', 10);
+    expect(reward.unitsEarned).toBe(5);
+    expect(reward.totalProgress).toBe(15);
+  });
+
+  it('awards 0 units for non-reward events', () => {
+    const event: AppEvent = {
+      type: 'session:started',
+      payload: { profileId: 'p1' },
+    };
+    const reward = themeEngine.calculateReward(event, 'dragon-forge', 10);
+    expect(reward.unitsEarned).toBe(0);
+    expect(reward.totalProgress).toBe(10);
+  });
+});
+
+// ─── Milestone Transitions ───────────────────────────────────
+
+describe('Milestone Transitions', () => {
+  const UNITS = themeEngine.UNITS_PER_MILESTONE; // 10
+
+  it('detects milestone reached when crossing threshold', () => {
+    const event: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    // Progress at 9, earning 1 should cross to milestone index 1 (Hatching)
+    const reward = themeEngine.calculateReward(event, 'dragon-forge', UNITS - 1);
+    expect(reward.milestoneReached).toBe('Hatching');
+    expect(reward.totalProgress).toBe(UNITS);
+  });
+
+  it('returns null milestone when no threshold crossed', () => {
+    const event: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    const reward = themeEngine.calculateReward(event, 'dragon-forge', 5);
+    expect(reward.milestoneReached).toBeNull();
+  });
+
+  it('detects each milestone at correct thresholds for Dragon Forge', () => {
+    const milestones = dragonForgeTheme.rewardMechanic.milestoneNames;
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+
+    // milestones[0] = "Egg" is the starting milestone (index 0, progress 0-9)
+    // Crossing from 9->10 should reach milestones[1] = "Hatching"
+    for (let i = 1; i < milestones.length; i++) {
+      const threshold = i * UNITS;
+      const reward = themeEngine.calculateReward(correctEvent, 'dragon-forge', threshold - 1);
+      expect(reward.milestoneReached).toBe(milestones[i]);
+    }
+  });
+
+  it('does not detect milestone beyond the last one', () => {
+    const event: AppEvent = {
+      type: 'session:ended',
+      payload: {
+        sessionLog: {
+          id: 's1',
+          profileId: 'p1',
+          startedAt: new Date(),
+          endedAt: new Date(),
+          wordsAttempted: 10,
+          wordsCorrect: 10,
+          engagementScore: 1.0,
+          endReason: 'completed',
+          rewardEarned: null,
+        },
+      },
+    };
+    // Already at max milestone (index 4, progress >= 40), earning 3 more shouldn't trigger
+    const reward = themeEngine.calculateReward(event, 'dragon-forge', 45);
+    expect(reward.milestoneReached).toBeNull();
+  });
+});
+
+// ─── getMilestoneStatus ──────────────────────────────────────
+
+describe('getMilestoneStatus', () => {
+  const UNITS = themeEngine.UNITS_PER_MILESTONE;
+
+  it('returns first milestone at progress 0', () => {
+    const status = themeEngine.getMilestoneStatus('dragon-forge', 0);
+    expect(status.current).toBe('Egg');
+    expect(status.next).toBe('Hatching');
+    expect(status.progressToNext).toBe(UNITS);
+  });
+
+  it('returns correct progress within a milestone', () => {
+    const status = themeEngine.getMilestoneStatus('dragon-forge', 7);
+    expect(status.current).toBe('Egg');
+    expect(status.next).toBe('Hatching');
+    expect(status.progressToNext).toBe(3);
+  });
+
+  it('returns second milestone at progress = UNITS_PER_MILESTONE', () => {
+    const status = themeEngine.getMilestoneStatus('dragon-forge', UNITS);
+    expect(status.current).toBe('Hatching');
+    expect(status.next).toBe('Baby Dragon');
+    expect(status.progressToNext).toBe(UNITS);
+  });
+
+  it('returns last milestone with no next', () => {
+    const status = themeEngine.getMilestoneStatus('dragon-forge', UNITS * 4);
+    expect(status.current).toBe('Full Dragon');
+    expect(status.next).toBeNull();
+    expect(status.progressToNext).toBe(0);
+  });
+
+  it('clamps to last milestone when progress far exceeds max', () => {
+    const status = themeEngine.getMilestoneStatus('dragon-forge', 999);
+    expect(status.current).toBe('Full Dragon');
+    expect(status.next).toBeNull();
+  });
+
+  it('works correctly for Star Trail theme', () => {
+    const status = themeEngine.getMilestoneStatus('star-trail', UNITS * 2 + 5);
+    expect(status.current).toBe('Constellation');
+    expect(status.next).toBe('Galaxy');
+    expect(status.progressToNext).toBe(5);
+  });
+
+  it('works correctly for Monster Lab theme', () => {
+    const status = themeEngine.getMilestoneStatus('monster-lab', UNITS * 3);
+    expect(status.current).toBe('Details');
+    expect(status.next).toBe('Complete Creature');
+    expect(status.progressToNext).toBe(UNITS);
+  });
+});
+
+// ─── RewardTracker ───────────────────────────────────────────
+
+describe('RewardTracker', () => {
+  beforeEach(() => {
+    rewardTracker.resetAll();
+  });
+
+  it('starts with 0 progress for a new profile', () => {
+    expect(rewardTracker.getProgress('p1', 'dragon-forge')).toBe(0);
+  });
+
+  it('accumulates progress via processEvent', () => {
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+
+    const reward1 = rewardTracker.processEvent('p1', 'dragon-forge', correctEvent);
+    expect(reward1.totalProgress).toBe(1);
+
+    const reward2 = rewardTracker.processEvent('p1', 'dragon-forge', correctEvent);
+    expect(reward2.totalProgress).toBe(2);
+
+    expect(rewardTracker.getProgress('p1', 'dragon-forge')).toBe(2);
+  });
+
+  it('tracks progress independently per profile and theme', () => {
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+
+    rewardTracker.processEvent('p1', 'dragon-forge', correctEvent);
+    rewardTracker.processEvent('p1', 'dragon-forge', correctEvent);
+    rewardTracker.processEvent('p2', 'star-trail', correctEvent);
+
+    expect(rewardTracker.getProgress('p1', 'dragon-forge')).toBe(2);
+    expect(rewardTracker.getProgress('p2', 'star-trail')).toBe(1);
+    expect(rewardTracker.getProgress('p1', 'star-trail')).toBe(0);
+  });
+
+  it('returns milestone status for a profile', () => {
+    rewardTracker.setProgress('p1', 'dragon-forge', 15);
+    const status = rewardTracker.getMilestoneStatus('p1', 'dragon-forge');
+    expect(status.current).toBe('Hatching');
+    expect(status.next).toBe('Baby Dragon');
+    expect(status.progressToNext).toBe(5);
+  });
+
+  it('resets progress for a specific profile and theme', () => {
+    rewardTracker.setProgress('p1', 'dragon-forge', 20);
+    rewardTracker.setProgress('p1', 'star-trail', 10);
+    rewardTracker.resetProgress('p1', 'dragon-forge');
+
+    expect(rewardTracker.getProgress('p1', 'dragon-forge')).toBe(0);
+    expect(rewardTracker.getProgress('p1', 'star-trail')).toBe(10);
+  });
+
+  it('resets all progress', () => {
+    rewardTracker.setProgress('p1', 'dragon-forge', 20);
+    rewardTracker.setProgress('p2', 'star-trail', 10);
+    rewardTracker.resetAll();
+
+    expect(rewardTracker.getProgress('p1', 'dragon-forge')).toBe(0);
+    expect(rewardTracker.getProgress('p2', 'star-trail')).toBe(0);
+  });
+
+  it('detects milestone transition through processEvent', () => {
+    const UNITS = themeEngine.UNITS_PER_MILESTONE;
+    rewardTracker.setProgress('p1', 'monster-lab', UNITS - 1);
+
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+
+    const reward = rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
+    expect(reward.milestoneReached).toBe('Base');
+    expect(reward.totalProgress).toBe(UNITS);
+  });
+});

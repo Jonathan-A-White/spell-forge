@@ -1,0 +1,157 @@
+import { db } from './db';
+import { profileRepo, wordListRepo, wordRepo, statsRepo, sessionRepo, streakRepo } from './repositories';
+import type { ExportPayload, ImportStrategy, ImportResult } from '../contracts/types';
+
+const EXPORT_VERSION = '1.0.0';
+
+export async function exportProfile(profileId: string): Promise<ExportPayload> {
+  const profile = await profileRepo.getById(profileId);
+  if (!profile) throw new Error(`Profile ${profileId} not found`);
+
+  const wordLists = await wordListRepo.getByProfileId(profileId);
+  const words = await wordRepo.getByProfileId(profileId);
+  const wordStats = await statsRepo.getByProfileId(profileId);
+  const sessionLogs = await sessionRepo.getByProfileId(profileId);
+  const streakData = await streakRepo.get(profileId) ?? {
+    profileId,
+    currentStreak: 0,
+    longestStreak: 0,
+    lastSessionDate: null,
+    weeklyProgress: [],
+  };
+
+  return {
+    version: EXPORT_VERSION,
+    exportedAt: new Date(),
+    profile,
+    wordLists,
+    words,
+    wordStats,
+    sessionLogs,
+    streakData,
+  };
+}
+
+export async function importProfile(
+  payload: ExportPayload,
+  strategy: ImportStrategy,
+): Promise<ImportResult> {
+  if (strategy === 'replace') {
+    return importReplace(payload);
+  }
+  return importMerge(payload);
+}
+
+async function importReplace(payload: ExportPayload): Promise<ImportResult> {
+  const profileId = payload.profile.id;
+
+  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks], async () => {
+    // Clear all existing data for this profile
+    await db.wordStats.where('profileId').equals(profileId).delete();
+    await db.words.where('profileId').equals(profileId).delete();
+    await db.wordLists.where('profileId').equals(profileId).delete();
+    await db.sessionLogs.where('profileId').equals(profileId).delete();
+    await db.streaks.where('profileId').equals(profileId).delete();
+    await db.profiles.delete(profileId);
+
+    // Insert all imported data
+    await db.profiles.add(payload.profile);
+    if (payload.wordLists.length) await db.wordLists.bulkAdd(payload.wordLists);
+    if (payload.words.length) await db.words.bulkAdd(payload.words);
+    if (payload.wordStats.length) await db.wordStats.bulkAdd(payload.wordStats);
+    if (payload.sessionLogs.length) await db.sessionLogs.bulkAdd(payload.sessionLogs);
+    await db.streaks.put(payload.streakData);
+  });
+
+  return {
+    profileId,
+    wordsAdded: payload.words.length,
+    wordsUpdated: 0,
+    wordsPreserved: 0,
+    listsAdded: payload.wordLists.length,
+    strategy: 'replace',
+  };
+}
+
+async function importMerge(payload: ExportPayload): Promise<ImportResult> {
+  const profileId = payload.profile.id;
+  let wordsAdded = 0;
+  let wordsUpdated = 0;
+  let wordsPreserved = 0;
+  let listsAdded = 0;
+
+  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks], async () => {
+    // Profile: import wins
+    const existingProfile = await db.profiles.get(profileId);
+    if (existingProfile) {
+      await db.profiles.put(payload.profile);
+    } else {
+      await db.profiles.add(payload.profile);
+    }
+
+    // Word lists: import wins on conflict, add new
+    const existingLists = await db.wordLists.where('profileId').equals(profileId).toArray();
+    const existingListIds = new Set(existingLists.map(l => l.id));
+
+    for (const list of payload.wordLists) {
+      if (existingListIds.has(list.id)) {
+        await db.wordLists.put(list);
+      } else {
+        await db.wordLists.add(list);
+        listsAdded++;
+      }
+    }
+
+    // Words: import wins on conflict, new words added, existing-only preserved
+    const existingWords = await db.words.where('profileId').equals(profileId).toArray();
+    const existingWordIds = new Set(existingWords.map(w => w.id));
+    const importedWordIds = new Set(payload.words.map(w => w.id));
+
+    for (const word of payload.words) {
+      if (existingWordIds.has(word.id)) {
+        await db.words.put(word);
+        wordsUpdated++;
+      } else {
+        await db.words.add(word);
+        wordsAdded++;
+      }
+    }
+
+    // Count words that exist only locally
+    for (const eid of existingWordIds) {
+      if (!importedWordIds.has(eid)) {
+        wordsPreserved++;
+      }
+    }
+
+    // Stats: import wins on conflict
+    for (const stat of payload.wordStats) {
+      const existing = await db.wordStats.get(stat.id);
+      if (existing) {
+        await db.wordStats.put(stat);
+      } else {
+        await db.wordStats.add(stat);
+      }
+    }
+
+    // Session logs: add any that don't exist
+    for (const session of payload.sessionLogs) {
+      const existing = await db.sessionLogs.get(session.id);
+      if (!existing) {
+        await db.sessionLogs.add(session);
+      }
+    }
+
+    // Streak: import wins
+    await db.streaks.put(payload.streakData);
+  });
+
+  return {
+    profileId,
+    wordsAdded,
+    wordsUpdated,
+    wordsPreserved,
+    listsAdded,
+    strategy: 'merge',
+  };
+}
