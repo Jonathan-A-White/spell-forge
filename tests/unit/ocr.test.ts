@@ -20,20 +20,26 @@ describe('cleanWords', () => {
     expect(cleanWords('hello! world? 123test foo#bar')).toEqual(['hello', 'world', 'test', 'foobar']);
   });
 
-  it('preserves hyphens within words', () => {
-    expect(cleanWords('well-known ice-cream')).toEqual(['well-known', 'ice-cream']);
+  it('filters short tokens after stripping non-alpha chars', () => {
+    // "b!!" → "b" (too short), "x9" → "x" (too short)
+    expect(cleanWords('apple b!! x9 nice')).toEqual(['apple', 'nice']);
   });
 
-  it('strips leading/trailing hyphens', () => {
-    expect(cleanWords('-hello- -world')).toEqual(['hello', 'world']);
+  it('preserves internal hyphens and strips leading/trailing ones', () => {
+    expect(cleanWords('well-known -hello- -world ice-cream')).toEqual([
+      'well-known',
+      'hello',
+      'world',
+      'ice-cream',
+    ]);
   });
 
   it('removes duplicates', () => {
     expect(cleanWords('cat dog cat DOG fish')).toEqual(['cat', 'dog', 'fish']);
   });
 
-  it('filters single-character words except "a" and "I"', () => {
-    expect(cleanWords('a I b c the x')).toEqual(['a', 'i', 'the']);
+  it('filters short tokens except allowed words like "a" and "i"', () => {
+    expect(cleanWords('a I b c the x go by')).toEqual(['a', 'i', 'the']);
   });
 
   it('handles empty / whitespace-only input', () => {
@@ -41,10 +47,37 @@ describe('cleanWords', () => {
     expect(cleanWords('   \n\t  ')).toEqual([]);
   });
 
-  it('handles messy OCR output', () => {
+  it('handles messy OCR output and filters noise', () => {
     const messy = '  The  qu1ck  brown  f0x!!  jumps\n\nover the... LAZY d0g. the ';
     const result = cleanWords(messy);
-    expect(result).toEqual(['the', 'quck', 'brown', 'fx', 'jumps', 'over', 'lazy', 'dg']);
+    // "fx" → too short (2 chars), "dg" → too short and no vowel
+    // "quck" has vowel "u" so it passes
+    expect(result).toEqual(['the', 'quck', 'brown', 'jumps', 'over', 'lazy']);
+  });
+
+  it('filters consonant-only noise tokens', () => {
+    expect(cleanWords('str nrl srnr badge')).toEqual(['badge']);
+  });
+
+  it('filters repeated-character tokens', () => {
+    expect(cleanWords('aaa eee rrr hello')).toEqual(['hello']);
+  });
+
+  it('filters tokens with excessive consonant clusters', () => {
+    // "strengths" has "ngths" (5 consonants in a row) → filtered
+    // "srnrle" has "srnrl" (5 consonants) → filtered
+    expect(cleanWords('strengths srnrle apple price')).toEqual(['apple', 'price']);
+  });
+
+  it('keeps hyphenated words that are plausible', () => {
+    expect(cleanWords('well-known ice-cream')).toEqual(['well-known', 'ice-cream']);
+  });
+
+  it('handles typical OCR garbage from word list photos', () => {
+    const garbage = 'func tt ci lr te mens sal beta bi bn rt thad rs sa pha om';
+    const result = cleanWords(garbage);
+    // Most short/vowel-less fragments should be filtered
+    expect(result).toEqual(['func', 'mens', 'sal', 'beta', 'thad', 'pha']);
   });
 });
 
