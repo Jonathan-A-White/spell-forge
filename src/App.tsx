@@ -261,17 +261,12 @@ function App() {
             activeList={activeList}
             daysUntilTest={daysUntilTest}
             onStartPractice={() => setView('practice')}
+            onAddWords={() => setView('list-editor')}
             onBack={() => setView(profiles.length > 1 ? 'profile-select' : 'home')}
           />
 
           {/* Bottom actions */}
-          <div className="max-w-lg mx-auto p-4 space-y-3">
-            <button
-              onClick={() => setView('list-editor')}
-              className="w-full bg-white border-2 border-amber-300 hover:bg-amber-50 text-amber-800 font-medium py-3 rounded-xl transition-colors"
-            >
-              Add Word List
-            </button>
+          <div className="max-w-lg mx-auto px-4 pb-4">
             <button
               onClick={() => setView('feedback')}
               className="w-full bg-white border border-amber-200 hover:bg-amber-50 text-amber-600 py-2 rounded-lg text-sm transition-colors"
