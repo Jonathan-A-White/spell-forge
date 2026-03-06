@@ -7,6 +7,7 @@ interface WordListsViewProps {
   allWords: Word[];
   allStats: WordStats[];
   onAddList: () => void;
+  onImportFromCamera?: () => void;
   onBack: () => void;
 }
 
@@ -15,6 +16,7 @@ export function WordListsView({
   allWords,
   allStats,
   onAddList,
+  onImportFromCamera,
   onBack,
 }: WordListsViewProps) {
   const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
@@ -36,12 +38,24 @@ export function WordListsView({
             </button>
             <h1 className="text-xl font-bold text-sf-heading">Word Lists</h1>
           </div>
-          <button
-            onClick={onAddList}
-            className="px-3 py-1.5 rounded-lg bg-sf-primary text-sf-primary-text text-sm font-bold hover:bg-sf-primary-hover transition-colors"
-          >
-            + New
-          </button>
+          <div className="flex items-center gap-2">
+            {onImportFromCamera && (
+              <button
+                onClick={onImportFromCamera}
+                className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+                aria-label="Import from camera"
+                title="Import from photo"
+              >
+                <CameraIcon />
+              </button>
+            )}
+            <button
+              onClick={onAddList}
+              className="px-3 py-1.5 rounded-lg bg-sf-primary text-sf-primary-text text-sm font-bold hover:bg-sf-primary-hover transition-colors"
+            >
+              + New
+            </button>
+          </div>
         </div>
       </div>
 
@@ -175,6 +189,15 @@ function getBucketStyle(bucket: string): string {
     default:
       return 'bg-sf-track text-sf-muted';
   }
+}
+
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
 }
 
 function BackArrowIcon() {
