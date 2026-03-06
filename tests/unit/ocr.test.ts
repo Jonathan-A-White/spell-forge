@@ -271,6 +271,27 @@ describe('OcrManager', () => {
     expect(remote.getEndpoint()).toBe('https://new-endpoint.example.com');
   });
 
+  it('returns low-confidence local result when remote is unavailable and words were found', async () => {
+    const local = makeLocalProvider({ text: 'badge edge judge', confidence: 0.24 });
+    const remote = new RemoteOcrProvider(); // not configured
+
+    const manager = new OcrManagerImpl(local, remote, { confidenceThreshold: 0.5 });
+    const result = await manager.extractWords(new Blob());
+
+    expect(result.source).toBe('local');
+    expect(result.confidence).toBe(0.24);
+    expect(result.words).toEqual(['badge', 'edge', 'judge']);
+  });
+
+  it('throws when local has low confidence with no words and remote is unavailable', async () => {
+    const local = makeLocalProvider({ text: '  ', confidence: 0.1 });
+    const remote = new RemoteOcrProvider(); // not configured
+
+    const manager = new OcrManagerImpl(local, remote, { confidenceThreshold: 0.5 });
+
+    await expect(manager.extractWords(new Blob())).rejects.toThrow('All OCR providers failed');
+  });
+
   it('returns local result when confidence equals threshold', async () => {
     const local = makeLocalProvider({ text: 'exact threshold', confidence: 0.5 });
     const remote = new RemoteOcrProvider();
