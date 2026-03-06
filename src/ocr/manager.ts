@@ -3,6 +3,7 @@
 import type { OcrResult } from '../contracts/types.ts';
 import { LocalOcrProvider } from './local.ts';
 import { RemoteOcrProvider } from './remote.ts';
+import { createTesseractRecognizer } from './tesseract-recognizer.ts';
 
 export interface OcrManager {
   extractWords(image: Blob): Promise<OcrResult>;
@@ -73,7 +74,7 @@ export function createOcrManager(options?: {
   remoteEndpoint?: string;
   confidenceThreshold?: number;
 }): OcrManagerImpl {
-  const local = new LocalOcrProvider();
+  const local = new LocalOcrProvider(createTesseractRecognizer());
   const remote = new RemoteOcrProvider(options?.remoteEndpoint);
   return new OcrManagerImpl(local, remote, {
     confidenceThreshold: options?.confidenceThreshold,

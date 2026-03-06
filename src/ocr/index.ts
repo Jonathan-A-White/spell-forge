@@ -6,3 +6,4 @@ export { RemoteOcrProvider } from './remote.ts';
 export { OcrManagerImpl, createOcrManager, DEFAULT_CONFIDENCE_THRESHOLD } from './manager.ts';
 export type { OcrManager } from './manager.ts';
 export { cleanWords, normalizeWhitespace } from './utils.ts';
+export { createTesseractRecognizer } from './tesseract-recognizer.ts';
