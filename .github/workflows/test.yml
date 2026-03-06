@@ -206,3 +206,27 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run test:adaptive
+
+  # Gate job — require this single check in branch protection rules
+  ci-pass:
+    if: always()
+    needs:
+      - typecheck-lint
+      - test-contracts
+      - test-phonics
+      - test-spaced-rep
+      - test-data
+      - test-audio
+      - test-ocr
+      - test-themes
+      - test-accessibility
+      - test-adaptive
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "All CI checks passed or were skipped"
