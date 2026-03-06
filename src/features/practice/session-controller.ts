@@ -9,6 +9,7 @@ import type {
 } from '../../contracts/types';
 import { selectSessionWords } from '../../core/word-selection/selector';
 import { analyzeEngagement, determineAction } from '../../core/adaptive/engine';
+import { updateWordStats } from '../../core/spaced-rep';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface SessionState {
@@ -92,6 +93,7 @@ export function recordAttempt(
   struggled: boolean,
   scaffoldingUsed: boolean,
   config: Partial<SessionConfig> = {},
+  currentWordStats?: WordStats | null,
 ): { state: SessionState; updatedStats: WordStats | null; result: TechniqueResult } {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
@@ -107,7 +109,9 @@ export function recordAttempt(
   const newResults = [...state.results, result];
   const newAttemptCount = state.attemptCount + 1;
 
-  const updatedStats: WordStats | null = null;
+  const updatedStats: WordStats | null = currentWordStats
+    ? updateWordStats(currentWordStats, result)
+    : null;
   let newWordsCorrect = state.wordsCorrect;
   let newWordsAttempted = state.wordsAttempted;
 

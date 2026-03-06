@@ -9,6 +9,7 @@ import type {
   SessionLog,
   StreakData,
   AccessibilitySettings,
+  ImportStrategy,
 } from './contracts/types';
 import { createEventBus } from './contracts/events';
 import { db } from './data/db';
@@ -30,6 +31,9 @@ import { WordListsView } from './features/word-lists/word-lists-view';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { AudioManagerImpl, TtsProvider } from './audio';
+import { createOcrManager } from './ocr';
+import { rewardTracker } from './features/rewards';
+import { exportProfile, importProfile } from './data/import-export';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -39,6 +43,8 @@ const eventBus = createEventBus();
 
 const audioManager = new AudioManagerImpl();
 audioManager.registerProvider(new TtsProvider());
+
+const ocrManager = createOcrManager();
 
 function App() {
   const [view, setView] = useState<AppView>('loading');
@@ -114,8 +120,26 @@ function App() {
       if (streak) {
         eventBus.emit({ type: 'streak:updated', payload: streak });
       }
+
+      // Process reward for session completion
+      const reward = rewardTracker.processEvent(
+        activeProfile.id,
+        activeProfile.themeId,
+        { type: 'session:ended', payload: { sessionLog: log } },
+      );
+      eventBus.emit({ type: 'reward:earned', payload: reward });
     },
     [activeProfile],
+  );
+
+  const handleStatsUpdate = useCallback(
+    async (updated: WordStats) => {
+      await statsRepo.update(updated.id, updated);
+      setAllStats((prev) =>
+        prev.map((s) => (s.id === updated.id ? updated : s)),
+      );
+    },
+    [],
   );
 
   const handleSaveList = useCallback(
@@ -228,6 +252,33 @@ function App() {
     });
   }, []);
 
+  const handleExportProfile = useCallback(async () => {
+    if (!activeProfile) return;
+    const payload = await exportProfile(activeProfile.id);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spellforge-${activeProfile.name.toLowerCase().replace(/\s+/g, '-')}-backup.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [activeProfile]);
+
+  const handleImportProfile = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const strategy: ImportStrategy = 'merge';
+      await importProfile(payload, strategy);
+      // Reload current profile data
+      if (activeProfile) {
+        await selectProfile(activeProfile);
+      }
+    } catch {
+      // Import failed silently — could add error reporting later
+    }
+  }, [activeProfile, selectProfile]);
+
   // Compute active list and days until test
   const activeList = wordLists.find((l) => l.active && !l.archived) ?? null;
   const [mountTime] = useState(Date.now);
@@ -267,6 +318,7 @@ function App() {
           daysUntilTest={daysUntilTest}
           streakCount={streakData?.currentStreak ?? 0}
           onSessionEnd={handleSessionEnd}
+          onStatsUpdate={handleStatsUpdate}
           onBack={() => setView('home')}
           onSpeak={(word) => audioManager.speak(word)}
         />
@@ -289,6 +341,7 @@ function App() {
       return (
         <ListEditor
           existingWords={[]}
+          ocrManager={ocrManager}
           onSave={handleSaveList}
           onCancel={() => setView('home')}
         />
@@ -327,6 +380,8 @@ function App() {
           settings={activeProfile.settings}
           onContrastModeChange={handleContrastModeChange}
           onPresetApply={handlePresetApply}
+          onExportProfile={handleExportProfile}
+          onImportProfile={handleImportProfile}
           onBack={() => setView('home')}
         />
       );
@@ -339,6 +394,7 @@ function App() {
           allWords={allWords}
           allStats={allStats}
           onAddList={() => setView('list-editor')}
+          onImportFromCamera={() => setView('list-editor')}
           onBack={() => setView('home')}
         />
       );
