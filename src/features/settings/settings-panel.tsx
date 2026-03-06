@@ -1,5 +1,6 @@
 // src/features/settings/settings-panel.tsx — Full settings screen with theme toggle and accessibility presets
 
+import { useRef } from 'react';
 import type { AccessibilitySettings } from '../../contracts/types';
 import { PRESETS, type NamedPreset } from '../../accessibility/presets';
 
@@ -10,6 +11,8 @@ interface SettingsPanelProps {
   settings: AccessibilitySettings;
   onContrastModeChange: (mode: ContrastMode) => void;
   onPresetApply: (preset: NamedPreset) => void;
+  onExportProfile?: () => void;
+  onImportProfile?: (file: File) => void;
   onBack: () => void;
 }
 
@@ -24,8 +27,12 @@ export function SettingsPanel({
   settings,
   onContrastModeChange,
   onPresetApply,
+  onExportProfile,
+  onImportProfile,
   onBack,
 }: SettingsPanelProps) {
+  const importInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <div className="min-h-screen bg-sf-bg">
       {/* Header */}
@@ -140,6 +147,58 @@ export function SettingsPanel({
             <SettingRow label="Theme" value={profile.themeId.replace(/-/g, ' ')} />
           </div>
         </section>
+
+        {/* Data management */}
+        {(onExportProfile || onImportProfile) && (
+          <section>
+            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+              Data
+            </h2>
+            <div className="space-y-2">
+              {onExportProfile && (
+                <button
+                  onClick={onExportProfile}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
+                >
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sf-track text-sf-muted">
+                    <ExportIcon />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm text-sf-text">Export Profile</p>
+                    <p className="text-xs text-sf-muted">Download a backup of all your data</p>
+                  </div>
+                </button>
+              )}
+              {onImportProfile && (
+                <>
+                  <button
+                    onClick={() => importInputRef.current?.click()}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
+                  >
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sf-track text-sf-muted">
+                      <ImportIcon />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-sm text-sf-text">Import Profile</p>
+                      <p className="text-xs text-sf-muted">Restore from a backup file</p>
+                    </div>
+                  </button>
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) onImportProfile(file);
+                      if (importInputRef.current) importInputRef.current.value = '';
+                    }}
+                    className="hidden"
+                  />
+                </>
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -191,6 +250,26 @@ function CheckIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-5 h-5">
       <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function ExportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+function ImportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
 }

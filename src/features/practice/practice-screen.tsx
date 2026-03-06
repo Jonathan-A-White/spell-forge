@@ -18,6 +18,7 @@ import {
   type SessionState,
   type SessionConfig,
 } from './session-controller';
+import { analyzeWord } from '../../core/phonics';
 
 interface PracticeScreenProps {
   profile: Profile;
@@ -27,6 +28,7 @@ interface PracticeScreenProps {
   daysUntilTest: number | null;
   streakCount: number;
   onSessionEnd: (log: SessionLog) => void;
+  onStatsUpdate?: (stats: WordStats) => void;
   onBack: () => void;
   onSpeak?: (word: string) => void;
 }
@@ -39,6 +41,7 @@ export function PracticeScreen({
   daysUntilTest,
   streakCount,
   onSessionEnd,
+  onStatsUpdate,
   onBack,
   onSpeak,
 }: PracticeScreenProps) {
@@ -69,17 +72,25 @@ export function PracticeScreen({
 
   const handleWordComplete = useCallback(
     (correct: boolean, responseTimeMs: number) => {
-      if (!session) return;
+      if (!session || !session.currentWord) return;
 
       const struggled = responseTimeMs > 15000 || !correct;
-      const { state: newState } = recordAttempt(
+      const currentWordStats = allStats.find(
+        (s) => s.wordId === session.currentWord!.id,
+      ) ?? null;
+      const { state: newState, updatedStats } = recordAttempt(
         session,
         correct,
         responseTimeMs,
         struggled,
         session.scaffoldingActive,
         { maxMinutes: profile.settings.sessionMaxMinutes, adaptive: profile.settings.sessionAdaptive },
+        currentWordStats,
       );
+
+      if (updatedStats) {
+        onStatsUpdate?.(updatedStats);
+      }
 
       setSession(newState);
 
@@ -89,7 +100,7 @@ export function PracticeScreen({
         onSessionEnd(log);
       }
     },
-    [session, profile, onSessionEnd],
+    [session, profile, allStats, onSessionEnd, onStatsUpdate],
   );
 
   const handleQuit = useCallback(() => {
@@ -170,12 +181,17 @@ export function PracticeScreen({
           onComplete={handleWordComplete}
           scaffolding={
             session.scaffoldingActive
-              ? {
-                  chunks: session.currentWord.syllables.length > 0
-                    ? session.currentWord.syllables
-                    : [session.currentWord.text],
-                  hints: [],
-                }
+              ? (() => {
+                  const analysis = analyzeWord(session.currentWord!.text);
+                  return {
+                    chunks: analysis.syllables.length > 0
+                      ? analysis.syllables
+                      : session.currentWord!.syllables.length > 0
+                        ? session.currentWord!.syllables
+                        : [session.currentWord!.text],
+                    hints: analysis.scaffoldingHints,
+                  };
+                })()
               : null
           }
           tapTargetSize={profile.settings.tapTargetSize}
