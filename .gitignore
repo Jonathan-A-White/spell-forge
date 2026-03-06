@@ -23,5 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Tesseract language data (bundled copy lives in public/tessdata/)
+/eng.traineddata
+
 # Claude Code
 .claude/

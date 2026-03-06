@@ -16,6 +16,7 @@
     "test:data": "vitest run tests/unit/data-layer.test.ts",
     "test:audio": "vitest run tests/unit/audio.test.ts",
     "test:ocr": "vitest run tests/unit/ocr.test.ts",
+    "test:ocr-integration": "vitest run tests/unit/ocr-image.test.ts",
     "test:themes": "vitest run tests/unit/themes.test.ts",
     "test:a11y": "vitest run tests/unit/accessibility.test.ts",
     "test:adaptive": "vitest run tests/unit/adaptive-engine.test.ts",

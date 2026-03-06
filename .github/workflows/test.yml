@@ -17,6 +17,7 @@ jobs:
       data: ${{ steps.filter.outputs.data }}
       audio: ${{ steps.filter.outputs.audio }}
       ocr: ${{ steps.filter.outputs.ocr }}
+      ocr-integration: ${{ steps.filter.outputs.ocr-integration }}
       themes: ${{ steps.filter.outputs.themes }}
       a11y: ${{ steps.filter.outputs.a11y }}
       adaptive: ${{ steps.filter.outputs.adaptive }}
@@ -47,6 +48,11 @@ jobs:
             ocr:
               - 'src/ocr/**'
               - 'tests/unit/ocr.test.ts'
+            ocr-integration:
+              - 'src/ocr/**'
+              - 'tests/unit/ocr-image.test.ts'
+              - 'tests/fixtures/tessdata/**'
+              - 'tests/fixtures/spelling-list-*'
             themes:
               - 'src/themes/**'
               - 'src/features/rewards/**'
@@ -165,6 +171,21 @@ jobs:
       - run: npm ci
       - run: npm run test:ocr
 
+  # OCR integration (real Tesseract.js + fixture image)
+  test-ocr-integration:
+    needs: changes
+    if: needs.changes.outputs.ocr-integration == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:ocr-integration
+
   # Theme engine & rewards
   test-themes:
     needs: changes
@@ -218,6 +239,7 @@ jobs:
       - test-data
       - test-audio
       - test-ocr
+      - test-ocr-integration
       - test-themes
       - test-accessibility
       - test-adaptive

@@ -20,7 +20,8 @@ npm run test:phonics     # src/core/phonics/
 npm run test:spaced-rep  # src/core/spaced-rep/ + difficulty scoring
 npm run test:data        # src/data/
 npm run test:audio       # src/audio/
-npm run test:ocr         # src/ocr/
+npm run test:ocr         # src/ocr/ (unit tests)
+npm run test:ocr-integration  # src/ocr/ (real Tesseract.js + fixture image)
 npm run test:themes      # src/themes/
 npm run test:a11y        # src/accessibility/
 npm run test:adaptive    # src/core/adaptive/
