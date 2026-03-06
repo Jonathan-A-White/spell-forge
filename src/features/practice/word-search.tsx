@@ -1,117 +1,42 @@
 // src/features/practice/word-search.tsx — Word Search puzzle game
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import {
+  type WordSearchDifficulty,
+  getDirectionsForDifficulty,
+  getMaxWordsForDifficulty,
+  getGridSizeForDifficulty,
+  buildGrid,
+} from './word-search-difficulty';
 
 interface WordSearchProps {
   words: string[];
+  difficulty: WordSearchDifficulty;
   onComplete: (foundCount: number, totalCount: number) => void;
   tapTargetSize: number;
-}
-
-type Direction = [number, number];
-
-const DIRECTIONS: Direction[] = [
-  [0, 1],   // right
-  [1, 0],   // down
-  [1, 1],   // diagonal down-right
-  [0, -1],  // left
-  [1, -1],  // diagonal down-left
-  [-1, 0],  // up
-  [-1, 1],  // diagonal up-right
-  [-1, -1], // diagonal up-left
-];
-
-interface PlacedWord {
-  word: string;
-  row: number;
-  col: number;
-  direction: Direction;
-  cells: [number, number][];
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-function buildGrid(words: string[], gridSize: number): { grid: string[][]; placed: PlacedWord[] } {
-  const grid: string[][] = Array.from({ length: gridSize }, () =>
-    Array.from({ length: gridSize }, () => ''),
-  );
-  const placed: PlacedWord[] = [];
-
-  // Sort words longest first for better placement
-  const sorted = [...words].sort((a, b) => b.length - a.length);
-
-  for (const word of sorted) {
-    const upper = word.toUpperCase();
-    let didPlace = false;
-
-    const shuffledDirs = shuffle([...DIRECTIONS]);
-    const positions = shuffle(
-      Array.from({ length: gridSize * gridSize }, (_, i) => [Math.floor(i / gridSize), i % gridSize] as [number, number]),
-    );
-
-    for (const [dr, dc] of shuffledDirs) {
-      if (didPlace) break;
-      for (const [startRow, startCol] of positions) {
-        if (didPlace) break;
-        const endRow = startRow + dr * (upper.length - 1);
-        const endCol = startCol + dc * (upper.length - 1);
-
-        if (endRow < 0 || endRow >= gridSize || endCol < 0 || endCol >= gridSize) continue;
-
-        let canPlace = true;
-        const cells: [number, number][] = [];
-        for (let i = 0; i < upper.length; i++) {
-          const r = startRow + dr * i;
-          const c = startCol + dc * i;
-          cells.push([r, c]);
-          if (grid[r][c] !== '' && grid[r][c] !== upper[i]) {
-            canPlace = false;
-            break;
-          }
-        }
-
-        if (canPlace) {
-          for (let i = 0; i < upper.length; i++) {
-            grid[cells[i][0]][cells[i][1]] = upper[i];
-          }
-          placed.push({ word: upper, row: startRow, col: startCol, direction: [dr, dc], cells });
-          didPlace = true;
-        }
-      }
-    }
-  }
-
-  // Fill empty cells with random letters
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      if (grid[r][c] === '') {
-        grid[r][c] = alphabet[Math.floor(Math.random() * 26)];
-      }
-    }
-  }
-
-  return { grid, placed };
 }
 
 function cellKey(r: number, c: number): string {
   return `${r},${c}`;
 }
 
-export function WordSearch({ words, onComplete, tapTargetSize }: WordSearchProps) {
-  const gridSize = useMemo(() => {
-    const maxLen = Math.max(...words.map((w) => w.length));
-    return Math.max(10, maxLen + 3, Math.ceil(Math.sqrt(words.length * 20)));
-  }, [words]);
+export function WordSearch({ words, difficulty, onComplete, tapTargetSize }: WordSearchProps) {
+  const limitedWords = useMemo(() => {
+    const max = getMaxWordsForDifficulty(difficulty);
+    return words.slice(0, max);
+  }, [words, difficulty]);
 
-  const { grid, placed } = useMemo(() => buildGrid(words, gridSize), [words, gridSize]);
+  const gridSize = useMemo(
+    () => getGridSizeForDifficulty(limitedWords, difficulty),
+    [limitedWords, difficulty],
+  );
+
+  const directions = useMemo(() => getDirectionsForDifficulty(difficulty), [difficulty]);
+
+  const { grid, placed } = useMemo(
+    () => buildGrid(limitedWords, gridSize, directions),
+    [limitedWords, gridSize, directions],
+  );
 
   const [foundWords, setFoundWords] = useState<Set<string>>(new Set());
   const [selecting, setSelecting] = useState(false);
@@ -220,6 +145,7 @@ export function WordSearch({ words, onComplete, tapTargetSize }: WordSearchProps
       <h2 className="text-xl font-bold text-sf-heading">Word Search</h2>
       <p className="text-sf-muted text-sm">
         Find {placed.length} word{placed.length !== 1 ? 's' : ''} hidden in the grid!
+        <span className="ml-1 capitalize">({difficulty})</span>
       </p>
 
       {/* Word list */}

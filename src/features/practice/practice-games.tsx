@@ -3,10 +3,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Word, WordList, SessionLog, Profile } from '../../contracts/types';
 import { WordSearch } from './word-search';
+import type { WordSearchDifficulty } from './word-search-difficulty';
 import { Crossword } from './crossword';
 import { SpellingQuiz, type QuizResults } from './spelling-quiz';
 
-type GameMode = 'select' | 'word-search' | 'crossword' | 'quiz';
+type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'crossword' | 'quiz';
 
 interface PracticeGamesProps {
   profile: Profile;
@@ -26,6 +27,7 @@ export function PracticeGames({
   onSpeak,
 }: PracticeGamesProps) {
   const [mode, setMode] = useState<GameMode>('select');
+  const [wordSearchDifficulty, setWordSearchDifficulty] = useState<WordSearchDifficulty>('medium');
   const [gameResult, setGameResult] = useState<{
     correct: number;
     total: number;
@@ -157,7 +159,7 @@ export function PracticeGames({
               icon={<SearchGridIcon />}
               accent="from-blue-500/20 to-cyan-500/10"
               iconColor="text-blue-500"
-              onClick={() => setMode('word-search')}
+              onClick={() => setMode('word-search-difficulty')}
             />
             <GameCard
               title="Crossword Puzzle"
@@ -176,6 +178,65 @@ export function PracticeGames({
               onClick={() => setMode('quiz')}
             />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Difficulty picker for Word Search
+  if (mode === 'word-search-difficulty') {
+    return (
+      <div className="min-h-screen bg-sf-bg p-4">
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setMode('select')}
+              className="text-sf-muted hover:text-sf-secondary font-medium"
+            >
+              Back
+            </button>
+            <h1 className="text-xl font-bold text-sf-heading">Word Search</h1>
+            <div className="w-12" />
+          </div>
+
+          <p className="text-sf-muted text-center mb-6">Choose a difficulty level</p>
+
+          <div className="space-y-3">
+            <DifficultyCard
+              level="easy"
+              title="Easy"
+              description="Fewer words, horizontal & vertical only, smaller grid"
+              color="text-green-500"
+              bgAccent="from-green-500/20 to-emerald-500/10"
+              selected={wordSearchDifficulty === 'easy'}
+              onClick={() => setWordSearchDifficulty('easy')}
+            />
+            <DifficultyCard
+              level="medium"
+              title="Medium"
+              description="More words with diagonal directions added"
+              color="text-yellow-500"
+              bgAccent="from-yellow-500/20 to-amber-500/10"
+              selected={wordSearchDifficulty === 'medium'}
+              onClick={() => setWordSearchDifficulty('medium')}
+            />
+            <DifficultyCard
+              level="hard"
+              title="Hard"
+              description="All words, all directions including backwards, larger grid"
+              color="text-red-500"
+              bgAccent="from-red-500/20 to-rose-500/10"
+              selected={wordSearchDifficulty === 'hard'}
+              onClick={() => setWordSearchDifficulty('hard')}
+            />
+          </div>
+
+          <button
+            onClick={() => setMode('word-search')}
+            className="w-full mt-6 bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+          >
+            Start Game
+          </button>
         </div>
       </div>
     );
@@ -200,6 +261,7 @@ export function PracticeGames({
         {mode === 'word-search' && !gameResult && (
           <WordSearch
             words={wordTexts}
+            difficulty={wordSearchDifficulty}
             onComplete={handleWordSearchComplete}
             tapTargetSize={profile.settings.tapTargetSize}
           />
@@ -312,6 +374,44 @@ function GameCard({ title, description, icon, onClick, accent, iconColor }: Game
         </div>
         <div className="ml-auto text-sf-muted group-hover:text-sf-heading text-xl transition-colors">
           →
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ─── Difficulty Card ─────────────────────────────────────────
+
+interface DifficultyCardProps {
+  level: string;
+  title: string;
+  description: string;
+  color: string;
+  bgAccent: string;
+  selected: boolean;
+  onClick: () => void;
+}
+
+function DifficultyCard({ title, description, color, bgAccent, selected, onClick }: DifficultyCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`group w-full relative overflow-hidden rounded-xl bg-sf-surface border-2 p-5 text-left transition-all active:scale-[0.98] ${
+        selected
+          ? 'border-sf-primary shadow-md'
+          : 'border-sf-border hover:border-sf-border-strong hover:shadow-md'
+      }`}
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${bgAccent} ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`} />
+      <div className="relative flex items-center gap-4">
+        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+          selected ? 'border-sf-primary' : 'border-sf-border'
+        }`}>
+          {selected && <div className="w-2.5 h-2.5 rounded-full bg-sf-primary" />}
+        </div>
+        <div>
+          <p className={`font-bold ${color}`}>{title}</p>
+          <p className="text-sf-muted text-sm mt-0.5">{description}</p>
         </div>
       </div>
     </button>
