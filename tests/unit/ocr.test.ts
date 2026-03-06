@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
+import { cleanWords, normalizeWhitespace, extractListName } from '../../src/ocr/utils.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
@@ -92,6 +92,89 @@ describe('normalizeWhitespace', () => {
   });
 });
 
+// ─── extractListName ────────────────────────────────────────
+
+describe('extractListName', () => {
+  it('extracts a "Unit X, WK Y" header from the first line', () => {
+    const text = 'Unit 3, WK 6\nbadge\nedge\njudge';
+    expect(extractListName(text)).toBe('Unit 3, WK 6');
+  });
+
+  it('extracts a "Week N" header', () => {
+    const text = 'Week 12\napple\nbanana';
+    expect(extractListName(text)).toBe('Week 12');
+  });
+
+  it('extracts a "Spelling List N" header', () => {
+    const text = 'Spelling List 5\nknight\nbridge';
+    expect(extractListName(text)).toBe('Spelling List 5');
+  });
+
+  it('extracts a "Lesson N" header', () => {
+    const text = 'Lesson 7\ncat\ndog';
+    expect(extractListName(text)).toBe('Lesson 7');
+  });
+
+  it('extracts a "Chapter N" header', () => {
+    const text = 'Chapter 4 Vocabulary\nword1\nword2';
+    expect(extractListName(text)).toBe('Chapter 4 Vocabulary');
+  });
+
+  it('extracts header with keyword even without a number', () => {
+    const text = 'Spelling Test\napple\nbanana';
+    expect(extractListName(text)).toBe('Spelling Test');
+  });
+
+  it('extracts header from second line if first line is empty after trim', () => {
+    const text = '\n  \nUnit 5\nbadge\nedge';
+    expect(extractListName(text)).toBe('Unit 5');
+  });
+
+  it('returns null when no header pattern is found', () => {
+    const text = 'badge\nedge\njudge\npace';
+    expect(extractListName(text)).toBeNull();
+  });
+
+  it('returns null for empty input', () => {
+    expect(extractListName('')).toBeNull();
+    expect(extractListName('   \n  ')).toBeNull();
+  });
+
+  it('skips lines that are too long (> 60 chars)', () => {
+    const longLine = 'A'.repeat(61) + ' Unit 3';
+    const text = `${longLine}\nWeek 5\nbadge`;
+    expect(extractListName(text)).toBe('Week 5');
+  });
+
+  it('matches header keywords case-insensitively', () => {
+    expect(extractListName('UNIT 3\nbadge')).toBe('UNIT 3');
+    expect(extractListName('week 12\napple')).toBe('week 12');
+    expect(extractListName('VOCABULARY words\napple')).toBe('VOCABULARY words');
+  });
+
+  it('matches a line with just a number (e.g. "3")', () => {
+    const text = '3\nbadge\nedge';
+    expect(extractListName(text)).toBe('3');
+  });
+
+  it('cleans special characters from the header', () => {
+    const text = 'Unit #3 — WK 6!\nbadge\nedge';
+    // # and — and ! are stripped, whitespace collapsed
+    expect(extractListName(text)).toBe('Unit 3 WK 6');
+  });
+
+  it('only inspects the first 3 lines', () => {
+    const text = 'badge\nedge\njudge\nWeek 12\npace';
+    // "Week 12" is on line 4 — should not be found
+    expect(extractListName(text)).toBeNull();
+  });
+
+  it('detects "Grade N Term M" style headers', () => {
+    const text = 'Grade 2 Term 3\napple\nbanana';
+    expect(extractListName(text)).toBe('Grade 2 Term 3');
+  });
+});
+
 // ─── LocalOcrProvider ────────────────────────────────────────
 
 describe('LocalOcrProvider', () => {
@@ -123,6 +206,19 @@ describe('LocalOcrProvider', () => {
     expect(result.confidence).toBe(0.95);
     expect(result.words).toEqual(['hello', 'world']);
     expect(result.rawText).toBe('Hello WORLD hello');
+    expect(result.listName).toBeNull();
+  });
+
+  it('extracts list name from recognizer text', async () => {
+    const recognizer: RecognizerFn = async () => ({
+      text: 'Unit 3, WK 6\nbadge\nedge\njudge',
+      confidence: 0.9,
+    });
+    const provider = new LocalOcrProvider(recognizer);
+    const result = await provider.extractWords(new Blob());
+
+    expect(result.listName).toBe('Unit 3, WK 6');
+    expect(result.words).toContain('badge');
   });
 });
 
@@ -159,6 +255,23 @@ describe('RemoteOcrProvider', () => {
     expect(result.confidence).toBe(0.88);
     expect(result.words).toEqual(['spelling', 'words']);
     expect(result.rawText).toBe('Spelling Words');
+    expect(result.listName).toBe('Spelling Words');
+
+    fetchSpy.mockRestore();
+  });
+
+  it('extracts list name from remote response', async () => {
+    const provider = new RemoteOcrProvider('https://ocr.example.com/api');
+
+    const mockResponse = { text: 'Week 12\nknight\nbridge\nlight', confidence: 0.9 };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(mockResponse), { status: 200 }),
+    );
+
+    const result = await provider.extractWords(new Blob(['img']));
+
+    expect(result.listName).toBe('Week 12');
+    expect(result.words).toContain('knight');
 
     fetchSpy.mockRestore();
   });

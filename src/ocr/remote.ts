@@ -1,7 +1,7 @@
 // src/ocr/remote.ts — Remote server fallback OCR provider
 
 import type { OcrProvider, OcrResult } from '../contracts/types.ts';
-import { cleanWords, normalizeWhitespace } from './utils.ts';
+import { cleanWords, normalizeWhitespace, extractListName } from './utils.ts';
 
 export class RemoteOcrProvider implements OcrProvider {
   private endpoint: string | null;
@@ -40,6 +40,7 @@ export class RemoteOcrProvider implements OcrProvider {
     }
 
     const data = (await response.json()) as { text: string; confidence: number };
+    const listName = extractListName(data.text);
     const rawText = normalizeWhitespace(data.text);
     const words = cleanWords(rawText);
 
@@ -48,6 +49,7 @@ export class RemoteOcrProvider implements OcrProvider {
       words,
       confidence: data.confidence,
       source: 'remote',
+      listName,
     };
   }
 }

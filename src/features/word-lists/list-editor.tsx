@@ -51,6 +51,11 @@ export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }
         return;
       }
 
+      // Auto-populate list name if the OCR detected one and the field is empty
+      if (result.listName && name.trim() === '') {
+        setName(result.listName);
+      }
+
       // Append OCR words to existing text
       const existing = wordsText.trim();
       const newWords = result.words.join('\n');
@@ -66,7 +71,7 @@ export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [ocrManager, wordsText]);
+  }, [ocrManager, wordsText, name]);
 
   const wordCount = wordsText
     .split(/[\n,]+/)
