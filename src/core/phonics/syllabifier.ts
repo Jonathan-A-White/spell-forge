@@ -112,7 +112,7 @@ function syllabifyCore(word: string, hasSilentE: boolean): string[] {
       }
 
       // Now look at consonants following the vowel
-      let consStart = i + 1;
+      const consStart = i + 1;
       let consEnd = consStart;
       while (consEnd < effectiveEnd && isConsonant(word[consEnd])) {
         consEnd++;

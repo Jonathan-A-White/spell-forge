@@ -9,13 +9,17 @@ interface LetterBankProps {
   tapTargetSize: number;
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
 function generateDistractors(word: string, count: number): string[] {
   const alphabet = 'abcdefghijklmnopqrstuvwxyz';
   const wordLetters = new Set(word.toLowerCase().split(''));
   const available = alphabet.split('').filter((l) => !wordLetters.has(l));
 
   const distractors: string[] = [];
-  const shuffled = [...available].sort(() => Math.random() - 0.5);
+  const shuffled = shuffle(available);
   for (let i = 0; i < Math.min(count, shuffled.length); i++) {
     distractors.push(shuffled[i]);
   }
@@ -31,7 +35,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
   const bankLetters = useMemo(() => {
     const distractors = generateDistractors(word, 4);
     const all = [...targetLetters, ...distractors];
-    return all.sort(() => Math.random() - 0.5);
+    return shuffle(all);
   }, [word, targetLetters]);
 
   const [availableLetters, setAvailableLetters] = useState(() =>

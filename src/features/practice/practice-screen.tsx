@@ -1,6 +1,6 @@
 // src/features/practice/practice-screen.tsx — Main practice session screen
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { LetterBank } from './letter-bank';
 import { SessionSummary } from './session-summary';
 import type {
@@ -42,16 +42,12 @@ export function PracticeScreen({
   onBack,
   onSpeak,
 }: PracticeScreenProps) {
-  const [session, setSession] = useState<SessionState | null>(null);
-  const [sessionLog, setSessionLog] = useState<SessionLog | null>(null);
-  const [reward] = useState<RewardEvent | null>(null);
-
-  useEffect(() => {
+  const [session, setSession] = useState<SessionState | null>(() => {
     const config: Partial<SessionConfig> = {
       maxMinutes: profile.settings.sessionMaxMinutes,
       adaptive: profile.settings.sessionAdaptive,
     };
-    const newSession = createSession(
+    return createSession(
       profile.id,
       activeList,
       allWords,
@@ -59,8 +55,9 @@ export function PracticeScreen({
       daysUntilTest,
       config,
     );
-    setSession(newSession);
-  }, [profile, activeList, allWords, allStats, daysUntilTest]);
+  });
+  const [sessionLog, setSessionLog] = useState<SessionLog | null>(null);
+  const [reward] = useState<RewardEvent | null>(null);
 
   const handleWordComplete = useCallback(
     (correct: boolean, responseTimeMs: number) => {
