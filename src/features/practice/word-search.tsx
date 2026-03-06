@@ -1,6 +1,6 @@
 // src/features/practice/word-search.tsx — Word Search puzzle game
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 
 interface WordSearchProps {
   words: string[];
@@ -188,23 +188,46 @@ export function WordSearch({ words, onComplete, tapTargetSize }: WordSearchProps
     return s;
   }, [selectedCells]);
 
-  const cellSize = Math.max(28, Math.min(tapTargetSize * 0.7, 44));
-  const fontSize = `${Math.max(12, cellSize * 0.45)}px`;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    setContainerWidth(containerRef.current.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+
+  const cellSize = useMemo(() => {
+    const preferred = Math.max(28, Math.min(tapTargetSize * 0.7, 44));
+    if (containerWidth > 0) {
+      const maxByWidth = Math.floor(containerWidth / gridSize);
+      return Math.max(20, Math.min(preferred, maxByWidth));
+    }
+    return preferred;
+  }, [tapTargetSize, containerWidth, gridSize]);
+
+  const fontSize = `${Math.max(10, cellSize * 0.45)}px`;
   const isDone = foundWords.size === placed.length;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div ref={containerRef} className="flex flex-col items-center gap-3 w-full max-w-full overflow-hidden px-1">
       <h2 className="text-xl font-bold text-sf-heading">Word Search</h2>
       <p className="text-sf-muted text-sm">
         Find {placed.length} word{placed.length !== 1 ? 's' : ''} hidden in the grid!
       </p>
 
       {/* Word list */}
-      <div className="flex flex-wrap gap-2 justify-center max-w-md">
+      <div className="flex flex-wrap gap-1.5 justify-center w-full px-1">
         {placed.map((pw) => (
           <span
             key={pw.word}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+            className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
               foundWords.has(pw.word)
                 ? 'bg-green-100 text-green-700 line-through'
                 : 'bg-sf-surface border border-sf-border text-sf-heading'
