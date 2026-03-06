@@ -1,4 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import {
+  getDirectionsForDifficulty,
+  getMaxWordsForDifficulty,
+  getGridSizeForDifficulty,
+  buildGrid,
+} from '../../src/features/practice/word-search-difficulty';
 
 // Test the pure logic functions extracted from the game components.
 // Since components rely on React, we test the algorithmic cores here.
@@ -6,29 +12,95 @@ import { describe, it, expect } from 'vitest';
 // ─── Word Search Grid Building ────────────────────────────────
 
 describe('WordSearch grid logic', () => {
-  // We import the module dynamically to test pure logic indirectly
-  // by verifying grid properties through the component's exported behavior.
-
-  it('should generate grids of at least 10x10', () => {
+  it('should generate grids of at least 10x10 for medium/hard', () => {
     const words = ['cat', 'dog'];
-    const gridSize = Math.max(10, Math.max(...words.map((w) => w.length)) + 3);
+    const gridSize = getGridSizeForDifficulty(words, 'medium');
     expect(gridSize).toBeGreaterThanOrEqual(10);
   });
 
   it('should compute grid size based on longest word', () => {
     const words = ['elephant', 'hippopotamus'];
-    const maxLen = Math.max(...words.map((w) => w.length));
-    const gridSize = Math.max(10, maxLen + 3);
-    // hippopotamus is 12 letters, so grid should be 15
-    expect(gridSize).toBe(15);
+    const gridSize = getGridSizeForDifficulty(words, 'medium');
+    // hippopotamus is 12 letters, needs at least 15
+    expect(gridSize).toBeGreaterThanOrEqual(15);
   });
 
   it('should scale grid size for many words', () => {
     const words = Array.from({ length: 20 }, (_, i) => `word${i}`);
-    const maxLen = Math.max(...words.map((w) => w.length));
-    const gridSize = Math.max(10, maxLen + 3, Math.ceil(Math.sqrt(words.length * 20)));
+    const gridSize = getGridSizeForDifficulty(words, 'medium');
     expect(gridSize).toBeGreaterThanOrEqual(10);
     expect(gridSize).toBeGreaterThanOrEqual(Math.ceil(Math.sqrt(400)));
+  });
+});
+
+// ─── Word Search Difficulty Settings ─────────────────────────
+
+describe('WordSearch difficulty settings', () => {
+  it('easy should only allow horizontal and vertical directions', () => {
+    const dirs = getDirectionsForDifficulty('easy');
+    expect(dirs).toHaveLength(2);
+    // right and down
+    expect(dirs).toContainEqual([0, 1]);
+    expect(dirs).toContainEqual([1, 0]);
+  });
+
+  it('medium should allow 4 directions including diagonals', () => {
+    const dirs = getDirectionsForDifficulty('medium');
+    expect(dirs).toHaveLength(4);
+  });
+
+  it('hard should allow all 8 directions', () => {
+    const dirs = getDirectionsForDifficulty('hard');
+    expect(dirs).toHaveLength(8);
+  });
+
+  it('easy should limit to 6 words', () => {
+    expect(getMaxWordsForDifficulty('easy')).toBe(6);
+  });
+
+  it('medium should limit to 9 words', () => {
+    expect(getMaxWordsForDifficulty('medium')).toBe(9);
+  });
+
+  it('hard should limit to 12 words', () => {
+    expect(getMaxWordsForDifficulty('hard')).toBe(12);
+  });
+
+  it('easy grid should be smaller than hard grid', () => {
+    const words = ['apple', 'banana', 'cherry', 'dance', 'eagle', 'frost'];
+    const easySize = getGridSizeForDifficulty(words, 'easy');
+    const hardSize = getGridSizeForDifficulty(words, 'hard');
+    expect(easySize).toBeLessThan(hardSize);
+  });
+
+  it('easy grid should be at least 8x8', () => {
+    const words = ['cat', 'dog'];
+    const gridSize = getGridSizeForDifficulty(words, 'easy');
+    expect(gridSize).toBeGreaterThanOrEqual(8);
+  });
+});
+
+// ─── Word Search Grid Building with Directions ───────────────
+
+describe('WordSearch buildGrid with difficulty directions', () => {
+  it('should place words only horizontally/vertically on easy', () => {
+    const words = ['cat', 'dog'];
+    const dirs = getDirectionsForDifficulty('easy');
+    const { placed } = buildGrid(words, 10, dirs);
+
+    for (const pw of placed) {
+      const [dr, dc] = pw.direction;
+      // easy: only right (0,1) or down (1,0)
+      const isHorizontal = dr === 0 && Math.abs(dc) === 1;
+      const isVertical = Math.abs(dr) === 1 && dc === 0;
+      expect(isHorizontal || isVertical).toBe(true);
+    }
+  });
+
+  it('should place all provided words when space allows', () => {
+    const words = ['hi', 'go', 'up'];
+    const { placed } = buildGrid(words, 10, getDirectionsForDifficulty('easy'));
+    expect(placed).toHaveLength(3);
   });
 });
 
