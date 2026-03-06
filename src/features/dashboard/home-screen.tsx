@@ -117,7 +117,7 @@ export function HomeScreen({
             />
             <NavCard
               title="Games"
-              subtitle="Search, crossword, quiz"
+              subtitle="Search, quiz"
               icon={<GamesIcon />}
               onClick={() => onNavigate('practice-games')}
               accent="from-pink-500/20 to-rose-500/10"
