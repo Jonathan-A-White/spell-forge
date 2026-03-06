@@ -4,10 +4,9 @@ import { useState, useMemo, useCallback } from 'react';
 import type { Word, WordList, SessionLog, Profile } from '../../contracts/types';
 import { WordSearch } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
-import { Crossword } from './crossword';
 import { SpellingQuiz, type QuizResults } from './spelling-quiz';
 
-type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'crossword' | 'quiz';
+type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz';
 
 interface PracticeGamesProps {
   profile: Profile;
@@ -45,7 +44,7 @@ export function PracticeGames({
 
   const wordTexts = useMemo(() => {
     const texts = gameWords.map((w) => w.text);
-    // For word search and crossword, limit to a reasonable number
+    // For word search, limit to a reasonable number
     return texts.slice(0, 12);
   }, [gameWords]);
 
@@ -62,27 +61,6 @@ export function PracticeGames({
         wordsAttempted: total,
         wordsCorrect: found,
         engagementScore: found / Math.max(total, 1),
-        endReason: 'completed',
-        rewardEarned: null,
-      };
-      onSessionEnd(log);
-    },
-    [profile.id, onSessionEnd],
-  );
-
-  const handleCrosswordComplete = useCallback(
-    (correct: number, total: number) => {
-      const percentage = Math.round((correct / total) * 100);
-      setGameResult({ correct, total, percentage });
-
-      const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `cw-${Date.now()}`,
-        profileId: profile.id,
-        startedAt: new Date(),
-        endedAt: new Date(),
-        wordsAttempted: total,
-        wordsCorrect: correct,
-        engagementScore: correct / Math.max(total, 1),
         endReason: 'completed',
         rewardEarned: null,
       };
@@ -160,14 +138,6 @@ export function PracticeGames({
               accent="from-blue-500/20 to-cyan-500/10"
               iconColor="text-blue-500"
               onClick={() => setMode('word-search-difficulty')}
-            />
-            <GameCard
-              title="Crossword Puzzle"
-              description="Fill in the crossword using clues about your words"
-              icon={<CrosswordIcon />}
-              accent="from-purple-500/20 to-violet-500/10"
-              iconColor="text-purple-500"
-              onClick={() => setMode('crossword')}
             />
             <GameCard
               title="Spelling Quiz"
@@ -263,14 +233,6 @@ export function PracticeGames({
             words={wordTexts}
             difficulty={wordSearchDifficulty}
             onComplete={handleWordSearchComplete}
-            tapTargetSize={profile.settings.tapTargetSize}
-          />
-        )}
-
-        {mode === 'crossword' && !gameResult && (
-          <Crossword
-            words={wordTexts}
-            onComplete={handleCrosswordComplete}
             tapTargetSize={profile.settings.tapTargetSize}
           />
         )}
@@ -427,18 +389,6 @@ function SearchGridIcon() {
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
       <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-
-function CrosswordIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <line x1="3" y1="9" x2="21" y2="9" />
-      <line x1="3" y1="15" x2="21" y2="15" />
-      <line x1="9" y1="3" x2="9" y2="21" />
-      <line x1="15" y1="3" x2="15" y2="21" />
     </svg>
   );
 }

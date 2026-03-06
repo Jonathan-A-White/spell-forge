@@ -104,32 +104,6 @@ describe('WordSearch buildGrid with difficulty directions', () => {
   });
 });
 
-// ─── Crossword Clue Generation ────────────────────────────────
-
-describe('Crossword clue generation', () => {
-  function generateClue(word: string): string {
-    const len = word.length;
-    const first = word[0].toUpperCase();
-    const last = word[word.length - 1].toLowerCase();
-    return `${len} letters, starts with "${first}" and ends with "${last}"`;
-  }
-
-  it('should generate a clue with length and boundary letters', () => {
-    const clue = generateClue('hello');
-    expect(clue).toBe('5 letters, starts with "H" and ends with "o"');
-  });
-
-  it('should handle single-character words', () => {
-    const clue = generateClue('a');
-    expect(clue).toBe('1 letters, starts with "A" and ends with "a"');
-  });
-
-  it('should handle uppercase input', () => {
-    const clue = generateClue('WORLD');
-    expect(clue).toBe('5 letters, starts with "W" and ends with "d"');
-  });
-});
-
 // ─── Spelling Quiz Logic ──────────────────────────────────────
 
 describe('SpellingQuiz scoring', () => {
