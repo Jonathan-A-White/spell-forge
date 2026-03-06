@@ -1,0 +1,208 @@
+name: SpellForge CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  # Determine which subsystems changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      contracts: ${{ steps.filter.outputs.contracts }}
+      phonics: ${{ steps.filter.outputs.phonics }}
+      spaced-rep: ${{ steps.filter.outputs.spaced-rep }}
+      data: ${{ steps.filter.outputs.data }}
+      audio: ${{ steps.filter.outputs.audio }}
+      ocr: ${{ steps.filter.outputs.ocr }}
+      themes: ${{ steps.filter.outputs.themes }}
+      a11y: ${{ steps.filter.outputs.a11y }}
+      adaptive: ${{ steps.filter.outputs.adaptive }}
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            contracts:
+              - 'src/contracts/**'
+              - 'tests/unit/contracts.test.ts'
+            phonics:
+              - 'src/core/phonics/**'
+              - 'tests/unit/phonics-engine.test.ts'
+            spaced-rep:
+              - 'src/core/spaced-rep/**'
+              - 'src/core/word-selection/**'
+              - 'tests/unit/spaced-rep.test.ts'
+              - 'tests/unit/difficulty-score.test.ts'
+            data:
+              - 'src/data/**'
+              - 'tests/unit/data-layer.test.ts'
+            audio:
+              - 'src/audio/**'
+              - 'tests/unit/audio.test.ts'
+            ocr:
+              - 'src/ocr/**'
+              - 'tests/unit/ocr.test.ts'
+            themes:
+              - 'src/themes/**'
+              - 'src/features/rewards/**'
+              - 'tests/unit/themes.test.ts'
+            a11y:
+              - 'src/accessibility/**'
+              - 'tests/unit/accessibility.test.ts'
+            adaptive:
+              - 'src/core/adaptive/**'
+              - 'src/features/practice/**'
+              - 'tests/unit/adaptive-engine.test.ts'
+            src:
+              - 'src/**'
+              - 'tests/**'
+              - 'package.json'
+              - 'tsconfig*.json'
+              - 'vite.config.ts'
+              - 'vitest.config.ts'
+
+  # Always run typecheck and lint when any source changes
+  typecheck-lint:
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+
+  # Contracts
+  test-contracts:
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:contracts
+
+  # Phonics engine
+  test-phonics:
+    needs: changes
+    if: needs.changes.outputs.phonics == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:phonics
+
+  # Spaced repetition & word selection
+  test-spaced-rep:
+    needs: changes
+    if: needs.changes.outputs.spaced-rep == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:spaced-rep
+
+  # Data layer
+  test-data:
+    needs: changes
+    if: needs.changes.outputs.data == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:data
+
+  # Audio system
+  test-audio:
+    needs: changes
+    if: needs.changes.outputs.audio == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:audio
+
+  # OCR pipeline
+  test-ocr:
+    needs: changes
+    if: needs.changes.outputs.ocr == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:ocr
+
+  # Theme engine & rewards
+  test-themes:
+    needs: changes
+    if: needs.changes.outputs.themes == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:themes
+
+  # Accessibility
+  test-accessibility:
+    needs: changes
+    if: needs.changes.outputs.a11y == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:a11y
+
+  # Adaptive engine
+  test-adaptive:
+    needs: changes
+    if: needs.changes.outputs.adaptive == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:adaptive
