@@ -97,7 +97,7 @@ export const patterns: PatternEntry[] = [
   { id: 'cd-gh-f', category: 'consonant-digraph', grapheme: 'gh', phoneme: '/f/', examples: ['laugh', 'cough', 'tough', 'enough'], hint: '"gh" sometimes sounds like "f".' },
   { id: 'cd-kn', category: 'consonant-digraph', grapheme: 'kn', phoneme: '/n/', examples: ['knight', 'know', 'knee', 'knife'], hint: '"kn" — the "k" is silent, just say "n".' },
 
-  // ─── Consonant Blends (18) ──────────────────────────────────
+  // ─── Consonant Blends — Initial (22) ───────────────────────
   { id: 'cb-bl', category: 'consonant-blend', grapheme: 'bl', phoneme: '/bl/', examples: ['black', 'blue', 'blend', 'block'], hint: 'Blend both sounds: "b" + "l".' },
   { id: 'cb-br', category: 'consonant-blend', grapheme: 'br', phoneme: '/br/', examples: ['bridge', 'brown', 'break', 'bring'], hint: 'Blend both sounds: "b" + "r".' },
   { id: 'cb-cl', category: 'consonant-blend', grapheme: 'cl', phoneme: '/kl/', examples: ['clap', 'class', 'clean', 'clock'], hint: 'Blend both sounds: "c" + "l".' },
@@ -112,10 +112,34 @@ export const patterns: PatternEntry[] = [
   { id: 'cb-sc', category: 'consonant-blend', grapheme: 'sc', phoneme: '/sk/', examples: ['scare', 'score', 'scale', 'scan'], hint: 'Blend both sounds: "s" + "c".' },
   { id: 'cb-sk', category: 'consonant-blend', grapheme: 'sk', phoneme: '/sk/', examples: ['skip', 'skin', 'sky', 'skill'], hint: 'Blend both sounds: "s" + "k".' },
   { id: 'cb-sl', category: 'consonant-blend', grapheme: 'sl', phoneme: '/sl/', examples: ['slow', 'slip', 'sleep', 'slide'], hint: 'Blend both sounds: "s" + "l".' },
+  { id: 'cb-sm', category: 'consonant-blend', grapheme: 'sm', phoneme: '/sm/', examples: ['small', 'smell', 'smile', 'smoke'], hint: 'Blend both sounds: "s" + "m".' },
+  { id: 'cb-sn', category: 'consonant-blend', grapheme: 'sn', phoneme: '/sn/', examples: ['snow', 'snake', 'snap', 'snore'], hint: 'Blend both sounds: "s" + "n".' },
   { id: 'cb-sp', category: 'consonant-blend', grapheme: 'sp', phoneme: '/sp/', examples: ['spot', 'spin', 'spell', 'space'], hint: 'Blend both sounds: "s" + "p".' },
   { id: 'cb-st', category: 'consonant-blend', grapheme: 'st', phoneme: '/st/', examples: ['stop', 'star', 'step', 'stone'], hint: 'Blend both sounds: "s" + "t".' },
-  { id: 'cb-tr', category: 'consonant-blend', grapheme: 'tr', phoneme: '/tr/', examples: ['tree', 'trip', 'track', 'true'], hint: 'Blend both sounds: "t" + "r".' },
   { id: 'cb-sw', category: 'consonant-blend', grapheme: 'sw', phoneme: '/sw/', examples: ['swim', 'sweet', 'swing', 'switch'], hint: 'Blend both sounds: "s" + "w".' },
+  { id: 'cb-tr', category: 'consonant-blend', grapheme: 'tr', phoneme: '/tr/', examples: ['tree', 'trip', 'track', 'true'], hint: 'Blend both sounds: "t" + "r".' },
+  { id: 'cb-tw', category: 'consonant-blend', grapheme: 'tw', phoneme: '/tw/', examples: ['twin', 'twelve', 'twist', 'twenty'], hint: 'Blend both sounds: "t" + "w".' },
+  { id: 'cb-scr', category: 'consonant-blend', grapheme: 'scr', phoneme: '/skr/', examples: ['scream', 'scrub', 'scratch', 'screen'], hint: 'Three-letter blend: "s" + "c" + "r".' },
+  { id: 'cb-spl', category: 'consonant-blend', grapheme: 'spl', phoneme: '/spl/', examples: ['splash', 'split', 'splat', 'splice'], hint: 'Three-letter blend: "s" + "p" + "l".' },
+  { id: 'cb-spr', category: 'consonant-blend', grapheme: 'spr', phoneme: '/spr/', examples: ['spring', 'spray', 'spread', 'sprout'], hint: 'Three-letter blend: "s" + "p" + "r".' },
+  { id: 'cb-squ', category: 'consonant-blend', grapheme: 'squ', phoneme: '/skw/', examples: ['square', 'squash', 'squeeze', 'squid'], hint: 'Three-letter blend: "s" + "qu".' },
+  { id: 'cb-str', category: 'consonant-blend', grapheme: 'str', phoneme: '/str/', examples: ['street', 'strong', 'string', 'strange'], hint: 'Three-letter blend: "s" + "t" + "r".' },
+
+  // ─── Consonant Blends — Final (14) ────────────────────────
+  { id: 'cb-nd', category: 'consonant-blend', grapheme: 'nd', phoneme: '/nd/', examples: ['hand', 'find', 'sand', 'pond'], hint: 'Final blend: "n" + "d" at the end.' },
+  { id: 'cb-nk', category: 'consonant-blend', grapheme: 'nk', phoneme: '/ŋk/', examples: ['think', 'pink', 'bank', 'drink'], hint: 'Final blend: "n" + "k" at the end.' },
+  { id: 'cb-nt', category: 'consonant-blend', grapheme: 'nt', phoneme: '/nt/', examples: ['ant', 'went', 'paint', 'front'], hint: 'Final blend: "n" + "t" at the end.' },
+  { id: 'cb-mp', category: 'consonant-blend', grapheme: 'mp', phoneme: '/mp/', examples: ['jump', 'camp', 'lamp', 'stamp'], hint: 'Final blend: "m" + "p" at the end.' },
+  { id: 'cb-ft', category: 'consonant-blend', grapheme: 'ft', phoneme: '/ft/', examples: ['left', 'soft', 'gift', 'craft'], hint: 'Final blend: "f" + "t" at the end.' },
+  { id: 'cb-lk', category: 'consonant-blend', grapheme: 'lk', phoneme: '/lk/', examples: ['milk', 'silk', 'bulk', 'elk'], hint: 'Final blend: "l" + "k" at the end.' },
+  { id: 'cb-lt', category: 'consonant-blend', grapheme: 'lt', phoneme: '/lt/', examples: ['melt', 'felt', 'salt', 'bolt'], hint: 'Final blend: "l" + "t" at the end.' },
+  { id: 'cb-ld', category: 'consonant-blend', grapheme: 'ld', phoneme: '/ld/', examples: ['cold', 'hold', 'wild', 'child'], hint: 'Final blend: "l" + "d" at the end.' },
+  { id: 'cb-lp', category: 'consonant-blend', grapheme: 'lp', phoneme: '/lp/', examples: ['help', 'gulp', 'scalp', 'yelp'], hint: 'Final blend: "l" + "p" at the end.' },
+  { id: 'cb-ct', category: 'consonant-blend', grapheme: 'ct', phoneme: '/kt/', examples: ['fact', 'act', 'effect', 'insect'], hint: 'Final blend: "c" + "t" at the end.' },
+  { id: 'cb-pt', category: 'consonant-blend', grapheme: 'pt', phoneme: '/pt/', examples: ['kept', 'slept', 'crept', 'accept'], hint: 'Final blend: "p" + "t" at the end.' },
+  { id: 'cb-sk-final', category: 'consonant-blend', grapheme: 'sk', phoneme: '/sk/', examples: ['mask', 'desk', 'task', 'risk'], hint: 'Final blend: "s" + "k" at the end.' },
+  { id: 'cb-sp-final', category: 'consonant-blend', grapheme: 'sp', phoneme: '/sp/', examples: ['wasp', 'clasp', 'crisp', 'grasp'], hint: 'Final blend: "s" + "p" at the end.' },
+  { id: 'cb-st-final', category: 'consonant-blend', grapheme: 'st', phoneme: '/st/', examples: ['fast', 'best', 'first', 'just'], hint: 'Final blend: "s" + "t" at the end.' },
 
   // ─── Silent Letters (12) ────────────────────────────────────
   { id: 'sl-kn', category: 'silent-letter', grapheme: 'kn', phoneme: '/n/', examples: ['knight', 'know', 'knee', 'knot'], hint: 'The "k" is silent before "n".' },
@@ -142,6 +166,9 @@ export const patterns: PatternEntry[] = [
   { id: 'dc-mm', category: 'double-consonant', grapheme: 'mm', phoneme: '/m/', examples: ['hammer', 'mammal', 'summer', 'swimming'], hint: 'Double "m" — still one "m" sound.' },
   { id: 'dc-nn', category: 'double-consonant', grapheme: 'nn', phoneme: '/n/', examples: ['dinner', 'penny', 'funny', 'banner'], hint: 'Double "n" — still one "n" sound.' },
   { id: 'dc-rr', category: 'double-consonant', grapheme: 'rr', phoneme: '/r/', examples: ['carry', 'berry', 'mirror', 'parrot'], hint: 'Double "r" — still one "r" sound.' },
+  { id: 'dc-bb', category: 'double-consonant', grapheme: 'bb', phoneme: '/b/', examples: ['rabbit', 'ribbon', 'cabbage', 'hobby'], hint: 'Double "b" — still one "b" sound.' },
+  { id: 'dc-gg', category: 'double-consonant', grapheme: 'gg', phoneme: '/ɡ/', examples: ['egg', 'bigger', 'foggy', 'digging'], hint: 'Double "g" — still one "g" sound.' },
+  { id: 'dc-cc', category: 'double-consonant', grapheme: 'cc', phoneme: '/k/', examples: ['occur', 'accuse', 'account', 'acclaim'], hint: 'Double "c" — still one "k" sound.' },
 
   // ─── Suffixes (20) ──────────────────────────────────────────
   { id: 'sx-tion', category: 'suffix', grapheme: 'tion', phoneme: '/ʃən/', examples: ['nation', 'action', 'station', 'mention'], hint: '"-tion" says "shun".' },
@@ -164,6 +191,10 @@ export const patterns: PatternEntry[] = [
   { id: 'sx-ture', category: 'suffix', grapheme: 'ture', phoneme: '/tʃər/', examples: ['nature', 'picture', 'future', 'adventure'], hint: '"-ture" says "cher".' },
   { id: 'sx-ous-ious', category: 'suffix', grapheme: 'ious', phoneme: '/iəs/', examples: ['serious', 'curious', 'previous', 'various'], hint: '"-ious" says "ee-us".' },
   { id: 'sx-al', category: 'suffix', grapheme: 'al', phoneme: '/əl/', examples: ['animal', 'normal', 'final', 'special'], hint: '"-al" makes a noun into a describing word.' },
+  { id: 'sx-ive', category: 'suffix', grapheme: 'ive', phoneme: '/ɪv/', examples: ['active', 'creative', 'massive', 'positive'], hint: '"-ive" turns a verb into an adjective.' },
+  { id: 'sx-en', category: 'suffix', grapheme: 'en', phoneme: '/ən/', examples: ['broken', 'golden', 'frozen', 'written'], hint: '"-en" can mean "made of" or show past action.' },
+  { id: 'sx-es', category: 'suffix', grapheme: 'es', phoneme: '/ɪz/', examples: ['boxes', 'wishes', 'churches', 'foxes'], hint: '"-es" adds a syllable to make a word plural.' },
+  { id: 'sx-s', category: 'suffix', grapheme: 's', phoneme: '/s/', examples: ['cats', 'dogs', 'books', 'runs'], hint: '"-s" makes a word plural or shows present tense.' },
 
   // ─── Prefixes (16) ──────────────────────────────────────────
   { id: 'px-un', category: 'prefix', grapheme: 'un', phoneme: '/ʌn/', examples: ['undo', 'unhappy', 'unlike', 'unfair'], hint: '"un-" means "not" or "opposite".' },
@@ -183,7 +214,17 @@ export const patterns: PatternEntry[] = [
   { id: 'px-be', category: 'prefix', grapheme: 'be', phoneme: '/bɪ/', examples: ['because', 'before', 'become', 'begin'], hint: '"be-" is a common word beginning.' },
   { id: 'px-de', category: 'prefix', grapheme: 'de', phoneme: '/dɪ/', examples: ['decide', 'delay', 'defend', 'deliver'], hint: '"de-" often means "down" or "away".' },
 
-  // ─── Irregular (10) ─────────────────────────────────────────
+  // ─── Irregular (16) ─────────────────────────────────────────
+  { id: 'ir-gu', category: 'irregular', grapheme: 'gu', phoneme: '/ɡ/', examples: ['guard', 'guess', 'guide', 'guitar'], hint: '"gu" — the "u" is silent, just say "g".' },
+  { id: 'ir-ture-cher', category: 'irregular', grapheme: 'ture', phoneme: '/tʃər/', examples: ['nature', 'picture', 'future', 'adventure'], hint: '"ture" says "cher" — not "tyoor".' },
+  { id: 'ir-ous-us', category: 'irregular', grapheme: 'ous', phoneme: '/əs/', examples: ['famous', 'nervous', 'dangerous', 'enormous'], hint: '"ous" sounds like "us" at the end of a word.' },
+  { id: 'ir-tion-chun', category: 'irregular', grapheme: 'tion', phoneme: '/tʃən/', examples: ['question', 'suggestion', 'bastion'], hint: '"tion" can say "chun" after "s".' },
+  { id: 'ir-qu', category: 'irregular', grapheme: 'qu', phoneme: '/kw/', examples: ['queen', 'quick', 'quiet', 'quit'], hint: '"q" always teams up with "u" — together they say "kw".' },
+  { id: 'ir-wor', category: 'irregular', grapheme: 'wor', phoneme: '/wɜːr/', examples: ['work', 'word', 'world', 'worm'], hint: '"wor" says "wur" — the "o" doesn\'t make its usual sound.' },
+  { id: 'ir-wa', category: 'irregular', grapheme: 'wa', phoneme: '/wɒ/', examples: ['was', 'want', 'wash', 'watch'], hint: '"wa" — the "a" after "w" often says "oh" instead of "ah".' },
+  { id: 'ir-sc-soft', category: 'irregular', grapheme: 'sc', phoneme: '/s/', examples: ['scene', 'science', 'scissors', 'scent'], hint: '"sc" can say just "s" before "e" or "i".' },
+  { id: 'ir-ce-soft', category: 'irregular', grapheme: 'ce', phoneme: '/s/', examples: ['cent', 'cell', 'center', 'fence'], hint: '"c" says "s" before "e" — it\'s the soft "c" sound.' },
+  { id: 'ir-ge-soft', category: 'irregular', grapheme: 'ge', phoneme: '/dʒ/', examples: ['page', 'age', 'cage', 'huge'], hint: '"g" says "j" before "e" — it\'s the soft "g" sound.' },
   { id: 'ir-ough-uff', category: 'irregular', grapheme: 'ough', phoneme: '/ʌf/', examples: ['tough', 'rough', 'enough'], hint: '"ough" says "uff" — just memorize it!' },
   { id: 'ir-ough-oh', category: 'irregular', grapheme: 'ough', phoneme: '/oʊ/', examples: ['though', 'dough', 'although'], hint: '"ough" can say "oh".' },
   { id: 'ir-ough-oo', category: 'irregular', grapheme: 'ough', phoneme: '/uː/', examples: ['through'], hint: '"ough" says "oo" in "through".' },
