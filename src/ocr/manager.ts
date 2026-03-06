@@ -33,6 +33,7 @@ export class OcrManagerImpl implements OcrManager {
 
   async extractWords(image: Blob): Promise<OcrResult> {
     const errors: string[] = [];
+    let lowConfidenceResult: OcrResult | null = null;
 
     // Try local first
     if (this.local.isAvailable()) {
@@ -41,7 +42,8 @@ export class OcrManagerImpl implements OcrManager {
         if (result.confidence >= this.confidenceThreshold) {
           return result;
         }
-        // Low confidence — fall through to remote
+        // Low confidence — save result and fall through to remote
+        lowConfidenceResult = result;
         errors.push(`Local OCR confidence too low (${result.confidence.toFixed(2)})`);
       } catch (err) {
         errors.push(`Local OCR failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -59,6 +61,12 @@ export class OcrManagerImpl implements OcrManager {
       }
     } else {
       errors.push('Remote OCR endpoint is not configured');
+    }
+
+    // If we have a low-confidence local result with words, return it
+    // rather than failing entirely — the user can review and edit
+    if (lowConfidenceResult && lowConfidenceResult.words.length > 0) {
+      return lowConfidenceResult;
     }
 
     throw new Error(
