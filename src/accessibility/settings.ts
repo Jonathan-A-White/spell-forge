@@ -65,6 +65,12 @@ export function applySettings(settings: AccessibilitySettings): void {
     '--sf-reduced-motion',
     settings.reducedMotion ? 'reduce' : 'no-preference',
   );
+
+  // Apply color mode via data-theme attribute
+  const theme = VALID_CONTRAST_MODES.has(settings.contrastMode)
+    ? settings.contrastMode
+    : 'light';
+  el.setAttribute('data-theme', theme);
 }
 
 // ─── Merge helper ───────────────────────────────────────────────

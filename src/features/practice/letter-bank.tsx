@@ -109,17 +109,17 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
       {/* Word building area */}
       <div
         className={`flex gap-2 min-h-[80px] items-center justify-center p-4 rounded-xl border-2 transition-colors ${
-          wrongFlash ? 'border-red-400 bg-red-50' : 'border-amber-300 bg-amber-50'
+          wrongFlash ? 'border-red-400 bg-red-50' : 'border-sf-border-strong bg-sf-bg'
         }`}
       >
         {targetLetters.map((_, i) => (
           <div
             key={i}
-            className="flex items-center justify-center rounded-lg border-2 border-dashed border-amber-400 bg-white"
+            className="flex items-center justify-center rounded-lg border-2 border-dashed border-sf-border-strong bg-sf-surface"
             style={{ width: buttonSize, height: buttonSize }}
           >
             {selected[i] && (
-              <span className="font-bold text-amber-900 uppercase" style={{ fontSize }}>
+              <span className="font-bold text-sf-heading uppercase" style={{ fontSize }}>
                 {selected[i]}
               </span>
             )}
@@ -128,7 +128,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
         {selected.length > 0 && (
           <button
             onClick={handleUndo}
-            className="ml-2 text-sm text-gray-500 hover:text-gray-700 underline"
+            className="ml-2 text-sm text-sf-faint hover:text-sf-text underline"
             aria-label="Undo last letter"
           >
             Undo
@@ -145,8 +145,8 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
             disabled={item.used}
             className={`rounded-xl font-bold uppercase transition-all shadow-md ${
               item.used
-                ? 'opacity-30 cursor-not-allowed bg-gray-200 text-gray-400'
-                : 'bg-white hover:bg-amber-100 text-amber-900 border-2 border-amber-300 hover:border-amber-500 active:scale-95'
+                ? 'opacity-30 cursor-not-allowed bg-sf-disabled text-sf-faint'
+                : 'bg-sf-surface hover:bg-sf-surface-hover text-sf-heading border-2 border-sf-border-strong hover:border-sf-primary active:scale-95'
             }`}
             style={{
               width: buttonSize,

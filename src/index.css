@@ -1,1 +1,97 @@
 @import "tailwindcss";
+
+/* ─── Semantic color tokens ──────────────────────────────────────── */
+
+:root,
+[data-theme="light"] {
+  --sf-color-bg: #FFFBEB;
+  --sf-color-surface: #FFFFFF;
+  --sf-color-surface-hover: #FEF3C7;
+  --sf-color-surface-active: #FDE68A;
+  --sf-color-primary: #D97706;
+  --sf-color-primary-hover: #B45309;
+  --sf-color-primary-text: #FFFFFF;
+  --sf-color-text: #78350F;
+  --sf-color-text-heading: #451A03;
+  --sf-color-text-secondary: #92400E;
+  --sf-color-text-muted: #B45309;
+  --sf-color-text-faint: #D97706;
+  --sf-color-border: #FDE68A;
+  --sf-color-border-strong: #FCD34D;
+  --sf-color-track: #FDE68A;
+  --sf-color-track-fill: #D97706;
+  --sf-color-input-bg: #FFFFFF;
+  --sf-color-input-border: #FCD34D;
+  --sf-color-disabled: #D1D5DB;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --sf-color-bg: #0F172A;
+  --sf-color-surface: #1E293B;
+  --sf-color-surface-hover: #334155;
+  --sf-color-surface-active: #475569;
+  --sf-color-primary: #F59E0B;
+  --sf-color-primary-hover: #FBBF24;
+  --sf-color-primary-text: #0F172A;
+  --sf-color-text: #F1F5F9;
+  --sf-color-text-heading: #F8FAFC;
+  --sf-color-text-secondary: #CBD5E1;
+  --sf-color-text-muted: #94A3B8;
+  --sf-color-text-faint: #64748B;
+  --sf-color-border: #334155;
+  --sf-color-border-strong: #475569;
+  --sf-color-track: #334155;
+  --sf-color-track-fill: #F59E0B;
+  --sf-color-input-bg: #1E293B;
+  --sf-color-input-border: #475569;
+  --sf-color-disabled: #475569;
+  color-scheme: dark;
+}
+
+[data-theme="high-contrast"] {
+  --sf-color-bg: #000000;
+  --sf-color-surface: #1A1A1A;
+  --sf-color-surface-hover: #2A2A2A;
+  --sf-color-surface-active: #3A3A3A;
+  --sf-color-primary: #FFD700;
+  --sf-color-primary-hover: #FFE44D;
+  --sf-color-primary-text: #000000;
+  --sf-color-text: #FFFFFF;
+  --sf-color-text-heading: #FFFFFF;
+  --sf-color-text-secondary: #E5E5E5;
+  --sf-color-text-muted: #CCCCCC;
+  --sf-color-text-faint: #AAAAAA;
+  --sf-color-border: #555555;
+  --sf-color-border-strong: #888888;
+  --sf-color-track: #333333;
+  --sf-color-track-fill: #FFD700;
+  --sf-color-input-bg: #1A1A1A;
+  --sf-color-input-border: #888888;
+  --sf-color-disabled: #555555;
+  color-scheme: dark;
+}
+
+/* ─── Tailwind theme extension ──────────────────────────────────── */
+
+@theme {
+  --color-sf-bg: var(--sf-color-bg);
+  --color-sf-surface: var(--sf-color-surface);
+  --color-sf-surface-hover: var(--sf-color-surface-hover);
+  --color-sf-surface-active: var(--sf-color-surface-active);
+  --color-sf-primary: var(--sf-color-primary);
+  --color-sf-primary-hover: var(--sf-color-primary-hover);
+  --color-sf-primary-text: var(--sf-color-primary-text);
+  --color-sf-text: var(--sf-color-text);
+  --color-sf-heading: var(--sf-color-text-heading);
+  --color-sf-secondary: var(--sf-color-text-secondary);
+  --color-sf-muted: var(--sf-color-text-muted);
+  --color-sf-faint: var(--sf-color-text-faint);
+  --color-sf-border: var(--sf-color-border);
+  --color-sf-border-strong: var(--sf-color-border-strong);
+  --color-sf-track: var(--sf-color-track);
+  --color-sf-track-fill: var(--sf-color-track-fill);
+  --color-sf-input-bg: var(--sf-color-input-bg);
+  --color-sf-input-border: var(--sf-color-input-border);
+  --color-sf-disabled: var(--sf-color-disabled);
+}

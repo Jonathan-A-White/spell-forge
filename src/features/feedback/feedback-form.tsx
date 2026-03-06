@@ -19,14 +19,14 @@ export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-amber-50 flex flex-col items-center justify-center p-8">
-        <h2 className="text-2xl font-bold text-amber-900 mb-4">Thank You!</h2>
-        <p className="text-amber-700 mb-8 text-center">
+      <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-8">
+        <h2 className="text-2xl font-bold text-sf-heading mb-4">Thank You!</h2>
+        <p className="text-sf-text mb-8 text-center">
           Your feedback has been saved. It will be sent when connected to the internet.
         </p>
         <button
           onClick={onCancel}
-          className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-xl transition-colors"
+          className="bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
         >
           Back
         </button>
@@ -35,16 +35,16 @@ export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50 p-4 max-w-lg mx-auto">
+    <div className="min-h-screen bg-sf-bg p-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={onCancel} className="text-amber-600 hover:text-amber-800">
+        <button onClick={onCancel} className="text-sf-muted hover:text-sf-secondary">
           Cancel
         </button>
-        <h1 className="text-xl font-bold text-amber-900">Send Feedback</h1>
+        <h1 className="text-xl font-bold text-sf-heading">Send Feedback</h1>
         <div />
       </div>
 
-      <p className="text-amber-700 mb-4">
+      <p className="text-sf-text mb-4">
         Help us make SpellForge better! Tell us what you think, report a bug, or suggest a feature.
       </p>
 
@@ -53,14 +53,14 @@ export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
         onChange={(e) => setText(e.target.value)}
         rows={8}
         placeholder="Type your feedback here..."
-        className="w-full border border-amber-300 rounded-lg px-4 py-3 text-amber-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+        className="w-full border border-sf-input-border rounded-lg px-4 py-3 text-sf-heading bg-sf-input-bg focus:outline-none focus:ring-2 focus:ring-sf-primary mb-4"
         autoFocus
       />
 
       <button
         onClick={handleSubmit}
         disabled={text.trim() === ''}
-        className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white font-bold py-4 rounded-xl text-lg transition-colors"
+        className="w-full bg-sf-primary hover:bg-sf-primary-hover disabled:bg-sf-disabled text-sf-primary-text font-bold py-4 rounded-xl text-lg transition-colors"
       >
         Send Feedback
       </button>
