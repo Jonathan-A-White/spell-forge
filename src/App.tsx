@@ -191,8 +191,9 @@ function App() {
 
   // Compute active list and days until test
   const activeList = wordLists.find((l) => l.active && !l.archived) ?? null;
+  const [mountTime] = useState(Date.now);
   const daysUntilTest = activeList?.testDate
-    ? Math.max(0, Math.ceil((activeList.testDate.getTime() - Date.now()) / 86400000))
+    ? Math.max(0, Math.ceil((activeList.testDate.getTime() - mountTime) / 86400000))
     : null;
 
   // Render views

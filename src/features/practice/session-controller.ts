@@ -107,7 +107,7 @@ export function recordAttempt(
   const newResults = [...state.results, result];
   const newAttemptCount = state.attemptCount + 1;
 
-  let updatedStats: WordStats | null = null;
+  const updatedStats: WordStats | null = null;
   let newWordsCorrect = state.wordsCorrect;
   let newWordsAttempted = state.wordsAttempted;
 

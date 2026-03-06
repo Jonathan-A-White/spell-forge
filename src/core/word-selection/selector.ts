@@ -88,9 +88,9 @@ export function selectSessionWords(
     computeRatios(daysUntilTest);
 
   // Calculate target counts
-  let currentTarget = Math.round(sessionSize * currentRatio);
-  let reviewTarget = Math.round(sessionSize * reviewRatio);
-  let maintenanceTarget = Math.max(0, sessionSize - currentTarget - reviewTarget);
+  const currentTarget = Math.round(sessionSize * currentRatio);
+  const reviewTarget = Math.round(sessionSize * reviewRatio);
+  const maintenanceTarget = Math.max(0, sessionSize - currentTarget - reviewTarget);
 
   // Identify trouble words (always included regardless of source)
   const troubleWords = allWords.filter(w => {
