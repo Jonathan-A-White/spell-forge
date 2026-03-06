@@ -3,6 +3,7 @@ import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
+import { addPadding } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
 
 // ─── Word Cleaning ───────────────────────────────────────────
@@ -334,5 +335,70 @@ describe('OcrManager', () => {
 
     expect(result.source).toBe('local');
     expect(result.confidence).toBe(0.5);
+  });
+});
+
+// ─── addPadding ─────────────────────────────────────────────
+
+describe('addPadding', () => {
+  it('returns original blob when OffscreenCanvas is unavailable', async () => {
+    // jsdom does not provide OffscreenCanvas, so addPadding gracefully falls back
+    const blob = new Blob(['test'], { type: 'image/png' });
+    const result = await addPadding(blob);
+    expect(result).toBe(blob);
+  });
+
+  it('pads the image when OffscreenCanvas is available', async () => {
+    // Minimal mock of OffscreenCanvas + createImageBitmap
+    const drawImageCalls: unknown[] = [];
+    const fillRectCalls: unknown[] = [];
+
+    const fakeCtx = {
+      fillStyle: '',
+      fillRect: (...args: unknown[]) => fillRectCalls.push(args),
+      drawImage: (...args: unknown[]) => drawImageCalls.push(args),
+    };
+
+    const outputBlob = new Blob(['padded'], { type: 'image/png' });
+
+    class MockOffscreenCanvas {
+      width: number;
+      height: number;
+      constructor(w: number, h: number) {
+        this.width = w;
+        this.height = h;
+      }
+      getContext() { return fakeCtx; }
+      convertToBlob() { return Promise.resolve(outputBlob); }
+    }
+
+    const fakeBitmap = { width: 200, height: 100, close: vi.fn() };
+
+    // Install globals
+    vi.stubGlobal('OffscreenCanvas', MockOffscreenCanvas);
+    vi.stubGlobal('createImageBitmap', () => Promise.resolve(fakeBitmap));
+
+    try {
+      const blob = new Blob(['test'], { type: 'image/png' });
+      const result = await addPadding(blob);
+
+      // Should return the padded blob, not the original
+      expect(result).toBe(outputBlob);
+      expect(result).not.toBe(blob);
+
+      // Padding = 5% of min(200, 100) = 5
+      // Canvas should be 210 x 110
+      expect(fillRectCalls).toHaveLength(1);
+      expect(fillRectCalls[0]).toEqual([0, 0, 210, 110]);
+
+      // Image drawn at offset (5, 5)
+      expect(drawImageCalls).toHaveLength(1);
+      expect(drawImageCalls[0]).toEqual([fakeBitmap, 5, 5]);
+
+      // Bitmap should be cleaned up
+      expect(fakeBitmap.close).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

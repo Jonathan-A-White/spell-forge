@@ -7,5 +7,5 @@ export { OcrManagerImpl, createOcrManager, DEFAULT_CONFIDENCE_THRESHOLD } from '
 export type { OcrManager } from './manager.ts';
 export { cleanWords, normalizeWhitespace } from './utils.ts';
 export { createTesseractRecognizer } from './tesseract-recognizer.ts';
-export { recognizeWithOrientationDetection } from './preprocess.ts';
+export { addPadding, recognizeWithOrientationDetection } from './preprocess.ts';
 export type { OcrWorker } from './preprocess.ts';
