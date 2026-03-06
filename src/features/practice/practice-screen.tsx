@@ -1,6 +1,6 @@
 // src/features/practice/practice-screen.tsx — Main practice session screen
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { LetterBank } from './letter-bank';
 import { SessionSummary } from './session-summary';
 import type {
@@ -58,6 +58,14 @@ export function PracticeScreen({
   });
   const [sessionLog, setSessionLog] = useState<SessionLog | null>(null);
   const [reward] = useState<RewardEvent | null>(null);
+
+  // Auto-speak the word when it changes or on first load
+  const currentWord = session?.currentWord ?? null;
+  useEffect(() => {
+    if (currentWord) {
+      onSpeak?.(currentWord.text);
+    }
+  }, [currentWord, onSpeak]);
 
   const handleWordComplete = useCallback(
     (correct: boolean, responseTimeMs: number) => {
@@ -157,6 +165,7 @@ export function PracticeScreen({
         </div>
 
         <LetterBank
+          key={session.currentWord.id}
           word={session.currentWord.text}
           onComplete={handleWordComplete}
           scaffolding={

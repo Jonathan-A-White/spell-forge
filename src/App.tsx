@@ -25,11 +25,15 @@ import { ProgressView } from './features/dashboard/progress-view';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { ListEditor } from './features/word-lists/list-editor';
 import { FeedbackForm } from './features/feedback/feedback-form';
+import { AudioManagerImpl, TtsProvider } from './audio';
 import { v4 as uuidv4 } from 'uuid';
 
 type AppView = 'loading' | 'onboarding' | 'profile-select' | 'home' | 'practice' | 'list-editor' | 'feedback';
 
 const eventBus = createEventBus();
+
+const audioManager = new AudioManagerImpl();
+audioManager.registerProvider(new TtsProvider());
 
 function App() {
   const [view, setView] = useState<AppView>('loading');
@@ -229,6 +233,7 @@ function App() {
           streakCount={streakData?.currentStreak ?? 0}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
+          onSpeak={(word) => audioManager.speak(word)}
         />
       );
 
