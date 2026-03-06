@@ -8,7 +8,7 @@ interface HomeScreenProps {
   allWords: Word[];
   allStats: WordStats[];
   streakData: StreakData | null;
-  onNavigate: (view: 'progress' | 'practice' | 'list-editor' | 'settings' | 'word-lists' | 'feedback') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'list-editor' | 'settings' | 'word-lists' | 'feedback') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -114,6 +114,14 @@ export function HomeScreen({
               onClick={() => onNavigate('progress')}
               accent="from-green-500/20 to-emerald-500/10"
               iconColor="text-green-500"
+            />
+            <NavCard
+              title="Games"
+              subtitle="Search, crossword, quiz"
+              icon={<GamesIcon />}
+              onClick={() => onNavigate('practice-games')}
+              accent="from-pink-500/20 to-rose-500/10"
+              iconColor="text-pink-500"
             />
             <NavCard
               title="Word Lists"
@@ -262,6 +270,17 @@ function PlusIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function GamesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <rect x="2" y="2" width="9" height="9" rx="1" />
+      <rect x="13" y="2" width="9" height="9" rx="1" />
+      <rect x="2" y="13" width="9" height="9" rx="1" />
+      <path d="M17.5 13v9M13 17.5h9" />
     </svg>
   );
 }
