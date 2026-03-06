@@ -10,6 +10,7 @@ interface ProgressViewProps {
   activeList: WordList | null;
   daysUntilTest: number | null;
   onStartPractice: () => void;
+  onAddWords: () => void;
   onBack: () => void;
 }
 
@@ -20,6 +21,7 @@ export function ProgressView({
   activeList,
   daysUntilTest,
   onStartPractice,
+  onAddWords,
   onBack,
 }: ProgressViewProps) {
   const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
@@ -108,13 +110,39 @@ export function ProgressView({
         </div>
       </div>
 
-      {/* Start Practice Button */}
-      <button
-        onClick={onStartPractice}
-        className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-colors shadow-md"
-      >
-        Start Practice
-      </button>
+      {/* Empty state — guide user to add words first */}
+      {allWords.length === 0 && (
+        <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-dashed border-amber-300 mb-4 text-center">
+          <p className="text-amber-800 font-medium text-lg mb-2">No spelling words yet!</p>
+          <p className="text-amber-600 text-sm mb-4">
+            Add your spelling words to start practicing.
+          </p>
+          <button
+            onClick={onAddWords}
+            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-colors shadow-md"
+          >
+            Add Spelling Words
+          </button>
+        </div>
+      )}
+
+      {/* Action buttons — show Start Practice when words exist */}
+      {allWords.length > 0 && (
+        <div className="space-y-3">
+          <button
+            onClick={onStartPractice}
+            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-colors shadow-md"
+          >
+            Start Practice
+          </button>
+          <button
+            onClick={onAddWords}
+            className="w-full bg-white border-2 border-amber-300 hover:bg-amber-50 text-amber-800 font-medium py-3 rounded-xl transition-colors"
+          >
+            Add More Words
+          </button>
+        </div>
+      )}
     </div>
   );
 }
