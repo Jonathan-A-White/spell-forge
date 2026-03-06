@@ -36,31 +36,71 @@ const HIGH_CONFIDENCE_THRESHOLD = 80;
 const PADDING_PERCENT = 0.05;
 
 /**
+ * Maximum pixel dimension (width or height) before downscaling.
+ * Mobile devices can silently fail when OffscreenCanvas allocates large pixel
+ * buffers (e.g. a 4000×3000 photo ≈ 48 MB RGBA). Capping at 2048 px keeps the
+ * buffer under ~16 MB while preserving enough detail for Tesseract.
+ */
+const MAX_DIMENSION = 2048;
+
+/**
+ * Minimum valid output blob size in bytes.
+ * A valid PNG or JPEG will always exceed this. If convertToBlob returns
+ * something smaller it almost certainly produced a blank/corrupt image.
+ */
+const MIN_BLOB_SIZE = 1024;
+
+/**
  * Adds white padding around an image Blob using an OffscreenCanvas.
+ * Large images are downscaled first to avoid mobile memory issues.
  * Returns a new Blob with the padded image, or the original if padding
- * cannot be applied (e.g. OffscreenCanvas not available).
+ * cannot be applied (e.g. OffscreenCanvas not available or canvas failure).
  */
 export async function addPadding(image: Blob): Promise<Blob> {
   if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
     return image;
   }
 
-  const bitmap = await createImageBitmap(image);
-  const pad = Math.round(Math.min(bitmap.width, bitmap.height) * PADDING_PERCENT);
-  const canvas = new OffscreenCanvas(bitmap.width + pad * 2, bitmap.height + pad * 2);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    bitmap.close();
+  try {
+    const bitmap = await createImageBitmap(image);
+    try {
+      // Downscale if either dimension exceeds the cap
+      let drawWidth = bitmap.width;
+      let drawHeight = bitmap.height;
+      const maxSide = Math.max(drawWidth, drawHeight);
+      if (maxSide > MAX_DIMENSION) {
+        const scale = MAX_DIMENSION / maxSide;
+        drawWidth = Math.round(drawWidth * scale);
+        drawHeight = Math.round(drawHeight * scale);
+      }
+
+      const pad = Math.round(Math.min(drawWidth, drawHeight) * PADDING_PERCENT);
+      const canvas = new OffscreenCanvas(drawWidth + pad * 2, drawHeight + pad * 2);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return image;
+      }
+
+      // Fill with white, then draw the (possibly downscaled) image offset by padding
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, pad, pad, drawWidth, drawHeight);
+
+      const result = await canvas.convertToBlob({ type: image.type || 'image/png' });
+
+      // Validate: a blank or corrupt blob will be suspiciously small
+      if (result.size < MIN_BLOB_SIZE) {
+        return image;
+      }
+
+      return result;
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    // Any failure (OOM, SecurityError, etc.) → use the original image
     return image;
   }
-
-  // Fill with white, then draw the original image offset by the padding amount
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(bitmap, pad, pad);
-  bitmap.close();
-
-  return canvas.convertToBlob({ type: image.type || 'image/png' });
 }
 
 /**

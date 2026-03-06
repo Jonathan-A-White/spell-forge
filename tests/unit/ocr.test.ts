@@ -348,10 +348,13 @@ describe('addPadding', () => {
     expect(result).toBe(blob);
   });
 
-  it('pads the image when OffscreenCanvas is available', async () => {
-    // Minimal mock of OffscreenCanvas + createImageBitmap
-    const drawImageCalls: unknown[] = [];
-    const fillRectCalls: unknown[] = [];
+  /**
+   * Helper: set up OffscreenCanvas + createImageBitmap mocks and run addPadding.
+   * Returns the captured draw calls and result for assertions.
+   */
+  async function runWithMockCanvas(bitmapWidth: number, bitmapHeight: number) {
+    const drawImageCalls: unknown[][] = [];
+    const fillRectCalls: unknown[][] = [];
 
     const fakeCtx = {
       fillStyle: '',
@@ -359,44 +362,123 @@ describe('addPadding', () => {
       drawImage: (...args: unknown[]) => drawImageCalls.push(args),
     };
 
-    const outputBlob = new Blob(['padded'], { type: 'image/png' });
+    // Output blob must exceed MIN_BLOB_SIZE (1024 bytes) to pass validation
+    const outputBlob = new Blob([new Uint8Array(2048)], { type: 'image/png' });
 
+    let canvasWidth = 0;
+    let canvasHeight = 0;
     class MockOffscreenCanvas {
       width: number;
       height: number;
       constructor(w: number, h: number) {
         this.width = w;
         this.height = h;
+        canvasWidth = w;
+        canvasHeight = h;
       }
       getContext() { return fakeCtx; }
       convertToBlob() { return Promise.resolve(outputBlob); }
     }
 
-    const fakeBitmap = { width: 200, height: 100, close: vi.fn() };
+    const fakeBitmap = { width: bitmapWidth, height: bitmapHeight, close: vi.fn() };
 
-    // Install globals
+    vi.stubGlobal('OffscreenCanvas', MockOffscreenCanvas);
+    vi.stubGlobal('createImageBitmap', () => Promise.resolve(fakeBitmap));
+
+    const blob = new Blob(['test'], { type: 'image/png' });
+    try {
+      const result = await addPadding(blob);
+      return { result, blob, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasWidth, canvasHeight };
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }
+
+  it('pads a small image without downscaling', async () => {
+    const { result, blob, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasWidth, canvasHeight } =
+      await runWithMockCanvas(200, 100);
+
+    // Should return the padded blob, not the original
+    expect(result).toBe(outputBlob);
+    expect(result).not.toBe(blob);
+
+    // No downscaling: drawWidth=200, drawHeight=100
+    // Padding = 5% of min(200, 100) = 5
+    // Canvas should be 210 x 110
+    expect(canvasWidth).toBe(210);
+    expect(canvasHeight).toBe(110);
+    expect(fillRectCalls).toHaveLength(1);
+    expect(fillRectCalls[0]).toEqual([0, 0, 210, 110]);
+
+    // drawImage uses 9-arg form: (bitmap, sx, sy, sw, sh, dx, dy, dw, dh)
+    expect(drawImageCalls).toHaveLength(1);
+    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 200, 100, 5, 5, 200, 100]);
+
+    // Bitmap should be cleaned up
+    expect(fakeBitmap.close).toHaveBeenCalled();
+  });
+
+  it('downscales large images before padding', async () => {
+    // Simulate a 4000x3000 phone photo (exceeds MAX_DIMENSION of 2048)
+    const { result, outputBlob, fakeBitmap, drawImageCalls, canvasWidth, canvasHeight } =
+      await runWithMockCanvas(4000, 3000);
+
+    expect(result).toBe(outputBlob);
+
+    // Scale factor = 2048/4000 = 0.512 → drawWidth=2048, drawHeight=1536
+    // Padding = 5% of min(2048, 1536) = round(76.8) = 77
+    // Canvas = 2048 + 154 x 1536 + 154 = 2202 x 1690
+    expect(canvasWidth).toBe(2202);
+    expect(canvasHeight).toBe(1690);
+
+    // drawImage should scale from full source to downscaled destination
+    expect(drawImageCalls).toHaveLength(1);
+    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 4000, 3000, 77, 77, 2048, 1536]);
+
+    expect(fakeBitmap.close).toHaveBeenCalled();
+  });
+
+  it('falls back to original when convertToBlob produces a tiny blob', async () => {
+    const fakeCtx = {
+      fillStyle: '',
+      fillRect: () => {},
+      drawImage: () => {},
+    };
+
+    // Tiny output blob (below MIN_BLOB_SIZE) simulates a blank/corrupt canvas
+    const tinyBlob = new Blob(['x'], { type: 'image/png' });
+
+    class MockOffscreenCanvas {
+      width: number;
+      height: number;
+      constructor(w: number, h: number) { this.width = w; this.height = h; }
+      getContext() { return fakeCtx; }
+      convertToBlob() { return Promise.resolve(tinyBlob); }
+    }
+
+    const fakeBitmap = { width: 200, height: 100, close: vi.fn() };
     vi.stubGlobal('OffscreenCanvas', MockOffscreenCanvas);
     vi.stubGlobal('createImageBitmap', () => Promise.resolve(fakeBitmap));
 
     try {
-      const blob = new Blob(['test'], { type: 'image/png' });
-      const result = await addPadding(blob);
-
-      // Should return the padded blob, not the original
-      expect(result).toBe(outputBlob);
-      expect(result).not.toBe(blob);
-
-      // Padding = 5% of min(200, 100) = 5
-      // Canvas should be 210 x 110
-      expect(fillRectCalls).toHaveLength(1);
-      expect(fillRectCalls[0]).toEqual([0, 0, 210, 110]);
-
-      // Image drawn at offset (5, 5)
-      expect(drawImageCalls).toHaveLength(1);
-      expect(drawImageCalls[0]).toEqual([fakeBitmap, 5, 5]);
-
-      // Bitmap should be cleaned up
+      const original = new Blob(['original'], { type: 'image/png' });
+      const result = await addPadding(original);
+      // Should fall back to original since output was suspiciously small
+      expect(result).toBe(original);
       expect(fakeBitmap.close).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('falls back to original when createImageBitmap throws (OOM)', async () => {
+    vi.stubGlobal('OffscreenCanvas', class { constructor() {} });
+    vi.stubGlobal('createImageBitmap', () => Promise.reject(new Error('OOM')));
+
+    try {
+      const original = new Blob(['original'], { type: 'image/png' });
+      const result = await addPadding(original);
+      expect(result).toBe(original);
     } finally {
       vi.unstubAllGlobals();
     }
