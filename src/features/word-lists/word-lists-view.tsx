@@ -1,5 +1,6 @@
 // src/features/word-lists/word-lists-view.tsx — Per-profile word list overview
 
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { WordList, Word, WordStats } from '../../contracts/types';
 
 interface WordListsViewProps {
@@ -7,6 +8,10 @@ interface WordListsViewProps {
   allWords: Word[];
   allStats: WordStats[];
   onAddList: () => void;
+  onEditList: (list: WordList) => void;
+  onDeleteList: (listId: string) => void;
+  onArchiveList?: (listId: string) => void;
+  onUnarchiveList?: (listId: string) => void;
   onImportFromCamera?: () => void;
   onBack: () => void;
 }
@@ -16,12 +21,33 @@ export function WordListsView({
   allWords,
   allStats,
   onAddList,
+  onEditList,
+  onDeleteList,
+  onArchiveList,
+  onUnarchiveList,
   onImportFromCamera,
   onBack,
 }: WordListsViewProps) {
   const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
   const activeLists = wordLists.filter((l) => !l.archived);
   const archivedLists = wordLists.filter((l) => l.archived);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const closeMenu = useCallback(() => setOpenMenuId(null), []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!openMenuId) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        closeMenu();
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [openMenuId, closeMenu]);
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -96,7 +122,7 @@ export function WordListsView({
                     className="bg-sf-surface rounded-xl border border-sf-border p-4 hover:border-sf-border-strong transition-all"
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-bold text-sf-heading">{list.name}</p>
                         <p className="text-xs text-sf-muted mt-0.5">
                           {words.length} word{words.length !== 1 ? 's' : ''}
@@ -105,13 +131,52 @@ export function WordListsView({
                           )}
                         </p>
                       </div>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                        pct >= 90 ? 'bg-green-500/20 text-green-700' :
-                        pct >= 50 ? 'bg-yellow-500/20 text-yellow-700' :
-                        'bg-sf-track text-sf-muted'
-                      }`}>
-                        {pct}%
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                          pct >= 90 ? 'bg-green-500/20 text-green-700' :
+                          pct >= 50 ? 'bg-yellow-500/20 text-yellow-700' :
+                          'bg-sf-track text-sf-muted'
+                        }`}>
+                          {pct}%
+                        </span>
+                        <div className="relative" ref={openMenuId === list.id ? menuRef : undefined}>
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === list.id ? null : list.id)}
+                            className="p-1.5 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+                            aria-label={`Actions for ${list.name}`}
+                            data-testid={`list-menu-${list.id}`}
+                          >
+                            <MoreIcon />
+                          </button>
+                          {openMenuId === list.id && (
+                            <div className="absolute right-0 top-full mt-1 w-36 bg-sf-surface border border-sf-border rounded-lg shadow-lg z-10 py-1" data-testid={`list-dropdown-${list.id}`}>
+                              <button
+                                onClick={() => { closeMenu(); onEditList(list); }}
+                                className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
+                                data-testid={`edit-list-${list.id}`}
+                              >
+                                Edit
+                              </button>
+                              {onArchiveList && (
+                                <button
+                                  onClick={() => { closeMenu(); onArchiveList(list.id); }}
+                                  className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
+                                  data-testid={`archive-list-${list.id}`}
+                                >
+                                  Archive
+                                </button>
+                              )}
+                              <button
+                                onClick={() => { closeMenu(); setConfirmDeleteId(list.id); }}
+                                className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-sf-surface-hover transition-colors"
+                                data-testid={`delete-list-${list.id}`}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     {/* Progress bar */}
                     <div className="w-full bg-sf-track rounded-full h-2">
@@ -162,10 +227,44 @@ export function WordListsView({
                     key={list.id}
                     className="bg-sf-surface rounded-xl border border-sf-border p-4"
                   >
-                    <p className="font-bold text-sf-heading">{list.name}</p>
-                    <p className="text-xs text-sf-muted mt-0.5">
-                      {words.length} word{words.length !== 1 ? 's' : ''} · Archived
-                    </p>
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-sf-heading">{list.name}</p>
+                        <p className="text-xs text-sf-muted mt-0.5">
+                          {words.length} word{words.length !== 1 ? 's' : ''} · Archived
+                        </p>
+                      </div>
+                      <div className="relative" ref={openMenuId === list.id ? menuRef : undefined}>
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === list.id ? null : list.id)}
+                          className="p-1.5 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+                          aria-label={`Actions for ${list.name}`}
+                          data-testid={`list-menu-${list.id}`}
+                        >
+                          <MoreIcon />
+                        </button>
+                        {openMenuId === list.id && (
+                          <div className="absolute right-0 top-full mt-1 w-36 bg-sf-surface border border-sf-border rounded-lg shadow-lg z-10 py-1" data-testid={`list-dropdown-${list.id}`}>
+                            {onUnarchiveList && (
+                              <button
+                                onClick={() => { closeMenu(); onUnarchiveList(list.id); }}
+                                className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
+                                data-testid={`unarchive-list-${list.id}`}
+                              >
+                                Unarchive
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { closeMenu(); setConfirmDeleteId(list.id); }}
+                              className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-sf-surface-hover transition-colors"
+                              data-testid={`delete-list-${list.id}`}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -173,6 +272,37 @@ export function WordListsView({
           </section>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="delete-confirm-dialog">
+          <div className="bg-sf-surface rounded-xl border border-sf-border p-6 max-w-sm w-full shadow-xl">
+            <h2 className="text-lg font-bold text-sf-heading mb-2">Delete Word List?</h2>
+            <p className="text-sm text-sf-muted mb-6">
+              This will permanently delete the list and all its words. This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-sf-heading bg-sf-track hover:bg-sf-surface-hover transition-colors"
+                data-testid="delete-cancel-btn"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteList(confirmDeleteId);
+                  setConfirmDeleteId(null);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-colors"
+                data-testid="delete-confirm-btn"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -205,6 +335,16 @@ function BackArrowIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M19 12H5" />
       <path d="M12 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+      <circle cx="12" cy="5" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="12" cy="19" r="1.5" />
     </svg>
   );
 }

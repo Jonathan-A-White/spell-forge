@@ -54,6 +54,7 @@ function App() {
   const [allStats, setAllStats] = useState<WordStats[]>([]);
   const [wordLists, setWordLists] = useState<WordList[]>([]);
   const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const [editingList, setEditingList] = useState<WordList | null>(null);
 
   const selectProfile = useCallback(async (profile: Profile) => {
     setActiveProfile(profile);
@@ -142,64 +143,147 @@ function App() {
     [],
   );
 
+  const refreshListData = useCallback(async () => {
+    if (!activeProfile) return;
+    const updatedWords = await wordRepo.getByProfileId(activeProfile.id);
+    const updatedStats = await statsRepo.getByProfileId(activeProfile.id);
+    const updatedLists = await wordListRepo.getByProfileId(activeProfile.id);
+    setAllWords(updatedWords);
+    setAllStats(updatedStats);
+    setWordLists(updatedLists);
+  }, [activeProfile]);
+
   const handleSaveList = useCallback(
     async (name: string, words: string[], testDate: Date | null) => {
       if (!activeProfile) return;
 
-      const list = await wordListRepo.create({
-        profileId: activeProfile.id,
-        name,
-        testDate,
-        createdAt: new Date(),
-        source: 'manual',
-        active: true,
-        archived: false,
-      });
+      if (editingList) {
+        // Update existing list metadata
+        await wordListRepo.update(editingList.id, { name, testDate });
 
-      for (const wordText of words) {
-        const word: Word = {
-          id: uuidv4(),
-          listId: list.id,
+        // Diff words: remove deleted, add new, keep existing
+        const existingWords = await wordRepo.getByListId(editingList.id);
+        const existingTexts = new Set(existingWords.map((w) => w.text));
+        const newTexts = new Set(words);
+
+        // Delete words that were removed
+        for (const existing of existingWords) {
+          if (!newTexts.has(existing.text)) {
+            await wordRepo.delete(existing.id);
+          }
+        }
+
+        // Add words that are new
+        for (const wordText of words) {
+          if (!existingTexts.has(wordText)) {
+            const word: Word = {
+              id: uuidv4(),
+              listId: editingList.id,
+              profileId: activeProfile.id,
+              text: wordText,
+              phonemes: [],
+              syllables: [],
+              patterns: [],
+              imageUrl: null,
+              imageCached: false,
+              audioCustom: null,
+              createdAt: new Date(),
+            };
+            await wordRepo.create(word);
+
+            await statsRepo.create({
+              wordId: word.id,
+              profileId: activeProfile.id,
+              lastAsked: null,
+              timesAsked: 0,
+              timesWrong: 0,
+              timesStruggledRight: 0,
+              timesEasyRight: 0,
+              consecutiveCorrect: 0,
+              currentBucket: 'new',
+              nextReviewDate: new Date(),
+              difficultyScore: 0.5,
+              techniqueHistory: [],
+            });
+          }
+        }
+
+        setEditingList(null);
+      } else {
+        // Create new list
+        const list = await wordListRepo.create({
           profileId: activeProfile.id,
-          text: wordText,
-          phonemes: [],
-          syllables: [],
-          patterns: [],
-          imageUrl: null,
-          imageCached: false,
-          audioCustom: null,
+          name,
+          testDate,
           createdAt: new Date(),
-        };
-        await wordRepo.create(word);
+          source: 'manual',
+          active: true,
+          archived: false,
+        });
 
-        const stats: WordStats = {
-          id: uuidv4(),
-          wordId: word.id,
-          profileId: activeProfile.id,
-          lastAsked: null,
-          timesAsked: 0,
-          timesWrong: 0,
-          timesStruggledRight: 0,
-          timesEasyRight: 0,
-          consecutiveCorrect: 0,
-          currentBucket: 'new',
-          nextReviewDate: new Date(),
-          difficultyScore: 0.5,
-          techniqueHistory: [],
-        };
-        await statsRepo.create(stats);
+        for (const wordText of words) {
+          const word: Word = {
+            id: uuidv4(),
+            listId: list.id,
+            profileId: activeProfile.id,
+            text: wordText,
+            phonemes: [],
+            syllables: [],
+            patterns: [],
+            imageUrl: null,
+            imageCached: false,
+            audioCustom: null,
+            createdAt: new Date(),
+          };
+          await wordRepo.create(word);
+
+          const stats: WordStats = {
+            id: uuidv4(),
+            wordId: word.id,
+            profileId: activeProfile.id,
+            lastAsked: null,
+            timesAsked: 0,
+            timesWrong: 0,
+            timesStruggledRight: 0,
+            timesEasyRight: 0,
+            consecutiveCorrect: 0,
+            currentBucket: 'new',
+            nextReviewDate: new Date(),
+            difficultyScore: 0.5,
+            techniqueHistory: [],
+          };
+          await statsRepo.create(stats);
+        }
       }
 
-      // Refresh data
-      const updatedWords = await wordRepo.getByProfileId(activeProfile.id);
-      const updatedStats = await statsRepo.getByProfileId(activeProfile.id);
-      const updatedLists = await wordListRepo.getByProfileId(activeProfile.id);
-      setAllWords(updatedWords);
-      setAllStats(updatedStats);
-      setWordLists(updatedLists);
-      setView('home');
+      await refreshListData();
+      setView('word-lists');
     },
-    [activeProfile],
+    [activeProfile, editingList, refreshListData],
+  );
+
+  const handleDeleteList = useCallback(
+    async (listId: string) => {
+      await wordListRepo.delete(listId);
+      await refreshListData();
+    },
+    [refreshListData],
+  );
+
+  const handleArchiveList = useCallback(
+    async (listId: string) => {
+      await wordListRepo.archive(listId);
+      await refreshListData();
+    },
+    [refreshListData],
+  );
+
+  const handleUnarchiveList = useCallback(
+    async (listId: string) => {
+      await wordListRepo.unarchive(listId);
+      await refreshListData();
+    },
+    [refreshListData],
   );
 
   const handleContrastModeChange = useCallback(
@@ -337,15 +421,20 @@ function App() {
         />
       );
 
-    case 'list-editor':
+    case 'list-editor': {
+      const editWords = editingList
+        ? allWords.filter((w) => w.listId === editingList.id).map((w) => w.text)
+        : [];
       return (
         <ListEditor
-          existingWords={[]}
+          list={editingList}
+          existingWords={editWords}
           ocrManager={ocrManager}
           onSave={handleSaveList}
-          onCancel={() => setView('home')}
+          onCancel={() => { setEditingList(null); setView('word-lists'); }}
         />
       );
+    }
 
     case 'feedback':
       return (
@@ -393,8 +482,12 @@ function App() {
           wordLists={wordLists}
           allWords={allWords}
           allStats={allStats}
-          onAddList={() => setView('list-editor')}
-          onImportFromCamera={() => setView('list-editor')}
+          onAddList={() => { setEditingList(null); setView('list-editor'); }}
+          onEditList={(list) => { setEditingList(list); setView('list-editor'); }}
+          onDeleteList={handleDeleteList}
+          onArchiveList={handleArchiveList}
+          onUnarchiveList={handleUnarchiveList}
+          onImportFromCamera={() => { setEditingList(null); setView('list-editor'); }}
           onBack={() => setView('home')}
         />
       );
