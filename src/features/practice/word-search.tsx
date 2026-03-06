@@ -96,14 +96,14 @@ export function WordSearch({ words, difficulty, onComplete, tapTargetSize }: Wor
         setHighlightedCells(newHighlighted);
 
         if (newFound.size === placed.length) {
-          onComplete(newFound.size, words.length);
+          onComplete(newFound.size, placed.length);
         }
         break;
       }
     }
 
     setSelectedCells([]);
-  }, [selecting, selectedCells, grid, placed, foundWords, highlightedCells, words.length, onComplete]);
+  }, [selecting, selectedCells, grid, placed, foundWords, highlightedCells, onComplete]);
 
   const selectedSet = useMemo(() => {
     const s = new Set<string>();
