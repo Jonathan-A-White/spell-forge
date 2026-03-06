@@ -11,6 +11,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
+    "test:phonics": "vitest run tests/unit/phonics-engine.test.ts",
+    "test:spaced-rep": "vitest run tests/unit/spaced-rep.test.ts tests/unit/difficulty-score.test.ts",
+    "test:data": "vitest run tests/unit/data-layer.test.ts",
+    "test:audio": "vitest run tests/unit/audio.test.ts",
+    "test:ocr": "vitest run tests/unit/ocr.test.ts",
+    "test:themes": "vitest run tests/unit/themes.test.ts",
+    "test:a11y": "vitest run tests/unit/accessibility.test.ts",
+    "test:adaptive": "vitest run tests/unit/adaptive-engine.test.ts",
+    "test:contracts": "vitest run tests/unit/contracts.test.ts",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
