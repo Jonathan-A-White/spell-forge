@@ -8,7 +8,7 @@ type CameraImportStatus = 'idle' | 'processing' | 'preview' | 'error';
 
 interface CameraImportProps {
   ocrManager: OcrManager;
-  onWordsAccepted: (words: string[]) => void;
+  onWordsAccepted: (words: string[], listName?: string | null) => void;
   onCancel: () => void;
 }
 
@@ -76,8 +76,8 @@ export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraIm
   }, []);
 
   const handleAccept = useCallback(() => {
-    onWordsAccepted(Array.from(selectedWords));
-  }, [selectedWords, onWordsAccepted]);
+    onWordsAccepted(Array.from(selectedWords), ocrResult?.listName);
+  }, [selectedWords, onWordsAccepted, ocrResult]);
 
   const handleRetry = useCallback(() => {
     setStatus('idle');
@@ -175,6 +175,12 @@ export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraIm
                 Confidence: {Math.round(ocrResult.confidence * 100)}%
               </span>
             </div>
+
+            {ocrResult.listName && (
+              <p className="text-xs text-sf-muted mb-3">
+                List name detected: <span className="font-bold text-sf-heading">{ocrResult.listName}</span>
+              </p>
+            )}
 
             <div className="flex gap-2 mb-3">
               <button

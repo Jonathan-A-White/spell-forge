@@ -1,7 +1,7 @@
 // src/ocr/local.ts — Local OCR provider (pluggable recognizer, wraps Tesseract.js interface)
 
 import type { OcrProvider, OcrResult } from '../contracts/types.ts';
-import { cleanWords, normalizeWhitespace } from './utils.ts';
+import { cleanWords, normalizeWhitespace, extractListName } from './utils.ts';
 
 /**
  * A recognizer function that takes an image Blob and returns
@@ -36,6 +36,7 @@ export class LocalOcrProvider implements OcrProvider {
     }
 
     const { text, confidence } = await this.recognizer(image);
+    const listName = extractListName(text);
     const rawText = normalizeWhitespace(text);
     const words = cleanWords(rawText);
 
@@ -44,6 +45,7 @@ export class LocalOcrProvider implements OcrProvider {
       words,
       confidence,
       source: 'local',
+      listName,
     };
   }
 }

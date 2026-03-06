@@ -125,3 +125,50 @@ function isAlpha(ch: string): boolean {
 export function normalizeWhitespace(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * Header keywords that commonly appear in spelling-list titles.
+ * Matched case-insensitively.
+ */
+const HEADER_KEYWORDS =
+  /\b(?:unit|week|wk|list|lesson|chapter|spelling|test|vocabulary|vocab|grade|term)\b/i;
+
+/**
+ * Attempt to extract a list / title name from the raw OCR text.
+ *
+ * Heuristic: scan the first few non-empty lines for one that looks like a
+ * heading rather than a spelling word.  A heading line typically:
+ *  - Contains a number  OR  a recognised header keyword
+ *  - Is relatively short (≤ 60 characters)
+ *  - Appears before the bulk of the word list
+ *
+ * Returns the cleaned-up heading string, or `null` if nothing looks like a
+ * title.
+ */
+export function extractListName(rawText: string): string | null {
+  const lines = rawText
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  // Only inspect the first 3 lines — a title should appear near the top
+  const candidates = lines.slice(0, 3);
+
+  for (const line of candidates) {
+    if (line.length > 60) continue; // too long for a title
+
+    const hasKeyword = HEADER_KEYWORDS.test(line);
+    const hasNumber = /\d/.test(line);
+
+    if (hasKeyword || hasNumber) {
+      // Light cleanup: collapse whitespace, keep alphanumeric + basic punctuation
+      const cleaned = line
+        .replace(/[^\w\s,.\-:]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return cleaned || null;
+    }
+  }
+
+  return null;
+}

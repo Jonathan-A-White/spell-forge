@@ -184,6 +184,7 @@ export interface OcrResult {
   words: string[];
   confidence: number;   // 0.0-1.0
   source: 'local' | 'remote';
+  listName: string | null;   // Detected list/title name from image (e.g. "Unit 3, WK 6")
 }
 
 export interface OcrProvider {

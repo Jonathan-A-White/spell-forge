@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
+import { cleanWords, normalizeWhitespace, extractListName } from '../../src/ocr/utils.ts';
 import { addPadding, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -90,6 +90,11 @@ describe('OCR image integration', () => {
     // Sort both arrays to compare contents regardless of OCR line order
     // (rotated images may produce different reading orders)
     expect([...words].sort()).toEqual([...EXPECTED_WORDS].sort());
+
+    // The fixture image has "Unit 3, WK 6" as the header — verify list name detection
+    const listName = extractListName(text);
+    expect(listName).not.toBeNull();
+    expect(listName!.toLowerCase()).toContain('unit');
   }, 120_000); // Tesseract can be slow with multiple orientation attempts
 
   it('produces correct results when addPadding is in the pipeline (unpadded image)', async () => {
