@@ -60,35 +60,51 @@ function App() {
     setActiveProfile(profile);
     applySettings(profile.settings);
 
-    const words = await wordRepo.getByProfileId(profile.id);
-    const stats = await statsRepo.getByProfileId(profile.id);
-    const lists = await wordListRepo.getByProfileId(profile.id);
-    const streak = await streakRepo.get(profile.id);
+    try {
+      const words = await wordRepo.getByProfileId(profile.id);
+      const stats = await statsRepo.getByProfileId(profile.id);
+      const lists = await wordListRepo.getByProfileId(profile.id);
+      const streak = await streakRepo.get(profile.id);
 
-    setAllWords(words);
-    setAllStats(stats);
-    setWordLists(lists);
-    setStreakData(streak);
+      setAllWords(words);
+      setAllStats(stats);
+      setWordLists(lists);
+      setStreakData(streak);
+    } catch {
+      // If loading profile data fails, proceed with empty data rather than getting stuck
+    }
+
     setView('home');
-
     eventBus.emit({ type: 'profile:switched', payload: { profileId: profile.id } });
   }, []);
 
   // Load initial data
   useEffect(() => {
-    async function load() {
-      const profs = await profileRepo.getAll();
-      setProfiles(profs);
+    let cancelled = false;
 
-      if (profs.length === 0) {
-        setView('onboarding');
-      } else if (profs.length === 1) {
-        await selectProfile(profs[0]);
-      } else {
-        setView('profile-select');
+    async function load() {
+      try {
+        const profs = await profileRepo.getAll();
+        if (cancelled) return;
+        setProfiles(profs);
+
+        if (profs.length === 0) {
+          setView('onboarding');
+        } else if (profs.length === 1) {
+          await selectProfile(profs[0]);
+        } else {
+          setView('profile-select');
+        }
+      } catch {
+        if (!cancelled) {
+          // If DB fails to load, fall back to onboarding so the app isn't stuck
+          setView('onboarding');
+        }
       }
     }
     load();
+
+    return () => { cancelled = true; };
   }, [selectProfile]);
 
   const handleOnboardingComplete = useCallback(
