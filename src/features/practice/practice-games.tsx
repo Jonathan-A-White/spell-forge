@@ -71,19 +71,19 @@ export function PracticeGames({
     return () => { cancelled = true; };
   }, [profile.id]);
 
-  // Get words for the active list, filtered to mastered-only
+  // Get mastered words for games — use all mastered words across all lists
+  // so games always have enough words to be fun, even when the active list
+  // has very few mastered words.
   const gameWords = useMemo(() => {
-    let words: Word[];
+    if (!masteredWordIds) return [];
+    const mastered = allWords.filter((w) => masteredWordIds.has(w.id));
+    // Prioritise the active list's words first, then fill with others
     if (activeList) {
-      words = allWords.filter((w) => w.listId === activeList.id);
-    } else {
-      words = allWords;
+      const fromActive = mastered.filter((w) => w.listId === activeList.id);
+      const fromOther = mastered.filter((w) => w.listId !== activeList.id);
+      return [...fromActive, ...fromOther];
     }
-    // Gate to learning-mastered words only
-    if (masteredWordIds) {
-      words = words.filter((w) => masteredWordIds.has(w.id));
-    }
-    return words;
+    return mastered;
   }, [activeList, allWords, masteredWordIds]);
 
   const wordTexts = useMemo(() => {
