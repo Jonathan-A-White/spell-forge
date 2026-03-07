@@ -1,6 +1,7 @@
 // src/features/practice/spelling-quiz.tsx — Spelling quiz with pass/fail scoring
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { shuffle } from '../../core/shuffle';
 
 interface SpellingQuizProps {
   words: string[];
@@ -42,15 +43,6 @@ export interface QuizSavedState {
   questions: QuizQuestion[];
   currentIndex: number;
   answers: QuizAnswer[];
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
 }
 
 function scrambleWord(word: string): string {

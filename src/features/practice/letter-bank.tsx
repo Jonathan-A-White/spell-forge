@@ -1,16 +1,13 @@
 // src/features/practice/letter-bank.tsx — Letter bank spelling component
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { shuffle } from '../../core/shuffle';
 
 interface LetterBankProps {
   word: string;
   onComplete: (correct: boolean, responseTimeMs: number, mistakes: number) => void;
   scaffolding?: { chunks: string[]; hints: string[] } | null;
   tapTargetSize: number;
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  return [...arr].sort(() => Math.random() - 0.5);
 }
 
 function generateDistractors(word: string, count: number): string[] {

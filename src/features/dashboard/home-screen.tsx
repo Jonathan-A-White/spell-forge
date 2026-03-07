@@ -2,6 +2,9 @@
 
 import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
+import { countMasteredWords } from '../../core/mastery';
+import { rewardTracker } from '../rewards';
+import { themeEngine } from '../../themes';
 
 interface HomeScreenProps {
   profile: Profile;
@@ -28,13 +31,7 @@ export function HomeScreen({
   onSwitchProfile,
   hasMultipleProfiles,
 }: HomeScreenProps) {
-  // Combine spaced-rep and learning progress for accurate mastered count
-  const learningMasteredIds = new Set(learningProgress.filter((lp) => lp.mastered).map((lp) => lp.wordId));
-  const mastered = allWords.filter((w) => {
-    const stat = allStats.find((s) => s.wordId === w.id);
-    if (stat && stat.timesAsked > 0 && (stat.currentBucket === 'mastered' || stat.currentBucket === 'review')) return true;
-    return learningMasteredIds.has(w.id);
-  }).length;
+  const mastered = countMasteredWords(allWords, allStats, learningProgress);
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
   const streak = streakData?.currentStreak ?? 0;
   const newWordsCount = allWords.length - mastered;
@@ -42,6 +39,10 @@ export function HomeScreen({
   const coins = coinBalance?.coins ?? 0;
   const allMastered = canPlayFree(allWords.length, mastered);
   const masteryPercent = allWords.length > 0 ? Math.round((mastered / allWords.length) * 100) : 0;
+
+  // Theme milestone status (wires up rewardTracker.getMilestoneStatus + themeEngine.getMilestoneStatus)
+  const milestone = rewardTracker.getMilestoneStatus(profile.id, profile.themeId);
+  const themeName = themeEngine.getTheme(profile.themeId).name;
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -125,6 +126,29 @@ export function HomeScreen({
               </div>
             )}
           </div>
+
+          {/* Theme milestone progress */}
+          {allWords.length > 0 && (
+            <div className="mt-3 bg-sf-surface/60 backdrop-blur-sm rounded-xl px-4 py-2.5 max-w-xs mx-auto">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-sf-muted">{themeName}</span>
+                <span className="font-medium text-sf-heading">{milestone.current}</span>
+              </div>
+              {milestone.next && (
+                <>
+                  <div className="w-full bg-sf-track rounded-full h-1.5">
+                    <div
+                      className="bg-sf-primary h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.max(5, Math.round(((themeEngine.UNITS_PER_MILESTONE - milestone.progressToNext) / themeEngine.UNITS_PER_MILESTONE) * 100))}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-sf-faint mt-1 text-center">
+                    {milestone.progressToNext} more to reach {milestone.next}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
