@@ -134,7 +134,7 @@ describe('ProgressView multi-list readiness', () => {
 
   it('does not count words from inactive/archived lists', () => {
     const activeList = makeList({ id: 'list-a', name: 'Active' });
-    const inactiveList = makeList({ id: 'list-b', name: 'Inactive', active: false });
+    makeList({ id: 'list-b', name: 'Inactive', active: false });
     const words = [
       makeWord('list-a', 'cat'),
       makeWord('list-b', 'dog'), // from inactive list — should not appear
