@@ -35,10 +35,11 @@ export const learningProgressRepo = {
   },
 
   async getMastered(profileId: string): Promise<WordLearningProgress[]> {
-    return db.learningProgress
-      .where('[profileId+mastered]')
-      .equals([profileId, 1])
+    const all = await db.learningProgress
+      .where('profileId')
+      .equals(profileId)
       .toArray();
+    return all.filter(p => p.mastered);
   },
 
   async delete(profileId: string, wordId: string): Promise<void> {
