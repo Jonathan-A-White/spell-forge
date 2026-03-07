@@ -14,6 +14,7 @@ interface SettingsPanelProps {
   onExportProfile?: () => void;
   onImportProfile?: (file: File) => void;
   onShare?: () => void;
+  onSendFeedback?: () => void;
   onBack: () => void;
 }
 
@@ -31,6 +32,7 @@ export function SettingsPanel({
   onExportProfile,
   onImportProfile,
   onShare,
+  onSendFeedback,
   onBack,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -222,6 +224,27 @@ export function SettingsPanel({
             </div>
           </section>
         )}
+
+        {/* Send Feedback */}
+        {onSendFeedback && (
+          <section>
+            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+              Feedback
+            </h2>
+            <button
+              onClick={onSendFeedback}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sf-track text-sf-muted">
+                <FeedbackIcon />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-sm text-sf-text">Send Feedback</p>
+                <p className="text-xs text-sf-muted">Let us know how we can improve</p>
+              </div>
+            </button>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -322,6 +345,14 @@ function ModeIcon({ icon }: { icon: string }) {
     default:
       return null;
   }
+}
+
+function FeedbackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
 }
 
 function ShareSettingsIcon() {

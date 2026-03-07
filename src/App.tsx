@@ -716,6 +716,7 @@ function App() {
           onExportProfile={handleExportProfile}
           onImportProfile={handleImportProfile}
           onShare={() => setView('share')}
+          onSendFeedback={() => setView('feedback')}
           onBack={() => setView('home')}
         />
       );

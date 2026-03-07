@@ -14,7 +14,7 @@ interface HomeScreenProps {
   learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -273,13 +273,6 @@ export function HomeScreen({
             </button>
           )}
 
-          {/* Feedback link */}
-          <button
-            onClick={() => onNavigate('feedback')}
-            className="w-full text-center text-sf-muted hover:text-sf-secondary text-sm py-3 transition-colors"
-          >
-            Send Feedback
-          </button>
         </div>
       </div>
     </div>
