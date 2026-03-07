@@ -30,6 +30,7 @@ import { HomeScreen } from './features/dashboard/home-screen';
 import { ProgressView } from './features/dashboard/progress-view';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { PracticeGames } from './features/practice/practice-games';
+import { QuizScreen } from './features/practice/quiz-screen';
 import { LearningScreen } from './features/learning';
 import { ListEditor } from './features/word-lists/list-editor';
 import { WordListsView } from './features/word-lists/word-lists-view';
@@ -46,7 +47,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'settings' | 'feedback' | 'share';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'settings' | 'feedback' | 'share';
 
 const eventBus = createEventBus();
 
@@ -633,6 +634,19 @@ function App() {
           coinBalance={coinBalance}
           allMastered={allMastered}
           onSpendCoin={handleSpendCoin}
+          onSessionEnd={handleSessionEnd}
+          onBack={() => setView('home')}
+          onSpeak={(word) => audioManager.speak(word)}
+        />
+      );
+
+    case 'quiz':
+      if (!activeProfile) return null;
+      return (
+        <QuizScreen
+          profile={activeProfile}
+          activeList={activeList}
+          allWords={allWords}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
           onSpeak={(word) => audioManager.speak(word)}

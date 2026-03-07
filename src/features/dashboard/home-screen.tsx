@@ -14,7 +14,7 @@ interface HomeScreenProps {
   learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -236,6 +236,14 @@ export function HomeScreen({
               iconColor="text-pink-500"
             />
             <NavCard
+              title="Quiz"
+              subtitle="Test yourself"
+              icon={<QuizNavIcon />}
+              onClick={() => onNavigate('quiz')}
+              accent="from-orange-500/20 to-amber-500/10"
+              iconColor="text-orange-500"
+            />
+            <NavCard
               title="Word Lists"
               subtitle={`${activeLists.length} active list${activeLists.length !== 1 ? 's' : ''}`}
               icon={<ListIcon />}
@@ -418,3 +426,11 @@ function GamesIcon() {
   );
 }
 
+function QuizNavIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
