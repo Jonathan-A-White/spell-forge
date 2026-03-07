@@ -26,6 +26,7 @@ import { HomeScreen } from './features/dashboard/home-screen';
 import { ProgressView } from './features/dashboard/progress-view';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { PracticeGames } from './features/practice/practice-games';
+import { LearningScreen } from './features/learning';
 import { ListEditor } from './features/word-lists/list-editor';
 import { WordListsView } from './features/word-lists/word-lists-view';
 import { FeedbackForm } from './features/feedback/feedback-form';
@@ -37,7 +38,7 @@ import { exportProfile, importProfile } from './data/import-export';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'list-editor' | 'word-lists' | 'settings' | 'feedback';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'settings' | 'feedback';
 
 const eventBus = createEventBus();
 
@@ -470,6 +471,16 @@ function App() {
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
           onSpeak={(word) => audioManager.speak(word)}
+        />
+      );
+
+    case 'learning':
+      if (!activeProfile) return null;
+      return (
+        <LearningScreen
+          profile={activeProfile}
+          audioManager={audioManager}
+          onBack={() => setView('home')}
         />
       );
 

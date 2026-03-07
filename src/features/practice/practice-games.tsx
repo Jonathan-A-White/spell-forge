@@ -6,6 +6,7 @@ import { WordSearch, type WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
 import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
+import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 
 type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz';
 
@@ -45,14 +46,35 @@ export function PracticeGames({
   const [wordSearchSaved, setWordSearchSaved] = useState<WordSearchSavedState | undefined>();
   const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
   const [loading, setLoading] = useState(true);
+  const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
 
-  // Get words for the active list, or all words if no active list
-  const gameWords = useMemo(() => {
-    if (activeList) {
-      return allWords.filter((w) => w.listId === activeList.id);
+  // Load mastered word IDs on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMastered() {
+      const mastered = await learningProgressRepo.getMastered(profile.id);
+      if (!cancelled) {
+        setMasteredWordIds(new Set(mastered.map((p) => p.wordId)));
+      }
     }
-    return allWords;
-  }, [activeList, allWords]);
+    loadMastered();
+    return () => { cancelled = true; };
+  }, [profile.id]);
+
+  // Get words for the active list, filtered to mastered-only
+  const gameWords = useMemo(() => {
+    let words: Word[];
+    if (activeList) {
+      words = allWords.filter((w) => w.listId === activeList.id);
+    } else {
+      words = allWords;
+    }
+    // Gate to learning-mastered words only
+    if (masteredWordIds) {
+      words = words.filter((w) => masteredWordIds.has(w.id));
+    }
+    return words;
+  }, [activeList, allWords, masteredWordIds]);
 
   const wordTexts = useMemo(() => {
     const texts = gameWords.map((w) => w.text);
