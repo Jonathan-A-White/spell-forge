@@ -225,22 +225,6 @@ export function HomeScreen({
               accent="from-purple-500/20 to-violet-500/10"
               iconColor="text-purple-500"
             />
-            <NavCard
-              title="Settings"
-              subtitle={capitalize(profile.settings.contrastMode) + ' mode'}
-              icon={<SettingsIcon />}
-              onClick={() => onNavigate('settings')}
-              accent="from-orange-500/20 to-amber-500/10"
-              iconColor="text-orange-500"
-            />
-            <NavCard
-              title="Share"
-              subtitle="Invite others"
-              icon={<ShareNavIcon />}
-              onClick={() => onNavigate('share')}
-              accent="from-indigo-500/20 to-blue-500/10"
-              iconColor="text-indigo-500"
-            />
           </div>
 
           {/* Empty state for new users */}
@@ -334,10 +318,6 @@ function getGreeting(): string {
   return 'Evening practice session?';
 }
 
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' ');
-}
-
 // ─── SVG Icons ───────────────────────────────────────────────
 
 function LearnIcon() {
@@ -412,14 +392,3 @@ function GamesIcon() {
   );
 }
 
-function ShareNavIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-    </svg>
-  );
-}
