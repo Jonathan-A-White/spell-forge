@@ -14,7 +14,11 @@ function countCorrectDays(stats: WordStats): number {
   const days = new Set<string>();
   for (const result of stats.techniqueHistory) {
     if (result.correct) {
-      days.add(result.timestamp.toISOString().slice(0, 10));
+      const t = result.timestamp;
+      const y = t.getFullYear();
+      const m = String(t.getMonth() + 1).padStart(2, '0');
+      const dd = String(t.getDate()).padStart(2, '0');
+      days.add(`${y}-${m}-${dd}`);
     }
   }
   return days.size;
