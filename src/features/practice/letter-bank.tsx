@@ -100,15 +100,15 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
   const slotSize = useMemo(() => {
     if (containerWidth === 0) return tapTargetSize;
     const gap = 8; // gap-2 = 0.5rem = 8px
-    const padding = 32; // p-4 = 1rem * 2 = 32px
+    const padding = 36; // p-4 (32px) + border-2 (4px)
     const undoWidth = selected.length > 0 ? 60 : 0; // approx undo button width + margin
     const availableWidth = containerWidth - padding - undoWidth;
     const maxPerSlot = (availableWidth - gap * (targetLetters.length - 1)) / targetLetters.length;
-    return Math.max(32, Math.min(tapTargetSize, Math.floor(maxPerSlot)));
+    return Math.max(24, Math.min(tapTargetSize, Math.floor(maxPerSlot)));
   }, [containerWidth, tapTargetSize, targetLetters.length, selected.length]);
 
   const buttonSize = `${slotSize}px`;
-  const fontSize = `${Math.max(14, slotSize * 0.45)}px`;
+  const fontSize = `${Math.max(12, slotSize * 0.45)}px`;
 
   // Bank button size: also responsive but uses tapTargetSize as max
   const bankButtonSize = useMemo(() => {
@@ -155,7 +155,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
         {targetLetters.map((_, i) => (
           <div
             key={i}
-            className="flex items-center justify-center rounded-lg border-2 border-dashed border-sf-border-strong bg-sf-surface flex-shrink-0"
+            className="flex items-center justify-center rounded-lg border-2 border-dashed border-sf-border-strong bg-sf-surface min-w-0"
             style={{ width: buttonSize, height: buttonSize }}
           >
             {selected[i] && (
