@@ -20,6 +20,7 @@ import {
 } from './session-controller';
 import { analyzeWord } from '../../core/phonics';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
+import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 
 interface PracticeScreenProps {
   profile: Profile;
@@ -141,6 +142,10 @@ export function PracticeScreen({
         maxMinutes: profile.settings.sessionMaxMinutes,
         adaptive: profile.settings.sessionAdaptive,
       };
+      // Gate practice to learning-mastered words only
+      const mastered = await learningProgressRepo.getMastered(profile.id);
+      const masteredWordIds = new Set(mastered.map((p) => p.wordId));
+
       const newSession = createSession(
         profile.id,
         activeList,
@@ -148,6 +153,7 @@ export function PracticeScreen({
         allStats,
         daysUntilTest,
         config,
+        masteredWordIds,
       );
       if (!cancelled) {
         setSession(newSession);
@@ -158,11 +164,15 @@ export function PracticeScreen({
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const startFreshSession = useCallback(() => {
+  const startFreshSession = useCallback(async () => {
     const config: Partial<SessionConfig> = {
       maxMinutes: profile.settings.sessionMaxMinutes,
       adaptive: profile.settings.sessionAdaptive,
     };
+    // Gate practice to learning-mastered words only
+    const mastered = await learningProgressRepo.getMastered(profile.id);
+    const masteredWordIds = new Set(mastered.map((p) => p.wordId));
+
     const newSession = createSession(
       profile.id,
       activeList,
@@ -170,6 +180,7 @@ export function PracticeScreen({
       allStats,
       daysUntilTest,
       config,
+      masteredWordIds,
     );
     setSession(newSession);
     setResumePrompt(null);

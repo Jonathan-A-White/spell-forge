@@ -49,12 +49,18 @@ export function createSession(
   allStats: WordStats[],
   daysUntilTest: number | null,
   config: Partial<SessionConfig> = {},
+  masteredWordIds?: Set<string>,
 ): SessionState {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
+  // Filter to only learning-mastered words when provided
+  const filteredWords = masteredWordIds
+    ? allWords.filter((w) => masteredWordIds.has(w.id))
+    : allWords;
+
   const selection = selectSessionWords(
     activeList,
-    allWords,
+    filteredWords,
     allStats,
     cfg.sessionSize,
     daysUntilTest,
