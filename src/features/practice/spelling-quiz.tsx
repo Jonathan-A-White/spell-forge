@@ -402,6 +402,10 @@ export function SpellingQuiz({ words, onComplete, onSpeak, tapTargetSize, savedS
             className="w-full p-3 rounded-xl border-2 border-sf-border-strong bg-sf-surface text-sf-heading font-medium text-center text-lg focus:outline-none focus:ring-2 focus:ring-sf-primary/50"
             style={{ minHeight: buttonSize }}
             autoFocus
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
           />
         )}
       </div>
