@@ -70,6 +70,7 @@ function App() {
     setActiveProfile(profile);
     applySettings(profile.settings);
     themeEngine.applyThemePalette(profile.themeId);
+    localStorage.setItem('sf-last-profile', profile.id);
 
     try {
       const [words, stats, lists, streak, lp, coins] = await Promise.all([
@@ -127,7 +128,14 @@ function App() {
         } else if (profs.length === 1) {
           await selectProfile(profs[0]);
         } else {
-          setView('profile-select');
+          // Try to restore the last-used profile
+          const lastId = localStorage.getItem('sf-last-profile');
+          const lastProfile = lastId ? profs.find((p) => p.id === lastId) : null;
+          if (lastProfile) {
+            await selectProfile(lastProfile);
+          } else {
+            setView('profile-select');
+          }
         }
       } catch {
         if (!cancelled) {
