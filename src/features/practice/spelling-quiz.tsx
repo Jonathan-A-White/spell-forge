@@ -1,12 +1,14 @@
 // src/features/practice/spelling-quiz.tsx — Spelling quiz with pass/fail scoring
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 interface SpellingQuizProps {
   words: string[];
   onComplete: (results: QuizResults) => void;
   onSpeak?: (word: string) => void;
   tapTargetSize: number;
+  savedState?: QuizSavedState;
+  onProgress?: (state: QuizSavedState) => void;
 }
 
 export interface QuizResults {
@@ -17,7 +19,7 @@ export interface QuizResults {
   answers: QuizAnswer[];
 }
 
-interface QuizAnswer {
+export interface QuizAnswer {
   word: string;
   userAnswer: string;
   correct: boolean;
@@ -28,12 +30,18 @@ type QuestionType = 'fill-blank' | 'multiple-choice' | 'unscramble';
 
 const PASS_THRESHOLD = 85;
 
-interface QuizQuestion {
+export interface QuizQuestion {
   word: string;
   type: QuestionType;
   prompt: string;
   options?: string[];
   scrambled?: string;
+}
+
+export interface QuizSavedState {
+  questions: QuizQuestion[];
+  currentIndex: number;
+  answers: QuizAnswer[];
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -137,14 +145,33 @@ function buildQuestions(words: string[]): QuizQuestion[] {
   });
 }
 
-export function SpellingQuiz({ words, onComplete, onSpeak, tapTargetSize }: SpellingQuizProps) {
-  const questions = useMemo(() => buildQuestions(words), [words]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<QuizAnswer[]>([]);
+export function SpellingQuiz({ words, onComplete, onSpeak, tapTargetSize, savedState, onProgress }: SpellingQuizProps) {
+  const questions = useMemo(() => {
+    if (savedState) return savedState.questions;
+    return buildQuestions(words);
+  }, [words, savedState]);
+
+  const [currentIndex, setCurrentIndex] = useState(savedState?.currentIndex ?? 0);
+  const [answers, setAnswers] = useState<QuizAnswer[]>(savedState?.answers ?? []);
   const [inputValue, setInputValue] = useState('');
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastCorrect, setLastCorrect] = useState(false);
+
+  // Report progress when answers change
+  const onProgressRef = useRef(onProgress);
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+  }, [onProgress]);
+  useEffect(() => {
+    if (answers.length > 0) {
+      onProgressRef.current?.({
+        questions,
+        currentIndex,
+        answers,
+      });
+    }
+  }, [answers, currentIndex, questions]);
 
   const currentQuestion = questions[currentIndex] ?? null;
   const isFinished = currentIndex >= questions.length;
