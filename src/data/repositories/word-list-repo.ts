@@ -19,11 +19,13 @@ export const wordListRepo = {
   },
 
   async getActive(profileId: string): Promise<WordList[]> {
-    return db.wordLists.where('[profileId+active]').equals([profileId, 1]).toArray();
+    const lists = await db.wordLists.where('profileId').equals(profileId).toArray();
+    return lists.filter(l => l.active && !l.archived);
   },
 
   async getArchived(profileId: string): Promise<WordList[]> {
-    return db.wordLists.where('[profileId+archived]').equals([profileId, 1]).toArray();
+    const lists = await db.wordLists.where('profileId').equals(profileId).toArray();
+    return lists.filter(l => l.archived);
   },
 
   async update(id: string, data: Partial<WordList>): Promise<WordList> {
