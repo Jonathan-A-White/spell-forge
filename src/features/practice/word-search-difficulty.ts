@@ -58,7 +58,7 @@ export function getGridSizeForDifficulty(
 
 // ─── Grid Building ───────────────────────────────────────────
 
-interface PlacedWord {
+export interface PlacedWord {
   word: string;
   row: number;
   col: number;

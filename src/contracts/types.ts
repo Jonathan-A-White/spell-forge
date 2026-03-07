@@ -258,6 +258,18 @@ export interface LifetimeHealth {
   slippedWords: Word[];  // mastered words that dropped back
 }
 
+// ─── Activity Progress (Auto-Save) ───────────────────────
+
+export type ActivityType = 'practice' | 'word-search' | 'quiz';
+
+export interface ActivityProgress {
+  id: string;              // `${profileId}:${activityType}`
+  profileId: string;
+  activityType: ActivityType;
+  savedAt: Date;
+  state: Record<string, unknown>;  // JSON-serializable activity state
+}
+
 // ─── Import/Export ────────────────────────────────────────────
 
 export interface ExportPayload {

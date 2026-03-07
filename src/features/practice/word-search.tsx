@@ -3,24 +3,34 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   type WordSearchDifficulty,
+  type PlacedWord,
   getDirectionsForDifficulty,
   getMaxWordsForDifficulty,
   getGridSizeForDifficulty,
   buildGrid,
 } from './word-search-difficulty';
 
+export interface WordSearchSavedState {
+  grid: string[][];
+  placed: PlacedWord[];
+  foundWords: string[];
+  highlightedCells: string[];
+}
+
 interface WordSearchProps {
   words: string[];
   difficulty: WordSearchDifficulty;
   onComplete: (foundCount: number, totalCount: number) => void;
   tapTargetSize: number;
+  savedState?: WordSearchSavedState;
+  onProgress?: (state: WordSearchSavedState) => void;
 }
 
 function cellKey(r: number, c: number): string {
   return `${r},${c}`;
 }
 
-export function WordSearch({ words, difficulty, onComplete, tapTargetSize }: WordSearchProps) {
+export function WordSearch({ words, difficulty, onComplete, tapTargetSize, savedState, onProgress }: WordSearchProps) {
   const limitedWords = useMemo(() => {
     const max = getMaxWordsForDifficulty(difficulty);
     return words.slice(0, max);
@@ -33,15 +43,38 @@ export function WordSearch({ words, difficulty, onComplete, tapTargetSize }: Wor
 
   const directions = useMemo(() => getDirectionsForDifficulty(difficulty), [difficulty]);
 
-  const { grid, placed } = useMemo(
-    () => buildGrid(limitedWords, gridSize, directions),
-    [limitedWords, gridSize, directions],
-  );
+  // Use saved grid/placed if available, otherwise generate new
+  const { grid, placed } = useMemo(() => {
+    if (savedState) {
+      return { grid: savedState.grid, placed: savedState.placed };
+    }
+    return buildGrid(limitedWords, gridSize, directions);
+  }, [limitedWords, gridSize, directions, savedState]);
 
-  const [foundWords, setFoundWords] = useState<Set<string>>(new Set());
+  const [foundWords, setFoundWords] = useState<Set<string>>(
+    () => new Set(savedState?.foundWords ?? []),
+  );
   const [selecting, setSelecting] = useState(false);
   const [selectedCells, setSelectedCells] = useState<[number, number][]>([]);
-  const [highlightedCells, setHighlightedCells] = useState<Set<string>>(new Set());
+  const [highlightedCells, setHighlightedCells] = useState<Set<string>>(
+    () => new Set(savedState?.highlightedCells ?? []),
+  );
+
+  // Report progress when found words change
+  const onProgressRef = useRef(onProgress);
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+  }, [onProgress]);
+  useEffect(() => {
+    if (foundWords.size > 0) {
+      onProgressRef.current?.({
+        grid,
+        placed,
+        foundWords: [...foundWords],
+        highlightedCells: [...highlightedCells],
+      });
+    }
+  }, [foundWords, highlightedCells, grid, placed]);
 
   const handleCellDown = useCallback((r: number, c: number) => {
     setSelecting(true);

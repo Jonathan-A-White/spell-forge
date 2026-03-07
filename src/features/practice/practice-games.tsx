@@ -1,12 +1,20 @@
 // src/features/practice/practice-games.tsx — Hub screen for selecting practice game modes
 
-import { useState, useMemo, useCallback } from 'react';
-import type { Word, WordList, SessionLog, Profile } from '../../contracts/types';
-import { WordSearch } from './word-search';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import type { Word, WordList, SessionLog, Profile, ActivityType } from '../../contracts/types';
+import { WordSearch, type WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
-import { SpellingQuiz, type QuizResults } from './spelling-quiz';
+import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
+import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 
 type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz';
+
+interface GameSavedState {
+  mode: GameMode;
+  difficulty: WordSearchDifficulty;
+  wordSearch?: WordSearchSavedState;
+  quiz?: QuizSavedState;
+}
 
 interface PracticeGamesProps {
   profile: Profile;
@@ -33,6 +41,10 @@ export function PracticeGames({
     percentage: number;
     passed?: boolean;
   } | null>(null);
+  const [resumePrompt, setResumePrompt] = useState<GameSavedState | null>(null);
+  const [wordSearchSaved, setWordSearchSaved] = useState<WordSearchSavedState | undefined>();
+  const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
+  const [loading, setLoading] = useState(true);
 
   // Get words for the active list, or all words if no active list
   const gameWords = useMemo(() => {
@@ -47,6 +59,85 @@ export function PracticeGames({
     // For word search, limit to a reasonable number
     return texts.slice(0, 12);
   }, [gameWords]);
+
+  // Check for saved progress on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function checkSaved() {
+      // Check both game types for saved progress
+      const wsSaved = await activityProgressRepo.get(profile.id, 'word-search');
+      const qzSaved = await activityProgressRepo.get(profile.id, 'quiz');
+
+      if (cancelled) return;
+
+      // Prefer the most recently saved one
+      const candidates: { type: ActivityType; saved: GameSavedState; savedAt: Date }[] = [];
+
+      if (wsSaved) {
+        const state = wsSaved.state as unknown as GameSavedState;
+        if (state.mode === 'word-search' && state.wordSearch) {
+          candidates.push({ type: 'word-search', saved: state, savedAt: wsSaved.savedAt });
+        }
+      }
+      if (qzSaved) {
+        const state = qzSaved.state as unknown as GameSavedState;
+        if (state.mode === 'quiz' && state.quiz && state.quiz.currentIndex < state.quiz.questions.length) {
+          candidates.push({ type: 'quiz', saved: state, savedAt: qzSaved.savedAt });
+        }
+      }
+
+      if (candidates.length > 0) {
+        // Show the most recent one
+        candidates.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
+        setResumePrompt(candidates[0].saved);
+      }
+
+      setLoading(false);
+    }
+    checkSaved();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleContinueSaved = useCallback(() => {
+    if (!resumePrompt) return;
+    setMode(resumePrompt.mode);
+    setWordSearchDifficulty(resumePrompt.difficulty);
+    if (resumePrompt.wordSearch) setWordSearchSaved(resumePrompt.wordSearch);
+    if (resumePrompt.quiz) setQuizSaved(resumePrompt.quiz);
+    setResumePrompt(null);
+  }, [resumePrompt]);
+
+  const handleResetSaved = useCallback(() => {
+    activityProgressRepo.clear(profile.id, 'word-search');
+    activityProgressRepo.clear(profile.id, 'quiz');
+    setResumePrompt(null);
+  }, [profile.id]);
+
+  const saveGameState = useCallback(
+    (activityType: ActivityType, gameMode: GameMode, extra: Partial<GameSavedState>) => {
+      const state: GameSavedState = {
+        mode: gameMode,
+        difficulty: wordSearchDifficulty,
+        ...extra,
+      };
+      activityProgressRepo.save(profile.id, activityType, state as unknown as Record<string, unknown>);
+    },
+    [profile.id, wordSearchDifficulty],
+  );
+
+  const handleWordSearchProgress = useCallback(
+    (wsState: WordSearchSavedState) => {
+      saveGameState('word-search', 'word-search', { wordSearch: wsState });
+    },
+    [saveGameState],
+  );
+
+  const handleQuizProgress = useCallback(
+    (qzState: QuizSavedState) => {
+      saveGameState('quiz', 'quiz', { quiz: qzState });
+    },
+    [saveGameState],
+  );
 
   const handleWordSearchComplete = useCallback(
     (found: number, total: number) => {
@@ -65,6 +156,8 @@ export function PracticeGames({
         rewardEarned: null,
       };
       onSessionEnd(log);
+      // Clear saved progress on completion
+      activityProgressRepo.clear(profile.id, 'word-search');
     },
     [profile.id, onSessionEnd],
   );
@@ -90,9 +183,19 @@ export function PracticeGames({
         rewardEarned: null,
       };
       onSessionEnd(log);
+      // Clear saved progress on completion
+      activityProgressRepo.clear(profile.id, 'quiz');
     },
     [profile.id, onSessionEnd],
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-sf-bg flex items-center justify-center">
+        <p className="text-sf-text text-lg">Loading...</p>
+      </div>
+    );
+  }
 
   if (wordTexts.length === 0) {
     return (
@@ -105,6 +208,50 @@ export function PracticeGames({
         >
           Go Back
         </button>
+      </div>
+    );
+  }
+
+  // Resume prompt
+  if (resumePrompt) {
+    const gameLabel = resumePrompt.mode === 'word-search' ? 'Word Search' : 'Spelling Quiz';
+    const progressDetail = resumePrompt.mode === 'word-search' && resumePrompt.wordSearch
+      ? `${resumePrompt.wordSearch.foundWords.length} of ${resumePrompt.wordSearch.placed.length} words found`
+      : resumePrompt.mode === 'quiz' && resumePrompt.quiz
+        ? `${resumePrompt.quiz.currentIndex} of ${resumePrompt.quiz.questions.length} questions answered`
+        : '';
+
+    return (
+      <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
+        <div className="max-w-sm w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
+          <h2 className="text-xl font-bold text-sf-heading text-center">
+            Continue your game?
+          </h2>
+          <p className="text-sf-muted text-center text-sm">
+            You have a <span className="font-medium text-sf-heading">{gameLabel}</span> in progress
+            {progressDetail ? ` — ${progressDetail}` : ''}.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleContinueSaved}
+              className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+            >
+              Continue
+            </button>
+            <button
+              onClick={handleResetSaved}
+              className="w-full bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-medium py-3 px-6 rounded-xl transition-colors"
+            >
+              Start Fresh
+            </button>
+            <button
+              onClick={onBack}
+              className="text-sf-muted hover:text-sf-secondary text-sm underline"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -221,6 +368,8 @@ export function PracticeGames({
             onClick={() => {
               setMode('select');
               setGameResult(null);
+              setWordSearchSaved(undefined);
+              setQuizSaved(undefined);
             }}
             className="text-sf-muted hover:text-sf-secondary font-medium"
           >
@@ -234,6 +383,8 @@ export function PracticeGames({
             difficulty={wordSearchDifficulty}
             onComplete={handleWordSearchComplete}
             tapTargetSize={profile.settings.tapTargetSize}
+            savedState={wordSearchSaved}
+            onProgress={handleWordSearchProgress}
           />
         )}
 
@@ -243,6 +394,8 @@ export function PracticeGames({
             onComplete={handleQuizComplete}
             onSpeak={onSpeak}
             tapTargetSize={profile.settings.tapTargetSize}
+            savedState={quizSaved}
+            onProgress={handleQuizProgress}
           />
         )}
 
@@ -270,6 +423,7 @@ export function PracticeGames({
               <button
                 onClick={() => {
                   setGameResult(null);
+                  setWordSearchSaved(undefined);
                   setMode('select');
                 }}
                 className="flex-1 bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-3 px-6 rounded-xl transition-colors"
@@ -291,6 +445,7 @@ export function PracticeGames({
             <button
               onClick={() => {
                 setGameResult(null);
+                setQuizSaved(undefined);
                 setMode('select');
               }}
               className="flex-1 bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-3 px-6 rounded-xl transition-colors"
