@@ -103,6 +103,7 @@ export function LearningScreen({
   const [loading, setLoading] = useState(true);
   const [isComplete, setIsComplete] = useState(false);
   const [displayKey, setDisplayKey] = useState(0);
+  const [testOutMode, setTestOutMode] = useState(false);
 
   // Track the previous word so we know when a new stage starts
   const prevWordRef = useRef<string | null>(null);
@@ -193,9 +194,21 @@ export function LearningScreen({
     }
   }, [profile.id]);
 
+  const handleTestOut = useCallback(() => {
+    setTestOutMode(true);
+    setDisplayKey((prev) => prev + 1);
+  }, []);
+
+  const handleCancelTestOut = useCallback(() => {
+    setTestOutMode(false);
+    setDisplayKey((prev) => prev + 1);
+  }, []);
+
   const handleWordComplete = useCallback(
     async (correct: boolean) => {
       if (!sessionState?.currentWord) return;
+
+      const isTestOut = testOutMode;
 
       const wordId = sessionState.currentWord.id;
       const wordListId = sessionState.currentWord.listId;
@@ -205,7 +218,12 @@ export function LearningScreen({
         progress = createInitialProgress(profile.id, wordId, wordListId);
       }
 
-      const updated = processAttempt(progress, { correct, testOut: false });
+      const updated = processAttempt(progress, { correct, testOut: isTestOut });
+
+      // Exit test-out mode after attempt
+      if (isTestOut) {
+        setTestOutMode(false);
+      }
 
       // Save to DB
       await learningProgressRepo.save(updated);
@@ -234,7 +252,7 @@ export function LearningScreen({
         await activityProgressRepo.clear(profile.id, 'learning');
       }
     },
-    [sessionState, profile.id],
+    [sessionState, profile.id, testOutMode],
   );
 
   const handleHearIt = useCallback(() => {
@@ -380,15 +398,21 @@ export function LearningScreen({
 
       {/* Stage indicator */}
       <div className="text-center mb-2">
-        <span className="text-xs text-sf-muted bg-sf-surface border border-sf-border rounded-full px-3 py-1">
-          Stage {wordDisplay.stage + 1}: {stageLabels[wordDisplay.stage]} — Rep {wordDisplay.successes + 1}/3
-        </span>
+        {testOutMode ? (
+          <span className="text-xs text-sf-primary bg-sf-surface border border-sf-primary rounded-full px-3 py-1 font-medium">
+            Test Out — Spell the word to master it
+          </span>
+        ) : (
+          <span className="text-xs text-sf-muted bg-sf-surface border border-sf-border rounded-full px-3 py-1">
+            Stage {wordDisplay.stage + 1}: {stageLabels[wordDisplay.stage]} — Rep {wordDisplay.successes + 1}/3
+          </span>
+        )}
       </div>
 
       {/* Current word content */}
       <div className="flex-1 flex flex-col items-center justify-center gap-8">
-        {/* Word display */}
-        {wordDisplay.hiddenCount < sessionState.currentWord.text.length && (
+        {/* Word display — hidden entirely during test-out */}
+        {!testOutMode && wordDisplay.hiddenCount < sessionState.currentWord.text.length && (
           <div className="text-center">
             <p className="text-3xl font-bold text-sf-heading tracking-wider" aria-label="Word to learn">
               {wordDisplay.display.display.split('').map((char: string, i: number) => (
@@ -403,8 +427,8 @@ export function LearningScreen({
           </div>
         )}
 
-        {/* Audio only indicator for stage 3 */}
-        {wordDisplay.hiddenCount >= sessionState.currentWord.text.length && (
+        {/* Audio only indicator for stage 3 or test-out */}
+        {(testOutMode || wordDisplay.hiddenCount >= sessionState.currentWord.text.length) && (
           <div className="text-center">
             <p className="text-sf-muted text-sm mb-2">Listen and spell:</p>
           </div>
@@ -419,8 +443,15 @@ export function LearningScreen({
           Hear it
         </button>
 
-        {/* Input component */}
-        {wordDisplay.inputMode === 'scrambled' ? (
+        {/* Input component — test-out always uses keyboard */}
+        {testOutMode ? (
+          <KeyboardInput
+            key={`testout-${sessionState.currentWord.id}-${displayKey}`}
+            word={sessionState.currentWord.text}
+            onComplete={handleWordComplete}
+            tapTargetSize={profile.settings.tapTargetSize}
+          />
+        ) : wordDisplay.inputMode === 'scrambled' ? (
           <LetterBank
             key={`${sessionState.currentWord.id}-${displayKey}`}
             word={sessionState.currentWord.text}
@@ -435,6 +466,24 @@ export function LearningScreen({
             onComplete={handleWordComplete}
             tapTargetSize={profile.settings.tapTargetSize}
           />
+        )}
+
+        {/* Test Out / Cancel button */}
+        {testOutMode ? (
+          <button
+            onClick={handleCancelTestOut}
+            className="text-sf-muted hover:text-sf-secondary text-sm underline"
+          >
+            Cancel test out
+          </button>
+        ) : (
+          <button
+            onClick={handleTestOut}
+            className="text-sf-secondary hover:text-sf-secondary-hover text-sm font-medium underline"
+            aria-label="Test out of this word"
+          >
+            I already know this word
+          </button>
         )}
       </div>
     </div>
