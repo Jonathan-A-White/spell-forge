@@ -33,14 +33,16 @@ import { ListEditor } from './features/word-lists/list-editor';
 import { WordListsView } from './features/word-lists/word-lists-view';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { SettingsPanel } from './features/settings/settings-panel';
+import { SharePanel } from './features/settings/share-panel';
 import { AudioManagerImpl, TtsProvider } from './audio';
 import { createOcrManager } from './ocr';
 import { rewardTracker } from './features/rewards';
+import { themeEngine } from './themes';
 import { exportProfile, importProfile } from './data/import-export';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'settings' | 'feedback';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'settings' | 'feedback' | 'share';
 
 const eventBus = createEventBus();
 
@@ -63,6 +65,7 @@ function App() {
   const selectProfile = useCallback(async (profile: Profile) => {
     setActiveProfile(profile);
     applySettings(profile.settings);
+    themeEngine.applyThemePalette(profile.themeId);
 
     try {
       const [words, stats, lists, streak, lp] = await Promise.all([
@@ -544,9 +547,13 @@ function App() {
           onPresetApply={handlePresetApply}
           onExportProfile={handleExportProfile}
           onImportProfile={handleImportProfile}
+          onShare={() => setView('share')}
           onBack={() => setView('home')}
         />
       );
+
+    case 'share':
+      return <SharePanel onBack={() => setView('home')} />;
 
     case 'word-lists':
       if (!activeProfile) return null;

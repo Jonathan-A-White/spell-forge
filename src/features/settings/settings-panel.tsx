@@ -13,6 +13,7 @@ interface SettingsPanelProps {
   onPresetApply: (preset: NamedPreset) => void;
   onExportProfile?: () => void;
   onImportProfile?: (file: File) => void;
+  onShare?: () => void;
   onBack: () => void;
 }
 
@@ -29,6 +30,7 @@ export function SettingsPanel({
   onPresetApply,
   onExportProfile,
   onImportProfile,
+  onShare,
   onBack,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -147,6 +149,27 @@ export function SettingsPanel({
             <SettingRow label="Theme" value={profile.themeId.replace(/-/g, ' ')} />
           </div>
         </section>
+
+        {/* Share */}
+        {onShare && (
+          <section>
+            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+              Share
+            </h2>
+            <button
+              onClick={onShare}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sf-track text-sf-muted">
+                <ShareSettingsIcon />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-sm text-sf-text">Share SpellForge</p>
+                <p className="text-xs text-sf-muted">Send the app link, show QR code</p>
+              </div>
+            </button>
+          </section>
+        )}
 
         {/* Data management */}
         {(onExportProfile || onImportProfile) && (
@@ -299,4 +322,16 @@ function ModeIcon({ icon }: { icon: string }) {
     default:
       return null;
   }
+}
+
+function ShareSettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+  );
 }
