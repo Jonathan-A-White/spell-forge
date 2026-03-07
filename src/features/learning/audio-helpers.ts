@@ -18,3 +18,14 @@ export async function sayAndSpell(
   await delay(300);
   await audioManager.speakChunks(word.split(''), 400);
 }
+
+/**
+ * Say the full word only, without spelling it out.
+ * Used in test-out mode where spelling would reveal the answer.
+ */
+export async function sayWordOnly(
+  audioManager: AudioManager,
+  word: string,
+): Promise<void> {
+  await audioManager.speak(word);
+}
