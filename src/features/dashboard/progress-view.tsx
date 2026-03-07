@@ -11,7 +11,7 @@ interface ProgressViewProps {
   allWords: Word[];
   allStats: WordStats[];
   learningProgress: WordLearningProgress[];
-  activeList: WordList | null;
+  activeLists: WordList[];
   daysUntilTest: number | null;
   onStartPractice: () => void;
   onAddWords: () => void;
@@ -56,7 +56,7 @@ export function ProgressView({
   allWords,
   allStats,
   learningProgress,
-  activeList,
+  activeLists,
   daysUntilTest,
   onStartPractice,
   onAddWords,
@@ -85,9 +85,10 @@ export function ProgressView({
   const learning = categoryWords.learning.length;
   const newWords = categoryWords.new.length;
 
-  // Active list readiness
-  const activeListWords = activeList
-    ? allWords.filter((w) => w.listId === activeList.id)
+  // Active lists readiness — aggregate words across all active lists
+  const activeListIds = new Set(activeLists.map((l) => l.id));
+  const activeListWords = activeListIds.size > 0
+    ? allWords.filter((w) => activeListIds.has(w.listId))
     : [];
   const activeListReady = activeListWords.filter((w) => {
     const cat = getWordCategory(w.id, statsMap, learningMap);
@@ -96,6 +97,9 @@ export function ProgressView({
   const readinessPercent = activeListWords.length > 0
     ? Math.round((activeListReady / activeListWords.length) * 100)
     : 0;
+  const readinessLabel = activeLists.length === 1
+    ? activeLists[0].name
+    : `${activeLists.length} Active Lists`;
 
   const handleToggleCategory = (category: HealthCategory) => {
     setExpandedCategory((prev) => (prev === category ? null : category));
@@ -149,10 +153,10 @@ export function ProgressView({
       )}
 
       {/* Test Readiness */}
-      {activeList && (
+      {activeLists.length > 0 && (
         <ReadinessIndicator
           percentage={readinessPercent}
-          listName={activeList.name}
+          listName={readinessLabel}
           daysUntilTest={daysUntilTest}
           wordsTotal={activeListWords.length}
           wordsReady={activeListReady}
