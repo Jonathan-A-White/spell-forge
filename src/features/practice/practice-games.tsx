@@ -5,17 +5,19 @@ import type { Word, WordList, SessionLog, Profile, ActivityType, CoinBalance } f
 import { WordSearch, type WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
 import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
+import { WordRelayRace, type RelayRaceResults, type RelayRaceSavedState } from './word-relay-race';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 import { statsRepo } from '../../data/repositories/stats-repo';
 
-type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz';
+type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz' | 'relay-race';
 
 interface GameSavedState {
   mode: GameMode;
   difficulty: WordSearchDifficulty;
   wordSearch?: WordSearchSavedState;
   quiz?: QuizSavedState;
+  relayRace?: RelayRaceSavedState;
 }
 
 interface PracticeGamesProps {
@@ -53,6 +55,7 @@ export function PracticeGames({
   const [pendingGameMode, setPendingGameMode] = useState<GameMode | null>(null);
   const [wordSearchSaved, setWordSearchSaved] = useState<WordSearchSavedState | undefined>();
   const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
+  const [relayRaceSaved, setRelayRaceSaved] = useState<RelayRaceSavedState | undefined>();
   const loading = false;
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
   const [coinGateVisible, setCoinGateVisible] = useState(false);
@@ -109,7 +112,10 @@ export function PracticeGames({
     let cancelled = false;
 
     async function checkSavedForGame() {
-      const activityType: ActivityType = targetMode === 'word-search-difficulty' ? 'word-search' : 'quiz';
+      const activityType: ActivityType =
+        targetMode === 'word-search-difficulty' ? 'word-search'
+        : targetMode === 'relay-race' ? 'relay-race'
+        : 'quiz';
       const saved = await activityProgressRepo.get(profile.id, activityType);
 
       if (cancelled) return;
@@ -118,7 +124,8 @@ export function PracticeGames({
         const state = saved.state as unknown as GameSavedState;
         const hasValidProgress =
           (activityType === 'word-search' && state.mode === 'word-search' && state.wordSearch) ||
-          (activityType === 'quiz' && state.mode === 'quiz' && state.quiz && state.quiz.currentIndex < state.quiz.questions.length);
+          (activityType === 'quiz' && state.mode === 'quiz' && state.quiz && state.quiz.currentIndex < state.quiz.questions.length) ||
+          (activityType === 'relay-race' && state.mode === 'relay-race' && state.relayRace && state.relayRace.currentIndex < state.relayRace.words.length);
 
         if (hasValidProgress) {
           setResumePrompt(state);
@@ -141,12 +148,16 @@ export function PracticeGames({
     setWordSearchDifficulty(resumePrompt.difficulty);
     if (resumePrompt.wordSearch) setWordSearchSaved(resumePrompt.wordSearch);
     if (resumePrompt.quiz) setQuizSaved(resumePrompt.quiz);
+    if (resumePrompt.relayRace) setRelayRaceSaved(resumePrompt.relayRace);
     setResumePrompt(null);
     setPendingGameMode(null);
   }, [resumePrompt]);
 
   const handleResetSaved = useCallback(() => {
-    const activityType: ActivityType = pendingGameMode === 'word-search-difficulty' ? 'word-search' : 'quiz';
+    const activityType: ActivityType =
+      pendingGameMode === 'word-search-difficulty' ? 'word-search'
+      : pendingGameMode === 'relay-race' ? 'relay-race'
+      : 'quiz';
     activityProgressRepo.clear(profile.id, activityType);
     setResumePrompt(null);
     if (pendingGameMode) {
@@ -209,6 +220,13 @@ export function PracticeGames({
     [saveGameState],
   );
 
+  const handleRelayRaceProgress = useCallback(
+    (rrState: RelayRaceSavedState) => {
+      saveGameState('relay-race', 'relay-race', { relayRace: rrState });
+    },
+    [saveGameState],
+  );
+
   const handleWordSearchComplete = useCallback(
     (found: number, total: number) => {
       const percentage = Math.round((found / total) * 100);
@@ -259,6 +277,32 @@ export function PracticeGames({
     [profile.id, onSessionEnd],
   );
 
+  const handleRelayRaceComplete = useCallback(
+    (results: RelayRaceResults) => {
+      const percentage = Math.round((results.wordsCorrect / results.totalWords) * 100);
+      setGameResult({
+        correct: results.wordsCorrect,
+        total: results.totalWords,
+        percentage,
+      });
+
+      const log: SessionLog = {
+        id: crypto.randomUUID?.() ?? `rr-${Date.now()}`,
+        profileId: profile.id,
+        startedAt: new Date(Date.now() - results.totalTimeMs),
+        endedAt: new Date(),
+        wordsAttempted: results.totalWords,
+        wordsCorrect: results.wordsCorrect,
+        engagementScore: results.wordsCorrect / Math.max(results.totalWords, 1),
+        endReason: 'completed',
+        rewardEarned: null,
+      };
+      onSessionEnd(log);
+      activityProgressRepo.clear(profile.id, 'relay-race');
+    },
+    [profile.id, onSessionEnd],
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-sf-bg flex items-center justify-center">
@@ -288,12 +332,16 @@ export function PracticeGames({
 
   // Resume prompt
   if (resumePrompt) {
-    const gameLabel = resumePrompt.mode === 'word-search' ? 'Word Search' : 'Spelling Quiz';
+    const gameLabel = resumePrompt.mode === 'word-search' ? 'Word Search'
+      : resumePrompt.mode === 'relay-race' ? 'Word Relay Race'
+      : 'Spelling Quiz';
     const progressDetail = resumePrompt.mode === 'word-search' && resumePrompt.wordSearch
       ? `${resumePrompt.wordSearch.foundWords.length} of ${resumePrompt.wordSearch.placed.length} words found`
-      : resumePrompt.mode === 'quiz' && resumePrompt.quiz
-        ? `${resumePrompt.quiz.currentIndex} of ${resumePrompt.quiz.questions.length} questions answered`
-        : '';
+      : resumePrompt.mode === 'relay-race' && resumePrompt.relayRace
+        ? `${resumePrompt.relayRace.currentIndex} of ${resumePrompt.relayRace.words.length} words completed`
+        : resumePrompt.mode === 'quiz' && resumePrompt.quiz
+          ? `${resumePrompt.quiz.currentIndex} of ${resumePrompt.quiz.questions.length} questions answered`
+          : '';
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
@@ -434,6 +482,14 @@ export function PracticeGames({
               onClick={() => handleStartGame('word-search-difficulty')}
             />
             <GameCard
+              title="Word Relay Race"
+              description="Race against the clock! Spell words fast to reach the finish"
+              icon={<RelayRaceIcon />}
+              accent="from-emerald-500/20 to-green-500/10"
+              iconColor="text-emerald-500"
+              onClick={() => handleStartGame('relay-race')}
+            />
+            <GameCard
               title="Spelling Quiz"
               description="Test yourself! Score 85% or higher to pass"
               icon={<QuizIcon />}
@@ -516,6 +572,7 @@ export function PracticeGames({
               setGameResult(null);
               setWordSearchSaved(undefined);
               setQuizSaved(undefined);
+              setRelayRaceSaved(undefined);
               setMode('select');
             }}
             className="text-sf-muted hover:text-sf-secondary font-medium"
@@ -532,6 +589,17 @@ export function PracticeGames({
             tapTargetSize={profile.settings.tapTargetSize}
             savedState={wordSearchSaved}
             onProgress={handleWordSearchProgress}
+          />
+        )}
+
+        {mode === 'relay-race' && !gameResult && (
+          <WordRelayRace
+            words={wordTexts}
+            onComplete={handleRelayRaceComplete}
+            onSpeak={onSpeak}
+            tapTargetSize={profile.settings.tapTargetSize}
+            savedState={relayRaceSaved}
+            onProgress={handleRelayRaceProgress}
           />
         )}
 
@@ -571,6 +639,7 @@ export function PracticeGames({
                 onClick={() => {
                   setGameResult(null);
                   setWordSearchSaved(undefined);
+                  setRelayRaceSaved(undefined);
                   setMode('select');
                 }}
                 className="flex-1 bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-3 px-6 rounded-xl transition-colors"
@@ -691,6 +760,19 @@ function SearchGridIcon() {
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
       <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function RelayRaceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
+      <circle cx="8" cy="4" r="2" />
+      <path d="M6 9l2-3 4 2-2 5-3 1" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 14l-2 7" strokeLinecap="round" />
+      <path d="M8 14l4 7" strokeLinecap="round" />
+      <path d="M18 4l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="14" y1="6" x2="20" y2="6" />
     </svg>
   );
 }

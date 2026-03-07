@@ -270,7 +270,7 @@ export interface LifetimeHealth {
 
 // ─── Activity Progress (Auto-Save) ───────────────────────
 
-export type ActivityType = 'practice' | 'word-search' | 'quiz' | 'learning';
+export type ActivityType = 'practice' | 'word-search' | 'quiz' | 'learning' | 'relay-race';
 
 export interface ActivityProgress {
   id: string;              // `${profileId}:${activityType}`
