@@ -60,7 +60,10 @@ export function PracticeGames({
     return texts.slice(0, 12);
   }, [gameWords]);
 
-  // Check for saved progress on mount
+  // Trigger to re-check saved progress (incremented when navigating back to select)
+  const [checkSavedTrigger, setCheckSavedTrigger] = useState(0);
+
+  // Check for saved progress on mount and when returning to game select
   useEffect(() => {
     let cancelled = false;
     async function checkSaved() {
@@ -90,13 +93,15 @@ export function PracticeGames({
         // Show the most recent one
         candidates.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
         setResumePrompt(candidates[0].saved);
+      } else {
+        setResumePrompt(null);
       }
 
       setLoading(false);
     }
     checkSaved();
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile.id, checkSavedTrigger]);
 
   const handleContinueSaved = useCallback(() => {
     if (!resumePrompt) return;
@@ -366,10 +371,11 @@ export function PracticeGames({
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => {
-              setMode('select');
               setGameResult(null);
               setWordSearchSaved(undefined);
               setQuizSaved(undefined);
+              setMode('select');
+              setCheckSavedTrigger((n) => n + 1);
             }}
             className="text-sf-muted hover:text-sf-secondary font-medium"
           >
