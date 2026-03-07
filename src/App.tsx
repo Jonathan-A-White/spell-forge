@@ -22,8 +22,7 @@ import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
 import { learningProgressRepo } from './data/repositories/learning-progress-repo';
-import { coinRepo } from './data/repositories/coin-repo';
-import { earnCoinForMastery, spendCoinForGame, canPlayFree } from './core/spaced-rep';
+import { earnCoinForMastery, spendCoinForGame, canPlayFree, getCoinBalance } from './core/spaced-rep';
 import { applySettings, mergeSetting, validateSettings } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
@@ -37,11 +36,12 @@ import { WordListsView } from './features/word-lists/word-lists-view';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
-import { AudioManagerImpl, TtsProvider } from './audio';
+import { AudioManagerImpl, TtsProvider, DictionaryProvider } from './audio';
 import { createOcrManager } from './ocr';
 import { rewardTracker } from './features/rewards';
 import { themeEngine } from './themes';
 import { exportProfile, importProfile } from './data/import-export';
+import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -49,8 +49,28 @@ type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'hom
 
 const eventBus = createEventBus();
 
+// Wire reward tracker to the event bus so it auto-tracks rewards from events
+let activeProfileForBus: Profile | null = null;
+
+eventBus.on('session:ended', (event) => {
+  if (!activeProfileForBus || event.type !== 'session:ended') return;
+  const reward = rewardTracker.processEvent(activeProfileForBus.id, activeProfileForBus.themeId, event);
+  eventBus.emit({ type: 'reward:earned', payload: reward });
+});
+
+eventBus.on('streak:updated', (event) => {
+  if (!activeProfileForBus || event.type !== 'streak:updated') return;
+  rewardTracker.processEvent(activeProfileForBus.id, activeProfileForBus.themeId, event);
+});
+
+eventBus.on('word:attempted', (event) => {
+  if (!activeProfileForBus || event.type !== 'word:attempted') return;
+  rewardTracker.processEvent(activeProfileForBus.id, activeProfileForBus.themeId, event);
+});
+
 const audioManager = new AudioManagerImpl();
 audioManager.registerProvider(new TtsProvider());
+audioManager.registerProvider(new DictionaryProvider());
 
 const ocrManager = createOcrManager();
 
@@ -68,6 +88,7 @@ function App() {
 
   const selectProfile = useCallback(async (profile: Profile) => {
     setActiveProfile(profile);
+    activeProfileForBus = profile;
     applySettings(profile.settings);
     themeEngine.applyThemePalette(profile.themeId);
 
@@ -78,7 +99,7 @@ function App() {
         wordListRepo.getByProfileId(profile.id),
         streakRepo.get(profile.id),
         learningProgressRepo.getByProfileId(profile.id),
-        coinRepo.getOrCreate(profile.id),
+        getCoinBalance(profile.id),
       ]);
 
       setAllWords(words);
@@ -170,14 +191,6 @@ function App() {
       if (streak) {
         eventBus.emit({ type: 'streak:updated', payload: streak });
       }
-
-      // Process reward for session completion
-      const reward = rewardTracker.processEvent(
-        activeProfile.id,
-        activeProfile.themeId,
-        { type: 'session:ended', payload: { sessionLog: log } },
-      );
-      eventBus.emit({ type: 'reward:earned', payload: reward });
     },
     [activeProfile],
   );
@@ -195,6 +208,21 @@ function App() {
       setAllStats((prev) =>
         prev.map((s) => (s.id === updated.id ? updated : s)),
       );
+
+      // Emit word:attempted so the reward tracker can grant per-word progress
+      const lastTechnique = updated.techniqueHistory.length > 0
+        ? updated.techniqueHistory[updated.techniqueHistory.length - 1]
+        : null;
+      eventBus.emit({
+        type: 'word:attempted',
+        payload: {
+          wordId: updated.wordId,
+          correct: updated.consecutiveCorrect > 0,
+          technique: lastTechnique?.techniqueId ?? 'letter-bank',
+          responseTimeMs: lastTechnique?.responseTimeMs ?? 0,
+          struggled: lastTechnique?.struggled ?? false,
+        },
+      });
 
       // Award a coin for mastering a word
       if (justMastered) {
@@ -216,7 +244,7 @@ function App() {
       statsRepo.getByProfileId(activeProfile.id),
       wordListRepo.getByProfileId(activeProfile.id),
       learningProgressRepo.getByProfileId(activeProfile.id),
-      coinRepo.getOrCreate(activeProfile.id),
+      getCoinBalance(activeProfile.id),
     ]);
     setAllWords(updatedWords);
     setAllStats(updatedStats);
@@ -462,12 +490,7 @@ function App() {
   }, [activeProfile]);
 
   // Compute mastered count for coin economy
-  const learningMasteredIds = new Set(learningProgress.filter((lp) => lp.mastered).map((lp) => lp.wordId));
-  const masteredCount = allWords.filter((w) => {
-    const stat = allStats.find((s) => s.wordId === w.id);
-    if (stat && stat.timesAsked > 0 && (stat.currentBucket === 'mastered' || stat.currentBucket === 'review')) return true;
-    return learningMasteredIds.has(w.id);
-  }).length;
+  const masteredCount = countMasteredWords(allWords, allStats, learningProgress);
   const allMastered = canPlayFree(allWords.length, masteredCount);
 
   // Compute active list and days until test

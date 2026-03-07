@@ -1,5 +1,7 @@
 // src/features/practice/word-search-difficulty.ts — Difficulty settings for Word Search
 
+import { shuffle } from '../../core/shuffle';
+
 export type WordSearchDifficulty = 'easy' | 'medium' | 'hard';
 
 type Direction = [number, number];
@@ -64,15 +66,6 @@ export interface PlacedWord {
   col: number;
   direction: Direction;
   cells: [number, number][];
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
 }
 
 export function buildGrid(

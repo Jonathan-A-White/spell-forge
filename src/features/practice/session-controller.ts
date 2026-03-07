@@ -10,6 +10,7 @@ import type {
 import { selectSessionWords } from '../../core/word-selection/selector';
 import { analyzeEngagement, determineAction } from '../../core/adaptive/engine';
 import { updateWordStats } from '../../core/spaced-rep';
+import { shuffle as shuffleArray } from '../../core/shuffle';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface SessionState {
@@ -196,11 +197,3 @@ function computeEngagementScore(state: SessionState): number {
   return Math.min(1, (accuracy * 0.6 + completionRatio * 0.4));
 }
 
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
