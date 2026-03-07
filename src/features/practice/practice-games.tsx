@@ -4,19 +4,17 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Word, WordList, SessionLog, Profile, ActivityType, CoinBalance } from '../../contracts/types';
 import { WordSearch, type WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
-import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
 import { WordRelayRace, type RelayRaceResults, type RelayRaceSavedState } from './word-relay-race';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 import { statsRepo } from '../../data/repositories/stats-repo';
 
-type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz' | 'relay-race';
+type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'relay-race';
 
 interface GameSavedState {
   mode: GameMode;
   difficulty: WordSearchDifficulty;
   wordSearch?: WordSearchSavedState;
-  quiz?: QuizSavedState;
   relayRace?: RelayRaceSavedState;
 }
 
@@ -54,7 +52,6 @@ export function PracticeGames({
   const [resumePrompt, setResumePrompt] = useState<GameSavedState | null>(null);
   const [pendingGameMode, setPendingGameMode] = useState<GameMode | null>(null);
   const [wordSearchSaved, setWordSearchSaved] = useState<WordSearchSavedState | undefined>();
-  const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
   const [relayRaceSaved, setRelayRaceSaved] = useState<RelayRaceSavedState | undefined>();
   const loading = false;
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
@@ -114,8 +111,7 @@ export function PracticeGames({
     async function checkSavedForGame() {
       const activityType: ActivityType =
         targetMode === 'word-search-difficulty' ? 'word-search'
-        : targetMode === 'relay-race' ? 'relay-race'
-        : 'quiz';
+        : 'relay-race';
       const saved = await activityProgressRepo.get(profile.id, activityType);
 
       if (cancelled) return;
@@ -124,7 +120,6 @@ export function PracticeGames({
         const state = saved.state as unknown as GameSavedState;
         const hasValidProgress =
           (activityType === 'word-search' && state.mode === 'word-search' && state.wordSearch) ||
-          (activityType === 'quiz' && state.mode === 'quiz' && state.quiz && state.quiz.currentIndex < state.quiz.questions.length) ||
           (activityType === 'relay-race' && state.mode === 'relay-race' && state.relayRace && state.relayRace.currentIndex < state.relayRace.words.length);
 
         if (hasValidProgress) {
@@ -147,7 +142,6 @@ export function PracticeGames({
     setMode(resumePrompt.mode);
     setWordSearchDifficulty(resumePrompt.difficulty);
     if (resumePrompt.wordSearch) setWordSearchSaved(resumePrompt.wordSearch);
-    if (resumePrompt.quiz) setQuizSaved(resumePrompt.quiz);
     if (resumePrompt.relayRace) setRelayRaceSaved(resumePrompt.relayRace);
     setResumePrompt(null);
     setPendingGameMode(null);
@@ -156,8 +150,7 @@ export function PracticeGames({
   const handleResetSaved = useCallback(() => {
     const activityType: ActivityType =
       pendingGameMode === 'word-search-difficulty' ? 'word-search'
-      : pendingGameMode === 'relay-race' ? 'relay-race'
-      : 'quiz';
+      : 'relay-race';
     activityProgressRepo.clear(profile.id, activityType);
     setResumePrompt(null);
     if (pendingGameMode) {
@@ -213,13 +206,6 @@ export function PracticeGames({
     [saveGameState],
   );
 
-  const handleQuizProgress = useCallback(
-    (qzState: QuizSavedState) => {
-      saveGameState('quiz', 'quiz', { quiz: qzState });
-    },
-    [saveGameState],
-  );
-
   const handleRelayRaceProgress = useCallback(
     (rrState: RelayRaceSavedState) => {
       saveGameState('relay-race', 'relay-race', { relayRace: rrState });
@@ -246,33 +232,6 @@ export function PracticeGames({
       onSessionEnd(log);
       // Clear saved progress on completion
       activityProgressRepo.clear(profile.id, 'word-search');
-    },
-    [profile.id, onSessionEnd],
-  );
-
-  const handleQuizComplete = useCallback(
-    (results: QuizResults) => {
-      setGameResult({
-        correct: results.correctAnswers,
-        total: results.totalQuestions,
-        percentage: results.percentage,
-        passed: results.passed,
-      });
-
-      const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `qz-${Date.now()}`,
-        profileId: profile.id,
-        startedAt: new Date(),
-        endedAt: new Date(),
-        wordsAttempted: results.totalQuestions,
-        wordsCorrect: results.correctAnswers,
-        engagementScore: results.correctAnswers / Math.max(results.totalQuestions, 1),
-        endReason: 'completed',
-        rewardEarned: null,
-      };
-      onSessionEnd(log);
-      // Clear saved progress on completion
-      activityProgressRepo.clear(profile.id, 'quiz');
     },
     [profile.id, onSessionEnd],
   );
@@ -333,15 +292,12 @@ export function PracticeGames({
   // Resume prompt
   if (resumePrompt) {
     const gameLabel = resumePrompt.mode === 'word-search' ? 'Word Search'
-      : resumePrompt.mode === 'relay-race' ? 'Word Relay Race'
-      : 'Spelling Quiz';
+      : 'Word Relay Race';
     const progressDetail = resumePrompt.mode === 'word-search' && resumePrompt.wordSearch
       ? `${resumePrompt.wordSearch.foundWords.length} of ${resumePrompt.wordSearch.placed.length} words found`
       : resumePrompt.mode === 'relay-race' && resumePrompt.relayRace
         ? `${resumePrompt.relayRace.currentIndex} of ${resumePrompt.relayRace.words.length} words completed`
-        : resumePrompt.mode === 'quiz' && resumePrompt.quiz
-          ? `${resumePrompt.quiz.currentIndex} of ${resumePrompt.quiz.questions.length} questions answered`
-          : '';
+        : '';
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
@@ -489,14 +445,6 @@ export function PracticeGames({
               iconColor="text-emerald-500"
               onClick={() => handleStartGame('relay-race')}
             />
-            <GameCard
-              title="Spelling Quiz"
-              description="Test yourself! Score 85% or higher to pass"
-              icon={<QuizIcon />}
-              accent="from-orange-500/20 to-amber-500/10"
-              iconColor="text-orange-500"
-              onClick={() => handleStartGame('quiz')}
-            />
           </div>
         </div>
       </div>
@@ -571,7 +519,6 @@ export function PracticeGames({
             onClick={() => {
               setGameResult(null);
               setWordSearchSaved(undefined);
-              setQuizSaved(undefined);
               setRelayRaceSaved(undefined);
               setMode('select');
             }}
@@ -603,18 +550,7 @@ export function PracticeGames({
           />
         )}
 
-        {mode === 'quiz' && !gameResult && (
-          <SpellingQuiz
-            words={wordTexts}
-            onComplete={handleQuizComplete}
-            onSpeak={onSpeak}
-            tapTargetSize={profile.settings.tapTargetSize}
-            savedState={quizSaved}
-            onProgress={handleQuizProgress}
-          />
-        )}
-
-        {gameResult && mode !== 'quiz' && (
+        {gameResult && (
           <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
             <h2 className="text-2xl font-bold text-sf-heading">Game Complete!</h2>
 
@@ -656,26 +592,6 @@ export function PracticeGames({
           </div>
         )}
 
-        {gameResult && mode === 'quiz' && (
-          <div className="flex gap-3 w-full max-w-md mx-auto mt-4">
-            <button
-              onClick={() => {
-                setGameResult(null);
-                setQuizSaved(undefined);
-                setMode('select');
-              }}
-              className="flex-1 bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-3 px-6 rounded-xl transition-colors"
-            >
-              Play Again
-            </button>
-            <button
-              onClick={onBack}
-              className="flex-1 bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
-            >
-              Done
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -773,15 +689,6 @@ function RelayRaceIcon() {
       <path d="M8 14l4 7" strokeLinecap="round" />
       <path d="M18 4l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
       <line x1="14" y1="6" x2="20" y2="6" />
-    </svg>
-  );
-}
-
-function QuizIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
-      <path d="M9 11l3 3L22 4" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   );
 }
