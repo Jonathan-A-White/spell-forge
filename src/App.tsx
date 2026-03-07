@@ -501,11 +501,16 @@ function App() {
   const masteredCount = countMasteredWords(allWords, allStats, learningProgress);
   const allMastered = canPlayFree(allWords.length, masteredCount);
 
-  // Compute active list and days until test
-  const activeList = wordLists.find((l) => l.active && !l.archived) ?? null;
+  // Compute active lists and days until nearest test
+  const activeLists = wordLists.filter((l) => l.active && !l.archived);
+  const activeList = activeLists[0] ?? null;
   const [mountTime] = useState(Date.now);
-  const daysUntilTest = activeList?.testDate
-    ? Math.max(0, Math.ceil((activeList.testDate.getTime() - mountTime) / 86400000))
+  const nearestTestDate = activeLists
+    .map((l) => l.testDate)
+    .filter((d): d is Date => d !== null)
+    .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+  const daysUntilTest = nearestTestDate
+    ? Math.max(0, Math.ceil((nearestTestDate.getTime() - mountTime) / 86400000))
     : null;
 
   // Render views
@@ -623,7 +628,7 @@ function App() {
             allWords={allWords}
             allStats={allStats}
             learningProgress={learningProgress}
-            activeList={activeList}
+            activeLists={activeLists}
             daysUntilTest={daysUntilTest}
             onStartPractice={() => setView('practice')}
             onAddWords={() => setView('list-editor')}
