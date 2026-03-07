@@ -33,6 +33,7 @@ import { PracticeGames } from './features/practice/practice-games';
 import { LearningScreen } from './features/learning';
 import { ListEditor } from './features/word-lists/list-editor';
 import { WordListsView } from './features/word-lists/word-lists-view';
+import { WordListDetail } from './features/word-lists/word-list-detail';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
@@ -45,7 +46,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'settings' | 'feedback' | 'share';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'settings' | 'feedback' | 'share';
 
 const eventBus = createEventBus();
 
@@ -84,6 +85,7 @@ function App() {
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [learningProgress, setLearningProgress] = useState<WordLearningProgress[]>([]);
   const [editingList, setEditingList] = useState<WordList | null>(null);
+  const [viewingList, setViewingList] = useState<WordList | null>(null);
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
 
   const selectProfile = useCallback(async (profile: Profile) => {
@@ -394,6 +396,58 @@ function App() {
     [refreshListData],
   );
 
+  const handleUpdateWord = useCallback(
+    async (wordId: string, newText: string) => {
+      await wordRepo.update(wordId, { text: newText });
+      await refreshListData();
+    },
+    [refreshListData],
+  );
+
+  const handleDeleteWord = useCallback(
+    async (wordId: string) => {
+      await wordRepo.delete(wordId);
+      await refreshListData();
+    },
+    [refreshListData],
+  );
+
+  const handleAddWordToList = useCallback(
+    async (text: string) => {
+      if (!activeProfile || !viewingList) return;
+      const word: Word = {
+        id: uuidv4(),
+        listId: viewingList.id,
+        profileId: activeProfile.id,
+        text,
+        phonemes: [],
+        syllables: [],
+        patterns: [],
+        imageUrl: null,
+        imageCached: false,
+        audioCustom: null,
+        createdAt: new Date(),
+      };
+      await wordRepo.create(word);
+      await statsRepo.create({
+        wordId: word.id,
+        profileId: activeProfile.id,
+        lastAsked: null,
+        timesAsked: 0,
+        timesWrong: 0,
+        timesStruggledRight: 0,
+        timesEasyRight: 0,
+        consecutiveCorrect: 0,
+        currentBucket: 'new',
+        nextReviewDate: new Date(),
+        difficultyScore: 0.5,
+        techniqueHistory: [],
+      });
+      await refreshListData();
+    },
+    [activeProfile, viewingList, refreshListData],
+  );
+
   const handleContrastModeChange = useCallback(
     async (mode: AccessibilitySettings['contrastMode']) => {
       if (!activeProfile) return;
@@ -655,6 +709,21 @@ function App() {
     case 'share':
       return <SharePanel onBack={() => setView('home')} />;
 
+    case 'word-list-detail':
+      if (!activeProfile || !viewingList) return null;
+      return (
+        <WordListDetail
+          list={viewingList}
+          words={allWords.filter((w) => w.listId === viewingList.id)}
+          stats={allStats.filter((s) => allWords.some((w) => w.listId === viewingList.id && w.id === s.wordId))}
+          onUpdateWord={handleUpdateWord}
+          onDeleteWord={handleDeleteWord}
+          onAddWord={handleAddWordToList}
+          onBack={() => { setViewingList(null); setView('word-lists'); }}
+          onEditList={(list) => { setEditingList(list); setView('list-editor'); }}
+        />
+      );
+
     case 'word-lists':
       if (!activeProfile) return null;
       return (
@@ -663,6 +732,7 @@ function App() {
           allWords={allWords}
           allStats={allStats}
           onAddList={() => { setEditingList(null); setView('list-editor'); }}
+          onViewList={(list) => { setViewingList(list); setView('word-list-detail'); }}
           onEditList={(list) => { setEditingList(list); setView('list-editor'); }}
           onDeleteList={handleDeleteList}
           onArchiveList={handleArchiveList}

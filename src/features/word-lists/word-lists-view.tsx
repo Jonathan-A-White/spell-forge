@@ -8,6 +8,7 @@ interface WordListsViewProps {
   allWords: Word[];
   allStats: WordStats[];
   onAddList: () => void;
+  onViewList?: (list: WordList) => void;
   onEditList: (list: WordList) => void;
   onDeleteList: (listId: string) => void;
   onArchiveList?: (listId: string) => void;
@@ -21,6 +22,7 @@ export function WordListsView({
   allWords,
   allStats,
   onAddList,
+  onViewList,
   onEditList,
   onDeleteList,
   onArchiveList,
@@ -119,7 +121,11 @@ export function WordListsView({
                 return (
                   <div
                     key={list.id}
-                    className="bg-sf-surface rounded-xl border border-sf-border p-4 hover:border-sf-border-strong transition-all"
+                    className="bg-sf-surface rounded-xl border border-sf-border p-4 hover:border-sf-border-strong transition-all cursor-pointer"
+                    onClick={() => onViewList?.(list)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onViewList?.(list); }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="min-w-0 flex-1">
@@ -131,7 +137,7 @@ export function WordListsView({
                           )}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                           pct >= 90 ? 'bg-green-500/20 text-green-700' :
                           pct >= 50 ? 'bg-yellow-500/20 text-yellow-700' :
