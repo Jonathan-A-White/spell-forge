@@ -64,7 +64,9 @@ export function PracticeScreen({
 
   // Stable ref for onSpeak so callback identity changes don't re-trigger speech
   const onSpeakRef = useRef(onSpeak);
-  onSpeakRef.current = onSpeak;
+  useEffect(() => {
+    onSpeakRef.current = onSpeak;
+  }, [onSpeak]);
 
   // Auto-speak the word when it changes or on first load
   const currentWord = session?.currentWord ?? null;
