@@ -63,11 +63,17 @@ function calculateReward(event: AppEvent, themeId: string, currentProgress: numb
       ? mechanic.milestoneNames[newMilestoneIndex]
       : null;
 
+  const maxProgress = mechanic.milestoneNames.length * UNITS_PER_MILESTONE;
+  const wasComplete = currentProgress >= maxProgress;
+  const isNowComplete = newProgress >= maxProgress;
+  const creatureCompleted = !wasComplete && isNowComplete;
+
   return {
     themeId: theme.id,
     unitsEarned,
     milestoneReached,
     totalProgress: newProgress,
+    creatureCompleted,
   };
 }
 
@@ -129,11 +135,17 @@ function contrastText(hex: string): string {
   return luminance > 0.5 ? '#000000' : '#FFFFFF';
 }
 
+function getMaxProgress(themeId: string): number {
+  const theme = getTheme(themeId);
+  return theme.rewardMechanic.milestoneNames.length * UNITS_PER_MILESTONE;
+}
+
 export const themeEngine = {
   getTheme,
   getAllThemes,
   calculateReward,
   getMilestoneStatus,
+  getMaxProgress,
   applyThemePalette,
   UNITS_PER_MILESTONE,
 } as const;

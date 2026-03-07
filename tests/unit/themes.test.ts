@@ -4,6 +4,7 @@ import { dragonForgeTheme } from '../../src/themes/dragon-forge/theme.ts';
 import { monsterLabTheme } from '../../src/themes/monster-lab/theme.ts';
 import { starTrailTheme } from '../../src/themes/star-trail/theme.ts';
 import { rewardTracker } from '../../src/features/rewards/reward-tracker.ts';
+import { monsterCollection } from '../../src/features/rewards/monster-collection.ts';
 import type { AppEvent, Theme } from '../../src/contracts/types.ts';
 
 // ─── Theme Loading ───────────────────────────────────────────
@@ -393,5 +394,190 @@ describe('RewardTracker', () => {
     const reward = rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
     expect(reward.milestoneReached).toBe('Base');
     expect(reward.totalProgress).toBe(UNITS);
+  });
+});
+
+// ─── Creature Completion ─────────────────────────────────────
+
+describe('Creature Completion Detection', () => {
+  const UNITS = themeEngine.UNITS_PER_MILESTONE;
+  const MAX_PROGRESS = monsterLabTheme.rewardMechanic.milestoneNames.length * UNITS; // 50
+
+  it('sets creatureCompleted=false when not at max progress', () => {
+    const event: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    const reward = themeEngine.calculateReward(event, 'monster-lab', 5);
+    expect(reward.creatureCompleted).toBe(false);
+  });
+
+  it('sets creatureCompleted=true when crossing max progress', () => {
+    const event: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    const reward = themeEngine.calculateReward(event, 'monster-lab', MAX_PROGRESS - 1);
+    expect(reward.creatureCompleted).toBe(true);
+    expect(reward.totalProgress).toBe(MAX_PROGRESS);
+  });
+
+  it('does not re-trigger creatureCompleted if already past max', () => {
+    const event: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    const reward = themeEngine.calculateReward(event, 'monster-lab', MAX_PROGRESS + 5);
+    expect(reward.creatureCompleted).toBe(false);
+  });
+});
+
+describe('getMaxProgress', () => {
+  it('returns correct max progress for monster-lab (5 milestones * 10 units)', () => {
+    expect(themeEngine.getMaxProgress('monster-lab')).toBe(50);
+  });
+
+  it('returns correct max progress for dragon-forge', () => {
+    expect(themeEngine.getMaxProgress('dragon-forge')).toBe(50);
+  });
+});
+
+// ─── Monster Collection ──────────────────────────────────────
+
+describe('Monster Collection', () => {
+  beforeEach(() => {
+    monsterCollection.resetAll();
+  });
+
+  it('starts with empty collection', () => {
+    expect(monsterCollection.getCollection('p1')).toEqual([]);
+    expect(monsterCollection.getCollectionCount('p1')).toBe(0);
+  });
+
+  it('adds a creature to the collection', () => {
+    const creature = monsterCollection.addCreature('p1', 'monster-lab', 50);
+    expect(creature.profileId).toBe('p1');
+    expect(creature.themeId).toBe('monster-lab');
+    expect(creature.totalBlocksUsed).toBe(50);
+    expect(creature.name).toBeTruthy();
+    expect(creature.id).toMatch(/^creature-/);
+
+    expect(monsterCollection.getCollectionCount('p1')).toBe(1);
+    expect(monsterCollection.getCollection('p1')).toHaveLength(1);
+  });
+
+  it('accumulates multiple creatures', () => {
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+
+    expect(monsterCollection.getCollectionCount('p1')).toBe(3);
+  });
+
+  it('tracks collections independently per profile', () => {
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+    monsterCollection.addCreature('p2', 'monster-lab', 50);
+
+    expect(monsterCollection.getCollectionCount('p1')).toBe(1);
+    expect(monsterCollection.getCollectionCount('p2')).toBe(1);
+  });
+
+  it('resets a single profile collection', () => {
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+    monsterCollection.addCreature('p2', 'monster-lab', 50);
+    monsterCollection.resetCollection('p1');
+
+    expect(monsterCollection.getCollectionCount('p1')).toBe(0);
+    expect(monsterCollection.getCollectionCount('p2')).toBe(1);
+  });
+
+  it('resets all collections', () => {
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+    monsterCollection.addCreature('p2', 'monster-lab', 50);
+    monsterCollection.resetAll();
+
+    expect(monsterCollection.getCollectionCount('p1')).toBe(0);
+    expect(monsterCollection.getCollectionCount('p2')).toBe(0);
+  });
+
+  it('generates a name with two words', () => {
+    const name = monsterCollection.generateCreatureName();
+    const parts = name.split(' ');
+    expect(parts).toHaveLength(2);
+    expect(parts[0].length).toBeGreaterThan(0);
+    expect(parts[1].length).toBeGreaterThan(0);
+  });
+});
+
+// ─── RewardTracker + Collection Integration ──────────────────
+
+describe('RewardTracker Collection Integration', () => {
+  const UNITS = themeEngine.UNITS_PER_MILESTONE;
+
+  beforeEach(() => {
+    rewardTracker.resetAll();
+    monsterCollection.resetAll();
+  });
+
+  it('archives creature and resets progress on completion', () => {
+    const maxProgress = themeEngine.getMaxProgress('monster-lab');
+    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 1);
+
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+
+    const reward = rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
+    expect(reward.creatureCompleted).toBe(true);
+
+    // Progress should be reset to 0 for the next creature
+    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(0);
+
+    // Creature should be in the collection
+    expect(monsterCollection.getCollectionCount('p1')).toBe(1);
+    const creatures = monsterCollection.getCollection('p1');
+    expect(creatures[0].themeId).toBe('monster-lab');
+    expect(creatures[0].totalBlocksUsed).toBe(maxProgress);
+  });
+
+  it('allows building a new creature after completion', () => {
+    const maxProgress = themeEngine.getMaxProgress('monster-lab');
+    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 1);
+
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+
+    // Complete first creature
+    rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
+    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(0);
+
+    // Start building next creature
+    const reward2 = rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
+    expect(reward2.totalProgress).toBe(1);
+    expect(reward2.creatureCompleted).toBe(false);
+    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(1);
+
+    // First creature still in collection
+    expect(monsterCollection.getCollectionCount('p1')).toBe(1);
+  });
+
+  it('milestone resets to Blueprint after creature completion', () => {
+    const maxProgress = themeEngine.getMaxProgress('monster-lab');
+    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 1);
+
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+
+    rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
+
+    const status = rewardTracker.getMilestoneStatus('p1', 'monster-lab');
+    expect(status.current).toBe('Blueprint');
+    expect(status.next).toBe('Base');
+    expect(status.progressToNext).toBe(UNITS);
   });
 });

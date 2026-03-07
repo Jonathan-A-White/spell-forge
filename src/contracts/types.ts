@@ -234,6 +234,16 @@ export interface RewardEvent {
   unitsEarned: number;
   milestoneReached: string | null;
   totalProgress: number;
+  creatureCompleted: boolean;
+}
+
+export interface CompletedCreature {
+  id: string;
+  profileId: string;
+  themeId: string;
+  name: string;
+  completedAt: Date;
+  totalBlocksUsed: number;
 }
 
 // ─── Dashboard ────────────────────────────────────────────────
