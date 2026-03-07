@@ -39,6 +39,18 @@ import { v4 as uuidv4 } from 'uuid';
 
 type AppView = 'loading' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'list-editor' | 'word-lists' | 'settings' | 'feedback';
 
+/** Race a promise against a timeout. Rejects if the timeout fires first. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Database operation timed out')), ms),
+    ),
+  ]);
+}
+
+const DB_TIMEOUT_MS = 8000;
+
 const eventBus = createEventBus();
 
 const audioManager = new AudioManagerImpl();
@@ -61,17 +73,22 @@ function App() {
     applySettings(profile.settings);
 
     try {
-      const words = await wordRepo.getByProfileId(profile.id);
-      const stats = await statsRepo.getByProfileId(profile.id);
-      const lists = await wordListRepo.getByProfileId(profile.id);
-      const streak = await streakRepo.get(profile.id);
+      const [words, stats, lists, streak] = await withTimeout(
+        Promise.all([
+          wordRepo.getByProfileId(profile.id),
+          statsRepo.getByProfileId(profile.id),
+          wordListRepo.getByProfileId(profile.id),
+          streakRepo.get(profile.id),
+        ]),
+        DB_TIMEOUT_MS,
+      );
 
       setAllWords(words);
       setAllStats(stats);
       setWordLists(lists);
       setStreakData(streak);
     } catch {
-      // If loading profile data fails, proceed with empty data rather than getting stuck
+      // If loading profile data fails or times out, proceed with empty data
     }
 
     setView('home');
@@ -84,7 +101,7 @@ function App() {
 
     async function load() {
       try {
-        const profs = await profileRepo.getAll();
+        const profs = await withTimeout(profileRepo.getAll(), DB_TIMEOUT_MS);
         if (cancelled) return;
         setProfiles(profs);
 
@@ -97,7 +114,7 @@ function App() {
         }
       } catch {
         if (!cancelled) {
-          // If DB fails to load, fall back to onboarding so the app isn't stuck
+          // If DB fails to load or times out, fall back to onboarding so the app isn't stuck
           setView('onboarding');
         }
       }
