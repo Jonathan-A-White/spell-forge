@@ -47,3 +47,16 @@ export class SpellForgeDB extends Dexie {
 }
 
 export const db = new SpellForgeDB();
+
+/**
+ * Explicitly open the database with blocked-event handling.
+ * Returns a promise that resolves when open, or rejects on error.
+ * The `onBlocked` callback fires if another tab holds an older version open.
+ */
+export function openDatabase(onBlocked?: () => void): Promise<void> {
+  db.on('blocked', () => {
+    onBlocked?.();
+  });
+
+  return db.open().then(() => { /* opened successfully */ });
+}
