@@ -8,6 +8,7 @@ import type {
   StreakData,
   SyncQueueItem,
   ActivityProgress,
+  WordLearningProgress,
 } from '../contracts/types';
 
 export class SpellForgeDB extends Dexie {
@@ -19,6 +20,7 @@ export class SpellForgeDB extends Dexie {
   streaks!: Table<StreakData, string>;
   syncQueue!: Table<SyncQueueItem, string>;
   activityProgress!: Table<ActivityProgress, string>;
+  learningProgress!: Table<WordLearningProgress, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -42,6 +44,18 @@ export class SpellForgeDB extends Dexie {
       streaks: 'profileId',
       syncQueue: 'id, [type+synced], synced',
       activityProgress: 'id, profileId, [profileId+activityType]',
+    });
+
+    this.version(3).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
     });
   }
 }

@@ -21,6 +21,7 @@
     "test:a11y": "vitest run tests/unit/accessibility.test.ts",
     "test:adaptive": "vitest run tests/unit/adaptive-engine.test.ts",
     "test:contracts": "vitest run tests/unit/contracts.test.ts",
+    "test:learning": "vitest run tests/unit/learning-engine.test.ts",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {

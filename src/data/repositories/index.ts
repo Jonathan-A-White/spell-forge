@@ -5,3 +5,4 @@ export { statsRepo } from './stats-repo';
 export { sessionRepo } from './session-repo';
 export { streakRepo } from './streak-repo';
 export { activityProgressRepo } from './activity-progress-repo';
+export { learningProgressRepo } from './learning-progress-repo';

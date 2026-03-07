@@ -260,7 +260,7 @@ export interface LifetimeHealth {
 
 // ─── Activity Progress (Auto-Save) ───────────────────────
 
-export type ActivityType = 'practice' | 'word-search' | 'quiz';
+export type ActivityType = 'practice' | 'word-search' | 'quiz' | 'learning';
 
 export interface ActivityProgress {
   id: string;              // `${profileId}:${activityType}`
@@ -269,6 +269,33 @@ export interface ActivityProgress {
   savedAt: Date;
   state: Record<string, unknown>;  // JSON-serializable activity state
 }
+
+// ─── Word Learning ───────────────────────────────────────────
+
+export interface WordLearningProgress {
+  id: string;              // `${profileId}:${wordId}`
+  profileId: string;
+  wordId: string;
+  wordListId: string;
+  stage: LearningStage;
+  consecutiveSuccesses: number;  // 0-2 within current stage
+  consecutiveFailures: number;   // for regression (2 in a row = regress)
+  mastered: boolean;
+  totalAttempts: number;
+  totalErrors: number;
+  lastAttemptAt: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * Stage 0: Full word shown
+ * Stage 1: 1 random letter hidden
+ * Stage 2: 2 random letters hidden
+ * Stage 3: No word shown (audio only)
+ */
+export type LearningStage = 0 | 1 | 2 | 3;
+
+export type LearningInputMode = 'scrambled' | 'keyboard';
 
 // ─── Import/Export ────────────────────────────────────────────
 
