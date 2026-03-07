@@ -1,6 +1,6 @@
 // src/features/practice/letter-bank.tsx — Letter bank spelling component
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 interface LetterBankProps {
   word: string;
@@ -81,11 +81,49 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
     });
   }, [selected]);
 
-  const buttonSize = `${tapTargetSize}px`;
-  const fontSize = `${Math.max(18, tapTargetSize * 0.45)}px`;
+  // Measure container width to scale letter boxes for long words
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Scale down slot size so all letters fit within the container
+  const slotSize = useMemo(() => {
+    if (containerWidth === 0) return tapTargetSize;
+    const gap = 8; // gap-2 = 0.5rem = 8px
+    const padding = 32; // p-4 = 1rem * 2 = 32px
+    const undoWidth = selected.length > 0 ? 60 : 0; // approx undo button width + margin
+    const availableWidth = containerWidth - padding - undoWidth;
+    const maxPerSlot = (availableWidth - gap * (targetLetters.length - 1)) / targetLetters.length;
+    return Math.max(32, Math.min(tapTargetSize, Math.floor(maxPerSlot)));
+  }, [containerWidth, tapTargetSize, targetLetters.length, selected.length]);
+
+  const buttonSize = `${slotSize}px`;
+  const fontSize = `${Math.max(14, slotSize * 0.45)}px`;
+
+  // Bank button size: also responsive but uses tapTargetSize as max
+  const bankButtonSize = useMemo(() => {
+    if (containerWidth === 0) return tapTargetSize;
+    const gap = 12; // gap-3 = 0.75rem = 12px
+    const maxColumns = Math.min(availableLetters.length, 6);
+    const maxPerButton = (containerWidth - gap * (maxColumns - 1)) / maxColumns;
+    return Math.max(32, Math.min(tapTargetSize, Math.floor(maxPerButton)));
+  }, [containerWidth, tapTargetSize, availableLetters.length]);
+
+  const bankSize = `${bankButtonSize}px`;
+  const bankFontSize = `${Math.max(14, bankButtonSize * 0.45)}px`;
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div ref={containerRef} className="flex flex-col items-center gap-6 w-full">
       {/* Scaffolding hints */}
       {scaffolding && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center max-w-md">
@@ -110,14 +148,14 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
 
       {/* Word building area */}
       <div
-        className={`flex gap-2 min-h-[80px] items-center justify-center p-4 rounded-xl border-2 transition-colors ${
+        className={`flex gap-2 min-h-[80px] items-center justify-center p-4 rounded-xl border-2 transition-colors w-full ${
           wrongFlash ? 'border-red-400 bg-red-50' : 'border-sf-border-strong bg-sf-bg'
         }`}
       >
         {targetLetters.map((_, i) => (
           <div
             key={i}
-            className="flex items-center justify-center rounded-lg border-2 border-dashed border-sf-border-strong bg-sf-surface"
+            className="flex items-center justify-center rounded-lg border-2 border-dashed border-sf-border-strong bg-sf-surface flex-shrink-0"
             style={{ width: buttonSize, height: buttonSize }}
           >
             {selected[i] && (
@@ -130,7 +168,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
         {selected.length > 0 && (
           <button
             onClick={handleUndo}
-            className="ml-2 text-sm text-sf-faint hover:text-sf-text underline"
+            className="ml-2 text-sm text-sf-faint hover:text-sf-text underline flex-shrink-0"
             aria-label="Undo last letter"
           >
             Undo
@@ -139,7 +177,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
       </div>
 
       {/* Letter bank */}
-      <div className="flex flex-wrap gap-3 justify-center max-w-md">
+      <div className="flex flex-wrap gap-3 justify-center w-full">
         {availableLetters.map((item) => (
           <button
             key={item.id}
@@ -151,11 +189,11 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
                 : 'bg-sf-surface hover:bg-sf-surface-hover text-sf-heading border-2 border-sf-border-strong hover:border-sf-primary active:scale-95'
             }`}
             style={{
-              width: buttonSize,
-              height: buttonSize,
-              fontSize,
-              minWidth: buttonSize,
-              minHeight: buttonSize,
+              width: bankSize,
+              height: bankSize,
+              fontSize: bankFontSize,
+              minWidth: bankSize,
+              minHeight: bankSize,
             }}
             aria-label={`Letter ${item.letter}`}
           >
