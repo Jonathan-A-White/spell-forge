@@ -9,7 +9,7 @@ interface HomeScreenProps {
   allStats: WordStats[];
   learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -46,17 +46,13 @@ export function HomeScreen({
 
         <div className="relative max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-6">
-            {hasMultipleProfiles ? (
-              <button
-                onClick={onSwitchProfile}
-                className="flex items-center gap-1.5 text-sf-muted hover:text-sf-secondary text-sm transition-colors"
-              >
-                <SwitchIcon />
-                <span>Switch</span>
-              </button>
-            ) : (
-              <div />
-            )}
+            <button
+              onClick={onSwitchProfile}
+              className="flex items-center gap-1.5 text-sf-muted hover:text-sf-secondary text-sm transition-colors"
+            >
+              <SwitchIcon />
+              <span>{hasMultipleProfiles ? 'Switch' : 'Profiles'}</span>
+            </button>
             <button
               onClick={() => onNavigate('settings')}
               className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
@@ -167,6 +163,14 @@ export function HomeScreen({
               onClick={() => onNavigate('settings')}
               accent="from-orange-500/20 to-amber-500/10"
               iconColor="text-orange-500"
+            />
+            <NavCard
+              title="Share"
+              subtitle="Invite others"
+              icon={<ShareNavIcon />}
+              onClick={() => onNavigate('share')}
+              accent="from-indigo-500/20 to-blue-500/10"
+              iconColor="text-indigo-500"
             />
           </div>
 
@@ -311,6 +315,18 @@ function GamesIcon() {
       <rect x="13" y="2" width="9" height="9" rx="1" />
       <rect x="2" y="13" width="9" height="9" rx="1" />
       <path d="M17.5 13v9M13 17.5h9" />
+    </svg>
+  );
+}
+
+function ShareNavIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
     </svg>
   );
 }
