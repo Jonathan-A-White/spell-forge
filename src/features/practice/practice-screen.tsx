@@ -1,6 +1,6 @@
 // src/features/practice/practice-screen.tsx — Main practice session screen
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { LetterBank } from './letter-bank';
 import { SessionSummary } from './session-summary';
 import type {
@@ -62,13 +62,17 @@ export function PracticeScreen({
   const [sessionLog, setSessionLog] = useState<SessionLog | null>(null);
   const [reward] = useState<RewardEvent | null>(null);
 
+  // Stable ref for onSpeak so callback identity changes don't re-trigger speech
+  const onSpeakRef = useRef(onSpeak);
+  onSpeakRef.current = onSpeak;
+
   // Auto-speak the word when it changes or on first load
   const currentWord = session?.currentWord ?? null;
   useEffect(() => {
-    if (currentWord) {
-      onSpeak?.(currentWord.text);
+    if (currentWord && !sessionLog) {
+      onSpeakRef.current?.(currentWord.text);
     }
-  }, [currentWord, onSpeak]);
+  }, [currentWord, sessionLog]);
 
   const handleWordComplete = useCallback(
     (correct: boolean, responseTimeMs: number, mistakes: number) => {
