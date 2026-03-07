@@ -7,6 +7,7 @@ import type { WordSearchDifficulty } from './word-search-difficulty';
 import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
+import { statsRepo } from '../../data/repositories/stats-repo';
 
 type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz';
 
@@ -48,13 +49,22 @@ export function PracticeGames({
   const [loading, setLoading] = useState(true);
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
 
-  // Load mastered word IDs on mount
+  // Load mastered word IDs on mount — combine both learning progress and spaced-rep buckets
   useEffect(() => {
     let cancelled = false;
     async function loadMastered() {
-      const mastered = await learningProgressRepo.getMastered(profile.id);
+      const [learningMastered, allStats] = await Promise.all([
+        learningProgressRepo.getMastered(profile.id),
+        statsRepo.getByProfileId(profile.id),
+      ]);
       if (!cancelled) {
-        setMasteredWordIds(new Set(mastered.map((p) => p.wordId)));
+        const ids = new Set(learningMastered.map((p) => p.wordId));
+        for (const stat of allStats) {
+          if (stat.currentBucket === 'mastered' || stat.currentBucket === 'review') {
+            ids.add(stat.wordId);
+          }
+        }
+        setMasteredWordIds(ids);
       }
     }
     loadMastered();
