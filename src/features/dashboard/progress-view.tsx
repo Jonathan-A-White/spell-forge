@@ -1,12 +1,16 @@
 // src/features/dashboard/progress-view.tsx — Progress dashboard
 
-import type { StreakData, WordStats, WordList, Word } from '../../contracts/types';
+import { useState } from 'react';
+import type { StreakData, WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
 import { ReadinessIndicator } from './readiness-indicator';
+
+type HealthCategory = 'mastered' | 'familiar' | 'learning' | 'new';
 
 interface ProgressViewProps {
   streakData: StreakData | null;
   allWords: Word[];
   allStats: WordStats[];
+  learningProgress: WordLearningProgress[];
   activeList: WordList | null;
   daysUntilTest: number | null;
   onStartPractice: () => void;
@@ -14,35 +18,88 @@ interface ProgressViewProps {
   onBack: () => void;
 }
 
+/**
+ * Compute a unified health category for each word, combining
+ * spaced-rep bucket status with learning-stage progress.
+ *
+ * Priority: spaced-rep bucket wins if the word has been practiced.
+ * If a word is still "new" in spaced-rep but has learning progress,
+ * its learning stage determines the category.
+ */
+function getWordCategory(
+  wordId: string,
+  statsMap: Map<string, WordStats>,
+  learningMap: Map<string, WordLearningProgress>,
+): HealthCategory {
+  const stat = statsMap.get(wordId);
+  const lp = learningMap.get(wordId);
+
+  // If word has been through spaced-rep practice, use that bucket
+  if (stat && stat.timesAsked > 0) {
+    if (stat.currentBucket === 'mastered' || stat.currentBucket === 'review') return 'mastered';
+    if (stat.currentBucket === 'familiar') return 'familiar';
+    if (stat.currentBucket === 'learning') return 'learning';
+  }
+
+  // Fall back to learning-stage progress
+  if (lp) {
+    if (lp.mastered) return 'mastered';
+    if (lp.stage >= 2) return 'familiar';
+    if (lp.stage >= 1 || lp.totalAttempts > 0) return 'learning';
+  }
+
+  return 'new';
+}
+
 export function ProgressView({
   streakData,
   allWords,
   allStats,
+  learningProgress,
   activeList,
   daysUntilTest,
   onStartPractice,
   onAddWords,
   onBack,
 }: ProgressViewProps) {
-  const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
+  const [expandedCategory, setExpandedCategory] = useState<HealthCategory | null>(null);
 
-  // Lifetime health
-  const mastered = allStats.filter((s) => s.currentBucket === 'mastered' || s.currentBucket === 'review').length;
-  const familiar = allStats.filter((s) => s.currentBucket === 'familiar').length;
-  const learning = allStats.filter((s) => s.currentBucket === 'learning').length;
-  const newWords = allWords.length - mastered - familiar - learning;
+  const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
+  const learningMap = new Map(learningProgress.map((lp) => [lp.wordId, lp]));
+
+  // Build category → word[] mapping
+  const categoryWords: Record<HealthCategory, Word[]> = {
+    mastered: [],
+    familiar: [],
+    learning: [],
+    new: [],
+  };
+
+  for (const word of allWords) {
+    const cat = getWordCategory(word.id, statsMap, learningMap);
+    categoryWords[cat].push(word);
+  }
+
+  const mastered = categoryWords.mastered.length;
+  const familiar = categoryWords.familiar.length;
+  const learning = categoryWords.learning.length;
+  const newWords = categoryWords.new.length;
 
   // Active list readiness
   const activeListWords = activeList
     ? allWords.filter((w) => w.listId === activeList.id)
     : [];
   const activeListReady = activeListWords.filter((w) => {
-    const s = statsMap.get(w.id);
-    return s && (s.currentBucket === 'mastered' || s.currentBucket === 'familiar');
+    const cat = getWordCategory(w.id, statsMap, learningMap);
+    return cat === 'mastered' || cat === 'familiar';
   }).length;
   const readinessPercent = activeListWords.length > 0
     ? Math.round((activeListReady / activeListWords.length) * 100)
     : 0;
+
+  const handleToggleCategory = (category: HealthCategory) => {
+    setExpandedCategory((prev) => (prev === category ? null : category));
+  };
 
   return (
     <div className="min-h-screen bg-sf-bg p-4 max-w-lg mx-auto">
@@ -108,11 +165,51 @@ export function ProgressView({
         <p className="text-sf-text mb-3">
           {mastered} of {allWords.length} words mastered
         </p>
-        <div className="space-y-2">
-          <HealthBar label="Mastered" count={mastered} total={allWords.length} color="bg-green-500" />
-          <HealthBar label="Familiar" count={familiar} total={allWords.length} color="bg-yellow-500" />
-          <HealthBar label="Learning" count={learning} total={allWords.length} color="bg-orange-500" />
-          <HealthBar label="New" count={newWords} total={allWords.length} color="bg-sf-track" />
+        <div className="space-y-1">
+          <HealthBar
+            label="Mastered"
+            count={mastered}
+            total={allWords.length}
+            color="bg-green-500"
+            expanded={expandedCategory === 'mastered'}
+            onToggle={() => handleToggleCategory('mastered')}
+          />
+          {expandedCategory === 'mastered' && (
+            <WordList words={categoryWords.mastered} color="text-green-500" />
+          )}
+          <HealthBar
+            label="Familiar"
+            count={familiar}
+            total={allWords.length}
+            color="bg-yellow-500"
+            expanded={expandedCategory === 'familiar'}
+            onToggle={() => handleToggleCategory('familiar')}
+          />
+          {expandedCategory === 'familiar' && (
+            <WordList words={categoryWords.familiar} color="text-yellow-500" />
+          )}
+          <HealthBar
+            label="Learning"
+            count={learning}
+            total={allWords.length}
+            color="bg-orange-500"
+            expanded={expandedCategory === 'learning'}
+            onToggle={() => handleToggleCategory('learning')}
+          />
+          {expandedCategory === 'learning' && (
+            <WordList words={categoryWords.learning} color="text-orange-500" />
+          )}
+          <HealthBar
+            label="New"
+            count={newWords}
+            total={allWords.length}
+            color="bg-sf-track"
+            expanded={expandedCategory === 'new'}
+            onToggle={() => handleToggleCategory('new')}
+          />
+          {expandedCategory === 'new' && (
+            <WordList words={categoryWords.new} color="text-sf-muted" />
+          )}
         </div>
       </div>
 
@@ -153,15 +250,71 @@ export function ProgressView({
   );
 }
 
-function HealthBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
+function HealthBar({
+  label,
+  count,
+  total,
+  color,
+  expanded,
+  onToggle,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  color: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const pct = total > 0 ? (count / total) * 100 : 0;
+  const hasWords = count > 0;
+
   return (
-    <div className="flex items-center gap-2">
+    <button
+      onClick={hasWords ? onToggle : undefined}
+      className={`flex items-center gap-2 w-full py-1.5 rounded-lg transition-colors ${
+        hasWords
+          ? 'hover:bg-sf-surface-hover cursor-pointer'
+          : 'cursor-default'
+      }`}
+      aria-expanded={hasWords ? expanded : undefined}
+      aria-label={`${label}: ${count} word${count !== 1 ? 's' : ''}${hasWords ? '. Tap to see words.' : ''}`}
+    >
       <span className="text-sm text-sf-text w-20">{label}</span>
       <div className="flex-1 bg-sf-track rounded-full h-3">
         <div className={`${color} h-3 rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-sm text-sf-muted w-8 text-right">{count}</span>
+      {hasWords && (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          className={`w-4 h-4 text-sf-muted transition-transform ${expanded ? 'rotate-180' : ''}`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      )}
+      {!hasWords && <div className="w-4" />}
+    </button>
+  );
+}
+
+function WordList({ words, color }: { words: Word[]; color: string }) {
+  if (words.length === 0) return null;
+
+  return (
+    <div className="ml-2 mb-2 pl-4 border-l-2 border-sf-border">
+      <div className="flex flex-wrap gap-2 py-2">
+        {words.map((w) => (
+          <span
+            key={w.id}
+            className={`inline-block text-sm font-medium ${color} bg-sf-surface border border-sf-border rounded-lg px-3 py-1`}
+          >
+            {w.text}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

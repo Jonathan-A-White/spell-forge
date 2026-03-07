@@ -332,11 +332,19 @@ export function PracticeScreen({
 
   if (!session || !session.currentWord) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-sf-bg">
-        <p className="text-sf-text text-lg">No words to practice!</p>
-        <button onClick={onBack} className="ml-4 text-sf-muted underline">
-          Go Back
-        </button>
+      <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
+        <div className="max-w-sm w-full text-center space-y-4">
+          <p className="text-sf-heading text-lg font-bold">No words ready for practice yet!</p>
+          <p className="text-sf-muted text-sm">
+            Learn your spelling words first, then come back to practice the ones you&apos;ve mastered.
+          </p>
+          <button
+            onClick={onBack}
+            className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }

@@ -6,6 +6,7 @@ import type {
   WordList,
   Word,
   WordStats,
+  WordLearningProgress,
   SessionLog,
   StreakData,
   AccessibilitySettings,
@@ -19,6 +20,7 @@ import { wordRepo } from './data/repositories/word-repo';
 import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
+import { learningProgressRepo } from './data/repositories/learning-progress-repo';
 import { applySettings, mergeSetting, validateSettings } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
@@ -55,6 +57,7 @@ function App() {
   const [allStats, setAllStats] = useState<WordStats[]>([]);
   const [wordLists, setWordLists] = useState<WordList[]>([]);
   const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const [learningProgress, setLearningProgress] = useState<WordLearningProgress[]>([]);
   const [editingList, setEditingList] = useState<WordList | null>(null);
 
   const selectProfile = useCallback(async (profile: Profile) => {
@@ -62,17 +65,19 @@ function App() {
     applySettings(profile.settings);
 
     try {
-      const [words, stats, lists, streak] = await Promise.all([
+      const [words, stats, lists, streak, lp] = await Promise.all([
         wordRepo.getByProfileId(profile.id),
         statsRepo.getByProfileId(profile.id),
         wordListRepo.getByProfileId(profile.id),
         streakRepo.get(profile.id),
+        learningProgressRepo.getByProfileId(profile.id),
       ]);
 
       setAllWords(words);
       setAllStats(stats);
       setWordLists(lists);
       setStreakData(streak);
+      setLearningProgress(lp);
     } catch {
       // If loading profile data fails, proceed with empty data
     }
@@ -180,12 +185,16 @@ function App() {
 
   const refreshListData = useCallback(async () => {
     if (!activeProfile) return;
-    const updatedWords = await wordRepo.getByProfileId(activeProfile.id);
-    const updatedStats = await statsRepo.getByProfileId(activeProfile.id);
-    const updatedLists = await wordListRepo.getByProfileId(activeProfile.id);
+    const [updatedWords, updatedStats, updatedLists, updatedLp] = await Promise.all([
+      wordRepo.getByProfileId(activeProfile.id),
+      statsRepo.getByProfileId(activeProfile.id),
+      wordListRepo.getByProfileId(activeProfile.id),
+      learningProgressRepo.getByProfileId(activeProfile.id),
+    ]);
     setAllWords(updatedWords);
     setAllStats(updatedStats);
     setWordLists(updatedLists);
+    setLearningProgress(updatedLp);
   }, [activeProfile]);
 
   const handleSaveList = useCallback(
@@ -480,7 +489,7 @@ function App() {
         <LearningScreen
           profile={activeProfile}
           audioManager={audioManager}
-          onBack={() => setView('home')}
+          onBack={() => { refreshListData(); setView('home'); }}
         />
       );
 
@@ -515,6 +524,7 @@ function App() {
             streakData={streakData}
             allWords={allWords}
             allStats={allStats}
+            learningProgress={learningProgress}
             activeList={activeList}
             daysUntilTest={daysUntilTest}
             onStartPractice={() => setView('practice')}
@@ -564,6 +574,7 @@ function App() {
           wordLists={wordLists}
           allWords={allWords}
           allStats={allStats}
+          learningProgress={learningProgress}
           streakData={streakData}
           onNavigate={(target) => setView(target)}
           onSwitchProfile={() => setView('profile-select')}

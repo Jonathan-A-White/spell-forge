@@ -1,12 +1,13 @@
 // src/features/dashboard/home-screen.tsx — Main hub screen with navigation cards
 
-import type { Profile, WordList, Word, WordStats, StreakData } from '../../contracts/types';
+import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData } from '../../contracts/types';
 
 interface HomeScreenProps {
   profile: Profile;
   wordLists: WordList[];
   allWords: Word[];
   allStats: WordStats[];
+  learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
   onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback') => void;
   onSwitchProfile: () => void;
@@ -18,12 +19,19 @@ export function HomeScreen({
   wordLists,
   allWords,
   allStats,
+  learningProgress,
   streakData,
   onNavigate,
   onSwitchProfile,
   hasMultipleProfiles,
 }: HomeScreenProps) {
-  const mastered = allStats.filter((s) => s.currentBucket === 'mastered' || s.currentBucket === 'review').length;
+  // Combine spaced-rep and learning progress for accurate mastered count
+  const learningMasteredIds = new Set(learningProgress.filter((lp) => lp.mastered).map((lp) => lp.wordId));
+  const mastered = allWords.filter((w) => {
+    const stat = allStats.find((s) => s.wordId === w.id);
+    if (stat && stat.timesAsked > 0 && (stat.currentBucket === 'mastered' || stat.currentBucket === 'review')) return true;
+    return learningMasteredIds.has(w.id);
+  }).length;
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
   const streak = streakData?.currentStreak ?? 0;
 
@@ -85,7 +93,7 @@ export function HomeScreen({
           {/* Start Practice - Hero card */}
           {allWords.length > 0 && (
             <button
-              onClick={() => onNavigate('practice')}
+              onClick={() => mastered > 0 ? onNavigate('practice') : onNavigate('learning')}
               className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-sf-primary to-sf-primary-hover p-5 text-left shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
             >
               <div className="absolute inset-0 opacity-20">
@@ -93,9 +101,14 @@ export function HomeScreen({
               </div>
               <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-sf-primary-text font-bold text-lg">Start Practice</p>
+                  <p className="text-sf-primary-text font-bold text-lg">
+                    {mastered > 0 ? 'Start Practice' : 'Start Learning'}
+                  </p>
                   <p className="text-sf-primary-text/70 text-sm mt-0.5">
-                    {allWords.length} word{allWords.length !== 1 ? 's' : ''} waiting
+                    {mastered > 0
+                      ? `${mastered} word${mastered !== 1 ? 's' : ''} ready to practice`
+                      : `${allWords.length} word${allWords.length !== 1 ? 's' : ''} to learn`
+                    }
                   </p>
                 </div>
                 <div className="text-sf-primary-text text-3xl group-hover:translate-x-1 transition-transform">

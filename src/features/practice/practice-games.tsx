@@ -226,15 +226,19 @@ export function PracticeGames({
 
   if (wordTexts.length === 0) {
     return (
-      <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-4">
-        <p className="text-sf-text text-lg mb-4">No words to play with yet!</p>
-        <p className="text-sf-muted text-sm mb-6">Add some spelling words first, then come back to play.</p>
-        <button
-          onClick={onBack}
-          className="text-sf-muted hover:text-sf-secondary underline"
-        >
-          Go Back
-        </button>
+      <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
+        <div className="max-w-sm w-full text-center space-y-4">
+          <p className="text-sf-heading text-lg font-bold">No words ready for games yet!</p>
+          <p className="text-sf-muted text-sm">
+            Learn your spelling words first. As you master words in learning mode, they&apos;ll become available here for games.
+          </p>
+          <button
+            onClick={onBack}
+            className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
