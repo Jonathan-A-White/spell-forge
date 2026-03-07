@@ -3,7 +3,7 @@
 import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 import { countMasteredWords } from '../../core/mastery';
-import { rewardTracker } from '../rewards';
+import { rewardTracker, monsterCollection } from '../rewards';
 import { themeEngine } from '../../themes';
 
 interface HomeScreenProps {
@@ -43,6 +43,8 @@ export function HomeScreen({
   // Theme milestone status (wires up rewardTracker.getMilestoneStatus + themeEngine.getMilestoneStatus)
   const milestone = rewardTracker.getMilestoneStatus(profile.id, profile.themeId);
   const themeName = themeEngine.getTheme(profile.themeId).name;
+  const collectionCount = monsterCollection.getCollectionCount(profile.id);
+  const collection = monsterCollection.getCollection(profile.id);
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -147,6 +149,30 @@ export function HomeScreen({
                   </p>
                 </>
               )}
+              {collectionCount > 0 && (
+                <div className="mt-2 pt-2 border-t border-sf-border/30 flex items-center justify-between text-xs">
+                  <span className="text-sf-muted">Monster Stable</span>
+                  <span className="font-medium text-sf-heading">{collectionCount} creature{collectionCount !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Monster Stable - completed creatures */}
+          {collection.length > 0 && (
+            <div className="mt-3 max-w-xs mx-auto">
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {collection.slice(-5).map((creature) => (
+                  <div
+                    key={creature.id}
+                    className="flex-shrink-0 bg-sf-surface/60 backdrop-blur-sm rounded-lg px-3 py-2 text-center min-w-[80px]"
+                    title={`Completed ${creature.completedAt.toLocaleDateString()}`}
+                  >
+                    <div className="text-lg mb-0.5">🧪</div>
+                    <p className="text-[10px] font-medium text-sf-heading truncate max-w-[70px]">{creature.name}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

@@ -1,5 +1,6 @@
 import type { AppEvent, RewardEvent } from '../../contracts/types.ts';
 import { themeEngine } from '../../themes/engine.ts';
+import { monsterCollection } from './monster-collection.ts';
 
 interface ProfileProgress {
   themeId: string;
@@ -26,6 +27,14 @@ function processEvent(profileId: string, themeId: string, event: AppEvent): Rewa
   const currentProgress = getProgress(profileId, themeId);
   const reward = themeEngine.calculateReward(event, themeId, currentProgress);
   setProgress(profileId, themeId, reward.totalProgress);
+
+  // When a creature is completed, archive it and reset progress for the next one
+  if (reward.creatureCompleted) {
+    const maxProgress = themeEngine.getMaxProgress(themeId);
+    monsterCollection.addCreature(profileId, themeId, maxProgress);
+    setProgress(profileId, themeId, 0);
+  }
+
   return reward;
 }
 

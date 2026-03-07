@@ -14,6 +14,7 @@ export const completedSession: SessionLog = {
     unitsEarned: 8,
     milestoneReached: null,
     totalProgress: 24,
+    creatureCompleted: false,
   },
 };
 
@@ -31,6 +32,7 @@ export const adaptiveStopSession: SessionLog = {
     unitsEarned: 4,
     milestoneReached: null,
     totalProgress: 16,
+    creatureCompleted: false,
   },
 };
 
