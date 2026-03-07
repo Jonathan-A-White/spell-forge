@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="flame1" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#FF6B35"/>
+      <stop offset="50%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFF7AE"/>
+    </linearGradient>
+    <linearGradient id="anvil1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7B8794"/>
+      <stop offset="100%" stop-color="#4A5568"/>
+    </linearGradient>
+    <linearGradient id="wand1" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6B46C1"/>
+      <stop offset="100%" stop-color="#9F7AEA"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Anvil body -->
+  <path d="M48 160 h160 l20 24 H28 Z" fill="url(#anvil1)" />
+  <!-- Anvil top (flat striking surface) -->
+  <rect x="64" y="140" width="128" height="22" rx="4" fill="url(#anvil1)" />
+  <!-- Anvil base -->
+  <path d="M60 184 h136 v16 c0,8 -8,16 -16,16 H76 c-8,0 -16,-8 -16,-16 Z" fill="#3C4858" />
+  <!-- Anvil horn (left) -->
+  <path d="M64 140 Q20 148 16 155 Q14 162 28 160 L48 160 L64 162 Z" fill="#5A6978" />
+
+  <!-- Magic wand (diagonal, striking the anvil) -->
+  <rect x="140" y="28" width="10" height="100" rx="4" transform="rotate(25 145 78)" fill="url(#wand1)" />
+  <!-- Wand tip -->
+  <circle cx="158" cy="126" r="6" fill="#E9D8FD" />
+
+  <!-- Forge flames behind anvil -->
+  <path d="M100 140 Q95 100 110 80 Q115 100 108 120 Q120 90 128 60 Q136 90 126 120 Q140 95 148 75 Q150 105 140 130 Q145 140 150 140 Z" fill="url(#flame1)" opacity="0.9" />
+
+  <!-- Magic sparkles -->
+  <!-- Star 1 (top left) -->
+  <path d="M60 50 L63 60 L73 63 L63 66 L60 76 L57 66 L47 63 L57 60 Z" fill="#FFD700" />
+  <!-- Star 2 (top right) -->
+  <path d="M190 38 L192 44 L198 46 L192 48 L190 54 L188 48 L182 46 L188 44 Z" fill="#E9D8FD" />
+  <!-- Star 3 (mid left) -->
+  <path d="M32 105 L34 111 L40 113 L34 115 L32 121 L30 115 L24 113 L30 111 Z" fill="#FFD700" />
+  <!-- Star 4 (small, near wand) -->
+  <path d="M175 70 L176.5 74 L180.5 75.5 L176.5 77 L175 81 L173.5 77 L169.5 75.5 L173.5 74 Z" fill="#FFF7AE" />
+
+  <!-- Letter S on anvil face (subtle branding) -->
+  <text x="128" y="176" text-anchor="middle" font-family="serif" font-weight="bold" font-size="24" fill="#CBD5E0" opacity="0.6">SF</text>
+</svg>
