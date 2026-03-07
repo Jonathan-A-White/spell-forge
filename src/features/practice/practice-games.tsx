@@ -44,9 +44,10 @@ export function PracticeGames({
     passed?: boolean;
   } | null>(null);
   const [resumePrompt, setResumePrompt] = useState<GameSavedState | null>(null);
+  const [pendingGameMode, setPendingGameMode] = useState<GameMode | null>(null);
   const [wordSearchSaved, setWordSearchSaved] = useState<WordSearchSavedState | undefined>();
   const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
-  const [loading, setLoading] = useState(true);
+  const loading = false;
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
 
   // Load mastered word IDs on mount — combine both learning progress and spaced-rep buckets
@@ -92,48 +93,38 @@ export function PracticeGames({
     return texts.slice(0, 12);
   }, [gameWords]);
 
-  // Trigger to re-check saved progress (incremented when navigating back to select)
-  const [checkSavedTrigger, setCheckSavedTrigger] = useState(0);
-
-  // Check for saved progress on mount and when returning to game select
+  // When a game mode is selected, check for saved progress for that game
   useEffect(() => {
+    if (!pendingGameMode) return;
+    const targetMode = pendingGameMode;
     let cancelled = false;
-    async function checkSaved() {
-      // Check both game types for saved progress
-      const wsSaved = await activityProgressRepo.get(profile.id, 'word-search');
-      const qzSaved = await activityProgressRepo.get(profile.id, 'quiz');
+
+    async function checkSavedForGame() {
+      const activityType: ActivityType = targetMode === 'word-search-difficulty' ? 'word-search' : 'quiz';
+      const saved = await activityProgressRepo.get(profile.id, activityType);
 
       if (cancelled) return;
 
-      // Prefer the most recently saved one
-      const candidates: { type: ActivityType; saved: GameSavedState; savedAt: Date }[] = [];
+      if (saved) {
+        const state = saved.state as unknown as GameSavedState;
+        const hasValidProgress =
+          (activityType === 'word-search' && state.mode === 'word-search' && state.wordSearch) ||
+          (activityType === 'quiz' && state.mode === 'quiz' && state.quiz && state.quiz.currentIndex < state.quiz.questions.length);
 
-      if (wsSaved) {
-        const state = wsSaved.state as unknown as GameSavedState;
-        if (state.mode === 'word-search' && state.wordSearch) {
-          candidates.push({ type: 'word-search', saved: state, savedAt: wsSaved.savedAt });
-        }
-      }
-      if (qzSaved) {
-        const state = qzSaved.state as unknown as GameSavedState;
-        if (state.mode === 'quiz' && state.quiz && state.quiz.currentIndex < state.quiz.questions.length) {
-          candidates.push({ type: 'quiz', saved: state, savedAt: qzSaved.savedAt });
+        if (hasValidProgress) {
+          setResumePrompt(state);
+          return;
         }
       }
 
-      if (candidates.length > 0) {
-        // Show the most recent one
-        candidates.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
-        setResumePrompt(candidates[0].saved);
-      } else {
-        setResumePrompt(null);
-      }
-
-      setLoading(false);
+      // No saved progress — go directly to the game
+      setMode(targetMode);
+      setPendingGameMode(null);
     }
-    checkSaved();
+
+    checkSavedForGame();
     return () => { cancelled = true; };
-  }, [profile.id, checkSavedTrigger]);
+  }, [pendingGameMode, profile.id]);
 
   const handleContinueSaved = useCallback(() => {
     if (!resumePrompt) return;
@@ -142,13 +133,18 @@ export function PracticeGames({
     if (resumePrompt.wordSearch) setWordSearchSaved(resumePrompt.wordSearch);
     if (resumePrompt.quiz) setQuizSaved(resumePrompt.quiz);
     setResumePrompt(null);
+    setPendingGameMode(null);
   }, [resumePrompt]);
 
   const handleResetSaved = useCallback(() => {
-    activityProgressRepo.clear(profile.id, 'word-search');
-    activityProgressRepo.clear(profile.id, 'quiz');
+    const activityType: ActivityType = pendingGameMode === 'word-search-difficulty' ? 'word-search' : 'quiz';
+    activityProgressRepo.clear(profile.id, activityType);
     setResumePrompt(null);
-  }, [profile.id]);
+    if (pendingGameMode) {
+      setMode(pendingGameMode);
+      setPendingGameMode(null);
+    }
+  }, [profile.id, pendingGameMode]);
 
   const saveGameState = useCallback(
     (activityType: ActivityType, gameMode: GameMode, extra: Partial<GameSavedState>) => {
@@ -286,7 +282,7 @@ export function PracticeGames({
               Start Fresh
             </button>
             <button
-              onClick={onBack}
+              onClick={() => { setResumePrompt(null); setPendingGameMode(null); }}
               className="text-sf-muted hover:text-sf-secondary text-sm underline"
             >
               Go Back
@@ -325,7 +321,7 @@ export function PracticeGames({
               icon={<SearchGridIcon />}
               accent="from-blue-500/20 to-cyan-500/10"
               iconColor="text-blue-500"
-              onClick={() => setMode('word-search-difficulty')}
+              onClick={() => setPendingGameMode('word-search-difficulty')}
             />
             <GameCard
               title="Spelling Quiz"
@@ -333,7 +329,7 @@ export function PracticeGames({
               icon={<QuizIcon />}
               accent="from-orange-500/20 to-amber-500/10"
               iconColor="text-orange-500"
-              onClick={() => setMode('quiz')}
+              onClick={() => setPendingGameMode('quiz')}
             />
           </div>
         </div>
@@ -411,7 +407,6 @@ export function PracticeGames({
               setWordSearchSaved(undefined);
               setQuizSaved(undefined);
               setMode('select');
-              setCheckSavedTrigger((n) => n + 1);
             }}
             className="text-sf-muted hover:text-sf-secondary font-medium"
           >
