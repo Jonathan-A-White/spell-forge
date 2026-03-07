@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { LetterBank } from '../practice/letter-bank';
 import { KeyboardInput } from './keyboard-input';
-import { sayAndSpell } from './audio-helpers';
+import { sayAndSpell, sayWordOnly } from './audio-helpers';
 import type {
   Word,
   Profile,
@@ -257,9 +257,13 @@ export function LearningScreen({
 
   const handleHearIt = useCallback(() => {
     if (sessionState?.currentWord) {
-      sayAndSpell(audioManager, sessionState.currentWord.text);
+      if (testOutMode) {
+        sayWordOnly(audioManager, sessionState.currentWord.text);
+      } else {
+        sayAndSpell(audioManager, sessionState.currentWord.text);
+      }
     }
-  }, [sessionState, audioManager]);
+  }, [sessionState, audioManager, testOutMode]);
 
   // Derive current word display state
   const wordDisplay = (() => {
