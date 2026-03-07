@@ -12,7 +12,7 @@ import type {
   ImportStrategy,
 } from './contracts/types';
 import { createEventBus } from './contracts/events';
-import { db } from './data/db';
+import { db, openDatabase } from './data/db';
 import { profileRepo } from './data/repositories/profile-repo';
 import { wordListRepo } from './data/repositories/word-list-repo';
 import { wordRepo } from './data/repositories/word-repo';
@@ -37,19 +37,7 @@ import { exportProfile, importProfile } from './data/import-export';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'list-editor' | 'word-lists' | 'settings' | 'feedback';
-
-/** Race a promise against a timeout. Rejects if the timeout fires first. */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Database operation timed out')), ms),
-    ),
-  ]);
-}
-
-const DB_TIMEOUT_MS = 8000;
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'list-editor' | 'word-lists' | 'settings' | 'feedback';
 
 const eventBus = createEventBus();
 
@@ -73,35 +61,49 @@ function App() {
     applySettings(profile.settings);
 
     try {
-      const [words, stats, lists, streak] = await withTimeout(
-        Promise.all([
-          wordRepo.getByProfileId(profile.id),
-          statsRepo.getByProfileId(profile.id),
-          wordListRepo.getByProfileId(profile.id),
-          streakRepo.get(profile.id),
-        ]),
-        DB_TIMEOUT_MS,
-      );
+      const [words, stats, lists, streak] = await Promise.all([
+        wordRepo.getByProfileId(profile.id),
+        statsRepo.getByProfileId(profile.id),
+        wordListRepo.getByProfileId(profile.id),
+        streakRepo.get(profile.id),
+      ]);
 
       setAllWords(words);
       setAllStats(stats);
       setWordLists(lists);
       setStreakData(streak);
     } catch {
-      // If loading profile data fails or times out, proceed with empty data
+      // If loading profile data fails, proceed with empty data
     }
 
     setView('home');
     eventBus.emit({ type: 'profile:switched', payload: { profileId: profile.id } });
   }, []);
 
-  // Load initial data
+  // Load initial data: explicitly open DB first, then load profiles
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      // Step 1: Explicitly open the database, handling the blocked event
       try {
-        const profs = await withTimeout(profileRepo.getAll(), DB_TIMEOUT_MS);
+        await openDatabase(() => {
+          // Another tab holds an older DB version open — show a helpful message
+          if (!cancelled) setView('db-blocked');
+        });
+      } catch {
+        if (!cancelled) {
+          // DB failed to open (e.g. corrupted, permissions) — fall back to onboarding
+          setView('onboarding');
+        }
+        return;
+      }
+
+      if (cancelled) return;
+
+      // Step 2: DB is open — load profiles
+      try {
+        const profs = await profileRepo.getAll();
         if (cancelled) return;
         setProfiles(profs);
 
@@ -114,7 +116,6 @@ function App() {
         }
       } catch {
         if (!cancelled) {
-          // If DB fails to load or times out, fall back to onboarding so the app isn't stuck
           setView('onboarding');
         }
       }
@@ -409,6 +410,24 @@ function App() {
       return (
         <div className="min-h-screen bg-sf-bg flex items-center justify-center">
           <p className="text-sf-text text-lg">Loading...</p>
+        </div>
+      );
+
+    case 'db-blocked':
+      return (
+        <div className="min-h-screen bg-sf-bg flex items-center justify-center p-6">
+          <div className="text-center max-w-sm">
+            <p className="text-sf-text text-lg font-bold mb-2">Waiting for other tabs</p>
+            <p className="text-sf-text text-sm mb-4">
+              SpellForge is open in another tab. Please close it there, then tap the button below.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-sf-primary text-white rounded-lg font-semibold"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       );
 
