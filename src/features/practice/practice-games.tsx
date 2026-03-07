@@ -1,7 +1,7 @@
 // src/features/practice/practice-games.tsx — Hub screen for selecting practice game modes
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import type { Word, WordList, SessionLog, Profile, ActivityType } from '../../contracts/types';
+import type { Word, WordList, SessionLog, Profile, ActivityType, CoinBalance } from '../../contracts/types';
 import { WordSearch, type WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
 import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
@@ -22,6 +22,9 @@ interface PracticeGamesProps {
   profile: Profile;
   activeList: WordList | null;
   allWords: Word[];
+  coinBalance: CoinBalance | null;
+  allMastered: boolean;
+  onSpendCoin: () => Promise<boolean>;
   onSessionEnd: (log: SessionLog) => void;
   onBack: () => void;
   onSpeak?: (word: string) => void;
@@ -31,6 +34,9 @@ export function PracticeGames({
   profile,
   activeList,
   allWords,
+  coinBalance,
+  allMastered,
+  onSpendCoin,
   onSessionEnd,
   onBack,
   onSpeak,
@@ -49,6 +55,9 @@ export function PracticeGames({
   const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
   const loading = false;
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
+  const [coinGateVisible, setCoinGateVisible] = useState(false);
+  const [pendingCoinGameMode, setPendingCoinGameMode] = useState<GameMode | null>(null);
+  const coins = coinBalance?.coins ?? 0;
 
   // Load mastered word IDs on mount — combine both learning progress and spaced-rep buckets
   useEffect(() => {
@@ -145,6 +154,34 @@ export function PracticeGames({
       setPendingGameMode(null);
     }
   }, [profile.id, pendingGameMode]);
+
+  // Coin-gated game start: free if all mastered, otherwise costs 1 coin
+  const handleStartGame = useCallback((targetMode: GameMode) => {
+    if (allMastered) {
+      // All words mastered — free unlimited play
+      setPendingGameMode(targetMode);
+      return;
+    }
+    if (coins > 0) {
+      // Has coins — show spend confirmation
+      setPendingCoinGameMode(targetMode);
+      setCoinGateVisible(true);
+      return;
+    }
+    // No coins, not all mastered — show gate
+    setCoinGateVisible(true);
+    setPendingCoinGameMode(null);
+  }, [allMastered, coins]);
+
+  const handleConfirmSpendCoin = useCallback(async () => {
+    if (!pendingCoinGameMode) return;
+    const success = await onSpendCoin();
+    if (success) {
+      setCoinGateVisible(false);
+      setPendingGameMode(pendingCoinGameMode);
+      setPendingCoinGameMode(null);
+    }
+  }, [pendingCoinGameMode, onSpendCoin]);
 
   const saveGameState = useCallback(
     (activityType: ActivityType, gameMode: GameMode, extra: Partial<GameSavedState>) => {
@@ -293,6 +330,67 @@ export function PracticeGames({
     );
   }
 
+  // Coin gate overlay
+  if (coinGateVisible) {
+    return (
+      <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
+        <div className="max-w-sm w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
+          {pendingCoinGameMode ? (
+            <>
+              <h2 className="text-xl font-bold text-sf-heading text-center">
+                Spend 1 Coin to Play?
+              </h2>
+              <p className="text-sf-muted text-center text-sm">
+                You have <span className="font-bold text-yellow-500">{coins}</span> coin{coins !== 1 ? 's' : ''}.
+                Playing a game costs 1 coin while you still have new words to learn.
+              </p>
+              <p className="text-sf-faint text-center text-xs">
+                Master more words to earn coins! Once all words are mastered, games are free.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleConfirmSpendCoin}
+                  className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+                >
+                  Spend 1 Coin &amp; Play
+                </button>
+                <button
+                  onClick={() => { setCoinGateVisible(false); setPendingCoinGameMode(null); }}
+                  className="text-sf-muted hover:text-sf-secondary text-sm underline"
+                >
+                  Go Back
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold text-sf-heading text-center">
+                No Coins!
+              </h2>
+              <p className="text-sf-muted text-center text-sm">
+                You need coins to play games. Master your spelling words to earn coins — each word you master gives you 1 coin!
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => { setCoinGateVisible(false); onBack(); }}
+                  className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+                >
+                  Go Learn Words
+                </button>
+                <button
+                  onClick={() => setCoinGateVisible(false)}
+                  className="text-sf-muted hover:text-sf-secondary text-sm underline"
+                >
+                  Go Back
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Game mode selection screen
   if (mode === 'select') {
     return (
@@ -309,6 +407,18 @@ export function PracticeGames({
             <div className="w-12" />
           </div>
 
+          <div className="flex justify-center gap-3 mb-4">
+            {allMastered ? (
+              <span className="inline-flex items-center gap-1.5 bg-green-500/10 text-green-500 rounded-full px-3 py-1.5 text-sm font-medium">
+                ✨ Free Play — All Words Mastered!
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 bg-yellow-500/10 text-yellow-500 rounded-full px-3 py-1.5 text-sm font-medium">
+                🪙 {coins} Coin{coins !== 1 ? 's' : ''} — 1 per game
+              </span>
+            )}
+          </div>
+
           <p className="text-sf-muted text-center mb-6">
             Choose a game to practice your {wordTexts.length} word{wordTexts.length !== 1 ? 's' : ''}
             {activeList ? ` from "${activeList.name}"` : ''}
@@ -321,7 +431,7 @@ export function PracticeGames({
               icon={<SearchGridIcon />}
               accent="from-blue-500/20 to-cyan-500/10"
               iconColor="text-blue-500"
-              onClick={() => setPendingGameMode('word-search-difficulty')}
+              onClick={() => handleStartGame('word-search-difficulty')}
             />
             <GameCard
               title="Spelling Quiz"
@@ -329,7 +439,7 @@ export function PracticeGames({
               icon={<QuizIcon />}
               accent="from-orange-500/20 to-amber-500/10"
               iconColor="text-orange-500"
-              onClick={() => setPendingGameMode('quiz')}
+              onClick={() => handleStartGame('quiz')}
             />
           </div>
         </div>

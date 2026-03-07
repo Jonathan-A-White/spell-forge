@@ -28,6 +28,7 @@ interface LearningScreenProps {
   profile: Profile;
   audioManager: AudioManager;
   onBack: () => void;
+  onWordMastered?: (wordId: string) => void;
 }
 
 interface LearningSessionState {
@@ -97,6 +98,7 @@ export function LearningScreen({
   profile,
   audioManager,
   onBack,
+  onWordMastered,
 }: LearningScreenProps) {
   const [sessionState, setSessionState] = useState<LearningSessionState | null>(null);
   const [resumePrompt, setResumePrompt] = useState<LearningSessionState | null>(null);
@@ -228,6 +230,11 @@ export function LearningScreen({
       // Save to DB
       await learningProgressRepo.save(updated);
 
+      // Notify parent if word just became mastered
+      if (updated.mastered && !progress.mastered) {
+        onWordMastered?.(wordId);
+      }
+
       // Update local state
       const newMap = new Map(sessionState.progressMap);
       newMap.set(wordId, updated);
@@ -252,7 +259,7 @@ export function LearningScreen({
         await activityProgressRepo.clear(profile.id, 'learning');
       }
     },
-    [sessionState, profile.id, testOutMode],
+    [sessionState, profile.id, testOutMode, onWordMastered],
   );
 
   const handleHearIt = useCallback(() => {

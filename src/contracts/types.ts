@@ -297,6 +297,16 @@ export type LearningStage = 0 | 1 | 2 | 3;
 
 export type LearningInputMode = 'scrambled' | 'keyboard';
 
+// ─── Coin Economy ────────────────────────────────────────────
+
+export interface CoinBalance {
+  profileId: string;       // primary key
+  coins: number;           // current available coins
+  totalEarned: number;     // lifetime coins earned
+  totalSpent: number;      // lifetime coins spent
+  updatedAt: Date;
+}
+
 // ─── Import/Export ────────────────────────────────────────────
 
 export interface ExportPayload {
@@ -349,7 +359,9 @@ export type AppEvent =
   | { type: 'reward:earned'; payload: RewardEvent }
   | { type: 'streak:updated'; payload: StreakData }
   | { type: 'profile:switched'; payload: { profileId: string } }
-  | { type: 'settings:changed'; payload: { profileId: string; settings: Partial<AccessibilitySettings> } };
+  | { type: 'settings:changed'; payload: { profileId: string; settings: Partial<AccessibilitySettings> } }
+  | { type: 'coins:earned'; payload: { profileId: string; amount: number; reason: 'word-mastered'; wordId: string } }
+  | { type: 'coins:spent'; payload: { profileId: string; amount: number; reason: 'game-play' } };
 
 export interface EventBus {
   emit(event: AppEvent): void;

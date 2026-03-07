@@ -1,6 +1,7 @@
 // src/features/dashboard/home-screen.tsx — Main hub screen with navigation cards
 
-import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData } from '../../contracts/types';
+import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
+import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 
 interface HomeScreenProps {
   profile: Profile;
@@ -9,6 +10,7 @@ interface HomeScreenProps {
   allStats: WordStats[];
   learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
+  coinBalance: CoinBalance | null;
   onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
@@ -21,6 +23,7 @@ export function HomeScreen({
   allStats,
   learningProgress,
   streakData,
+  coinBalance,
   onNavigate,
   onSwitchProfile,
   hasMultipleProfiles,
@@ -34,6 +37,11 @@ export function HomeScreen({
   }).length;
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
   const streak = streakData?.currentStreak ?? 0;
+  const newWordsCount = allWords.length - mastered;
+  const wordsDue = getWordsDueCount(allStats);
+  const coins = coinBalance?.coins ?? 0;
+  const allMastered = canPlayFree(allWords.length, mastered);
+  const masteryPercent = allWords.length > 0 ? Math.round((mastered / allWords.length) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -74,11 +82,48 @@ export function HomeScreen({
             </p>
           </div>
 
-          {/* Quick stats row */}
-          <div className="flex justify-center gap-6 mt-4">
-            <QuickStat value={streak} label="Streak" icon="🔥" />
-            <QuickStat value={allWords.length} label="Words" icon="📝" />
-            <QuickStat value={mastered} label="Mastered" icon="⭐" />
+          {/* Stat circles row — inspired by BMA Tutor layout */}
+          {allWords.length > 0 && (
+            <div className="flex justify-center gap-4 mt-5">
+              <StatCircle
+                value={`${masteryPercent}%`}
+                label="Mastery"
+                color="from-purple-500 to-violet-600"
+                onClick={() => onNavigate('progress')}
+              />
+              <StatCircle
+                value={newWordsCount}
+                label="New Words"
+                color="from-green-400 to-emerald-500"
+                onClick={() => onNavigate('learning')}
+              />
+              <StatCircle
+                value={wordsDue}
+                label="Words Due"
+                color="from-cyan-400 to-blue-500"
+                onClick={() => onNavigate('practice')}
+              />
+            </div>
+          )}
+
+          {/* Coins and streak bar */}
+          <div className="flex justify-center gap-4 mt-3">
+            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <CoinIcon />
+              <span className="text-sm font-bold text-yellow-400">{coins}</span>
+              <span className="text-xs text-sf-muted">Coins</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <span className="text-sm">🔥</span>
+              <span className="text-sm font-bold text-sf-heading">{streak}</span>
+              <span className="text-xs text-sf-muted">Streak</span>
+            </div>
+            {allMastered && allWords.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+                <span className="text-sm">✨</span>
+                <span className="text-xs font-medium text-green-400">All Mastered!</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -134,7 +179,7 @@ export function HomeScreen({
             />
             <NavCard
               title="Games"
-              subtitle="Search, quiz"
+              subtitle={allMastered ? 'Free play!' : `${coins} coin${coins !== 1 ? 's' : ''}`}
               icon={<GamesIcon />}
               onClick={() => onNavigate('practice-games')}
               accent="from-pink-500/20 to-rose-500/10"
@@ -199,13 +244,37 @@ export function HomeScreen({
   );
 }
 
-function QuickStat({ value, label, icon }: { value: number; label: string; icon: string }) {
+function StatCircle({
+  value,
+  label,
+  color,
+  onClick,
+}: {
+  value: string | number;
+  label: string;
+  color: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className="text-center">
-      <div className="text-sm mb-0.5">{icon}</div>
-      <p className="text-xl font-bold text-sf-heading">{value}</p>
-      <p className="text-xs text-sf-muted">{label}</p>
-    </div>
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 group"
+    >
+      <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${color} flex flex-col items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
+        <span className="text-white font-bold text-lg leading-tight">{value}</span>
+      </div>
+      <span className="text-xs text-sf-muted font-medium">{label}</span>
+    </button>
+  );
+}
+
+function CoinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-yellow-400">
+      <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.2" />
+      <circle cx="12" cy="12" r="8" fill="currentColor" />
+      <text x="12" y="16" textAnchor="middle" fill="#78350f" fontSize="10" fontWeight="bold">$</text>
+    </svg>
   );
 }
 
