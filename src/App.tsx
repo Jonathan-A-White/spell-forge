@@ -11,6 +11,7 @@ import type {
   StreakData,
   AccessibilitySettings,
   ImportStrategy,
+  CoinBalance,
 } from './contracts/types';
 import { createEventBus } from './contracts/events';
 import { db, openDatabase } from './data/db';
@@ -21,6 +22,8 @@ import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
 import { learningProgressRepo } from './data/repositories/learning-progress-repo';
+import { coinRepo } from './data/repositories/coin-repo';
+import { earnCoinForMastery, spendCoinForGame, canPlayFree } from './core/spaced-rep';
 import { applySettings, mergeSetting, validateSettings } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
@@ -61,6 +64,7 @@ function App() {
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [learningProgress, setLearningProgress] = useState<WordLearningProgress[]>([]);
   const [editingList, setEditingList] = useState<WordList | null>(null);
+  const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
 
   const selectProfile = useCallback(async (profile: Profile) => {
     setActiveProfile(profile);
@@ -68,12 +72,13 @@ function App() {
     themeEngine.applyThemePalette(profile.themeId);
 
     try {
-      const [words, stats, lists, streak, lp] = await Promise.all([
+      const [words, stats, lists, streak, lp, coins] = await Promise.all([
         wordRepo.getByProfileId(profile.id),
         statsRepo.getByProfileId(profile.id),
         wordListRepo.getByProfileId(profile.id),
         streakRepo.get(profile.id),
         learningProgressRepo.getByProfileId(profile.id),
+        coinRepo.getOrCreate(profile.id),
       ]);
 
       setAllWords(words);
@@ -81,6 +86,7 @@ function App() {
       setWordLists(lists);
       setStreakData(streak);
       setLearningProgress(lp);
+      setCoinBalance(coins);
     } catch {
       // If loading profile data fails, proceed with empty data
     }
@@ -178,26 +184,45 @@ function App() {
 
   const handleStatsUpdate = useCallback(
     async (updated: WordStats) => {
+      if (!activeProfile) return;
+      // Check if word just transitioned to mastered
+      const previous = allStats.find((s) => s.id === updated.id);
+      const justMastered = updated.currentBucket === 'mastered'
+        && previous?.currentBucket !== 'mastered'
+        && previous?.currentBucket !== 'review';
+
       await statsRepo.update(updated.id, updated);
       setAllStats((prev) =>
         prev.map((s) => (s.id === updated.id ? updated : s)),
       );
+
+      // Award a coin for mastering a word
+      if (justMastered) {
+        const newBalance = await earnCoinForMastery(activeProfile.id);
+        setCoinBalance(newBalance);
+        eventBus.emit({
+          type: 'coins:earned',
+          payload: { profileId: activeProfile.id, amount: 1, reason: 'word-mastered', wordId: updated.wordId },
+        });
+      }
     },
-    [],
+    [activeProfile, allStats],
   );
 
   const refreshListData = useCallback(async () => {
     if (!activeProfile) return;
-    const [updatedWords, updatedStats, updatedLists, updatedLp] = await Promise.all([
+    const [updatedWords, updatedStats, updatedLists, updatedLp, updatedCoins] = await Promise.all([
       wordRepo.getByProfileId(activeProfile.id),
       statsRepo.getByProfileId(activeProfile.id),
       wordListRepo.getByProfileId(activeProfile.id),
       learningProgressRepo.getByProfileId(activeProfile.id),
+      coinRepo.getOrCreate(activeProfile.id),
     ]);
     setAllWords(updatedWords);
     setAllStats(updatedStats);
     setWordLists(updatedLists);
     setLearningProgress(updatedLp);
+    setCoinBalance(updatedCoins);
   }, [activeProfile]);
 
   const handleSaveList = useCallback(
@@ -410,6 +435,41 @@ function App() {
     }
   }, [activeProfile, selectProfile]);
 
+  // Award coin when a word is mastered in learning mode
+  const handleWordMasteredInLearning = useCallback(async (wordId: string) => {
+    if (!activeProfile) return;
+    const newBalance = await earnCoinForMastery(activeProfile.id);
+    setCoinBalance(newBalance);
+    eventBus.emit({
+      type: 'coins:earned',
+      payload: { profileId: activeProfile.id, amount: 1, reason: 'word-mastered', wordId },
+    });
+  }, [activeProfile]);
+
+  // Coin spending for game access
+  const handleSpendCoin = useCallback(async (): Promise<boolean> => {
+    if (!activeProfile) return false;
+    const result = await spendCoinForGame(activeProfile.id);
+    if (result) {
+      setCoinBalance(result);
+      eventBus.emit({
+        type: 'coins:spent',
+        payload: { profileId: activeProfile.id, amount: 1, reason: 'game-play' },
+      });
+      return true;
+    }
+    return false;
+  }, [activeProfile]);
+
+  // Compute mastered count for coin economy
+  const learningMasteredIds = new Set(learningProgress.filter((lp) => lp.mastered).map((lp) => lp.wordId));
+  const masteredCount = allWords.filter((w) => {
+    const stat = allStats.find((s) => s.wordId === w.id);
+    if (stat && stat.timesAsked > 0 && (stat.currentBucket === 'mastered' || stat.currentBucket === 'review')) return true;
+    return learningMasteredIds.has(w.id);
+  }).length;
+  const allMastered = canPlayFree(allWords.length, masteredCount);
+
   // Compute active list and days until test
   const activeList = wordLists.find((l) => l.active && !l.archived) ?? null;
   const [mountTime] = useState(Date.now);
@@ -480,6 +540,9 @@ function App() {
           profile={activeProfile}
           activeList={activeList}
           allWords={allWords}
+          coinBalance={coinBalance}
+          allMastered={allMastered}
+          onSpendCoin={handleSpendCoin}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
           onSpeak={(word) => audioManager.speak(word)}
@@ -493,6 +556,7 @@ function App() {
           profile={activeProfile}
           audioManager={audioManager}
           onBack={() => { refreshListData(); setView('home'); }}
+          onWordMastered={handleWordMasteredInLearning}
         />
       );
 
@@ -583,6 +647,7 @@ function App() {
           allStats={allStats}
           learningProgress={learningProgress}
           streakData={streakData}
+          coinBalance={coinBalance}
           onNavigate={(target) => setView(target)}
           onSwitchProfile={() => setView('profile-select')}
           hasMultipleProfiles={profiles.length > 1}

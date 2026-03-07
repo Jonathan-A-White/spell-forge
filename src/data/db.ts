@@ -9,6 +9,7 @@ import type {
   SyncQueueItem,
   ActivityProgress,
   WordLearningProgress,
+  CoinBalance,
 } from '../contracts/types';
 
 export class SpellForgeDB extends Dexie {
@@ -21,6 +22,7 @@ export class SpellForgeDB extends Dexie {
   syncQueue!: Table<SyncQueueItem, string>;
   activityProgress!: Table<ActivityProgress, string>;
   learningProgress!: Table<WordLearningProgress, string>;
+  coinBalances!: Table<CoinBalance, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -56,6 +58,19 @@ export class SpellForgeDB extends Dexie {
       syncQueue: 'id, [type+synced], synced',
       activityProgress: 'id, profileId, [profileId+activityType]',
       learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+    });
+
+    this.version(4).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
     });
   }
 }
