@@ -9,7 +9,6 @@ import type { AudioProvider } from '../../src/contracts/types.ts';
 class MockUtterance {
   text: string;
   rate = 1;
-  pitch = 1;
   voice: SpeechSynthesisVoice | null = null;
   onend: ((ev: Event) => void) | null = null;
   onerror: ((ev: Event) => void) | null = null;
@@ -77,127 +76,43 @@ describe('TtsProvider', () => {
     expect(utterance.rate).toBeLessThan(1);
   });
 
-  it('should select a matching voice by gender preference', async () => {
-    const femaleVoice = createMockVoice('Samantha', 'en-US');
+  it('should select a male-hinted voice when available', async () => {
+    const genericVoice = createMockVoice('SomeVoice', 'en-US');
     const maleVoice = createMockVoice('Daniel', 'en-US');
-    mockSynth = createMockSpeechSynthesis([femaleVoice, maleVoice]);
+    mockSynth = createMockSpeechSynthesis([genericVoice, maleVoice]);
     vi.stubGlobal('speechSynthesis', mockSynth);
 
     const tts = new TtsProvider();
-    tts.setVoicePreference('male');
     await tts.speak('test');
 
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     expect(utterance.voice).toBe(maleVoice);
   });
 
-  it('should default to female voice preference', async () => {
-    const femaleVoice = createMockVoice('Samantha', 'en-US');
-    const maleVoice = createMockVoice('Daniel', 'en-US');
-    mockSynth = createMockSpeechSynthesis([femaleVoice, maleVoice]);
-    vi.stubGlobal('speechSynthesis', mockSynth);
-
-    const tts = new TtsProvider();
-    await tts.speak('test');
-
-    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(utterance.voice).toBe(femaleVoice);
-  });
-
-  it('should fall back to first voice when no gender match', async () => {
+  it('should fall back to first voice when no male match', async () => {
     const unknownVoice = createMockVoice('SomeVoice', 'en-US');
     mockSynth = createMockSpeechSynthesis([unknownVoice]);
     vi.stubGlobal('speechSynthesis', mockSynth);
 
     const tts = new TtsProvider();
-    tts.setVoicePreference('male');
     await tts.speak('test');
 
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     expect(utterance.voice).toBe(unknownVoice);
   });
 
-  it('should switch voice when gender preference changes', async () => {
-    const femaleVoice = createMockVoice('Samantha', 'en-US');
-    const maleVoice = createMockVoice('Daniel', 'en-US');
-    mockSynth = createMockSpeechSynthesis([femaleVoice, maleVoice]);
+  it('should use the same cached voice across multiple calls', async () => {
+    const maleVoice = createMockVoice('David', 'en-US');
+    mockSynth = createMockSpeechSynthesis([maleVoice]);
     vi.stubGlobal('speechSynthesis', mockSynth);
 
     const tts = new TtsProvider();
-
-    // Start with female (default)
     await tts.speak('hello');
-    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(u1.voice).toBe(femaleVoice);
-
-    // Switch to male
-    tts.setVoicePreference('male');
     await tts.speak('world');
-    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    expect(u2.voice).toBe(maleVoice);
 
-    // Switch back to female
-    tts.setVoicePreference('female');
-    await tts.speak('again');
-    const u3 = vi.mocked(mockSynth.speak).mock.calls[2][0] as unknown as MockUtterance;
-    expect(u3.voice).toBe(femaleVoice);
-  });
-
-  it('should pick different fallback voices per gender when no hints match', async () => {
-    const voiceA = createMockVoice('VoiceAlpha', 'en-US');
-    const voiceB = createMockVoice('VoiceBeta', 'en-US');
-    mockSynth = createMockSpeechSynthesis([voiceA, voiceB]);
-    vi.stubGlobal('speechSynthesis', mockSynth);
-
-    const tts = new TtsProvider();
-
-    // Female gets first fallback voice
-    await tts.speak('hello');
     const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(u1.voice).toBe(voiceA);
-
-    // Male should pick a different voice
-    tts.setVoicePreference('male');
-    await tts.speak('world');
     const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    expect(u2.voice).toBe(voiceB);
-  });
-
-  it('should set higher pitch for female and lower pitch for male', async () => {
-    const voice = createMockVoice('GenericVoice', 'en-US');
-    mockSynth = createMockSpeechSynthesis([voice]);
-    vi.stubGlobal('speechSynthesis', mockSynth);
-
-    const tts = new TtsProvider();
-
-    // Default female — pitch should be > 1
-    await tts.speak('hello');
-    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(u1.pitch).toBeGreaterThan(1);
-
-    // Switch to male — pitch should be < 1
-    tts.setVoicePreference('male');
-    await tts.speak('world');
-    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    expect(u2.pitch).toBeLessThan(1);
-  });
-
-  it('should match Google TTS voices with gender suffix', async () => {
-    const googleFemale = createMockVoice('Google UK English Female', 'en-GB');
-    const googleMale = createMockVoice('Google UK English Male', 'en-GB');
-    mockSynth = createMockSpeechSynthesis([googleFemale, googleMale]);
-    vi.stubGlobal('speechSynthesis', mockSynth);
-
-    const tts = new TtsProvider();
-
-    await tts.speak('hello');
-    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(u1.voice).toBe(googleFemale);
-
-    tts.setVoicePreference('male');
-    await tts.speak('world');
-    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    expect(u2.voice).toBe(googleMale);
+    expect(u1.voice).toBe(u2.voice);
   });
 
   it('should speak chunks with delays between them', async () => {
@@ -360,7 +275,7 @@ describe('AudioManagerImpl', () => {
     expect(provider.speakChunks).toHaveBeenCalledWith(['a', 'b'], 200);
   });
 
-  it('should forward voice preference to TtsProvider instances', async () => {
+  it('should use TtsProvider for speakTts', async () => {
     const maleVoice = createMockVoice('David', 'en-US');
     mockSynth = createMockSpeechSynthesis([maleVoice]);
     vi.stubGlobal('speechSynthesis', mockSynth);
@@ -369,7 +284,6 @@ describe('AudioManagerImpl', () => {
     const tts = new TtsProvider();
     manager.registerProvider(tts);
 
-    manager.setVoicePreference('male');
     await manager.speak('test');
 
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;

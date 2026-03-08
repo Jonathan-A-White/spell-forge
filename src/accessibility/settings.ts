@@ -13,8 +13,6 @@ const FONT_WEIGHT_VALUES: Record<AccessibilitySettings['fontWeight'], number> = 
 
 const VALID_FONT_WEIGHTS = new Set<string>(['normal', 'bold', 'extra-bold']);
 const VALID_CONTRAST_MODES = new Set<string>(['light', 'dark', 'high-contrast']);
-const VALID_VOICE_PREFERENCES = new Set<string>(['female', 'male']);
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -43,9 +41,6 @@ export function validateSettings(raw: Partial<AccessibilitySettings>): Accessibi
     sessionMaxMinutes: Math.max(1, base.sessionMaxMinutes),
     sessionAdaptive: Boolean(base.sessionAdaptive),
     dailyGoalMinutes: Math.max(1, base.dailyGoalMinutes),
-    voicePreference: VALID_VOICE_PREFERENCES.has(base.voicePreference)
-      ? base.voicePreference
-      : DEFAULT_SETTINGS.voicePreference,
   };
 }
 

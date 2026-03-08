@@ -19,7 +19,6 @@ describe('sayAndSpell', () => {
       speakChunks: vi.fn<(chunks: string[], delayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
       speakTts: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
       registerProvider: vi.fn(),
-      setVoicePreference: vi.fn(),
     };
   });
 
