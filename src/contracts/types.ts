@@ -245,7 +245,7 @@ export type ReadinessLevel = 'keep-forging' | 'getting-warmer' | 'almost-there' 
 
 // ─── Activity Progress (Auto-Save) ───────────────────────
 
-export type ActivityType = 'practice' | 'word-search' | 'quiz' | 'learning' | 'relay-race' | 'spell-catcher';
+export type ActivityType = 'practice' | 'word-search' | 'quiz' | 'learning' | 'relay-race' | 'spell-catcher' | 'word-volcano' | 'letter-invasion';
 
 export interface ActivityProgress {
   id: string;              // `${profileId}:${activityType}`
