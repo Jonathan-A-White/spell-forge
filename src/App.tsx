@@ -492,6 +492,7 @@ function App() {
         contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : activeProfile.settings.contrastMode,
       });
       applySettings(newSettings);
+      audioManager.setVoicePreference(newSettings.voicePreference);
       const updated = { ...activeProfile, settings: newSettings };
       await profileRepo.update(updated.id, { settings: newSettings });
       setActiveProfile(updated);

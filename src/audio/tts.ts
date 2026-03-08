@@ -29,7 +29,8 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 /**
  * Pick a SpeechSynthesisVoice that best matches the requested gender.
  * The result is cached so every utterance for a given gender uses the exact same voice.
- * Falls back to the first English voice, then to null (browser default).
+ * Falls back to a voice not already assigned to the opposite gender, then to the
+ * first English voice, then to null (browser default).
  */
 function pickVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
   const cached = voiceCache.get(gender);
@@ -48,7 +49,19 @@ function pickVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
     return hints.some((h) => new RegExp(h).test(name));
   });
 
-  const selected = match ?? pool[0] ?? null;
+  let selected = match ?? null;
+
+  // When no heuristic match, pick a voice different from the opposite gender if possible.
+  if (!selected) {
+    const opposite: VoiceGender = gender === 'female' ? 'male' : 'female';
+    const oppositeVoice = voiceCache.get(opposite);
+    if (oppositeVoice) {
+      selected = pool.find((v) => v !== oppositeVoice) ?? pool[0] ?? null;
+    } else {
+      selected = pool[0] ?? null;
+    }
+  }
+
   if (selected) {
     voiceCache.set(gender, selected);
   }
@@ -76,6 +89,9 @@ export class TtsProvider implements AudioProvider {
 
   setVoicePreference(gender: VoiceGender): void {
     this.gender = gender;
+    // Clear cached voice for this gender so pickVoice re-evaluates with the
+    // current voice list and avoids reusing a stale (wrong-gender) fallback.
+    voiceCache.delete(gender);
   }
 
   speak(word: string): Promise<void> {
