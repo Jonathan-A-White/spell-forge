@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
+import { QrShare } from './qr-share';
 
 interface WordListsViewProps {
   wordLists: WordList[];
@@ -15,6 +16,7 @@ interface WordListsViewProps {
   onArchiveList?: (listId: string) => void;
   onUnarchiveList?: (listId: string) => void;
   onImportFromCamera?: () => void;
+  onImportFromQr?: () => void;
   onBack: () => void;
 }
 
@@ -30,6 +32,7 @@ export function WordListsView({
   onArchiveList,
   onUnarchiveList,
   onImportFromCamera,
+  onImportFromQr,
   onBack,
 }: WordListsViewProps) {
   const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
@@ -38,6 +41,7 @@ export function WordListsView({
   const archivedLists = wordLists.filter((l) => l.archived);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [shareListId, setShareListId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const closeMenu = useCallback(() => setOpenMenuId(null), []);
@@ -70,6 +74,17 @@ export function WordListsView({
             <h1 className="text-xl font-bold text-sf-heading">Word Lists</h1>
           </div>
           <div className="flex items-center gap-2">
+            {onImportFromQr && (
+              <button
+                onClick={onImportFromQr}
+                className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+                aria-label="Import via QR code"
+                title="Import via QR"
+                data-testid="import-qr-btn"
+              >
+                <QrIcon />
+              </button>
+            )}
             {onImportFromCamera && (
               <button
                 onClick={onImportFromCamera}
@@ -158,6 +173,13 @@ export function WordListsView({
                           </button>
                           {openMenuId === list.id && (
                             <div className="absolute right-0 top-full mt-1 w-36 bg-sf-surface border border-sf-border rounded-lg shadow-lg z-10 py-1" data-testid={`list-dropdown-${list.id}`}>
+                              <button
+                                onClick={() => { closeMenu(); setShareListId(list.id); }}
+                                className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
+                                data-testid={`share-list-${list.id}`}
+                              >
+                                Share QR
+                              </button>
                               <button
                                 onClick={() => { closeMenu(); onEditList(list); }}
                                 className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
@@ -280,6 +302,21 @@ export function WordListsView({
         )}
       </div>
 
+      {/* QR Share dialog */}
+      {shareListId && (() => {
+        const shareList = wordLists.find((l) => l.id === shareListId);
+        const shareWords = allWords.filter((w) => w.listId === shareListId);
+        if (!shareList || shareWords.length === 0) return null;
+        return (
+          <QrShare
+            listName={shareList.name}
+            words={shareWords.map((w) => w.text)}
+            testDate={shareList.testDate}
+            onClose={() => setShareListId(null)}
+          />
+        );
+      })()}
+
       {/* Delete confirmation dialog */}
       {confirmDeleteId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="delete-confirm-dialog">
@@ -351,6 +388,20 @@ function getBucketStyle(bucket: string): string {
     default:
       return 'bg-sf-track text-sf-muted';
   }
+}
+
+function QrIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="3" height="3" />
+      <line x1="21" y1="14" x2="21" y2="17" />
+      <line x1="14" y1="21" x2="17" y2="21" />
+      <line x1="21" y1="21" x2="21" y2="21" />
+    </svg>
+  );
 }
 
 function CameraIcon() {
