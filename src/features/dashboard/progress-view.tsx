@@ -3,10 +3,14 @@
 import { useState } from 'react';
 import type { StreakData, WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
 import { ReadinessIndicator } from './readiness-indicator';
+import { rewardTracker, monsterCollection } from '../rewards';
+import { themeEngine } from '../../themes';
 
 type HealthCategory = 'mastered' | 'familiar' | 'learning' | 'new';
 
 interface ProgressViewProps {
+  profileId: string;
+  themeId: string;
   streakData: StreakData | null;
   allWords: Word[];
   allStats: WordStats[];
@@ -52,6 +56,8 @@ function getWordCategory(
 }
 
 export function ProgressView({
+  profileId,
+  themeId,
   streakData,
   allWords,
   allStats,
@@ -63,6 +69,12 @@ export function ProgressView({
   onBack,
 }: ProgressViewProps) {
   const [expandedCategory, setExpandedCategory] = useState<HealthCategory | null>(null);
+
+  // Theme milestone & collection data (moved from home screen)
+  const milestone = rewardTracker.getMilestoneStatus(profileId, themeId);
+  const themeName = themeEngine.getTheme(themeId).name;
+  const collectionCount = monsterCollection.getCollectionCount(profileId);
+  const collection = monsterCollection.getCollection(profileId);
 
   const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
   const learningMap = new Map(learningProgress.map((lp) => [lp.wordId, lp]));
@@ -149,6 +161,51 @@ export function ProgressView({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Theme Milestone */}
+      {allWords.length > 0 && (
+        <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-sf-heading text-sm">{themeName}</h3>
+            <span className="text-sm font-medium text-sf-heading">{milestone.current}</span>
+          </div>
+          {milestone.next && (
+            <>
+              <div className="w-full bg-sf-track rounded-full h-2">
+                <div
+                  className="bg-sf-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.max(5, Math.round(((themeEngine.UNITS_PER_MILESTONE - milestone.progressToNext) / themeEngine.UNITS_PER_MILESTONE) * 100))}%` }}
+                />
+              </div>
+              <p className="text-xs text-sf-faint mt-1.5">
+                {milestone.progressToNext} more to reach {milestone.next}
+              </p>
+            </>
+          )}
+          {collectionCount > 0 && (
+            <div className="mt-3 pt-3 border-t border-sf-border/30">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-sf-muted">Monster Stable</span>
+                <span className="font-medium text-sf-heading">{collectionCount} creature{collectionCount !== 1 ? 's' : ''}</span>
+              </div>
+              {collection.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {collection.slice(-5).map((creature) => (
+                    <div
+                      key={creature.id}
+                      className="flex-shrink-0 bg-sf-surface-hover rounded-lg px-3 py-2 text-center min-w-[80px]"
+                      title={`Completed ${creature.completedAt.toLocaleDateString()}`}
+                    >
+                      <div className="text-lg mb-0.5">&#129514;</div>
+                      <p className="text-[10px] font-medium text-sf-heading truncate max-w-[70px]">{creature.name}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

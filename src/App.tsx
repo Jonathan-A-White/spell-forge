@@ -692,6 +692,8 @@ function App() {
       return (
         <div className="bg-sf-bg min-h-screen">
           <ProgressView
+            profileId={activeProfile.id}
+            themeId={activeProfile.themeId}
             streakData={streakData}
             allWords={allWords}
             allStats={allStats}
