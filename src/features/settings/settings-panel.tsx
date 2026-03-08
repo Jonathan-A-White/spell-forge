@@ -35,7 +35,6 @@ const contrastModes: { value: ContrastMode; label: string; description: string; 
 ];
 
 export function SettingsPanel({
-  profile,
   settings,
   importFilterWords,
   onImportFilterWordsChange,
@@ -191,23 +190,6 @@ export function SettingsPanel({
           </div>
         </section>
 
-        {/* Current settings summary */}
-        <section>
-          <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
-            Current Settings
-          </h2>
-          <div className="bg-sf-surface rounded-xl border border-sf-border p-4 space-y-2">
-            <SettingRow label="Font Size" value={`${settings.fontSize}px`} />
-            <SettingRow label="Font Weight" value={settings.fontWeight} />
-            <SettingRow label="Letter Spacing" value={`${settings.letterSpacing}em`} />
-            <SettingRow label="Line Height" value={`${settings.lineHeight}`} />
-            <SettingRow label="Tap Target" value={`${settings.tapTargetSize}px`} />
-            <SettingRow label="Reduced Motion" value={settings.reducedMotion ? 'On' : 'Off'} />
-            <SettingRow label="Voice" value={settings.voicePreference} />
-            <SettingRow label="Theme" value={profile.themeId.replace(/-/g, ' ')} />
-          </div>
-        </section>
-
         {/* Photo import filters */}
         {onImportFilterWordsChange && (
           <ImportFilterSettings
@@ -310,15 +292,6 @@ export function SettingsPanel({
           </section>
         )}
       </div>
-    </div>
-  );
-}
-
-function SettingRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-sm text-sf-muted">{label}</span>
-      <span className="text-sm font-medium text-sf-text capitalize">{value}</span>
     </div>
   );
 }
