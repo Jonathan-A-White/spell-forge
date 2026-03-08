@@ -76,15 +76,27 @@ export function SpellCatcher({
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const batchRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onProgressRef = useRef(onProgress);
+  const onSpeakRef = useRef(onSpeak);
 
   useEffect(() => {
     onProgressRef.current = onProgress;
   }, [onProgress]);
 
+  useEffect(() => {
+    onSpeakRef.current = onSpeak;
+  }, [onSpeak]);
+
   const currentWord = gameWords[currentWordIndex] ?? '';
   const maxLives = calcStartingLives(currentWord.length);
   const isFinished = currentWordIndex >= gameWords.length || gameOver;
   const depthLevel = calcDepthLevel(wordsCompleted, gameWords.length);
+
+  // Auto-speak the current word when a new word starts
+  useEffect(() => {
+    if (gameStarted && !isFinished && !wordComplete) {
+      onSpeakRef.current?.(currentWord);
+    }
+  }, [gameStarted, currentWordIndex, isFinished, wordComplete, currentWord]);
 
   // Save progress
   useEffect(() => {
@@ -119,15 +131,30 @@ export function SpellCatcher({
     };
   }, [gameStarted, isFinished, wordComplete, currentWord, nextLetterIndex]);
 
-  // Tick: advance falling letters downward
+  // Tick: advance falling letters downward; lose a life if a target letter falls off
   useEffect(() => {
     if (!gameStarted || isFinished || wordComplete) return;
 
     tickRef.current = setInterval(() => {
       setFallingLetters((prev) => {
-        return prev
-          .map((fl) => ({ ...fl, row: fl.row + fl.speed }))
-          .filter((fl) => fl.row < GRID_ROWS + 1);
+        const advanced = prev.map((fl) => ({ ...fl, row: fl.row + fl.speed }));
+        const escaped = advanced.filter((fl) => fl.row >= GRID_ROWS + 1);
+        const remaining = advanced.filter((fl) => fl.row < GRID_ROWS + 1);
+
+        // If any target letter fell off the screen, lose a life
+        const targetEscaped = escaped.some((fl) => fl.isTarget);
+        if (targetEscaped) {
+          setLives((prev) => {
+            const newLives = prev - 1;
+            if (newLives <= 0) {
+              setWordComplete(true);
+              setFallingLetters([]);
+            }
+            return newLives;
+          });
+        }
+
+        return remaining;
       });
     }, TICK_MS);
 
