@@ -1,6 +1,7 @@
 // src/App.tsx — Root component: routing, state management, event bus wiring
 
 import { useState, useEffect, useCallback } from 'react';
+import { APP_VERSION } from './version';
 import { useBackButton } from './hooks/use-back-button';
 import type {
   Profile,
@@ -527,7 +528,7 @@ function App() {
           screenHeight: window.innerHeight,
           platform: navigator.platform,
         },
-        appVersion: '0.1.0',
+        appVersion: APP_VERSION,
         createdAt: new Date(),
       },
       createdAt: new Date(),

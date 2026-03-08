@@ -1,10 +1,12 @@
 // src/features/feedback/mailto.ts — Shared mailto utilities
 
+import { APP_VERSION } from '../../version';
+
 export const FEEDBACK_EMAIL = 'jonathan.jawhite@gmail.com';
 
 export function buildMailtoUrl(body: string): string {
   const deviceInfo = [
-    `App Version: 0.1.0`,
+    `App Version: ${APP_VERSION}`,
     `Platform: ${navigator.platform}`,
     `Screen: ${window.innerWidth}x${window.innerHeight}`,
     `User Agent: ${navigator.userAgent}`,
