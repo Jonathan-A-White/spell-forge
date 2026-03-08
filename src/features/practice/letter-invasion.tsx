@@ -76,8 +76,13 @@ export function LetterInvasion({
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const spawnRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onProgressRef = useRef(onProgress);
+  const spawnsSinceTargetRef = useRef(0);
+  const nextLetterIndexRef = useRef(nextLetterIndex);
+  const currentWordRef = useRef(currentWord);
 
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
+  useEffect(() => { nextLetterIndexRef.current = nextLetterIndex; }, [nextLetterIndex]);
+  useEffect(() => { currentWordRef.current = currentWord; }, [currentWord]);
 
   const currentWord = gameWords[currentWaveIndex] ?? '';
   const maxShield = calcStartingShield(currentWord.length);
@@ -107,7 +112,15 @@ export function LetterInvasion({
 
     const spawn = () => {
       const id = invaderCounterRef.current++;
-      const invader = spawnInvader(waveConfig, nextLetterIndex, id);
+      // Force a target letter every 3rd spawn to guarantee the player gets enough chances
+      const forceTarget = spawnsSinceTargetRef.current >= 2;
+      const invader = spawnInvader(waveConfig, nextLetterIndex, id, forceTarget);
+      const targetLetter = currentWordRef.current[nextLetterIndexRef.current]?.toLowerCase();
+      if (invader.letter.toLowerCase() === targetLetter) {
+        spawnsSinceTargetRef.current = 0;
+      } else {
+        spawnsSinceTargetRef.current++;
+      }
       setInvaders((prev) => [...prev, invader]);
     };
 
@@ -127,10 +140,14 @@ export function LetterInvasion({
         const advanced = prev.map((inv) => ({ ...inv, row: inv.row + inv.speed }));
         // Check if any invader reached the bottom
         const breached = advanced.filter((inv) => inv.row >= GRID_ROWS);
-        if (breached.length > 0) {
-          // Lose shield for each breach
+        // Only penalize for target letter breaches — distractors pass harmlessly
+        const targetLetter = currentWordRef.current[nextLetterIndexRef.current]?.toLowerCase();
+        const targetBreaches = breached.filter(
+          (inv) => inv.letter.toLowerCase() === targetLetter,
+        );
+        if (targetBreaches.length > 0) {
           setShield((s) => {
-            const newShield = s - breached.length;
+            const newShield = s - targetBreaches.length;
             if (newShield <= 0) {
               setGameOver(true);
             }
@@ -170,13 +187,14 @@ export function LetterInvasion({
         }
       } else {
         setFeedback({ type: 'miss', letter: invader.letter });
-        const newShield = shield - 1;
-        setShield(newShield);
-
-        if (newShield <= 0) {
-          setWaveComplete(true);
-          setInvaders([]);
-        }
+        setShield((s) => {
+          const newShield = s - 1;
+          if (newShield <= 0) {
+            setWaveComplete(true);
+            setInvaders([]);
+          }
+          return Math.max(newShield, 0);
+        });
       }
 
       setTimeout(() => setFeedback(null), 500);
@@ -196,6 +214,7 @@ export function LetterInvasion({
     setWaveComplete(false);
     setInvaders([]);
     setFeedback(null);
+    spawnsSinceTargetRef.current = 0;
   }, [currentWaveIndex, gameWords]);
 
   const handleFinish = useCallback(() => {
