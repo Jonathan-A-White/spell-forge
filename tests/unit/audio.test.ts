@@ -137,6 +137,47 @@ describe('TtsProvider', () => {
     await promise;
     vi.useRealTimers();
   });
+
+  it('should append period to single-character chunks for TTS compatibility', async () => {
+    vi.useFakeTimers();
+    const tts = new TtsProvider();
+
+    const promise = tts.speakChunks(['A', 'B'], 100);
+
+    await vi.advanceTimersByTimeAsync(0);
+    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(u1.text).toBe('A.');
+
+    await vi.advanceTimersByTimeAsync(101);
+    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
+    expect(u2.text).toBe('B.');
+
+    await vi.advanceTimersByTimeAsync(0);
+    await promise;
+    vi.useRealTimers();
+  });
+
+  it('should not cancel speech between chunks (only before the first)', async () => {
+    vi.useFakeTimers();
+    const tts = new TtsProvider();
+
+    const promise = tts.speakChunks(['X', 'Y', 'Z'], 100);
+
+    await vi.advanceTimersByTimeAsync(0);
+    // cancel() called once before first chunk
+    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(101);
+    // Still only one cancel call — not called before second chunk
+    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(101);
+    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(0);
+    await promise;
+    vi.useRealTimers();
+  });
 });
 
 // ─── Dictionary Provider ─────────────────────────────────────
