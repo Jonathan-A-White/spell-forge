@@ -93,7 +93,7 @@ function App() {
 
   // Sync view state with browser history so the OS back button
   // navigates within the app instead of closing it.
-  useBackButton(view, setView, 'home');
+  useBackButton(view, setView, 'home', ['loading', 'db-blocked']);
 
   const selectProfile = useCallback(async (profile: Profile) => {
     setActiveProfile(profile);
