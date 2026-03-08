@@ -126,7 +126,6 @@ export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraIm
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handleInputChange}
             className="hidden"
             data-testid="camera-file-input"

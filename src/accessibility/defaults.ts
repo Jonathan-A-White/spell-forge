@@ -20,4 +20,5 @@ export const DEFAULT_SETTINGS: Readonly<AccessibilitySettings> = {
   sessionMaxMinutes: 10,
   sessionAdaptive: true,
   dailyGoalMinutes: 5,
+  voicePreference: 'female',
 } as const;

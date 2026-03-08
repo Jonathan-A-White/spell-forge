@@ -9,6 +9,7 @@ import type { AudioProvider } from '../../src/contracts/types.ts';
 class MockUtterance {
   text: string;
   rate = 1;
+  voice: SpeechSynthesisVoice | null = null;
   onend: ((ev: Event) => void) | null = null;
   onerror: ((ev: Event) => void) | null = null;
   constructor(text: string) {
@@ -16,22 +17,27 @@ class MockUtterance {
   }
 }
 
+function createMockVoice(name: string, lang: string): SpeechSynthesisVoice {
+  return { name, lang, default: false, localService: true, voiceURI: name } as SpeechSynthesisVoice;
+}
+
 vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
 
 // ─── Mock SpeechSynthesis ────────────────────────────────────
 
-function createMockSpeechSynthesis() {
+function createMockSpeechSynthesis(voices: SpeechSynthesisVoice[] = []) {
   const speak = vi.fn((utterance: MockUtterance) => {
     // Simulate async completion
     setTimeout(() => utterance.onend?.(new Event('end')), 0);
   });
 
-  return { speak, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(), pending: false, speaking: false, paused: false, getVoices: vi.fn(() => []), onvoiceschanged: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(() => true) } as unknown as SpeechSynthesis;
+  return { speak, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(), pending: false, speaking: false, paused: false, getVoices: vi.fn(() => voices), onvoiceschanged: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(() => true) } as unknown as SpeechSynthesis;
 }
 
 let mockSynth: SpeechSynthesis;
 
 beforeEach(() => {
+  vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
   mockSynth = createMockSpeechSynthesis();
   vi.stubGlobal('speechSynthesis', mockSynth);
 });
@@ -67,6 +73,46 @@ describe('TtsProvider', () => {
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     expect(utterance.text).toBe('world');
     expect(utterance.rate).toBeLessThan(1);
+  });
+
+  it('should select a matching voice by gender preference', async () => {
+    const femaleVoice = createMockVoice('Samantha', 'en-US');
+    const maleVoice = createMockVoice('Daniel', 'en-US');
+    mockSynth = createMockSpeechSynthesis([femaleVoice, maleVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+    tts.setVoicePreference('male');
+    await tts.speak('test');
+
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.voice).toBe(maleVoice);
+  });
+
+  it('should default to female voice preference', async () => {
+    const femaleVoice = createMockVoice('Samantha', 'en-US');
+    const maleVoice = createMockVoice('Daniel', 'en-US');
+    mockSynth = createMockSpeechSynthesis([femaleVoice, maleVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+    await tts.speak('test');
+
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.voice).toBe(femaleVoice);
+  });
+
+  it('should fall back to first voice when no gender match', async () => {
+    const unknownVoice = createMockVoice('SomeVoice', 'en-US');
+    mockSynth = createMockSpeechSynthesis([unknownVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+    tts.setVoicePreference('male');
+    await tts.speak('test');
+
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.voice).toBe(unknownVoice);
   });
 
   it('should speak chunks with delays between them', async () => {
@@ -227,5 +273,21 @@ describe('AudioManagerImpl', () => {
 
     await manager.speakChunks(['a', 'b'], 200);
     expect(provider.speakChunks).toHaveBeenCalledWith(['a', 'b'], 200);
+  });
+
+  it('should forward voice preference to TtsProvider instances', async () => {
+    const maleVoice = createMockVoice('David', 'en-US');
+    mockSynth = createMockSpeechSynthesis([maleVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const manager = new AudioManagerImpl();
+    const tts = new TtsProvider();
+    manager.registerProvider(tts);
+
+    manager.setVoicePreference('male');
+    await manager.speak('test');
+
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.voice).toBe(maleVoice);
   });
 });

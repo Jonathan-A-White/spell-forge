@@ -24,6 +24,7 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.sessionMaxMinutes).toBe(10);
     expect(DEFAULT_SETTINGS.sessionAdaptive).toBe(true);
     expect(DEFAULT_SETTINGS.dailyGoalMinutes).toBe(5);
+    expect(DEFAULT_SETTINGS.voicePreference).toBe('female');
   });
 });
 
@@ -163,6 +164,18 @@ describe('validateSettings', () => {
       contrastMode: 'neon' as AccessibilitySettings['contrastMode'],
     });
     expect(s.contrastMode).toBe('light');
+  });
+
+  it('falls back to default voicePreference for invalid value', () => {
+    const s = validateSettings({
+      voicePreference: 'robot' as AccessibilitySettings['voicePreference'],
+    });
+    expect(s.voicePreference).toBe('female');
+  });
+
+  it('accepts valid voicePreference values', () => {
+    expect(validateSettings({ voicePreference: 'male' }).voicePreference).toBe('male');
+    expect(validateSettings({ voicePreference: 'female' }).voicePreference).toBe('female');
   });
 
   it('fills missing fields from defaults', () => {

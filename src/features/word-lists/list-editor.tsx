@@ -154,7 +154,6 @@ export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handlePhotoSelected}
             className="hidden"
             data-testid="camera-file-input"
