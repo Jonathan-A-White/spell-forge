@@ -116,6 +116,52 @@ describe('TtsProvider', () => {
     expect(utterance.voice).toBe(unknownVoice);
   });
 
+  it('should switch voice when gender preference changes', async () => {
+    const femaleVoice = createMockVoice('Samantha', 'en-US');
+    const maleVoice = createMockVoice('Daniel', 'en-US');
+    mockSynth = createMockSpeechSynthesis([femaleVoice, maleVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+
+    // Start with female (default)
+    await tts.speak('hello');
+    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(u1.voice).toBe(femaleVoice);
+
+    // Switch to male
+    tts.setVoicePreference('male');
+    await tts.speak('world');
+    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
+    expect(u2.voice).toBe(maleVoice);
+
+    // Switch back to female
+    tts.setVoicePreference('female');
+    await tts.speak('again');
+    const u3 = vi.mocked(mockSynth.speak).mock.calls[2][0] as unknown as MockUtterance;
+    expect(u3.voice).toBe(femaleVoice);
+  });
+
+  it('should pick different fallback voices per gender when no hints match', async () => {
+    const voiceA = createMockVoice('VoiceAlpha', 'en-US');
+    const voiceB = createMockVoice('VoiceBeta', 'en-US');
+    mockSynth = createMockSpeechSynthesis([voiceA, voiceB]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+
+    // Female gets first fallback voice
+    await tts.speak('hello');
+    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(u1.voice).toBe(voiceA);
+
+    // Male should pick a different voice
+    tts.setVoicePreference('male');
+    await tts.speak('world');
+    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
+    expect(u2.voice).toBe(voiceB);
+  });
+
   it('should speak chunks with delays between them', async () => {
     vi.useFakeTimers();
     const tts = new TtsProvider();
