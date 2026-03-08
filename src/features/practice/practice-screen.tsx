@@ -280,7 +280,7 @@ export function PracticeScreen({
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
+        <div className="max-w-sm md:max-w-lg w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
           <h2 className="text-xl font-bold text-sf-heading text-center">
             Continue where you left off?
           </h2>
@@ -334,7 +334,7 @@ export function PracticeScreen({
   if (!session || !session.currentWord) {
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm w-full text-center space-y-4">
+        <div className="max-w-sm md:max-w-lg w-full text-center space-y-4">
           <p className="text-sf-heading text-lg font-bold">No words ready for practice yet!</p>
           <p className="text-sf-muted text-sm">
             Learn your spelling words first, then come back to practice the ones you&apos;ve mastered.

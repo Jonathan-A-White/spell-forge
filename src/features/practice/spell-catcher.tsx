@@ -233,7 +233,7 @@ export function SpellCatcher({
 
   if (!gameStarted) {
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">Spell Catcher</h2>
 
         <div className="w-full bg-sf-surface border border-sf-border rounded-2xl p-6 text-center space-y-4">
@@ -276,7 +276,7 @@ export function SpellCatcher({
     const percentage = Math.round((wordsCompleted / gameWords.length) * 100);
 
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">Dive Complete!</h2>
 
         {/* Stars */}
@@ -359,7 +359,7 @@ export function SpellCatcher({
   if (wordComplete) {
     const wasSuccess = nextLetterIndex >= currentWord.length;
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">
           {wasSuccess ? 'Treasure Found!' : 'Word Missed!'}
         </h2>
@@ -409,7 +409,7 @@ export function SpellCatcher({
   const remainingSlots = currentWord.length - nextLetterIndex;
 
   return (
-    <div className="flex flex-col items-center gap-3 p-4 max-w-md mx-auto w-full">
+    <div className="flex flex-col items-center gap-3 p-4 max-w-md md:max-w-xl lg:max-w-3xl mx-auto w-full">
       {/* Header */}
       <div className="w-full flex items-center justify-between">
         <div className="flex items-center gap-2">

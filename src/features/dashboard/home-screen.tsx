@@ -48,7 +48,7 @@ export function HomeScreen({
           <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-sf-track-fill blur-3xl" />
         </div>
 
-        <div className="relative max-w-lg mx-auto">
+        <div className="relative max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto">
           {/* Top bar: Switch + Settings */}
           <div className="flex items-center justify-between mb-2">
             <button
@@ -115,7 +115,7 @@ export function HomeScreen({
       </div>
 
       {/* Main actions */}
-      <div className="max-w-lg mx-auto px-4 pb-6">
+      <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto px-4 pb-6">
         <div className="space-y-3 mt-3">
           {/* Start Practice — hero card */}
           {allWords.length > 0 && (
@@ -165,7 +165,7 @@ export function HomeScreen({
           )}
 
           {/* 2x2 navigation grid */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <NavCard
               title="Progress"
               subtitle={`${mastered}/${allWords.length} mastered`}

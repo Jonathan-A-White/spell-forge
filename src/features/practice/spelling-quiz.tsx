@@ -229,7 +229,7 @@ export function SpellingQuiz({ words, onComplete, onSpeak, tapTargetSize, savedS
   // Results screen
   if (isFinished && results) {
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">Quiz Results</h2>
 
         <div className={`w-32 h-32 rounded-full flex items-center justify-center border-4 ${
@@ -304,7 +304,7 @@ export function SpellingQuiz({ words, onComplete, onSpeak, tapTargetSize, savedS
   const progress = Math.round(((currentIndex) / questions.length) * 100);
 
   return (
-    <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto w-full">
+    <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto w-full">
       <h2 className="text-xl font-bold text-sf-heading">Spelling Quiz</h2>
 
       {/* Progress */}
