@@ -74,6 +74,24 @@
 
 /* ─── Tailwind theme extension ──────────────────────────────────── */
 
+/* ─── Accessibility font settings ──────────────────────────────── */
+
+body {
+  font-family: var(--sf-font-family, system-ui, sans-serif);
+  font-size: var(--sf-font-size, 16px);
+  font-weight: var(--sf-font-weight, 400);
+  letter-spacing: var(--sf-letter-spacing, normal);
+  line-height: var(--sf-line-height, 1.5);
+  background-color: var(--sf-background-color, var(--sf-color-bg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @theme {
   --color-sf-bg: var(--sf-color-bg);
   --color-sf-surface: var(--sf-color-surface);
