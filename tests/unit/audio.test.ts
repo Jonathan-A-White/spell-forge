@@ -9,6 +9,7 @@ import type { AudioProvider } from '../../src/contracts/types.ts';
 class MockUtterance {
   text: string;
   rate = 1;
+  pitch = 1;
   voice: SpeechSynthesisVoice | null = null;
   onend: ((ev: Event) => void) | null = null;
   onerror: ((ev: Event) => void) | null = null;
@@ -160,6 +161,43 @@ describe('TtsProvider', () => {
     await tts.speak('world');
     const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
     expect(u2.voice).toBe(voiceB);
+  });
+
+  it('should set higher pitch for female and lower pitch for male', async () => {
+    const voice = createMockVoice('GenericVoice', 'en-US');
+    mockSynth = createMockSpeechSynthesis([voice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+
+    // Default female — pitch should be > 1
+    await tts.speak('hello');
+    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(u1.pitch).toBeGreaterThan(1);
+
+    // Switch to male — pitch should be < 1
+    tts.setVoicePreference('male');
+    await tts.speak('world');
+    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
+    expect(u2.pitch).toBeLessThan(1);
+  });
+
+  it('should match Google TTS voices with gender suffix', async () => {
+    const googleFemale = createMockVoice('Google UK English Female', 'en-GB');
+    const googleMale = createMockVoice('Google UK English Male', 'en-GB');
+    mockSynth = createMockSpeechSynthesis([googleFemale, googleMale]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+
+    await tts.speak('hello');
+    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(u1.voice).toBe(googleFemale);
+
+    tts.setVoicePreference('male');
+    await tts.speak('world');
+    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
+    expect(u2.voice).toBe(googleMale);
   });
 
   it('should speak chunks with delays between them', async () => {
