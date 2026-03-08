@@ -1,0 +1,18 @@
+{
+  "name": "SpellForge",
+  "short_name": "SpellForge",
+  "description": "Master spelling through practice and spaced repetition",
+  "start_url": "/spell-forge/",
+  "scope": "/spell-forge/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
+  "icons": [
+    {
+      "src": "spell-forge.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

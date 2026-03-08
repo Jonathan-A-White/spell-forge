@@ -95,6 +95,11 @@ body {
   letter-spacing: var(--sf-letter-spacing, normal);
   line-height: var(--sf-line-height, 1.5);
   background-color: var(--sf-background-color, var(--sf-color-bg));
+  /* Safe areas for standalone/fullscreen mode on notched devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @media (prefers-reduced-motion: reduce) {
