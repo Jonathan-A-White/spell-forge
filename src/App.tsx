@@ -733,6 +733,7 @@ function App() {
           list={viewingList}
           words={allWords.filter((w) => w.listId === viewingList.id)}
           stats={allStats.filter((s) => allWords.some((w) => w.listId === viewingList.id && w.id === s.wordId))}
+          learningProgress={learningProgress.filter((lp) => lp.wordListId === viewingList.id)}
           onUpdateWord={handleUpdateWord}
           onDeleteWord={handleDeleteWord}
           onAddWord={handleAddWordToList}
@@ -748,6 +749,7 @@ function App() {
           wordLists={wordLists}
           allWords={allWords}
           allStats={allStats}
+          learningProgress={learningProgress}
           onAddList={() => { setEditingList(null); setView('list-editor'); }}
           onViewList={(list) => { setViewingList(list); setView('word-list-detail'); }}
           onEditList={(list) => { setEditingList(list); setView('list-editor'); }}

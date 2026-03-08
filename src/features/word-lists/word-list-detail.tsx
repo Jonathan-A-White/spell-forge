@@ -1,12 +1,13 @@
 // src/features/word-lists/word-list-detail.tsx — Detail view for a word list with inline word editing
 
 import { useState } from 'react';
-import type { WordList, Word, WordStats } from '../../contracts/types';
+import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
 
 interface WordListDetailProps {
   list: WordList;
   words: Word[];
   stats: WordStats[];
+  learningProgress: WordLearningProgress[];
   onUpdateWord: (wordId: string, newText: string) => void;
   onDeleteWord: (wordId: string) => void;
   onAddWord: (text: string) => void;
@@ -18,6 +19,7 @@ export function WordListDetail({
   list,
   words,
   stats,
+  learningProgress,
   onUpdateWord,
   onDeleteWord,
   onAddWord,
@@ -25,6 +27,7 @@ export function WordListDetail({
   onEditList,
 }: WordListDetailProps) {
   const statsMap = new Map(stats.map((s) => [s.wordId, s]));
+  const learningMap = new Map(learningProgress.map((lp) => [lp.wordId, lp]));
   const [editingWordId, setEditingWordId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [newWordText, setNewWordText] = useState('');
@@ -63,8 +66,8 @@ export function WordListDetail({
   };
 
   const mastered = words.filter((w) => {
-    const s = statsMap.get(w.id);
-    return s && (s.currentBucket === 'mastered' || s.currentBucket === 'review');
+    const cat = getWordCategory(w.id, statsMap, learningMap);
+    return cat === 'mastered';
   }).length;
   const pct = words.length > 0 ? Math.round((mastered / words.length) * 100) : 0;
 
@@ -139,8 +142,7 @@ export function WordListDetail({
         ) : (
           <div className="space-y-1">
             {words.map((word) => {
-              const stat = statsMap.get(word.id);
-              const bucket = stat?.currentBucket ?? 'new';
+              const bucket = getWordCategory(word.id, statsMap, learningMap);
               const isEditing = editingWordId === word.id;
 
               return (
@@ -235,6 +237,31 @@ export function WordListDetail({
       )}
     </div>
   );
+}
+
+type HealthCategory = 'mastered' | 'familiar' | 'learning' | 'new';
+
+function getWordCategory(
+  wordId: string,
+  statsMap: Map<string, WordStats>,
+  learningMap: Map<string, WordLearningProgress>,
+): HealthCategory {
+  const stat = statsMap.get(wordId);
+  const lp = learningMap.get(wordId);
+
+  if (stat && stat.timesAsked > 0) {
+    if (stat.currentBucket === 'mastered' || stat.currentBucket === 'review') return 'mastered';
+    if (stat.currentBucket === 'familiar') return 'familiar';
+    if (stat.currentBucket === 'learning') return 'learning';
+  }
+
+  if (lp) {
+    if (lp.mastered) return 'mastered';
+    if (lp.stage >= 2) return 'familiar';
+    if (lp.stage >= 1 || lp.totalAttempts > 0) return 'learning';
+  }
+
+  return 'new';
 }
 
 function getBucketDot(bucket: string): string {

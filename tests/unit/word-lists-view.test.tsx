@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WordListsView } from '../../src/features/word-lists/word-lists-view';
-import type { WordList, Word, WordStats } from '../../src/contracts/types';
+import type { WordList, Word, WordStats, WordLearningProgress } from '../../src/contracts/types';
 
 // ─── Helpers ───────────────────────────────────────────────────
 
@@ -38,6 +38,7 @@ function makeWord(listId: string, text: string, overrides: Partial<Word> = {}): 
 
 const defaultProps = {
   allStats: [] as WordStats[],
+  learningProgress: [] as WordLearningProgress[],
   onAddList: vi.fn(),
   onEditList: vi.fn(),
   onDeleteList: vi.fn(),
