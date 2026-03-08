@@ -115,7 +115,7 @@ describe('TtsProvider', () => {
     expect(u1.voice).toBe(u2.voice);
   });
 
-  it('should speak chunks with delays between them', async () => {
+  it('should speak multi-character chunks with delays between them', async () => {
     vi.useFakeTimers();
     const tts = new TtsProvider();
 
@@ -138,43 +138,19 @@ describe('TtsProvider', () => {
     vi.useRealTimers();
   });
 
-  it('should append period to single-character chunks for TTS compatibility', async () => {
+  it('should spell single-character chunks as one comma-separated utterance', async () => {
     vi.useFakeTimers();
     const tts = new TtsProvider();
 
-    const promise = tts.speakChunks(['A', 'B'], 100);
+    const promise = tts.speakChunks(['w', 'o', 'r', 'd'], 400);
 
+    // Only one speak() call — the whole spelling in a single utterance
     await vi.advanceTimersByTimeAsync(0);
-    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(u1.text).toBe('A.');
+    expect(mockSynth.speak).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(101);
-    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    expect(u2.text).toBe('B.');
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.text).toBe('W, O, R, D.');
 
-    await vi.advanceTimersByTimeAsync(0);
-    await promise;
-    vi.useRealTimers();
-  });
-
-  it('should not cancel speech between chunks (only before the first)', async () => {
-    vi.useFakeTimers();
-    const tts = new TtsProvider();
-
-    const promise = tts.speakChunks(['X', 'Y', 'Z'], 100);
-
-    await vi.advanceTimersByTimeAsync(0);
-    // cancel() called once before first chunk
-    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(101);
-    // Still only one cancel call — not called before second chunk
-    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(101);
-    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(0);
     await promise;
     vi.useRealTimers();
   });
