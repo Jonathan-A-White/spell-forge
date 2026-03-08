@@ -25,10 +25,14 @@ export class AudioManagerImpl implements AudioManager {
   async speakTts(word: string): Promise<void> {
     const tts = this.providers.find((p) => p instanceof TtsProvider);
     if (tts) {
-      await tts.speak(word);
-    } else {
-      await this.speak(word);
+      try {
+        await tts.speak(word);
+        return;
+      } catch {
+        // TTS failed (timeout, no voices, etc.) — fall through to other providers
+      }
     }
+    await this.speak(word);
   }
 
   async speakSlowly(word: string): Promise<void> {
