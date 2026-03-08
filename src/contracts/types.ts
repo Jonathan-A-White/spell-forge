@@ -10,6 +10,7 @@ export interface Profile {
   pin?: string; // parent PIN hash
   createdAt: Date;
   settings: AccessibilitySettings;
+  importFilterWords?: string[];  // words/phrases to auto-exclude from camera import
 }
 
 export interface AccessibilitySettings {

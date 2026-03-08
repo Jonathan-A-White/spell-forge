@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
+import { cleanWords, normalizeWhitespace, filterImportWords } from '../../src/ocr/utils.ts';
 import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
@@ -91,6 +91,65 @@ describe('normalizeWhitespace', () => {
 
   it('normalizes newlines and tabs', () => {
     expect(normalizeWhitespace('a\n\nb\t\tc')).toBe('a b c');
+  });
+});
+
+// ─── filterImportWords ──────────────────────────────────────
+
+describe('filterImportWords', () => {
+  it('returns all words when filter list is empty', () => {
+    expect(filterImportWords(['badge', 'edge', 'judge'], [])).toEqual(['badge', 'edge', 'judge']);
+  });
+
+  it('filters individual words from a phrase', () => {
+    const words = ['unit', 'badge', 'edge', 'challenge', 'words', 'celebrate'];
+    const filters = ['Challenge Words'];
+    expect(filterImportWords(words, filters)).toEqual(['unit', 'badge', 'edge', 'celebrate']);
+  });
+
+  it('filters words from multiple phrases', () => {
+    const words = ['unit', 'badge', 'challenge', 'words', 'high', 'frequency', 'celebrate', 'group'];
+    const filters = ['Challenge Words', 'High Frequency Words'];
+    // "words" appears in both phrases but the result is the same
+    expect(filterImportWords(words, filters)).toEqual(['unit', 'badge', 'celebrate', 'group']);
+  });
+
+  it('is case-insensitive', () => {
+    const words = ['unit', 'badge', 'challenge'];
+    const filters = ['CHALLENGE'];
+    expect(filterImportWords(words, filters)).toEqual(['unit', 'badge']);
+  });
+
+  it('strips non-alpha chars from filter phrases', () => {
+    const words = ['unit', 'badge'];
+    const filters = ['Unit 3, WK 6'];
+    // "3" and "6" stripped, "unit" matches, "wk" not in words list
+    expect(filterImportWords(words, filters)).toEqual(['badge']);
+  });
+
+  it('handles empty words list', () => {
+    expect(filterImportWords([], ['Challenge Words'])).toEqual([]);
+  });
+
+  it('handles whitespace-only filter phrases gracefully', () => {
+    const words = ['badge', 'edge'];
+    expect(filterImportWords(words, ['  ', ''])).toEqual(['badge', 'edge']);
+  });
+
+  it('filters realistic OCR output from a spelling list photo', () => {
+    // Simulates OCR output from the photo in the issue
+    const ocrWords = [
+      'unit', 'badge', 'edge', 'judge', 'pace', 'mice', 'peace', 'huge',
+      'giraffe', 'gems', 'price', 'challenge', 'words', 'celebrate',
+      'emergency', 'message', 'high', 'frequency', 'group', 'almost',
+    ];
+    const filters = ['Unit', 'Challenge Words', 'High Frequency Words'];
+    const result = filterImportWords(ocrWords, filters);
+    expect(result).toEqual([
+      'badge', 'edge', 'judge', 'pace', 'mice', 'peace', 'huge',
+      'giraffe', 'gems', 'price', 'celebrate',
+      'emergency', 'message', 'group', 'almost',
+    ]);
   });
 });
 

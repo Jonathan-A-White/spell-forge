@@ -3,16 +3,18 @@
 import { useState, useCallback, useRef } from 'react';
 import type { WordList } from '../../contracts/types';
 import type { OcrManager } from '../../ocr';
+import { filterImportWords } from '../../ocr';
 
 interface ListEditorProps {
   list?: WordList | null;
   existingWords: string[];
   ocrManager?: OcrManager | null;
+  importFilterPhrases?: string[];
   onSave: (name: string, words: string[], testDate: Date | null, source?: WordList['source']) => void;
   onCancel: () => void;
 }
 
-export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }: ListEditorProps) {
+export function ListEditor({ list, existingWords, ocrManager, importFilterPhrases, onSave, onCancel }: ListEditorProps) {
   const [name, setName] = useState(list?.name ?? '');
   const [wordsText, setWordsText] = useState(existingWords.join('\n'));
   const [testDate, setTestDate] = useState(
@@ -51,9 +53,20 @@ export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }
         return;
       }
 
+      // Apply import filter to auto-exclude heading words
+      const filteredWords = importFilterPhrases?.length
+        ? filterImportWords(result.words, importFilterPhrases)
+        : result.words;
+
+      if (filteredWords.length === 0) {
+        setOcrStatus('error');
+        setOcrError('No words found after filtering. Try a clearer photo.');
+        return;
+      }
+
       // Append OCR words to existing text
       const existing = wordsText.trim();
-      const newWords = result.words.join('\n');
+      const newWords = filteredWords.join('\n');
       setWordsText(existing ? `${existing}\n${newWords}` : newWords);
       setUsedCamera(true);
       setOcrStatus('idle');
@@ -66,7 +79,7 @@ export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [ocrManager, wordsText]);
+  }, [ocrManager, wordsText, importFilterPhrases]);
 
   const wordCount = wordsText
     .split(/[\n,]+/)
