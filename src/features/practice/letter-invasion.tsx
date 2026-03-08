@@ -72,6 +72,8 @@ export function LetterInvasion({
   const [waveComplete, setWaveComplete] = useState(false);
   const [gameOver, setGameOver] = useState(false);
 
+  const currentWord = gameWords[currentWaveIndex] ?? '';
+
   const invaderCounterRef = useRef(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const spawnRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -83,8 +85,6 @@ export function LetterInvasion({
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
   useEffect(() => { nextLetterIndexRef.current = nextLetterIndex; }, [nextLetterIndex]);
   useEffect(() => { currentWordRef.current = currentWord; }, [currentWord]);
-
-  const currentWord = gameWords[currentWaveIndex] ?? '';
   const maxShield = calcStartingShield(currentWord.length);
   const isFinished = currentWaveIndex >= gameWords.length || gameOver;
   const waveConfig = useMemo(
