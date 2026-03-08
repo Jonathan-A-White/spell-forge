@@ -304,7 +304,7 @@ export function LearningScreen({
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
+        <div className="max-w-sm md:max-w-lg w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
           <h2 className="text-xl font-bold text-sf-heading text-center">
             Continue learning?
           </h2>
@@ -347,7 +347,7 @@ export function LearningScreen({
   if (isComplete) {
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm w-full text-center space-y-6">
+        <div className="max-w-sm md:max-w-lg w-full text-center space-y-6">
           <div className="w-24 h-24 mx-auto rounded-full bg-green-100 border-4 border-green-500 flex items-center justify-center">
             <span className="text-4xl">&#10003;</span>
           </div>

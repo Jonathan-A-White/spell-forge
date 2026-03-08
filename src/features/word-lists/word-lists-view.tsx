@@ -62,7 +62,7 @@ export function WordListsView({
     <div className="min-h-screen bg-sf-bg">
       {/* Header */}
       <div className="bg-sf-surface border-b border-sf-border px-4 py-4">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
+        <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
@@ -105,7 +105,7 @@ export function WordListsView({
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6 space-y-4">
         {activeLists.length === 0 && archivedLists.length === 0 && (
           <div className="text-center py-12">
             <div className="text-5xl mb-4">📚</div>
