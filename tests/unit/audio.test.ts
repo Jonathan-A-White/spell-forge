@@ -138,7 +138,7 @@ describe('TtsProvider', () => {
     vi.useRealTimers();
   });
 
-  it('should spell single-character chunks as one comma-separated utterance', async () => {
+  it('should spell single-character chunks using phonetic letter names', async () => {
     vi.useFakeTimers();
     const tts = new TtsProvider();
 
@@ -149,7 +149,7 @@ describe('TtsProvider', () => {
     expect(mockSynth.speak).toHaveBeenCalledTimes(1);
 
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(utterance.text).toBe('W, O, R, D.');
+    expect(utterance.text).toBe('double you, oh, ar, dee.');
 
     await promise;
     vi.useRealTimers();
