@@ -121,6 +121,16 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
             Snap a picture of a spelling word list and we'll extract the words automatically.
           </p>
 
+          <div className="bg-sf-surface border border-sf-border rounded-xl p-4 text-left space-y-2">
+            <p className="text-sm font-bold text-sf-heading">Tips for best results:</p>
+            <ul className="text-sm text-sf-muted space-y-1.5 list-none">
+              <li>📱 Hold your phone <strong className="text-sf-heading">sideways</strong> (landscape) so the word list fills the screen</li>
+              <li>📄 Lay the word list flat on a table</li>
+              <li>💡 Make sure there's good lighting and no shadows</li>
+              <li>🔍 Get close enough that the words are easy to read</li>
+            </ul>
+          </div>
+
           <div className="flex flex-col gap-3">
             <button
               onClick={() => fileInputRef.current?.click()}

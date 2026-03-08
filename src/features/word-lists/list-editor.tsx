@@ -148,6 +148,12 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
             )}
           </div>
 
+          {ocrManager && ocrStatus === 'idle' && (
+            <p className="text-xs text-sf-muted mb-2">
+              Tip: Hold your phone sideways and lay the word list flat for the best results.
+            </p>
+          )}
+
           {ocrStatus === 'error' && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 text-sm text-red-700">
               {ocrError}
