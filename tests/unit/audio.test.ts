@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TtsProvider } from '../../src/audio/tts.ts';
+import { TtsProvider, clearVoiceCache } from '../../src/audio/tts.ts';
 import { DictionaryProvider } from '../../src/audio/dictionary.ts';
 import { AudioManagerImpl } from '../../src/audio/manager.ts';
 import type { AudioProvider } from '../../src/contracts/types.ts';
@@ -17,17 +17,21 @@ class MockUtterance {
   }
 }
 
+function createMockVoice(name: string, lang: string): SpeechSynthesisVoice {
+  return { name, lang, default: false, localService: true, voiceURI: name } as SpeechSynthesisVoice;
+}
+
 vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
 
 // ─── Mock SpeechSynthesis ────────────────────────────────────
 
-function createMockSpeechSynthesis() {
+function createMockSpeechSynthesis(voices: SpeechSynthesisVoice[] = []) {
   const speak = vi.fn((utterance: MockUtterance) => {
     // Simulate async completion
     setTimeout(() => utterance.onend?.(new Event('end')), 0);
   });
 
-  return { speak, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(), pending: false, speaking: false, paused: false, getVoices: vi.fn(() => []), onvoiceschanged: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(() => true) } as unknown as SpeechSynthesis;
+  return { speak, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(), pending: false, speaking: false, paused: false, getVoices: vi.fn(() => voices), onvoiceschanged: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(() => true) } as unknown as SpeechSynthesis;
 }
 
 let mockSynth: SpeechSynthesis;
@@ -36,6 +40,7 @@ beforeEach(() => {
   vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
   mockSynth = createMockSpeechSynthesis();
   vi.stubGlobal('speechSynthesis', mockSynth);
+  clearVoiceCache();
 });
 
 // ─── TTS Provider ────────────────────────────────────────────
@@ -83,6 +88,45 @@ describe('TtsProvider', () => {
     expect(u1.text).toBe('cat');
     expect(u2.text).toBe('dog');
     expect(u3.text).toBe('bird');
+  });
+
+  it('should select a male-hinted voice when available', async () => {
+    const genericVoice = createMockVoice('SomeVoice', 'en-US');
+    const maleVoice = createMockVoice('Daniel', 'en-US');
+    mockSynth = createMockSpeechSynthesis([genericVoice, maleVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+    await tts.speak('test');
+
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.voice).toBe(maleVoice);
+  });
+
+  it('should fall back to first voice when no male match', async () => {
+    const unknownVoice = createMockVoice('SomeVoice', 'en-US');
+    mockSynth = createMockSpeechSynthesis([unknownVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+    await tts.speak('test');
+
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.voice).toBe(unknownVoice);
+  });
+
+  it('should use the same cached voice across multiple calls', async () => {
+    const maleVoice = createMockVoice('David', 'en-US');
+    mockSynth = createMockSpeechSynthesis([maleVoice]);
+    vi.stubGlobal('speechSynthesis', mockSynth);
+
+    const tts = new TtsProvider();
+    await tts.speak('hello');
+    await tts.speak('world');
+
+    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
+    expect(u1.voice).toBe(u2.voice);
   });
 });
 
