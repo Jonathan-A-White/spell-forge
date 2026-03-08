@@ -143,7 +143,7 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
                 data-testid="camera-import-btn"
               >
                 <CameraIcon />
-                {ocrStatus === 'processing' ? 'Reading...' : 'Import from photo'}
+                {ocrStatus === 'processing' ? 'Reading...' : 'Import from camera'}
               </button>
             )}
           </div>
@@ -167,6 +167,7 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             onChange={handlePhotoSelected}
             className="hidden"
             data-testid="camera-file-input"

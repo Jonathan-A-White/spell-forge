@@ -17,15 +17,16 @@ describe('sayAndSpell', () => {
       speak: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
       speakSlowly: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
       speakChunks: vi.fn<(chunks: string[], delayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
+      speakTts: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
       registerProvider: vi.fn(),
       setVoicePreference: vi.fn(),
     };
   });
 
-  it('calls speak with the full word first', async () => {
+  it('calls speakTts with the full word first', async () => {
     await sayAndSpell(mockAudioManager, 'cat');
-    expect(mockAudioManager.speak).toHaveBeenCalledWith('cat');
-    expect(mockAudioManager.speak).toHaveBeenCalledTimes(1);
+    expect(mockAudioManager.speakTts).toHaveBeenCalledWith('cat');
+    expect(mockAudioManager.speakTts).toHaveBeenCalledTimes(1);
   });
 
   it('calls speakChunks with individual letters and 400ms delay', async () => {
@@ -37,22 +38,22 @@ describe('sayAndSpell', () => {
     expect(mockAudioManager.speakChunks).toHaveBeenCalledTimes(1);
   });
 
-  it('calls speak before speakChunks', async () => {
+  it('calls speakTts before speakChunks', async () => {
     const callOrder: string[] = [];
-    vi.mocked(mockAudioManager.speak).mockImplementation(async () => {
-      callOrder.push('speak');
+    vi.mocked(mockAudioManager.speakTts).mockImplementation(async () => {
+      callOrder.push('speakTts');
     });
     vi.mocked(mockAudioManager.speakChunks).mockImplementation(async () => {
       callOrder.push('speakChunks');
     });
 
     await sayAndSpell(mockAudioManager, 'dog');
-    expect(callOrder).toEqual(['speak', 'speakChunks']);
+    expect(callOrder).toEqual(['speakTts', 'speakChunks']);
   });
 
   it('handles single-character words', async () => {
     await sayAndSpell(mockAudioManager, 'a');
-    expect(mockAudioManager.speak).toHaveBeenCalledWith('a');
+    expect(mockAudioManager.speakTts).toHaveBeenCalledWith('a');
     expect(mockAudioManager.speakChunks).toHaveBeenCalledWith(['a'], 400);
   });
 });
