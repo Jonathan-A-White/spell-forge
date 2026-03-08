@@ -49,14 +49,14 @@ export function HomeScreen({
   return (
     <div className="min-h-screen bg-sf-bg">
       {/* Hero header with gradient overlay */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-sf-surface via-sf-surface to-sf-surface-hover px-4 pt-8 pb-6">
+      <div className="relative overflow-hidden bg-gradient-to-br from-sf-surface via-sf-surface to-sf-surface-hover px-4 pt-4 pb-4">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-sf-primary blur-3xl" />
           <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-sf-track-fill blur-3xl" />
         </div>
 
         <div className="relative max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-3">
             <button
               onClick={onSwitchProfile}
               className="flex items-center gap-1.5 text-sf-muted hover:text-sf-secondary text-sm transition-colors"
@@ -73,21 +73,21 @@ export function HomeScreen({
             </button>
           </div>
 
-          <div className="text-center mb-2">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-sf-primary to-sf-primary-hover text-sf-primary-text text-2xl font-bold mb-3 shadow-lg">
+          <div className="text-center mb-1">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-sf-primary to-sf-primary-hover text-sf-primary-text text-xl font-bold mb-2 shadow-lg">
               {profile.name.charAt(0).toUpperCase()}
             </div>
-            <h1 className="text-2xl font-bold text-sf-heading">
+            <h1 className="text-xl font-bold text-sf-heading">
               Hey, {profile.name}!
             </h1>
-            <p className="text-sf-muted text-sm mt-1">
+            <p className="text-sf-muted text-xs mt-0.5">
               {getGreeting()}
             </p>
           </div>
 
           {/* Stat circles row — inspired by BMA Tutor layout */}
           {allWords.length > 0 && (
-            <div className="flex justify-center gap-4 mt-5">
+            <div className="flex justify-center gap-3 mt-3">
               <StatCircle
                 value={`${masteryPercent}%`}
                 label="Mastery"
@@ -110,19 +110,19 @@ export function HomeScreen({
           )}
 
           {/* Coins and streak bar */}
-          <div className="flex justify-center gap-4 mt-3">
-            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+          <div className="flex justify-center gap-3 mt-2">
+            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1">
               <CoinIcon />
               <span className="text-sm font-bold text-yellow-400">{coins}</span>
               <span className="text-xs text-sf-muted">Coins</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1">
               <span className="text-sm">🔥</span>
               <span className="text-sm font-bold text-sf-heading">{streak}</span>
               <span className="text-xs text-sf-muted">Streak</span>
             </div>
             {allMastered && allWords.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1">
                 <span className="text-sm">✨</span>
                 <span className="text-xs font-medium text-green-400">All Mastered!</span>
               </div>
@@ -131,7 +131,7 @@ export function HomeScreen({
 
           {/* Theme milestone progress */}
           {allWords.length > 0 && (
-            <div className="mt-3 bg-sf-surface/60 backdrop-blur-sm rounded-xl px-4 py-2.5 max-w-xs mx-auto">
+            <div className="mt-2 bg-sf-surface/60 backdrop-blur-sm rounded-xl px-4 py-2 max-w-xs mx-auto">
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="text-sf-muted">{themeName}</span>
                 <span className="font-medium text-sf-heading">{milestone.current}</span>
@@ -180,7 +180,7 @@ export function HomeScreen({
 
       {/* Navigation cards */}
       <div className="max-w-lg mx-auto px-4 -mt-2 pb-6">
-        <div className="space-y-3 mt-6">
+        <div className="space-y-3 mt-3">
           {/* Start Practice - Hero card */}
           {allWords.length > 0 && (
             <button
@@ -295,8 +295,8 @@ function StatCircle({
       onClick={onClick}
       className="flex flex-col items-center gap-1 group"
     >
-      <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${color} flex flex-col items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
-        <span className="text-white font-bold text-lg leading-tight">{value}</span>
+      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${color} flex flex-col items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
+        <span className="text-white font-bold text-base leading-tight">{value}</span>
       </div>
       <span className="text-xs text-sf-muted font-medium">{label}</span>
     </button>
