@@ -50,6 +50,20 @@ function pickVoice(): SpeechSynthesisVoice | null {
   return selected;
 }
 
+/**
+ * Phonetic letter names — real words that any TTS engine can pronounce.
+ * Kindle Silk's TTS silently fails on single-character utterances and on
+ * comma-separated letter strings like "W, O, R, D.", so we spell words
+ * using the letter names instead.
+ */
+const LETTER_NAMES: Record<string, string> = {
+  a: 'ay', b: 'bee', c: 'see', d: 'dee', e: 'ee', f: 'eff',
+  g: 'jee', h: 'aitch', i: 'eye', j: 'jay', k: 'kay', l: 'ell',
+  m: 'em', n: 'en', o: 'oh', p: 'pee', q: 'cue', r: 'ar',
+  s: 'ess', t: 'tee', u: 'you', v: 'vee', w: 'double you',
+  x: 'ex', y: 'why', z: 'zee',
+};
+
 /** How long to wait for speechSynthesis before assuming it silently failed (e.g. Kindle Silk). */
 const SPEAK_TIMEOUT_MS = 5000;
 
@@ -103,12 +117,13 @@ export class TtsProvider implements AudioProvider {
   async speakChunks(chunks: string[], delayMs = 500): Promise<void> {
     const allSingleChar = chunks.every((c) => c.length === 1);
     if (allSingleChar && chunks.length > 1) {
-      // Spell out letters as a single utterance so limited TTS engines
-      // (e.g. Kindle Silk) don't silently fail on rapid sequential calls.
-      // Commas create natural pauses between letters.  The trailing period
-      // signals the end of the sequence and prevents the last letter from
-      // being swallowed.
-      const spelling = chunks.map((c) => c.toUpperCase()).join(', ') + '.';
+      // Spell out using phonetic letter names so every TTS engine can
+      // handle them — Kindle Silk silently fails on single characters
+      // and comma-separated letter strings.  Real words like "bee",
+      // "dee", "double you" work reliably on all engines.
+      const spelling = chunks
+        .map((c) => LETTER_NAMES[c.toLowerCase()] ?? c)
+        .join(', ') + '.';
       await speakWord(spelling);
       return;
     }
