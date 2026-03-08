@@ -500,6 +500,16 @@ function App() {
     [activeProfile],
   );
 
+  const handleImportFilterWordsChange = useCallback(
+    async (phrases: string[]) => {
+      if (!activeProfile) return;
+      const updated = { ...activeProfile, importFilterWords: phrases };
+      await profileRepo.update(updated.id, { importFilterWords: phrases });
+      setActiveProfile(updated);
+    },
+    [activeProfile],
+  );
+
   const handleFeedback = useCallback(async (text: string) => {
     await db.syncQueue.add({
       id: uuidv4(),
@@ -694,6 +704,7 @@ function App() {
           list={editingList}
           existingWords={editWords}
           ocrManager={ocrManager}
+          importFilterPhrases={activeProfile?.importFilterWords}
           onSave={handleSaveList}
           onCancel={() => { setEditingList(null); setView('word-lists'); }}
         />
@@ -734,6 +745,8 @@ function App() {
         <SettingsPanel
           profile={activeProfile}
           settings={activeProfile.settings}
+          importFilterWords={activeProfile.importFilterWords}
+          onImportFilterWordsChange={handleImportFilterWordsChange}
           onContrastModeChange={handleContrastModeChange}
           onVoicePreferenceChange={handleVoicePreferenceChange}
           onPresetApply={handlePresetApply}
