@@ -50,16 +50,41 @@ function pickVoice(): SpeechSynthesisVoice | null {
   return selected;
 }
 
+/** How long to wait for speechSynthesis before assuming it silently failed (e.g. Kindle Silk). */
+const SPEAK_TIMEOUT_MS = 5000;
+
 function speakWord(word: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const synth = window.speechSynthesis;
+
+    // Some browsers (Kindle Silk) have speechSynthesis but no working voices.
+    // Cancel any queued speech first to avoid stale utterances.
+    synth.cancel();
+
     const utterance = new SpeechSynthesisUtterance(word);
     const voice = pickVoice();
     if (voice) {
       utterance.voice = voice;
     }
-    utterance.onend = () => resolve();
-    utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`));
+
+    let settled = false;
+    const settle = (fn: () => void) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        fn();
+      }
+    };
+
+    // Timeout: if neither onend nor onerror fires, the browser silently failed.
+    const timer = window.setTimeout(() => {
+      settle(() => reject(new Error('Speech synthesis timed out')));
+    }, SPEAK_TIMEOUT_MS);
+
+    utterance.onend = () => settle(resolve);
+    utterance.onerror = (event) =>
+      settle(() => reject(new Error(`Speech synthesis error: ${event.error}`)));
+
     synth.speak(utterance);
   });
 }
