@@ -3,7 +3,7 @@ import { dragonForgeTheme } from './dragon-forge/theme.ts';
 import { monsterLabTheme } from './monster-lab/theme.ts';
 import { starTrailTheme } from './star-trail/theme.ts';
 
-export interface MilestoneStatus {
+interface MilestoneStatus {
   current: string;
   next: string | null;
   progressToNext: number;
@@ -111,6 +111,10 @@ function applyThemePalette(themeId: string): void {
   el.style.setProperty('--sf-color-primary-hover', adjustBrightness(p.primary, -20));
   el.style.setProperty('--sf-color-primary-text', contrastText(p.primary));
   el.style.setProperty('--sf-color-track-fill', p.primary);
+  el.style.setProperty('--sf-color-secondary', p.secondary);
+  el.style.setProperty('--sf-color-secondary-hover', adjustBrightness(p.secondary, -20));
+  el.style.setProperty('--sf-color-accent', p.accent);
+  el.style.setProperty('--sf-color-accent-hover', adjustBrightness(p.accent, -20));
 
   el.setAttribute('data-spell-theme', themeId);
 }

@@ -9,7 +9,7 @@ export interface FallingLetter {
   isTarget: boolean; // true if this is the next needed letter
 }
 
-export interface CatchResult {
+interface CatchResult {
   caught: boolean;
   correct: boolean;
   letterIndex: number; // which position in the word was being sought

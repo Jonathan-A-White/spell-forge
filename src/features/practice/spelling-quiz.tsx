@@ -20,7 +20,7 @@ export interface QuizResults {
   answers: QuizAnswer[];
 }
 
-export interface QuizAnswer {
+interface QuizAnswer {
   word: string;
   userAnswer: string;
   correct: boolean;
@@ -31,7 +31,7 @@ type QuestionType = 'fill-blank' | 'multiple-choice' | 'unscramble';
 
 const PASS_THRESHOLD = 85;
 
-export interface QuizQuestion {
+interface QuizQuestion {
   word: string;
   type: QuestionType;
   prompt: string;
