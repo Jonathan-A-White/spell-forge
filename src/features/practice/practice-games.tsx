@@ -5,17 +5,19 @@ import type { Word, WordList, SessionLog, Profile, ActivityType, CoinBalance } f
 import { WordSearch, type WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
 import { WordRelayRace, type RelayRaceResults, type RelayRaceSavedState } from './word-relay-race';
+import { SpellCatcher, type SpellCatcherResults, type SpellCatcherSavedState } from './spell-catcher';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 import { statsRepo } from '../../data/repositories/stats-repo';
 
-type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'relay-race';
+type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'relay-race' | 'spell-catcher';
 
 interface GameSavedState {
   mode: GameMode;
   difficulty: WordSearchDifficulty;
   wordSearch?: WordSearchSavedState;
   relayRace?: RelayRaceSavedState;
+  spellCatcher?: SpellCatcherSavedState;
 }
 
 interface PracticeGamesProps {
@@ -53,6 +55,7 @@ export function PracticeGames({
   const [pendingGameMode, setPendingGameMode] = useState<GameMode | null>(null);
   const [wordSearchSaved, setWordSearchSaved] = useState<WordSearchSavedState | undefined>();
   const [relayRaceSaved, setRelayRaceSaved] = useState<RelayRaceSavedState | undefined>();
+  const [spellCatcherSaved, setSpellCatcherSaved] = useState<SpellCatcherSavedState | undefined>();
   const loading = false;
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
   const [coinGateVisible, setCoinGateVisible] = useState(false);
@@ -111,6 +114,7 @@ export function PracticeGames({
     async function checkSavedForGame() {
       const activityType: ActivityType =
         targetMode === 'word-search-difficulty' ? 'word-search'
+        : targetMode === 'spell-catcher' ? 'spell-catcher'
         : 'relay-race';
       const saved = await activityProgressRepo.get(profile.id, activityType);
 
@@ -120,7 +124,8 @@ export function PracticeGames({
         const state = saved.state as unknown as GameSavedState;
         const hasValidProgress =
           (activityType === 'word-search' && state.mode === 'word-search' && state.wordSearch) ||
-          (activityType === 'relay-race' && state.mode === 'relay-race' && state.relayRace && state.relayRace.currentIndex < state.relayRace.words.length);
+          (activityType === 'relay-race' && state.mode === 'relay-race' && state.relayRace && state.relayRace.currentIndex < state.relayRace.words.length) ||
+          (activityType === 'spell-catcher' && state.mode === 'spell-catcher' && state.spellCatcher && state.spellCatcher.currentWordIndex < state.spellCatcher.words.length);
 
         if (hasValidProgress) {
           setResumePrompt(state);
@@ -143,6 +148,7 @@ export function PracticeGames({
     setWordSearchDifficulty(resumePrompt.difficulty);
     if (resumePrompt.wordSearch) setWordSearchSaved(resumePrompt.wordSearch);
     if (resumePrompt.relayRace) setRelayRaceSaved(resumePrompt.relayRace);
+    if (resumePrompt.spellCatcher) setSpellCatcherSaved(resumePrompt.spellCatcher);
     setResumePrompt(null);
     setPendingGameMode(null);
   }, [resumePrompt]);
@@ -150,6 +156,7 @@ export function PracticeGames({
   const handleResetSaved = useCallback(() => {
     const activityType: ActivityType =
       pendingGameMode === 'word-search-difficulty' ? 'word-search'
+      : pendingGameMode === 'spell-catcher' ? 'spell-catcher'
       : 'relay-race';
     activityProgressRepo.clear(profile.id, activityType);
     setResumePrompt(null);
@@ -236,6 +243,39 @@ export function PracticeGames({
     [profile.id, onSessionEnd],
   );
 
+  const handleSpellCatcherProgress = useCallback(
+    (scState: SpellCatcherSavedState) => {
+      saveGameState('spell-catcher', 'spell-catcher', { spellCatcher: scState });
+    },
+    [saveGameState],
+  );
+
+  const handleSpellCatcherComplete = useCallback(
+    (results: SpellCatcherResults) => {
+      const percentage = Math.round((results.wordsCompleted / results.totalWords) * 100);
+      setGameResult({
+        correct: results.wordsCompleted,
+        total: results.totalWords,
+        percentage,
+      });
+
+      const log: SessionLog = {
+        id: crypto.randomUUID?.() ?? `sc-${Date.now()}`,
+        profileId: profile.id,
+        startedAt: new Date(),
+        endedAt: new Date(),
+        wordsAttempted: results.totalWords,
+        wordsCorrect: results.wordsCompleted,
+        engagementScore: results.wordsCompleted / Math.max(results.totalWords, 1),
+        endReason: 'completed',
+        rewardEarned: null,
+      };
+      onSessionEnd(log);
+      activityProgressRepo.clear(profile.id, 'spell-catcher');
+    },
+    [profile.id, onSessionEnd],
+  );
+
   const handleRelayRaceComplete = useCallback(
     (results: RelayRaceResults) => {
       const percentage = Math.round((results.wordsCorrect / results.totalWords) * 100);
@@ -292,12 +332,15 @@ export function PracticeGames({
   // Resume prompt
   if (resumePrompt) {
     const gameLabel = resumePrompt.mode === 'word-search' ? 'Word Search'
+      : resumePrompt.mode === 'spell-catcher' ? 'Spell Catcher'
       : 'Word Relay Race';
     const progressDetail = resumePrompt.mode === 'word-search' && resumePrompt.wordSearch
       ? `${resumePrompt.wordSearch.foundWords.length} of ${resumePrompt.wordSearch.placed.length} words found`
       : resumePrompt.mode === 'relay-race' && resumePrompt.relayRace
         ? `${resumePrompt.relayRace.currentIndex} of ${resumePrompt.relayRace.words.length} words completed`
-        : '';
+        : resumePrompt.mode === 'spell-catcher' && resumePrompt.spellCatcher
+          ? `${resumePrompt.spellCatcher.currentWordIndex} of ${resumePrompt.spellCatcher.words.length} words caught`
+          : '';
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
@@ -445,6 +488,14 @@ export function PracticeGames({
               iconColor="text-emerald-500"
               onClick={() => handleStartGame('relay-race')}
             />
+            <GameCard
+              title="Spell Catcher"
+              description="Catch falling letters in the right order to spell each word"
+              icon={<SpellCatcherIcon />}
+              accent="from-purple-500/20 to-violet-500/10"
+              iconColor="text-purple-500"
+              onClick={() => handleStartGame('spell-catcher')}
+            />
           </div>
         </div>
       </div>
@@ -520,6 +571,7 @@ export function PracticeGames({
               setGameResult(null);
               setWordSearchSaved(undefined);
               setRelayRaceSaved(undefined);
+              setSpellCatcherSaved(undefined);
               setMode('select');
             }}
             className="text-sf-muted hover:text-sf-secondary font-medium"
@@ -550,6 +602,17 @@ export function PracticeGames({
           />
         )}
 
+        {mode === 'spell-catcher' && !gameResult && (
+          <SpellCatcher
+            words={wordTexts}
+            onComplete={handleSpellCatcherComplete}
+            onSpeak={onSpeak}
+            tapTargetSize={profile.settings.tapTargetSize}
+            savedState={spellCatcherSaved}
+            onProgress={handleSpellCatcherProgress}
+          />
+        )}
+
         {gameResult && (
           <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
             <h2 className="text-2xl font-bold text-sf-heading">Game Complete!</h2>
@@ -576,6 +639,7 @@ export function PracticeGames({
                   setGameResult(null);
                   setWordSearchSaved(undefined);
                   setRelayRaceSaved(undefined);
+                  setSpellCatcherSaved(undefined);
                   setMode('select');
                 }}
                 className="flex-1 bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-3 px-6 rounded-xl transition-colors"
@@ -689,6 +753,18 @@ function RelayRaceIcon() {
       <path d="M8 14l4 7" strokeLinecap="round" />
       <path d="M18 4l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
       <line x1="14" y1="6" x2="20" y2="6" />
+    </svg>
+  );
+}
+
+function SpellCatcherIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
+      <path d="M12 2v4M8 4v3M16 4v3" strokeLinecap="round" />
+      <path d="M5 18h14a2 2 0 002-2v-2a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2z" />
+      <path d="M8 22v-4M16 22v-4" strokeLinecap="round" />
+      <circle cx="9" cy="9" r="1" fill="currentColor" />
+      <circle cx="15" cy="7" r="1" fill="currentColor" />
     </svg>
   );
 }
