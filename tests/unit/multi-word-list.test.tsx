@@ -54,6 +54,8 @@ function makeStat(wordId: string, bucket: WordStats['currentBucket']): WordStats
 }
 
 const defaultProps = {
+  profileId: 'profile-1',
+  themeId: 'dragon-forge',
   streakData: null,
   allStats: [] as WordStats[],
   learningProgress: [] as WordLearningProgress[],
