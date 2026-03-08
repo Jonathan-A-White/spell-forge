@@ -14,7 +14,7 @@ interface HomeScreenProps {
   learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share' | 'monster-stable') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -150,17 +150,23 @@ export function HomeScreen({
                 </>
               )}
               {collectionCount > 0 && (
-                <div className="mt-2 pt-2 border-t border-sf-border/30 flex items-center justify-between text-xs">
+                <button
+                  onClick={() => onNavigate('monster-stable')}
+                  className="mt-2 pt-2 border-t border-sf-border/30 flex items-center justify-between text-xs w-full hover:opacity-80 transition-opacity"
+                >
                   <span className="text-sf-muted">Monster Stable</span>
-                  <span className="font-medium text-sf-heading">{collectionCount} creature{collectionCount !== 1 ? 's' : ''}</span>
-                </div>
+                  <span className="font-medium text-sf-heading">{collectionCount} creature{collectionCount !== 1 ? 's' : ''} →</span>
+                </button>
               )}
             </div>
           )}
 
           {/* Monster Stable - completed creatures */}
           {collection.length > 0 && (
-            <div className="mt-3 max-w-xs mx-auto">
+            <button
+              onClick={() => onNavigate('monster-stable')}
+              className="mt-3 max-w-xs mx-auto block w-full hover:opacity-90 transition-opacity"
+            >
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {collection.slice(-5).map((creature) => (
                   <div
@@ -173,7 +179,7 @@ export function HomeScreen({
                   </div>
                 ))}
               </div>
-            </div>
+            </button>
           )}
         </div>
       </div>

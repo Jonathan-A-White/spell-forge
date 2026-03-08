@@ -38,14 +38,15 @@ import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
 import { AudioManagerImpl, TtsProvider, DictionaryProvider } from './audio';
 import { createOcrManager } from './ocr';
-import { rewardTracker } from './features/rewards';
+import { rewardTracker, monsterCollection } from './features/rewards';
+import { MonsterStable } from './features/rewards/monster-stable';
 import { themeEngine } from './themes';
 import { exportProfile, importProfile } from './data/import-export';
 import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'settings' | 'feedback' | 'share';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'word-lists' | 'settings' | 'feedback' | 'share' | 'monster-stable';
 
 const eventBus = createEventBus();
 
@@ -668,6 +669,16 @@ function App() {
           onArchiveList={handleArchiveList}
           onUnarchiveList={handleUnarchiveList}
           onImportFromCamera={() => { setEditingList(null); setView('list-editor'); }}
+          onBack={() => setView('home')}
+        />
+      );
+
+    case 'monster-stable':
+      if (!activeProfile) return null;
+      return (
+        <MonsterStable
+          profile={activeProfile}
+          collection={monsterCollection.getCollection(activeProfile.id)}
           onBack={() => setView('home')}
         />
       );
