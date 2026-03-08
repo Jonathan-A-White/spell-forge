@@ -186,9 +186,6 @@ export function ThemedHero({ profileId, themeId }: ThemedHeroProps) {
             <span className="text-xs font-semibold text-sf-primary uppercase tracking-wide">
               {theme.name}
             </span>
-            <span className="text-xs text-sf-muted">
-              {theme.rewardMechanic.unitName}
-            </span>
           </div>
 
           <p className="text-sm text-sf-heading font-medium truncate" data-testid="theme-message">
