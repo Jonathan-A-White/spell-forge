@@ -267,28 +267,25 @@ describe('recognizeWithOrientationDetection', () => {
   });
 
   it('uses confidence as tiebreaker when word counts are equal', async () => {
-    // Use only 2 words per orientation so neither hits the early-exit
-    // threshold (MIN_WORDS_FOR_EARLY_EXIT = 3), forcing all rotations
-    // to be tried and the tiebreaker logic to apply.
     const fakeWorker: OcrWorker = {
       recognize: async (_image, opts) => {
         const angle = (opts?.rotateRadians as number) ?? 0;
         if (angle === 0) {
-          return { data: { text: 'apple banana', confidence: 60 } };
+          return { data: { text: 'apple banana cherry', confidence: 60 } };
         }
         if (Math.abs(angle - Math.PI) < 0.01) {
           // Same word count but higher confidence
-          return { data: { text: 'edge badge', confidence: 70 } };
+          return { data: { text: 'edge badge judge', confidence: 80 } };
         }
-        return { data: { text: 'xxx yyy', confidence: 40 } };
+        return { data: { text: 'xxx yyy zzz', confidence: 40 } };
       },
     };
 
     const result = await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
 
-    // Both 0° and 180° produce 2 words, but 180° has higher confidence
-    expect(result.text).toBe('edge badge');
-    expect(result.confidence).toBeCloseTo(0.70);
+    // Both 0° and 180° produce 3 words, but 180° has higher confidence
+    expect(result.text).toBe('edge badge judge');
+    expect(result.confidence).toBeCloseTo(0.80);
   });
 });
 

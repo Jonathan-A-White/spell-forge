@@ -4,9 +4,6 @@ import type { OcrProvider, OcrResult } from '../contracts/types.ts';
 import { cleanWords, normalizeWhitespace } from './utils.ts';
 import { correctOcrWords } from './spell-check.ts';
 
-/** Maximum time (ms) to wait for the remote OCR server to respond. */
-const REMOTE_TIMEOUT_MS = 30_000;
-
 export class RemoteOcrProvider implements OcrProvider {
   private endpoint: string | null;
 
@@ -37,7 +34,6 @@ export class RemoteOcrProvider implements OcrProvider {
     const response = await fetch(this.endpoint, {
       method: 'POST',
       body: formData,
-      signal: AbortSignal.timeout(REMOTE_TIMEOUT_MS),
     });
 
     if (!response.ok) {
