@@ -107,7 +107,7 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
         >
           Cancel
         </button>
-        <h1 className="text-xl font-bold text-sf-heading">Import from Photo</h1>
+        <h1 className="text-xl font-bold text-sf-heading">Import from Camera</h1>
         <div className="w-14" /> {/* spacer for centering */}
       </div>
 
@@ -115,7 +115,7 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
         <div className="text-center py-12 space-y-6">
           <div className="text-5xl mb-4">📸</div>
           <p className="text-sf-heading font-bold text-lg">
-            Take a photo or choose an image
+            Take a photo of a word list
           </p>
           <p className="text-sf-muted text-sm">
             Snap a picture of a spelling word list and we'll extract the words automatically.
@@ -126,7 +126,7 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
               onClick={() => fileInputRef.current?.click()}
               className="bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-8 rounded-xl transition-colors shadow-md"
             >
-              Choose Photo
+              Take Photo
             </button>
           </div>
 
@@ -134,6 +134,7 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             onChange={handleInputChange}
             className="hidden"
             data-testid="camera-file-input"
