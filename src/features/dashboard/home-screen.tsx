@@ -1,10 +1,10 @@
-// src/features/dashboard/home-screen.tsx — Main hub screen with navigation cards
+// src/features/dashboard/home-screen.tsx — Main hub screen with compact single-screen layout
 
 import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 import { countMasteredWords } from '../../core/mastery';
-import { rewardTracker, monsterCollection } from '../rewards';
-import { themeEngine } from '../../themes';
+import { ThemedHero } from './themed-hero';
+import { monsterCollection } from '../rewards';
 
 interface HomeScreenProps {
   profile: Profile;
@@ -14,7 +14,7 @@ interface HomeScreenProps {
   learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'feedback' | 'share' | 'monster-stable') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -34,29 +34,23 @@ export function HomeScreen({
   const mastered = countMasteredWords(allWords, allStats, learningProgress);
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
   const streak = streakData?.currentStreak ?? 0;
-  const newWordsCount = allWords.length - mastered;
   const wordsDue = getWordsDueCount(allStats);
   const coins = coinBalance?.coins ?? 0;
   const allMastered = canPlayFree(allWords.length, mastered);
   const masteryPercent = allWords.length > 0 ? Math.round((mastered / allWords.length) * 100) : 0;
 
-  // Theme milestone status (wires up rewardTracker.getMilestoneStatus + themeEngine.getMilestoneStatus)
-  const milestone = rewardTracker.getMilestoneStatus(profile.id, profile.themeId);
-  const themeName = themeEngine.getTheme(profile.themeId).name;
-  const collectionCount = monsterCollection.getCollectionCount(profile.id);
-  const collection = monsterCollection.getCollection(profile.id);
-
   return (
     <div className="min-h-screen bg-sf-bg">
-      {/* Hero header with gradient overlay */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-sf-surface via-sf-surface to-sf-surface-hover px-4 pt-8 pb-6">
+      {/* Hero header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-sf-surface via-sf-surface to-sf-surface-hover px-4 pt-3 pb-3">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-sf-primary blur-3xl" />
           <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-sf-track-fill blur-3xl" />
         </div>
 
         <div className="relative max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-6">
+          {/* Top bar: Switch + Settings */}
+          <div className="flex items-center justify-between mb-2">
             <button
               onClick={onSwitchProfile}
               className="flex items-center gap-1.5 text-sf-muted hover:text-sf-secondary text-sm transition-colors"
@@ -73,125 +67,61 @@ export function HomeScreen({
             </button>
           </div>
 
-          <div className="text-center mb-2">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-sf-primary to-sf-primary-hover text-sf-primary-text text-2xl font-bold mb-3 shadow-lg">
+          {/* Avatar + Name */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-shrink-0 w-11 h-11 rounded-2xl bg-gradient-to-br from-sf-primary to-sf-primary-hover text-sf-primary-text text-lg font-bold flex items-center justify-center shadow-lg">
               {profile.name.charAt(0).toUpperCase()}
             </div>
-            <h1 className="text-2xl font-bold text-sf-heading">
+            <h1 className="text-xl font-bold text-sf-heading">
               Hey, {profile.name}!
             </h1>
-            <p className="text-sf-muted text-sm mt-1">
-              {getGreeting()}
-            </p>
           </div>
 
-          {/* Stat circles row — inspired by BMA Tutor layout */}
+          {/* Compact stats row — mastery, due, streak, coins */}
           {allWords.length > 0 && (
-            <div className="flex justify-center gap-4 mt-5">
-              <StatCircle
-                value={`${masteryPercent}%`}
-                label="Mastery"
-                color="from-purple-500 to-violet-600"
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
                 onClick={() => onNavigate('progress')}
-              />
-              <StatCircle
-                value={newWordsCount}
-                label="New Words"
-                color="from-green-400 to-emerald-500"
-                onClick={() => onNavigate('learning')}
-              />
-              <StatCircle
-                value={wordsDue}
-                label="Words Due"
-                color="from-cyan-400 to-blue-500"
-                onClick={() => onNavigate('practice')}
-              />
-            </div>
-          )}
-
-          {/* Coins and streak bar */}
-          <div className="flex justify-center gap-4 mt-3">
-            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
-              <CoinIcon />
-              <span className="text-sm font-bold text-yellow-400">{coins}</span>
-              <span className="text-xs text-sf-muted">Coins</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
-              <span className="text-sm">🔥</span>
-              <span className="text-sm font-bold text-sf-heading">{streak}</span>
-              <span className="text-xs text-sf-muted">Streak</span>
-            </div>
-            {allMastered && allWords.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-sf-surface/60 backdrop-blur-sm rounded-full px-3 py-1.5">
-                <span className="text-sm">✨</span>
-                <span className="text-xs font-medium text-green-400">All Mastered!</span>
-              </div>
-            )}
-          </div>
-
-          {/* Theme milestone progress */}
-          {allWords.length > 0 && (
-            <div className="mt-3 bg-sf-surface/60 backdrop-blur-sm rounded-xl px-4 py-2.5 max-w-xs mx-auto">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="text-sf-muted">{themeName}</span>
-                <span className="font-medium text-sf-heading">{milestone.current}</span>
-              </div>
-              {milestone.next && (
-                <>
-                  <div className="w-full bg-sf-track rounded-full h-1.5">
-                    <div
-                      className="bg-sf-primary h-1.5 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.max(5, Math.round(((themeEngine.UNITS_PER_MILESTONE - milestone.progressToNext) / themeEngine.UNITS_PER_MILESTONE) * 100))}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-sf-faint mt-1 text-center">
-                    {milestone.progressToNext} more to reach {milestone.next}
-                  </p>
-                </>
-              )}
-              {collectionCount > 0 && (
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                  allMastered
+                    ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                    : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
+                }`}
+              >
+                {allMastered && <span className="text-xs">&#10003;</span>}
+                <span>{masteryPercent}%</span>
+                <span className="text-xs opacity-70">Mastery</span>
+              </button>
+              {wordsDue > 0 && (
                 <button
-                  onClick={() => onNavigate('monster-stable')}
-                  className="mt-2 pt-2 border-t border-sf-border/30 flex items-center justify-between text-xs w-full hover:opacity-80 transition-opacity"
+                  onClick={() => onNavigate('practice')}
+                  className="flex items-center gap-1.5 bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
                 >
-                  <span className="text-sf-muted">Monster Stable</span>
-                  <span className="font-medium text-sf-heading">{collectionCount} creature{collectionCount !== 1 ? 's' : ''} →</span>
+                  <span>{wordsDue}</span>
+                  <span className="text-xs opacity-70">Due</span>
                 </button>
               )}
-            </div>
-          )}
-
-          {/* Monster Stable - completed creatures */}
-          {collection.length > 0 && (
-            <button
-              onClick={() => onNavigate('monster-stable')}
-              className="mt-3 max-w-xs mx-auto block w-full hover:opacity-90 transition-opacity"
-            >
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {collection.slice(-5).map((creature) => (
-                  <div
-                    key={creature.id}
-                    className="flex-shrink-0 bg-sf-surface/60 backdrop-blur-sm rounded-lg px-3 py-2 text-center min-w-[80px]"
-                    title={`Completed ${creature.completedAt.toLocaleDateString()}`}
-                  >
-                    <div className="text-lg mb-0.5">🧪</div>
-                    <p className="text-[10px] font-medium text-sf-heading truncate max-w-[70px]">{creature.name}</p>
-                  </div>
-                ))}
+              <div className="flex items-center gap-1.5 bg-sf-surface/60 rounded-full px-3 py-1.5 text-sm">
+                <span>🔥</span>
+                <span className="font-medium text-sf-heading">{streak}</span>
               </div>
-            </button>
+              <div className="flex items-center gap-1.5 bg-sf-surface/60 rounded-full px-3 py-1.5 text-sm">
+                <CoinIcon />
+                <span className="font-bold text-yellow-400">{coins}</span>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Navigation cards */}
-      <div className="max-w-lg mx-auto px-4 -mt-2 pb-6">
-        <div className="space-y-3 mt-6">
-          {/* Start Practice - Hero card */}
+      {/* Main actions */}
+      <div className="max-w-lg mx-auto px-4 pb-6">
+        <div className="space-y-3 mt-3">
+          {/* Start Practice — hero card */}
           {allWords.length > 0 && (
             <button
               onClick={() => mastered > 0 ? onNavigate('practice') : onNavigate('learning')}
-              className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-sf-primary to-sf-primary-hover p-5 text-left shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+              className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-sf-primary to-sf-primary-hover p-4 text-left shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
             >
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/20 -translate-y-1/2 translate-x-1/4" />
@@ -201,7 +131,7 @@ export function HomeScreen({
                   <p className="text-sf-primary-text font-bold text-lg">
                     {mastered > 0 ? 'Start Practice' : 'Start Learning'}
                   </p>
-                  <p className="text-sf-primary-text/70 text-sm mt-0.5">
+                  <p className="text-sf-primary-text/70 text-sm">
                     {mastered > 0
                       ? `${mastered} word${mastered !== 1 ? 's' : ''} ready to practice`
                       : `${allWords.length} word${allWords.length !== 1 ? 's' : ''} to learn`
@@ -215,8 +145,27 @@ export function HomeScreen({
             </button>
           )}
 
-          {/* Grid of feature cards */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Theme milestone progress */}
+          <ThemedHero profileId={profile.id} themeId={profile.themeId} />
+
+          {/* Monster Stable link */}
+          {monsterCollection.getCollectionCount(profile.id) > 0 && (
+            <button
+              onClick={() => onNavigate('monster-stable')}
+              className="w-full flex items-center justify-between rounded-lg bg-sf-surface/60 border border-sf-border/50 px-3 py-2 hover:border-sf-border-strong transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{'\u{1F9EA}'}</span>
+                <span className="text-xs font-medium text-sf-heading">Monster Stable</span>
+              </div>
+              <span className="text-xs text-sf-muted">
+                {monsterCollection.getCollectionCount(profile.id)} creature{monsterCollection.getCollectionCount(profile.id) !== 1 ? 's' : ''} →
+              </span>
+            </button>
+          )}
+
+          {/* 2x2 navigation grid */}
+          <div className="grid grid-cols-2 gap-2">
             <NavCard
               title="Progress"
               subtitle={`${mastered}/${allWords.length} mastered`}
@@ -227,7 +176,7 @@ export function HomeScreen({
             />
             <NavCard
               title="Learn"
-              subtitle="New words"
+              subtitle={`${allWords.length - mastered} new word${allWords.length - mastered !== 1 ? 's' : ''}`}
               icon={<LearnIcon />}
               onClick={() => onNavigate('learning')}
               accent="from-teal-500/20 to-cyan-500/10"
@@ -242,38 +191,36 @@ export function HomeScreen({
               iconColor="text-pink-500"
             />
             <NavCard
-              title="Word Lists"
-              subtitle={`${activeLists.length} active list${activeLists.length !== 1 ? 's' : ''}`}
-              icon={<ListIcon />}
-              onClick={() => onNavigate('word-lists')}
-              accent="from-blue-500/20 to-cyan-500/10"
-              iconColor="text-blue-500"
-            />
-            <NavCard
-              title="Add Words"
-              subtitle="Create a new list"
-              icon={<PlusIcon />}
-              onClick={() => onNavigate('list-editor')}
-              accent="from-purple-500/20 to-violet-500/10"
-              iconColor="text-purple-500"
-            />
-            <NavCard
-              title="Settings"
-              subtitle={capitalize(profile.settings.contrastMode) + ' mode'}
-              icon={<SettingsIcon />}
-              onClick={() => onNavigate('settings')}
+              title="Quiz"
+              subtitle="Test yourself"
+              icon={<QuizNavIcon />}
+              onClick={() => onNavigate('quiz')}
               accent="from-orange-500/20 to-amber-500/10"
               iconColor="text-orange-500"
             />
-            <NavCard
-              title="Share"
-              subtitle="Invite others"
-              icon={<ShareNavIcon />}
-              onClick={() => onNavigate('share')}
-              accent="from-indigo-500/20 to-blue-500/10"
-              iconColor="text-indigo-500"
-            />
           </div>
+
+          {/* My Words — combined word lists + add words */}
+          <button
+            onClick={() => onNavigate('word-lists')}
+            className="group w-full relative overflow-hidden rounded-xl bg-sf-surface border border-sf-border p-3 text-left hover:border-sf-border-strong hover:shadow-md transition-all active:scale-[0.97]"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-violet-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="text-blue-500"><ListIcon /></div>
+                <div>
+                  <p className="font-bold text-sf-heading text-sm">My Words</p>
+                  <p className="text-sf-muted text-xs">{activeLists.length} active list{activeLists.length !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              <div className="text-sf-muted group-hover:text-sf-secondary transition-colors">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </div>
+            </div>
+          </button>
 
           {/* Empty state for new users */}
           {allWords.length === 0 && (
@@ -281,46 +228,14 @@ export function HomeScreen({
               onClick={() => onNavigate('list-editor')}
               className="w-full rounded-2xl border-2 border-dashed border-sf-border-strong bg-sf-surface p-8 text-center hover:bg-sf-surface-hover hover:border-sf-primary transition-all active:scale-[0.98]"
             >
-              <div className="text-4xl mb-3">✨</div>
+              <div className="text-4xl mb-3">&#10024;</div>
               <p className="text-sf-heading font-bold text-lg">Get Started!</p>
               <p className="text-sf-muted text-sm mt-1">Add your first spelling words</p>
             </button>
           )}
-
-          {/* Feedback link */}
-          <button
-            onClick={() => onNavigate('feedback')}
-            className="w-full text-center text-sf-muted hover:text-sf-secondary text-sm py-3 transition-colors"
-          >
-            Send Feedback
-          </button>
         </div>
       </div>
     </div>
-  );
-}
-
-function StatCircle({
-  value,
-  label,
-  color,
-  onClick,
-}: {
-  value: string | number;
-  label: string;
-  color: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-1 group"
-    >
-      <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${color} flex flex-col items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
-        <span className="text-white font-bold text-lg leading-tight">{value}</span>
-      </div>
-      <span className="text-xs text-sf-muted font-medium">{label}</span>
-    </button>
   );
 }
 
@@ -347,7 +262,7 @@ function NavCard({ title, subtitle, icon, onClick, accent, iconColor }: NavCardP
   return (
     <button
       onClick={onClick}
-      className="group relative overflow-hidden rounded-xl bg-sf-surface border border-sf-border p-4 text-left hover:border-sf-border-strong hover:shadow-md transition-all active:scale-[0.97]"
+      className="group relative overflow-hidden rounded-xl bg-sf-surface border border-sf-border p-3 text-left hover:border-sf-border-strong hover:shadow-md transition-all active:scale-[0.97]"
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-0 group-hover:opacity-100 transition-opacity`} />
       <div className="relative">
@@ -359,22 +274,11 @@ function NavCard({ title, subtitle, icon, onClick, accent, iconColor }: NavCardP
   );
 }
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Ready for some morning practice?';
-  if (hour < 17) return 'Good afternoon! Time to practice?';
-  return 'Evening practice session?';
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' ');
-}
-
 // ─── SVG Icons ───────────────────────────────────────────────
 
 function LearnIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
     </svg>
@@ -403,7 +307,7 @@ function SettingsIcon() {
 
 function ChartIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <path d="M18 20V10" />
       <path d="M12 20V4" />
       <path d="M6 20v-6" />
@@ -413,7 +317,7 @@ function ChartIcon() {
 
 function ListIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <line x1="8" y1="6" x2="21" y2="6" />
       <line x1="8" y1="12" x2="21" y2="12" />
       <line x1="8" y1="18" x2="21" y2="18" />
@@ -424,18 +328,9 @@ function ListIcon() {
   );
 }
 
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
 function GamesIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <rect x="2" y="2" width="9" height="9" rx="1" />
       <rect x="13" y="2" width="9" height="9" rx="1" />
       <rect x="2" y="13" width="9" height="9" rx="1" />
@@ -444,14 +339,11 @@ function GamesIcon() {
   );
 }
 
-function ShareNavIcon() {
+function QuizNavIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   );
 }

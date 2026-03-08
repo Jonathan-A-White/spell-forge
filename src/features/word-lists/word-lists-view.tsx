@@ -1,13 +1,15 @@
 // src/features/word-lists/word-lists-view.tsx — Per-profile word list overview
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { WordList, Word, WordStats } from '../../contracts/types';
+import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
 
 interface WordListsViewProps {
   wordLists: WordList[];
   allWords: Word[];
   allStats: WordStats[];
+  learningProgress: WordLearningProgress[];
   onAddList: () => void;
+  onViewList?: (list: WordList) => void;
   onEditList: (list: WordList) => void;
   onDeleteList: (listId: string) => void;
   onArchiveList?: (listId: string) => void;
@@ -20,7 +22,9 @@ export function WordListsView({
   wordLists,
   allWords,
   allStats,
+  learningProgress,
   onAddList,
+  onViewList,
   onEditList,
   onDeleteList,
   onArchiveList,
@@ -29,6 +33,7 @@ export function WordListsView({
   onBack,
 }: WordListsViewProps) {
   const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
+  const learningMap = new Map(learningProgress.map((lp) => [lp.wordId, lp]));
   const activeLists = wordLists.filter((l) => !l.archived);
   const archivedLists = wordLists.filter((l) => l.archived);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -111,15 +116,18 @@ export function WordListsView({
               {activeLists.map((list) => {
                 const words = allWords.filter((w) => w.listId === list.id);
                 const mastered = words.filter((w) => {
-                  const s = statsMap.get(w.id);
-                  return s && (s.currentBucket === 'mastered' || s.currentBucket === 'review');
+                  return getWordCategory(w.id, statsMap, learningMap) === 'mastered';
                 }).length;
                 const pct = words.length > 0 ? Math.round((mastered / words.length) * 100) : 0;
 
                 return (
                   <div
                     key={list.id}
-                    className="bg-sf-surface rounded-xl border border-sf-border p-4 hover:border-sf-border-strong transition-all"
+                    className="bg-sf-surface rounded-xl border border-sf-border p-4 hover:border-sf-border-strong transition-all cursor-pointer"
+                    onClick={() => onViewList?.(list)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onViewList?.(list); }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="min-w-0 flex-1">
@@ -131,7 +139,7 @@ export function WordListsView({
                           )}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                           pct >= 90 ? 'bg-green-500/20 text-green-700' :
                           pct >= 50 ? 'bg-yellow-500/20 text-yellow-700' :
@@ -189,8 +197,7 @@ export function WordListsView({
                     {words.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {words.slice(0, 8).map((w) => {
-                          const stat = statsMap.get(w.id);
-                          const bucket = stat?.currentBucket ?? 'new';
+                          const bucket = getWordCategory(w.id, statsMap, learningMap);
                           return (
                             <span
                               key={w.id}
@@ -305,6 +312,31 @@ export function WordListsView({
       )}
     </div>
   );
+}
+
+type HealthCategory = 'mastered' | 'familiar' | 'learning' | 'new';
+
+function getWordCategory(
+  wordId: string,
+  statsMap: Map<string, WordStats>,
+  learningMap: Map<string, WordLearningProgress>,
+): HealthCategory {
+  const stat = statsMap.get(wordId);
+  const lp = learningMap.get(wordId);
+
+  if (stat && stat.timesAsked > 0) {
+    if (stat.currentBucket === 'mastered' || stat.currentBucket === 'review') return 'mastered';
+    if (stat.currentBucket === 'familiar') return 'familiar';
+    if (stat.currentBucket === 'learning') return 'learning';
+  }
+
+  if (lp) {
+    if (lp.mastered) return 'mastered';
+    if (lp.stage >= 2) return 'familiar';
+    if (lp.stage >= 1 || lp.totalAttempts > 0) return 'learning';
+  }
+
+  return 'new';
 }
 
 function getBucketStyle(bucket: string): string {

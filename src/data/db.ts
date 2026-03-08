@@ -12,7 +12,7 @@ import type {
   CoinBalance,
 } from '../contracts/types';
 
-export class SpellForgeDB extends Dexie {
+class SpellForgeDB extends Dexie {
   profiles!: Table<Profile, string>;
   wordLists!: Table<WordList, string>;
   words!: Table<Word, string>;

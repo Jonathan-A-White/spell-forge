@@ -11,6 +11,10 @@
   --sf-color-primary: #D97706;
   --sf-color-primary-hover: #B45309;
   --sf-color-primary-text: #FFFFFF;
+  --sf-color-secondary: #EA580C;
+  --sf-color-secondary-hover: #C2410C;
+  --sf-color-accent: #F59E0B;
+  --sf-color-accent-hover: #D97706;
   --sf-color-text: #78350F;
   --sf-color-text-heading: #451A03;
   --sf-color-text-secondary: #92400E;
@@ -34,6 +38,10 @@
   --sf-color-primary: #F59E0B;
   --sf-color-primary-hover: #FBBF24;
   --sf-color-primary-text: #0F172A;
+  --sf-color-secondary: #FB923C;
+  --sf-color-secondary-hover: #F97316;
+  --sf-color-accent: #FBBF24;
+  --sf-color-accent-hover: #F59E0B;
   --sf-color-text: #F1F5F9;
   --sf-color-text-heading: #F8FAFC;
   --sf-color-text-secondary: #CBD5E1;
@@ -57,6 +65,10 @@
   --sf-color-primary: #FFD700;
   --sf-color-primary-hover: #FFE44D;
   --sf-color-primary-text: #000000;
+  --sf-color-secondary: #FFA500;
+  --sf-color-secondary-hover: #CC8400;
+  --sf-color-accent: #FFE44D;
+  --sf-color-accent-hover: #FFD700;
   --sf-color-text: #FFFFFF;
   --sf-color-text-heading: #FFFFFF;
   --sf-color-text-secondary: #E5E5E5;
@@ -74,6 +86,24 @@
 
 /* ─── Tailwind theme extension ──────────────────────────────────── */
 
+/* ─── Accessibility font settings ──────────────────────────────── */
+
+body {
+  font-family: var(--sf-font-family, system-ui, sans-serif);
+  font-size: var(--sf-font-size, 16px);
+  font-weight: var(--sf-font-weight, 400);
+  letter-spacing: var(--sf-letter-spacing, normal);
+  line-height: var(--sf-line-height, 1.5);
+  background-color: var(--sf-background-color, var(--sf-color-bg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @theme {
   --color-sf-bg: var(--sf-color-bg);
   --color-sf-surface: var(--sf-color-surface);
@@ -82,6 +112,10 @@
   --color-sf-primary: var(--sf-color-primary);
   --color-sf-primary-hover: var(--sf-color-primary-hover);
   --color-sf-primary-text: var(--sf-color-primary-text);
+  --color-sf-theme-secondary: var(--sf-color-secondary);
+  --color-sf-theme-secondary-hover: var(--sf-color-secondary-hover);
+  --color-sf-theme-accent: var(--sf-color-accent);
+  --color-sf-theme-accent-hover: var(--sf-color-accent-hover);
   --color-sf-text: var(--sf-color-text);
   --color-sf-heading: var(--sf-color-text-heading);
   --color-sf-secondary: var(--sf-color-text-secondary);

@@ -4,18 +4,24 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Word, WordList, SessionLog, Profile, ActivityType, CoinBalance } from '../../contracts/types';
 import { WordSearch, type WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
-import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
+import { WordRelayRace, type RelayRaceResults, type RelayRaceSavedState } from './word-relay-race';
+import { SpellCatcher, type SpellCatcherResults, type SpellCatcherSavedState } from './spell-catcher';
+import { WordVolcano, type WordVolcanoResults, type WordVolcanoSavedState } from './word-volcano';
+import { LetterInvasion, type LetterInvasionResults, type LetterInvasionSavedState } from './letter-invasion';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 import { statsRepo } from '../../data/repositories/stats-repo';
 
-type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'quiz';
+type GameMode = 'select' | 'word-search-difficulty' | 'word-search' | 'relay-race' | 'spell-catcher' | 'word-volcano' | 'letter-invasion';
 
 interface GameSavedState {
   mode: GameMode;
   difficulty: WordSearchDifficulty;
   wordSearch?: WordSearchSavedState;
-  quiz?: QuizSavedState;
+  relayRace?: RelayRaceSavedState;
+  spellCatcher?: SpellCatcherSavedState;
+  wordVolcano?: WordVolcanoSavedState;
+  letterInvasion?: LetterInvasionSavedState;
 }
 
 interface PracticeGamesProps {
@@ -52,7 +58,10 @@ export function PracticeGames({
   const [resumePrompt, setResumePrompt] = useState<GameSavedState | null>(null);
   const [pendingGameMode, setPendingGameMode] = useState<GameMode | null>(null);
   const [wordSearchSaved, setWordSearchSaved] = useState<WordSearchSavedState | undefined>();
-  const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
+  const [relayRaceSaved, setRelayRaceSaved] = useState<RelayRaceSavedState | undefined>();
+  const [spellCatcherSaved, setSpellCatcherSaved] = useState<SpellCatcherSavedState | undefined>();
+  const [wordVolcanoSaved, setWordVolcanoSaved] = useState<WordVolcanoSavedState | undefined>();
+  const [letterInvasionSaved, setLetterInvasionSaved] = useState<LetterInvasionSavedState | undefined>();
   const loading = false;
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
   const [coinGateVisible, setCoinGateVisible] = useState(false);
@@ -109,7 +118,12 @@ export function PracticeGames({
     let cancelled = false;
 
     async function checkSavedForGame() {
-      const activityType: ActivityType = targetMode === 'word-search-difficulty' ? 'word-search' : 'quiz';
+      const activityType: ActivityType =
+        targetMode === 'word-search-difficulty' ? 'word-search'
+        : targetMode === 'spell-catcher' ? 'spell-catcher'
+        : targetMode === 'word-volcano' ? 'word-volcano'
+        : targetMode === 'letter-invasion' ? 'letter-invasion'
+        : 'relay-race';
       const saved = await activityProgressRepo.get(profile.id, activityType);
 
       if (cancelled) return;
@@ -118,7 +132,10 @@ export function PracticeGames({
         const state = saved.state as unknown as GameSavedState;
         const hasValidProgress =
           (activityType === 'word-search' && state.mode === 'word-search' && state.wordSearch) ||
-          (activityType === 'quiz' && state.mode === 'quiz' && state.quiz && state.quiz.currentIndex < state.quiz.questions.length);
+          (activityType === 'relay-race' && state.mode === 'relay-race' && state.relayRace && state.relayRace.currentIndex < state.relayRace.words.length) ||
+          (activityType === 'spell-catcher' && state.mode === 'spell-catcher' && state.spellCatcher && state.spellCatcher.currentWordIndex < state.spellCatcher.words.length) ||
+          (activityType === 'word-volcano' && state.mode === 'word-volcano' && state.wordVolcano && state.wordVolcano.currentWordIndex < state.wordVolcano.words.length) ||
+          (activityType === 'letter-invasion' && state.mode === 'letter-invasion' && state.letterInvasion && state.letterInvasion.currentWaveIndex < state.letterInvasion.words.length);
 
         if (hasValidProgress) {
           setResumePrompt(state);
@@ -140,13 +157,21 @@ export function PracticeGames({
     setMode(resumePrompt.mode);
     setWordSearchDifficulty(resumePrompt.difficulty);
     if (resumePrompt.wordSearch) setWordSearchSaved(resumePrompt.wordSearch);
-    if (resumePrompt.quiz) setQuizSaved(resumePrompt.quiz);
+    if (resumePrompt.relayRace) setRelayRaceSaved(resumePrompt.relayRace);
+    if (resumePrompt.spellCatcher) setSpellCatcherSaved(resumePrompt.spellCatcher);
+    if (resumePrompt.wordVolcano) setWordVolcanoSaved(resumePrompt.wordVolcano);
+    if (resumePrompt.letterInvasion) setLetterInvasionSaved(resumePrompt.letterInvasion);
     setResumePrompt(null);
     setPendingGameMode(null);
   }, [resumePrompt]);
 
   const handleResetSaved = useCallback(() => {
-    const activityType: ActivityType = pendingGameMode === 'word-search-difficulty' ? 'word-search' : 'quiz';
+    const activityType: ActivityType =
+      pendingGameMode === 'word-search-difficulty' ? 'word-search'
+      : pendingGameMode === 'spell-catcher' ? 'spell-catcher'
+      : pendingGameMode === 'word-volcano' ? 'word-volcano'
+      : pendingGameMode === 'letter-invasion' ? 'letter-invasion'
+      : 'relay-race';
     activityProgressRepo.clear(profile.id, activityType);
     setResumePrompt(null);
     if (pendingGameMode) {
@@ -202,9 +227,9 @@ export function PracticeGames({
     [saveGameState],
   );
 
-  const handleQuizProgress = useCallback(
-    (qzState: QuizSavedState) => {
-      saveGameState('quiz', 'quiz', { quiz: qzState });
+  const handleRelayRaceProgress = useCallback(
+    (rrState: RelayRaceSavedState) => {
+      saveGameState('relay-race', 'relay-race', { relayRace: rrState });
     },
     [saveGameState],
   );
@@ -232,29 +257,127 @@ export function PracticeGames({
     [profile.id, onSessionEnd],
   );
 
-  const handleQuizComplete = useCallback(
-    (results: QuizResults) => {
+  const handleSpellCatcherProgress = useCallback(
+    (scState: SpellCatcherSavedState) => {
+      saveGameState('spell-catcher', 'spell-catcher', { spellCatcher: scState });
+    },
+    [saveGameState],
+  );
+
+  const handleSpellCatcherComplete = useCallback(
+    (results: SpellCatcherResults) => {
+      const percentage = Math.round((results.wordsCompleted / results.totalWords) * 100);
       setGameResult({
-        correct: results.correctAnswers,
-        total: results.totalQuestions,
-        percentage: results.percentage,
-        passed: results.passed,
+        correct: results.wordsCompleted,
+        total: results.totalWords,
+        percentage,
       });
 
       const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `qz-${Date.now()}`,
+        id: crypto.randomUUID?.() ?? `sc-${Date.now()}`,
         profileId: profile.id,
         startedAt: new Date(),
         endedAt: new Date(),
-        wordsAttempted: results.totalQuestions,
-        wordsCorrect: results.correctAnswers,
-        engagementScore: results.correctAnswers / Math.max(results.totalQuestions, 1),
+        wordsAttempted: results.totalWords,
+        wordsCorrect: results.wordsCompleted,
+        engagementScore: results.wordsCompleted / Math.max(results.totalWords, 1),
         endReason: 'completed',
         rewardEarned: null,
       };
       onSessionEnd(log);
-      // Clear saved progress on completion
-      activityProgressRepo.clear(profile.id, 'quiz');
+      activityProgressRepo.clear(profile.id, 'spell-catcher');
+    },
+    [profile.id, onSessionEnd],
+  );
+
+  const handleWordVolcanoProgress = useCallback(
+    (wvState: WordVolcanoSavedState) => {
+      saveGameState('word-volcano', 'word-volcano', { wordVolcano: wvState });
+    },
+    [saveGameState],
+  );
+
+  const handleWordVolcanoComplete = useCallback(
+    (results: WordVolcanoResults) => {
+      const percentage = Math.round((results.wordsCompleted / results.totalWords) * 100);
+      setGameResult({
+        correct: results.wordsCompleted,
+        total: results.totalWords,
+        percentage,
+      });
+
+      const log: SessionLog = {
+        id: crypto.randomUUID?.() ?? `wv-${Date.now()}`,
+        profileId: profile.id,
+        startedAt: new Date(),
+        endedAt: new Date(),
+        wordsAttempted: results.totalWords,
+        wordsCorrect: results.wordsCompleted,
+        engagementScore: results.wordsCompleted / Math.max(results.totalWords, 1),
+        endReason: 'completed',
+        rewardEarned: null,
+      };
+      onSessionEnd(log);
+      activityProgressRepo.clear(profile.id, 'word-volcano');
+    },
+    [profile.id, onSessionEnd],
+  );
+
+  const handleLetterInvasionProgress = useCallback(
+    (liState: LetterInvasionSavedState) => {
+      saveGameState('letter-invasion', 'letter-invasion', { letterInvasion: liState });
+    },
+    [saveGameState],
+  );
+
+  const handleLetterInvasionComplete = useCallback(
+    (results: LetterInvasionResults) => {
+      const percentage = Math.round((results.wavesCleared / results.totalWords) * 100);
+      setGameResult({
+        correct: results.wavesCleared,
+        total: results.totalWords,
+        percentage,
+      });
+
+      const log: SessionLog = {
+        id: crypto.randomUUID?.() ?? `li-${Date.now()}`,
+        profileId: profile.id,
+        startedAt: new Date(),
+        endedAt: new Date(),
+        wordsAttempted: results.totalWords,
+        wordsCorrect: results.wavesCleared,
+        engagementScore: results.wavesCleared / Math.max(results.totalWords, 1),
+        endReason: 'completed',
+        rewardEarned: null,
+      };
+      onSessionEnd(log);
+      activityProgressRepo.clear(profile.id, 'letter-invasion');
+    },
+    [profile.id, onSessionEnd],
+  );
+
+  const handleRelayRaceComplete = useCallback(
+    (results: RelayRaceResults) => {
+      const percentage = Math.round((results.wordsCorrect / results.totalWords) * 100);
+      setGameResult({
+        correct: results.wordsCorrect,
+        total: results.totalWords,
+        percentage,
+      });
+
+      const log: SessionLog = {
+        id: crypto.randomUUID?.() ?? `rr-${Date.now()}`,
+        profileId: profile.id,
+        startedAt: new Date(Date.now() - results.totalTimeMs),
+        endedAt: new Date(),
+        wordsAttempted: results.totalWords,
+        wordsCorrect: results.wordsCorrect,
+        engagementScore: results.wordsCorrect / Math.max(results.totalWords, 1),
+        endReason: 'completed',
+        rewardEarned: null,
+      };
+      onSessionEnd(log);
+      activityProgressRepo.clear(profile.id, 'relay-race');
     },
     [profile.id, onSessionEnd],
   );
@@ -288,12 +411,22 @@ export function PracticeGames({
 
   // Resume prompt
   if (resumePrompt) {
-    const gameLabel = resumePrompt.mode === 'word-search' ? 'Word Search' : 'Spelling Quiz';
+    const gameLabel = resumePrompt.mode === 'word-search' ? 'Word Search'
+      : resumePrompt.mode === 'spell-catcher' ? 'Spell Catcher'
+      : resumePrompt.mode === 'word-volcano' ? 'Word Volcano'
+      : resumePrompt.mode === 'letter-invasion' ? 'Letter Invasion'
+      : 'Word Relay Race';
     const progressDetail = resumePrompt.mode === 'word-search' && resumePrompt.wordSearch
       ? `${resumePrompt.wordSearch.foundWords.length} of ${resumePrompt.wordSearch.placed.length} words found`
-      : resumePrompt.mode === 'quiz' && resumePrompt.quiz
-        ? `${resumePrompt.quiz.currentIndex} of ${resumePrompt.quiz.questions.length} questions answered`
-        : '';
+      : resumePrompt.mode === 'relay-race' && resumePrompt.relayRace
+        ? `${resumePrompt.relayRace.currentIndex} of ${resumePrompt.relayRace.words.length} words completed`
+        : resumePrompt.mode === 'spell-catcher' && resumePrompt.spellCatcher
+          ? `${resumePrompt.spellCatcher.currentWordIndex} of ${resumePrompt.spellCatcher.words.length} words caught`
+          : resumePrompt.mode === 'word-volcano' && resumePrompt.wordVolcano
+            ? `${resumePrompt.wordVolcano.currentWordIndex} of ${resumePrompt.wordVolcano.words.length} words built`
+            : resumePrompt.mode === 'letter-invasion' && resumePrompt.letterInvasion
+              ? `${resumePrompt.letterInvasion.currentWaveIndex} of ${resumePrompt.letterInvasion.words.length} waves cleared`
+              : '';
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
@@ -434,12 +567,36 @@ export function PracticeGames({
               onClick={() => handleStartGame('word-search-difficulty')}
             />
             <GameCard
-              title="Spelling Quiz"
-              description="Test yourself! Score 85% or higher to pass"
-              icon={<QuizIcon />}
-              accent="from-orange-500/20 to-amber-500/10"
+              title="Word Relay Race"
+              description="Race against the clock! Spell words fast to reach the finish"
+              icon={<RelayRaceIcon />}
+              accent="from-emerald-500/20 to-green-500/10"
+              iconColor="text-emerald-500"
+              onClick={() => handleStartGame('relay-race')}
+            />
+            <GameCard
+              title="Spell Catcher"
+              description="Catch falling letters in the right order to spell each word"
+              icon={<SpellCatcherIcon />}
+              accent="from-purple-500/20 to-violet-500/10"
+              iconColor="text-purple-500"
+              onClick={() => handleStartGame('spell-catcher')}
+            />
+            <GameCard
+              title="Word Volcano"
+              description="Build words letter by letter to fill the volcano and trigger an eruption!"
+              icon={<WordVolcanoIcon />}
+              accent="from-orange-500/20 to-red-500/10"
               iconColor="text-orange-500"
-              onClick={() => handleStartGame('quiz')}
+              onClick={() => handleStartGame('word-volcano')}
+            />
+            <GameCard
+              title="Letter Invasion"
+              description="Shoot invading letters in the right order to defend your base!"
+              icon={<LetterInvasionIcon />}
+              accent="from-green-500/20 to-lime-500/10"
+              iconColor="text-green-500"
+              onClick={() => handleStartGame('letter-invasion')}
             />
           </div>
         </div>
@@ -515,7 +672,10 @@ export function PracticeGames({
             onClick={() => {
               setGameResult(null);
               setWordSearchSaved(undefined);
-              setQuizSaved(undefined);
+              setRelayRaceSaved(undefined);
+              setSpellCatcherSaved(undefined);
+              setWordVolcanoSaved(undefined);
+              setLetterInvasionSaved(undefined);
               setMode('select');
             }}
             className="text-sf-muted hover:text-sf-secondary font-medium"
@@ -535,18 +695,51 @@ export function PracticeGames({
           />
         )}
 
-        {mode === 'quiz' && !gameResult && (
-          <SpellingQuiz
+        {mode === 'relay-race' && !gameResult && (
+          <WordRelayRace
             words={wordTexts}
-            onComplete={handleQuizComplete}
+            onComplete={handleRelayRaceComplete}
             onSpeak={onSpeak}
             tapTargetSize={profile.settings.tapTargetSize}
-            savedState={quizSaved}
-            onProgress={handleQuizProgress}
+            savedState={relayRaceSaved}
+            onProgress={handleRelayRaceProgress}
           />
         )}
 
-        {gameResult && mode !== 'quiz' && (
+        {mode === 'spell-catcher' && !gameResult && (
+          <SpellCatcher
+            words={wordTexts}
+            onComplete={handleSpellCatcherComplete}
+            onSpeak={onSpeak}
+            tapTargetSize={profile.settings.tapTargetSize}
+            savedState={spellCatcherSaved}
+            onProgress={handleSpellCatcherProgress}
+          />
+        )}
+
+        {mode === 'word-volcano' && !gameResult && (
+          <WordVolcano
+            words={wordTexts}
+            onComplete={handleWordVolcanoComplete}
+            onSpeak={onSpeak}
+            tapTargetSize={profile.settings.tapTargetSize}
+            savedState={wordVolcanoSaved}
+            onProgress={handleWordVolcanoProgress}
+          />
+        )}
+
+        {mode === 'letter-invasion' && !gameResult && (
+          <LetterInvasion
+            words={wordTexts}
+            onComplete={handleLetterInvasionComplete}
+            onSpeak={onSpeak}
+            tapTargetSize={profile.settings.tapTargetSize}
+            savedState={letterInvasionSaved}
+            onProgress={handleLetterInvasionProgress}
+          />
+        )}
+
+        {gameResult && (
           <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
             <h2 className="text-2xl font-bold text-sf-heading">Game Complete!</h2>
 
@@ -571,6 +764,10 @@ export function PracticeGames({
                 onClick={() => {
                   setGameResult(null);
                   setWordSearchSaved(undefined);
+                  setRelayRaceSaved(undefined);
+                  setSpellCatcherSaved(undefined);
+                  setWordVolcanoSaved(undefined);
+                  setLetterInvasionSaved(undefined);
                   setMode('select');
                 }}
                 className="flex-1 bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-3 px-6 rounded-xl transition-colors"
@@ -587,26 +784,6 @@ export function PracticeGames({
           </div>
         )}
 
-        {gameResult && mode === 'quiz' && (
-          <div className="flex gap-3 w-full max-w-md mx-auto mt-4">
-            <button
-              onClick={() => {
-                setGameResult(null);
-                setQuizSaved(undefined);
-                setMode('select');
-              }}
-              className="flex-1 bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-3 px-6 rounded-xl transition-colors"
-            >
-              Play Again
-            </button>
-            <button
-              onClick={onBack}
-              className="flex-1 bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
-            >
-              Done
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -695,11 +872,51 @@ function SearchGridIcon() {
   );
 }
 
-function QuizIcon() {
+function RelayRaceIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
-      <path d="M9 11l3 3L22 4" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      <circle cx="8" cy="4" r="2" />
+      <path d="M6 9l2-3 4 2-2 5-3 1" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 14l-2 7" strokeLinecap="round" />
+      <path d="M8 14l4 7" strokeLinecap="round" />
+      <path d="M18 4l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="14" y1="6" x2="20" y2="6" />
+    </svg>
+  );
+}
+
+function SpellCatcherIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
+      <path d="M12 2v4M8 4v3M16 4v3" strokeLinecap="round" />
+      <path d="M5 18h14a2 2 0 002-2v-2a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2z" />
+      <path d="M8 22v-4M16 22v-4" strokeLinecap="round" />
+      <circle cx="9" cy="9" r="1" fill="currentColor" />
+      <circle cx="15" cy="7" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function WordVolcanoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
+      <path d="M2 22L8 8h8l6 14H2z" strokeLinejoin="round" />
+      <path d="M10 8l-1-3h6l-1 3" strokeLinejoin="round" />
+      <path d="M12 2v1M9 3l1 2M15 3l-1 2" strokeLinecap="round" />
+      <path d="M8 14c1-2 3-1 4-3s3 1 4 3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function LetterInvasionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-8 h-8">
+      <rect x="6" y="4" width="12" height="10" rx="2" />
+      <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="9" r="1.5" fill="currentColor" />
+      <path d="M4 14l2-2M20 14l-2-2" strokeLinecap="round" />
+      <path d="M8 14v4M16 14v4" strokeLinecap="round" />
+      <path d="M10 11h4" strokeLinecap="round" />
     </svg>
   );
 }
