@@ -101,7 +101,6 @@ function App() {
     setActiveProfile(profile);
     activeProfileForBus = profile;
     applySettings(profile.settings);
-    audioManager.setVoicePreference(profile.settings.voicePreference);
     themeEngine.applyThemePalette(profile.themeId);
     localStorage.setItem('sf-last-profile', profile.id);
 
@@ -471,20 +470,6 @@ function App() {
     [activeProfile],
   );
 
-  const handleVoicePreferenceChange = useCallback(
-    async (voice: AccessibilitySettings['voicePreference']) => {
-      if (!activeProfile) return;
-      const newSettings = mergeSetting(activeProfile.settings, 'voicePreference', voice);
-      applySettings(newSettings);
-      audioManager.setVoicePreference(voice);
-      const updated = { ...activeProfile, settings: newSettings };
-      await profileRepo.update(updated.id, { settings: newSettings });
-      setActiveProfile(updated);
-      eventBus.emit({ type: 'settings:changed', payload: { profileId: updated.id, settings: { voicePreference: voice } } });
-    },
-    [activeProfile],
-  );
-
   const handlePresetApply = useCallback(
     async (preset: NamedPreset) => {
       if (!activeProfile) return;
@@ -494,7 +479,6 @@ function App() {
         contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : activeProfile.settings.contrastMode,
       });
       applySettings(newSettings);
-      audioManager.setVoicePreference(newSettings.voicePreference);
       const updated = { ...activeProfile, settings: newSettings };
       await profileRepo.update(updated.id, { settings: newSettings });
       setActiveProfile(updated);
@@ -757,7 +741,6 @@ function App() {
           importFilterWords={activeProfile.importFilterWords}
           onImportFilterWordsChange={handleImportFilterWordsChange}
           onContrastModeChange={handleContrastModeChange}
-          onVoicePreferenceChange={handleVoicePreferenceChange}
           onPresetApply={handlePresetApply}
           onExportProfile={handleExportProfile}
           onImportProfile={handleImportProfile}

@@ -26,7 +26,6 @@ export interface AccessibilitySettings {
   sessionAdaptive: boolean;
   dailyGoalMinutes: number;
   tapTargetSize: number;     // 48-72px
-  voicePreference: 'female' | 'male';
 }
 
 export interface WordList {

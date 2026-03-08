@@ -1,15 +1,13 @@
 import type { AudioProvider } from '../contracts/types.ts';
-import type { VoiceGender } from './tts.ts';
 import { TtsProvider } from './tts.ts';
 
 export interface AudioManager {
   speak(word: string): Promise<void>;
   speakSlowly(word: string): Promise<void>;
   speakChunks(chunks: string[], delayMs?: number): Promise<void>;
-  /** Speak using TTS only (respects voice preference, skips dictionary). */
+  /** Speak using TTS only (skips dictionary). */
   speakTts(word: string): Promise<void>;
   registerProvider(provider: AudioProvider): void;
-  setVoicePreference(gender: VoiceGender): void;
 }
 
 export class AudioManagerImpl implements AudioManager {
@@ -18,14 +16,6 @@ export class AudioManagerImpl implements AudioManager {
   registerProvider(provider: AudioProvider): void {
     this.providers.push(provider);
     this.providers.sort((a, b) => b.priority - a.priority);
-  }
-
-  setVoicePreference(gender: VoiceGender): void {
-    for (const provider of this.providers) {
-      if (provider instanceof TtsProvider) {
-        provider.setVoicePreference(gender);
-      }
-    }
   }
 
   async speak(word: string): Promise<void> {
