@@ -141,7 +141,7 @@ export function QuizScreen({
   if (wordTexts.length === 0) {
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm w-full text-center space-y-4">
+        <div className="max-w-sm md:max-w-xl w-full text-center space-y-4">
           <p className="text-sf-heading text-lg font-bold">No words ready for the quiz yet!</p>
           <p className="text-sf-muted text-sm">
             Learn your spelling words first. As you master words in learning mode, they&apos;ll become available here for quizzes.
@@ -165,7 +165,7 @@ export function QuizScreen({
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
+        <div className="max-w-sm md:max-w-xl w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
           <h2 className="text-xl font-bold text-sf-heading text-center">
             Continue your quiz?
           </h2>
@@ -225,7 +225,7 @@ export function QuizScreen({
         )}
 
         {done && (
-          <div className="flex gap-3 w-full max-w-md mx-auto mt-4">
+          <div className="flex gap-3 w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto mt-4">
             <button
               onClick={() => {
                 setDone(false);

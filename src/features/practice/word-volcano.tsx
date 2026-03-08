@@ -82,13 +82,19 @@ export function WordVolcano({
   const lavaFill = calcLavaFill(wordsCompleted, gameWords.length);
   const maxMistakesPerWord = 3;
 
-  // Generate tiles deterministically from word index (no setState in effect)
+  // Generate base tiles only when the word changes (randomness lives here)
+  const baseTiles = useMemo(
+    () => createLetterTiles(currentWord, currentWordIndex),
+    [currentWord, currentWordIndex],
+  );
+
+  // Apply placed status separately so tile order stays stable
   const tiles = useMemo(
-    () => createLetterTiles(currentWord, currentWordIndex).map((t) => ({
+    () => baseTiles.map((t) => ({
       ...t,
       placed: placedTileIds.has(t.id),
     })),
-    [currentWord, currentWordIndex, placedTileIds],
+    [baseTiles, placedTileIds],
   );
 
   // Save progress
@@ -183,7 +189,7 @@ export function WordVolcano({
 
   if (!gameStarted) {
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">Word Volcano</h2>
 
         <div className="w-full bg-sf-surface border border-sf-border rounded-2xl p-6 text-center space-y-4">
@@ -226,7 +232,7 @@ export function WordVolcano({
     const percentage = Math.round((wordsCompleted / gameWords.length) * 100);
 
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">
           {eruptionLevel.level >= 4 ? 'Eruption Complete!' : 'Volcano Cooled Down!'}
         </h2>
@@ -308,7 +314,7 @@ export function WordVolcano({
 
   if (wordComplete || wordFailed) {
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">
           {wordComplete ? 'Word Built!' : 'Word Crumbled!'}
         </h2>
@@ -354,7 +360,7 @@ export function WordVolcano({
   // ─── Active game ───────────────────────────────────────────
 
   return (
-    <div className="flex flex-col items-center gap-3 p-4 max-w-md mx-auto w-full">
+    <div className="flex flex-col items-center gap-3 p-4 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto w-full">
       {/* Header */}
       <div className="w-full flex items-center justify-between">
         <span className="text-sm font-medium text-sf-muted">

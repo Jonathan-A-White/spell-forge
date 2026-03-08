@@ -15,7 +15,7 @@ export function SessionSummary({ session, reward, streakCount, onDone }: Session
     : 0;
 
   return (
-    <div className="min-h-screen bg-sf-bg flex flex-col items-center gap-6 p-8 text-center max-w-md mx-auto">
+    <div className="min-h-screen bg-sf-bg flex flex-col items-center gap-6 p-8 text-center max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
       <h2 className="text-3xl font-bold text-sf-heading">Amazing Work!</h2>
 
       <div className="grid grid-cols-2 gap-4 w-full">

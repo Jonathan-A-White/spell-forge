@@ -45,7 +45,7 @@ export function SettingsPanel({
     <div className="min-h-screen bg-sf-bg">
       {/* Header */}
       <div className="bg-sf-surface border-b border-sf-border px-4 py-4">
-        <div className="max-w-lg mx-auto flex items-center gap-3">
+        <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto flex items-center gap-3">
           <button
             onClick={onBack}
             className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
@@ -57,7 +57,7 @@ export function SettingsPanel({
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Appearance section */}
         <section>
           <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">

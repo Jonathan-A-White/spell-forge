@@ -27,7 +27,7 @@ export function FirstRun({ onComplete }: FirstRunProps) {
         <p className="text-sf-text mb-8 text-center max-w-md">
           Let's set up your profile so you can start practicing spelling.
         </p>
-        <div className="w-full max-w-sm mb-6">
+        <div className="w-full max-w-sm md:max-w-2xl lg:max-w-4xl mb-6">
           <label className="block text-sm font-medium text-sf-secondary mb-2">
             What's your name?
           </label>
@@ -56,7 +56,7 @@ export function FirstRun({ onComplete }: FirstRunProps) {
       <h2 className="text-2xl font-bold text-sf-heading mb-2">Pick Your Theme, {name}!</h2>
       <p className="text-sf-muted mb-6">How do you want to earn rewards?</p>
 
-      <div className="grid gap-4 w-full max-w-sm mb-8">
+      <div className="grid gap-4 w-full max-w-sm md:max-w-2xl lg:max-w-4xl mb-8">
         {themes.map((theme) => (
           <button
             key={theme.id}

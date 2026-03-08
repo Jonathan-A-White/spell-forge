@@ -357,7 +357,7 @@ export function LetterInvasion({
 
   if (!gameStarted) {
     return (
-      <div className="relative flex flex-col items-center gap-6 p-6 max-w-md mx-auto min-h-[480px]">
+      <div className="relative flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto min-h-[480px]">
         <SpaceBackground />
 
         <h2 className="relative z-10 text-2xl font-bold text-cyan-300" style={{ textShadow: '0 0 12px rgba(34,211,238,0.5)' }}>
@@ -408,7 +408,7 @@ export function LetterInvasion({
     const percentage = Math.round((wavesCleared / gameWords.length) * 100);
 
     return (
-      <div className="relative flex flex-col items-center gap-6 p-6 max-w-md mx-auto min-h-[480px]">
+      <div className="relative flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto min-h-[480px]">
         <SpaceBackground />
 
         <h2 className="relative z-10 text-2xl font-bold" style={{ color: wavesCleared === gameWords.length ? '#67E8F9' : '#FCA5A5', textShadow: '0 0 12px rgba(34,211,238,0.4)' }}>
@@ -495,7 +495,7 @@ export function LetterInvasion({
   if (waveComplete) {
     const wasSuccess = nextLetterIndex >= currentWord.length;
     return (
-      <div className="relative flex flex-col items-center gap-6 p-6 max-w-md mx-auto min-h-[480px]">
+      <div className="relative flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto min-h-[480px]">
         <SpaceBackground />
 
         <h2 className="relative z-10 text-2xl font-bold" style={{ color: wasSuccess ? '#67E8F9' : '#FCA5A5', textShadow: '0 0 12px rgba(34,211,238,0.4)' }}>
@@ -557,7 +557,7 @@ export function LetterInvasion({
   const remainingSlots = currentWord.length - nextLetterIndex;
 
   return (
-    <div className="relative flex flex-col items-center gap-3 p-4 max-w-md mx-auto w-full">
+    <div className="relative flex flex-col items-center gap-3 p-4 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto w-full">
       {/* Header */}
       <div className="w-full flex items-center justify-between relative z-10">
         <span className="text-sm font-medium text-cyan-400">

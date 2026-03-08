@@ -14,7 +14,7 @@ export function ProfileSelector({ profiles, onSelect, onAddProfile }: ProfileSel
       <h1 className="text-4xl font-bold text-sf-heading mb-2">SpellForge</h1>
       <p className="text-sf-muted mb-8">Who's practicing today?</p>
 
-      <div className="grid gap-4 w-full max-w-sm">
+      <div className="grid gap-4 w-full max-w-sm md:max-w-2xl lg:max-w-4xl">
         {profiles.map((profile) => (
           <button
             key={profile.id}
