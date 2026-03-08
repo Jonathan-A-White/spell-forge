@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { StreakData, WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
+import { getWordsDueCount } from '../../core/spaced-rep';
 import { ReadinessIndicator } from './readiness-indicator';
 import { rewardTracker, monsterCollection } from '../rewards';
 import { themeEngine } from '../../themes';
@@ -161,6 +162,27 @@ export function ProgressView({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Stat Circles */}
+      {allWords.length > 0 && (
+        <div className="flex justify-center gap-6 mb-4">
+          <StatCircle
+            value={`${allWords.length > 0 ? Math.round((mastered / allWords.length) * 100) : 0}%`}
+            label="Mastery"
+            color="bg-purple-500"
+          />
+          <StatCircle
+            value={String(newWords)}
+            label="New Words"
+            color="bg-green-500"
+          />
+          <StatCircle
+            value={String(getWordsDueCount(allStats))}
+            label="Words Due"
+            color="bg-blue-500"
+          />
         </div>
       )}
 
@@ -358,6 +380,17 @@ function HealthBar({
       )}
       {!hasWords && <div className="w-4" />}
     </button>
+  );
+}
+
+function StatCircle({ value, label, color }: { value: string; label: string; color: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className={`w-20 h-20 rounded-full ${color} flex items-center justify-center shadow-lg`}>
+        <span className="text-white text-xl font-bold">{value}</span>
+      </div>
+      <span className="text-sm text-sf-muted font-medium">{label}</span>
+    </div>
   );
 }
 
