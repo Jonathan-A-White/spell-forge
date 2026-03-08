@@ -1,6 +1,7 @@
 // src/App.tsx — Root component: routing, state management, event bus wiring
 
 import { useState, useEffect, useCallback } from 'react';
+import { useBackButton } from './hooks/use-back-button';
 import type {
   Profile,
   WordList,
@@ -89,6 +90,10 @@ function App() {
   const [editingList, setEditingList] = useState<WordList | null>(null);
   const [viewingList, setViewingList] = useState<WordList | null>(null);
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
+
+  // Sync view state with browser history so the OS back button
+  // navigates within the app instead of closing it.
+  useBackButton(view, setView, 'home');
 
   const selectProfile = useCallback(async (profile: Profile) => {
     setActiveProfile(profile);
