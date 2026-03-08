@@ -82,13 +82,19 @@ export function WordVolcano({
   const lavaFill = calcLavaFill(wordsCompleted, gameWords.length);
   const maxMistakesPerWord = 3;
 
-  // Generate tiles deterministically from word index (no setState in effect)
+  // Generate base tiles only when the word changes (randomness lives here)
+  const baseTiles = useMemo(
+    () => createLetterTiles(currentWord, currentWordIndex),
+    [currentWord, currentWordIndex],
+  );
+
+  // Apply placed status separately so tile order stays stable
   const tiles = useMemo(
-    () => createLetterTiles(currentWord, currentWordIndex).map((t) => ({
+    () => baseTiles.map((t) => ({
       ...t,
       placed: placedTileIds.has(t.id),
     })),
-    [currentWord, currentWordIndex, placedTileIds],
+    [baseTiles, placedTileIds],
   );
 
   // Save progress
