@@ -138,13 +138,6 @@ export type PatternCategory =
 
 // ─── Spaced Repetition ────────────────────────────────────────
 
-export interface ReviewSchedule {
-  wordId: string;
-  nextReviewDate: Date;
-  bucket: WordBucket;
-  priority: number;     // higher = more urgent
-}
-
 export interface SessionWordSelection {
   currentListWords: Word[];     // ~60% of session
   reviewWords: Word[];          // ~30% from past lists
@@ -250,24 +243,6 @@ export interface CompletedCreature {
 
 export type ReadinessLevel = 'keep-forging' | 'getting-warmer' | 'almost-there' | 'ready';
 
-export interface TestReadiness {
-  level: ReadinessLevel;
-  label: string;         // "Ready to crush it!"
-  percentage: number;    // 0-100
-  wordsNeedingWork: Word[];
-  testDate: Date | null;
-  daysUntilTest: number | null;
-}
-
-export interface LifetimeHealth {
-  totalWords: number;
-  mastered: number;
-  familiar: number;
-  learning: number;
-  newWords: number;
-  slippedWords: Word[];  // mastered words that dropped back
-}
-
 // ─── Activity Progress (Auto-Save) ───────────────────────
 
 export type ActivityType = 'practice' | 'word-search' | 'quiz' | 'learning' | 'relay-race' | 'spell-catcher';
@@ -339,25 +314,6 @@ export interface ImportResult {
   wordsPreserved: number;  // existed only locally
   listsAdded: number;
   strategy: ImportStrategy;
-}
-
-// ─── Feedback ─────────────────────────────────────────────────
-
-export interface FeedbackSubmission {
-  id: string;
-  text: string;
-  screenshot: Blob | null;
-  deviceInfo: DeviceInfo;
-  appVersion: string;
-  createdAt: Date;
-  synced: boolean;
-}
-
-export interface DeviceInfo {
-  userAgent: string;
-  screenWidth: number;
-  screenHeight: number;
-  platform: string;
 }
 
 // ─── Event Bus ────────────────────────────────────────────────

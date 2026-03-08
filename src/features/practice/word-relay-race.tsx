@@ -15,7 +15,7 @@ export interface RelayRaceResults {
   wordTimes: WordTime[];
 }
 
-export interface WordTime {
+interface WordTime {
   word: string;
   correct: boolean;
   timeMs: number;
