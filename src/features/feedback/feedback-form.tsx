@@ -18,11 +18,14 @@ export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
   }, [text, onSubmit]);
 
   if (submitted) {
+    const isOnline = navigator.onLine;
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-8">
         <h2 className="text-2xl font-bold text-sf-heading mb-4">Thank You!</h2>
         <p className="text-sf-text mb-8 text-center">
-          Your feedback has been saved. It will be sent when connected to the internet.
+          {isOnline
+            ? 'Your feedback has been sent. Thanks for helping us improve SpellForge!'
+            : 'Your feedback has been saved. It will be sent when connected to the internet.'}
         </p>
         <button
           onClick={onCancel}
