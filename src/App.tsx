@@ -37,6 +37,8 @@ import { LearningScreen } from './features/learning';
 import { ListEditor } from './features/word-lists/list-editor';
 import { WordListsView } from './features/word-lists/word-lists-view';
 import { WordListDetail } from './features/word-lists/word-list-detail';
+import { QrImport } from './features/word-lists/qr-import';
+import type { QrWordListPayload } from './features/word-lists/qr-codec';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
@@ -51,7 +53,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import';
 
 const eventBus = createEventBus();
 
@@ -386,6 +388,61 @@ function App() {
       await refreshListData();
     },
     [refreshListData],
+  );
+
+  const handleQrImport = useCallback(
+    async (payload: QrWordListPayload) => {
+      if (!activeProfile) return;
+
+      const testDate = payload.t ? new Date(payload.t) : null;
+      const list = await wordListRepo.create({
+        profileId: activeProfile.id,
+        name: payload.n,
+        testDate,
+        createdAt: new Date(),
+        source: 'import',
+        active: true,
+        archived: false,
+      });
+
+      for (const wordText of payload.w) {
+        const word: Word = {
+          id: uuidv4(),
+          listId: list.id,
+          profileId: activeProfile.id,
+          text: wordText,
+          phonemes: [],
+          syllables: [],
+          patterns: [],
+          imageUrl: null,
+          imageCached: false,
+          audioCustom: null,
+          createdAt: new Date(),
+        };
+        await wordRepo.create(word);
+
+        const stats: WordStats = {
+          id: uuidv4(),
+          wordId: word.id,
+          profileId: activeProfile.id,
+          lastAsked: null,
+          timesAsked: 0,
+          timesWrong: 0,
+          timesStruggledRight: 0,
+          timesEasyRight: 0,
+          consecutiveCorrect: 0,
+          currentBucket: 'new',
+          nextReviewDate: new Date(),
+          difficultyScore: 0.5,
+          techniqueHistory: [],
+        };
+        await statsRepo.create(stats);
+      }
+
+      await refreshListData();
+      setView('word-lists');
+    },
+    [activeProfile, refreshListData],
   );
 
   const handleArchiveList = useCallback(
@@ -783,7 +840,17 @@ function App() {
           onArchiveList={handleArchiveList}
           onUnarchiveList={handleUnarchiveList}
           onImportFromCamera={() => { setEditingList(null); setView('list-editor'); }}
+          onImportFromQr={() => setView('qr-import')}
           onBack={() => setView('home')}
+        />
+      );
+
+    case 'qr-import':
+      if (!activeProfile) return null;
+      return (
+        <QrImport
+          onImport={handleQrImport}
+          onCancel={() => setView('word-lists')}
         />
       );
 
