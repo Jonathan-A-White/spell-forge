@@ -119,7 +119,7 @@ export function ProgressView({
   };
 
   return (
-    <div className="min-h-screen bg-sf-bg p-4 max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto">
+    <div className="min-h-screen bg-sf-bg p-4 max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={onBack}

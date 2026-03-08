@@ -123,7 +123,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
     <div ref={containerRef} className="flex flex-col items-center gap-6 w-full">
       {/* Scaffolding hints */}
       {scaffolding && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center max-w-md md:max-w-xl lg:max-w-3xl">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center max-w-md md:max-w-3xl lg:max-w-5xl">
           <div className="flex justify-center gap-2 mb-2">
             {scaffolding.chunks.map((chunk, i) => (
               <span

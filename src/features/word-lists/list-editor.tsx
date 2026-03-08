@@ -86,7 +86,7 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
     .filter((w) => w.trim().length > 0).length;
 
   return (
-    <div className="min-h-screen bg-sf-bg p-4 max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto">
+    <div className="min-h-screen bg-sf-bg p-4 max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <button onClick={onCancel} className="text-sf-muted hover:text-sf-secondary">
           Cancel

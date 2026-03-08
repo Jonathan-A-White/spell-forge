@@ -189,7 +189,7 @@ export function WordVolcano({
 
   if (!gameStarted) {
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">Word Volcano</h2>
 
         <div className="w-full bg-sf-surface border border-sf-border rounded-2xl p-6 text-center space-y-4">
@@ -232,7 +232,7 @@ export function WordVolcano({
     const percentage = Math.round((wordsCompleted / gameWords.length) * 100);
 
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">
           {eruptionLevel.level >= 4 ? 'Eruption Complete!' : 'Volcano Cooled Down!'}
         </h2>
@@ -314,7 +314,7 @@ export function WordVolcano({
 
   if (wordComplete || wordFailed) {
     return (
-      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
+      <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-sf-heading">
           {wordComplete ? 'Word Built!' : 'Word Crumbled!'}
         </h2>
@@ -360,7 +360,7 @@ export function WordVolcano({
   // ─── Active game ───────────────────────────────────────────
 
   return (
-    <div className="flex flex-col items-center gap-3 p-4 max-w-md md:max-w-xl lg:max-w-3xl mx-auto w-full">
+    <div className="flex flex-col items-center gap-3 p-4 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto w-full">
       {/* Header */}
       <div className="w-full flex items-center justify-between">
         <span className="text-sm font-medium text-sf-muted">

@@ -393,7 +393,7 @@ export function PracticeGames({
   if (wordTexts.length === 0) {
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm md:max-w-lg w-full text-center space-y-4">
+        <div className="max-w-sm md:max-w-xl w-full text-center space-y-4">
           <p className="text-sf-heading text-lg font-bold">No words ready for games yet!</p>
           <p className="text-sf-muted text-sm">
             Learn your spelling words first. As you master words in learning mode, they&apos;ll become available here for games.
@@ -430,7 +430,7 @@ export function PracticeGames({
 
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm md:max-w-lg w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
+        <div className="max-w-sm md:max-w-xl w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
           <h2 className="text-xl font-bold text-sf-heading text-center">
             Continue your game?
           </h2>
@@ -467,7 +467,7 @@ export function PracticeGames({
   if (coinGateVisible) {
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm md:max-w-lg w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
+        <div className="max-w-sm md:max-w-xl w-full bg-sf-surface border border-sf-border rounded-2xl p-6 space-y-5">
           {pendingCoinGameMode ? (
             <>
               <h2 className="text-xl font-bold text-sf-heading text-center">
@@ -528,7 +528,7 @@ export function PracticeGames({
   if (mode === 'select') {
     return (
       <div className="min-h-screen bg-sf-bg p-4">
-        <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto">
+        <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={onBack}
@@ -608,7 +608,7 @@ export function PracticeGames({
   if (mode === 'word-search-difficulty') {
     return (
       <div className="min-h-screen bg-sf-bg p-4">
-        <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto">
+        <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={() => setMode('select')}
@@ -740,7 +740,7 @@ export function PracticeGames({
         )}
 
         {gameResult && (
-          <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-xl lg:max-w-3xl mx-auto">
+          <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
             <h2 className="text-2xl font-bold text-sf-heading">Game Complete!</h2>
 
             <div className={`w-32 h-32 rounded-full flex items-center justify-center border-4 ${

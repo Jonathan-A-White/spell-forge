@@ -37,7 +37,7 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
     <div className="min-h-screen bg-sf-bg">
       {/* Header */}
       <div className="bg-sf-surface border-b border-sf-border px-4 py-4">
-        <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto flex items-center gap-3">
+        <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto flex items-center gap-3">
           <button
             onClick={onBack}
             className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
@@ -54,7 +54,7 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
         </div>
       </div>
 
-      <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto px-4 py-6">
         {/* Empty state */}
         {collection.length === 0 && (
           <div className="text-center py-16">
