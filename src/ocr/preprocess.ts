@@ -64,9 +64,6 @@ const MIN_BLOB_SIZE = 1024;
  * Large images are downscaled first to avoid mobile memory issues.
  * Returns a new Blob with the padded image, or the original if padding
  * cannot be applied (e.g. OffscreenCanvas not available or canvas failure).
- *
- * Also normalizes EXIF orientation: createImageBitmap applies EXIF rotation,
- * and the output blob is a clean image without EXIF metadata.
  */
 export async function addPadding(image: Blob): Promise<Blob> {
   if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
@@ -116,65 +113,12 @@ export async function addPadding(image: Blob): Promise<Blob> {
 }
 
 /**
- * Rotate an image Blob by the given angle using OffscreenCanvas.
- * Uses createImageBitmap which handles EXIF orientation automatically,
- * producing a clean output without EXIF metadata.
- *
- * Returns null if canvas rotation is unavailable (e.g. Node.js environment).
- */
-export async function rotateImage(image: Blob, angle: number): Promise<Blob | null> {
-  if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
-    return null;
-  }
-
-  try {
-    const bitmap = await createImageBitmap(image);
-    try {
-      const { width: srcW, height: srcH } = bitmap;
-
-      // For 90°/270° rotations, swap width and height
-      const absSin = Math.abs(Math.sin(angle));
-      const absCos = Math.abs(Math.cos(angle));
-      const dstW = Math.round(srcW * absCos + srcH * absSin);
-      const dstH = Math.round(srcW * absSin + srcH * absCos);
-
-      const canvas = new OffscreenCanvas(dstW, dstH);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-
-      // Translate to center, rotate, then draw centered
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, dstW, dstH);
-      ctx.translate(dstW / 2, dstH / 2);
-      ctx.rotate(angle);
-      ctx.drawImage(bitmap, -srcW / 2, -srcH / 2);
-
-      const result = await canvas.convertToBlob({ type: image.type || 'image/png' });
-      if (result.size < MIN_BLOB_SIZE) return null;
-      return result;
-    } finally {
-      bitmap.close();
-    }
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Tries multiple orientations on the given image using the provided worker
  * and returns the result that produces the most plausible English words.
  *
  * This is necessary because Tesseract's built-in auto-rotation (deskew) only
  * corrects small angles (~±15°), not the 90°/180°/270° rotations common in
  * phone-captured photos of spelling lists and worksheets.
- *
- * Rotation strategy:
- *  - In browser environments: pre-rotates images using OffscreenCanvas before
- *    passing to Tesseract. This is more reliable than Tesseract's rotateRadians
- *    because createImageBitmap correctly handles EXIF orientation metadata
- *    (which Tesseract's built-in EXIF parser handles unreliably).
- *  - In non-browser environments (Node.js): falls back to Tesseract's
- *    rotateRadians parameter.
  *
  * Scoring: the number of plausible words (via cleanWords) is the primary
  * signal; Tesseract confidence is the tiebreaker.  Raw confidence alone is
@@ -192,45 +136,26 @@ export async function recognizeWithOrientationDetection(
   let bestWordCount = -1;
 
   for (const angle of CANDIDATE_ROTATIONS) {
-    try {
-      let recognizeImage: unknown = image;
-      let opts: Record<string, unknown> = {};
+    // For 0° (upright), omit rotateRadians entirely so Tesseract uses its
+    // default path — passing rotateRadians: 0 can trigger unnecessary
+    // image-rotation codepaths in some Tesseract.js versions.
+    const opts = angle === 0 ? {} : { rotateRadians: angle };
+    const { data } = await worker.recognize(image, opts);
 
-      if (angle === 0) {
-        // No rotation needed — use image as-is with no options
-      } else if (image instanceof Blob) {
-        // Browser path: pre-rotate using Canvas (handles EXIF, more reliable)
-        const rotated = await rotateImage(image, angle);
-        if (rotated) {
-          recognizeImage = rotated;
-        } else {
-          // Canvas unavailable — fall back to Tesseract's rotateRadians
-          opts = { rotateRadians: angle };
-        }
-      } else {
-        // Non-browser path (Node.js tests): use Tesseract's rotateRadians
-        opts = { rotateRadians: angle };
-      }
+    const wordCount = cleanWords(data.text).length;
 
-      const { data } = await worker.recognize(recognizeImage, opts);
-      const wordCount = cleanWords(data.text).length;
+    if (
+      wordCount > bestWordCount ||
+      (wordCount === bestWordCount && data.confidence > bestConfidence)
+    ) {
+      bestConfidence = data.confidence;
+      bestText = data.text;
+      bestWordCount = wordCount;
+    }
 
-      if (
-        wordCount > bestWordCount ||
-        (wordCount === bestWordCount && data.confidence > bestConfidence)
-      ) {
-        bestConfidence = data.confidence;
-        bestText = data.text;
-        bestWordCount = wordCount;
-      }
-
-      // Early exit: enough real words with high confidence — no need to try more
-      if (wordCount >= MIN_WORDS_FOR_EARLY_EXIT && data.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
-        break;
-      }
-    } catch {
-      // Individual rotation attempt failed — continue trying other orientations
-      continue;
+    // Early exit: enough real words with high confidence — no need to try more
+    if (wordCount >= MIN_WORDS_FOR_EARLY_EXIT && data.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+      break;
     }
   }
 
