@@ -91,19 +91,19 @@ export function HomeScreen({
               <StatCircle
                 value={`${masteryPercent}%`}
                 label="Mastery"
-                color="from-purple-500 to-violet-600"
+                bgClass="bg-sf-primary"
                 onClick={() => onNavigate('progress')}
               />
               <StatCircle
                 value={newWordsCount}
                 label="New Words"
-                color="from-green-400 to-emerald-500"
+                bgClass="bg-sf-theme-secondary"
                 onClick={() => onNavigate('learning')}
               />
               <StatCircle
                 value={wordsDue}
                 label="Words Due"
-                color="from-cyan-400 to-blue-500"
+                bgClass="bg-sf-theme-accent"
                 onClick={() => onNavigate('practice')}
               />
             </div>
@@ -282,12 +282,12 @@ export function HomeScreen({
 function StatCircle({
   value,
   label,
-  color,
+  bgClass,
   onClick,
 }: {
   value: string | number;
   label: string;
-  color: string;
+  bgClass: string;
   onClick?: () => void;
 }) {
   return (
@@ -295,8 +295,8 @@ function StatCircle({
       onClick={onClick}
       className="flex flex-col items-center gap-1 group"
     >
-      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${color} flex flex-col items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
-        <span className="text-white font-bold text-base leading-tight">{value}</span>
+      <div className={`w-16 h-16 rounded-full ${bgClass} flex flex-col items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
+        <span className="text-sf-primary-text font-bold text-base leading-tight">{value}</span>
       </div>
       <span className="text-xs text-sf-muted font-medium">{label}</span>
     </button>
