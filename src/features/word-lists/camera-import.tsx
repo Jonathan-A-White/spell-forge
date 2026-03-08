@@ -124,8 +124,8 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
           <div className="bg-sf-surface border border-sf-border rounded-xl p-4 text-left space-y-2">
             <p className="text-sm font-bold text-sf-heading">Tips for best results:</p>
             <ul className="text-sm text-sf-muted space-y-1.5 list-none">
-              <li>📱 Hold your phone <strong className="text-sf-heading">sideways</strong> (landscape) so the word list fills the screen</li>
-              <li>📄 Lay the word list flat on a table</li>
+              <li>📄 Turn the word list <strong className="text-sf-heading">sideways</strong> so the words read from bottom to top</li>
+              <li>📱 Keep your phone in <strong className="text-sf-heading">portrait</strong> mode (upright) and take the photo</li>
               <li>💡 Make sure there's good lighting and no shadows</li>
               <li>🔍 Get close enough that the words are easy to read</li>
             </ul>
