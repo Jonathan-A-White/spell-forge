@@ -33,8 +33,10 @@ export function useBackButton<V extends string>(
     // first time (initial load), otherwise push a new entry.
     const currentState = window.history.state as { sfView?: string } | null;
     if (!currentState?.sfView) {
-      // First mount — seed history with the current view
-      window.history.replaceState({ sfView: view }, '');
+      // First mount — seed history with a guard entry so that pressing
+      // back on the home screen triggers popstate instead of leaving the app.
+      window.history.replaceState({ sfView: '__guard__' }, '');
+      window.history.pushState({ sfView: view }, '');
     } else if (currentState.sfView !== view) {
       window.history.pushState({ sfView: view }, '');
     }
@@ -45,14 +47,14 @@ export function useBackButton<V extends string>(
     (event: PopStateEvent) => {
       const state = event.state as { sfView?: V } | null;
 
-      if (state?.sfView) {
+      if (state?.sfView && state.sfView !== '__guard__') {
         // Navigate to the view stored in this history entry
         isPopstateNav.current = true;
         setView(state.sfView);
       } else {
-        // No app state in history — user is about to leave the app.
-        // If we're on the home screen, block exit by pushing a new entry.
-        // If we're on a sub-screen, go home.
+        // Hit the guard entry (or no app state) — user is at the start
+        // of the history stack. Stay on the home screen and re-push the
+        // guard so another back press is caught again.
         isPopstateNav.current = true;
         setView(homeView);
         window.history.pushState({ sfView: homeView }, '');
