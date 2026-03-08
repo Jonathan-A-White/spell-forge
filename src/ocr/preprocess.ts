@@ -1,6 +1,7 @@
 // src/ocr/preprocess.ts — image preprocessing utilities for OCR
 
 import { cleanWords } from './utils.ts';
+import { raceWithTimeout } from './timeout.ts';
 
 /**
  * A minimal Tesseract.js worker interface for orientation detection.
@@ -28,14 +29,18 @@ const CANDIDATE_ROTATIONS = [
 ];
 
 /**
- * Minimum number of plausible words required to short-circuit orientation search.
- * If a rotation produces at least this many words with high confidence, we can
- * skip trying the remaining rotations.
+ * Minimum number of plausible words to short-circuit orientation search.
+ * If a rotation produces at least this many words OR high confidence, we skip
+ * the remaining rotations. Lowered from 5 to 3 to avoid unnecessary passes
+ * on slow devices.
  */
-const MIN_WORDS_FOR_EARLY_EXIT = 5;
+const MIN_WORDS_FOR_EARLY_EXIT = 3;
 
 /** Confidence threshold (0-100 Tesseract scale) to short-circuit orientation search. */
-const HIGH_CONFIDENCE_THRESHOLD = 80;
+const HIGH_CONFIDENCE_THRESHOLD = 75;
+
+/** Maximum time (ms) for a single orientation recognition pass. */
+const PER_ORIENTATION_TIMEOUT_MS = 20_000;
 
 /**
  * Percentage of the smaller image dimension to use as padding on each side.
@@ -140,7 +145,20 @@ export async function recognizeWithOrientationDetection(
     // default path — passing rotateRadians: 0 can trigger unnecessary
     // image-rotation codepaths in some Tesseract.js versions.
     const opts = angle === 0 ? {} : { rotateRadians: angle };
-    const { data } = await worker.recognize(image, opts);
+
+    let data: { text: string; confidence: number };
+    try {
+      const result = await raceWithTimeout(
+        worker.recognize(image, opts),
+        PER_ORIENTATION_TIMEOUT_MS,
+        `OCR timed out for rotation ${angle}`,
+      );
+      data = result.data;
+    } catch {
+      // If one orientation times out (common on slow devices), skip it
+      // and try the next one rather than blocking the whole pipeline.
+      continue;
+    }
 
     const wordCount = cleanWords(data.text).length;
 
@@ -153,8 +171,10 @@ export async function recognizeWithOrientationDetection(
       bestWordCount = wordCount;
     }
 
-    // Early exit: enough real words with high confidence — no need to try more
-    if (wordCount >= MIN_WORDS_FOR_EARLY_EXIT && data.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+    // Early exit: enough real words OR high confidence — no need to try more.
+    // Using OR (not AND) so slow devices don't burn through all 4 rotations
+    // when the first good result is already usable.
+    if (wordCount >= MIN_WORDS_FOR_EARLY_EXIT || data.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
       break;
     }
   }

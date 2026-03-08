@@ -10,3 +10,4 @@ export { correctOcrWords } from './spell-check.ts';
 export { createTesseractRecognizer } from './tesseract-recognizer.ts';
 export { addPadding, recognizeWithOrientationDetection } from './preprocess.ts';
 export type { OcrWorker } from './preprocess.ts';
+export { raceWithTimeout } from './timeout.ts';

@@ -21,12 +21,18 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const abortRef = useRef(false);
+
   const handleFileSelected = useCallback(async (file: File) => {
     setStatus('processing');
     setErrorMessage('');
+    abortRef.current = false;
 
     try {
       const result = await ocrManager.extractWords(file);
+
+      // If the user cancelled while we were processing, don't update UI
+      if (abortRef.current) return;
 
       // Apply import filter to auto-exclude heading words
       const filteredWords = importFilterPhrases?.length
@@ -44,12 +50,22 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
       setSelectedWords(new Set(filteredResult.words));
       setStatus('preview');
     } catch (err) {
+      if (abortRef.current) return;
       setStatus('error');
       setErrorMessage(
         err instanceof Error ? err.message : 'Failed to process image',
       );
     }
   }, [ocrManager, importFilterPhrases]);
+
+  const handleCancelProcessing = useCallback(() => {
+    abortRef.current = true;
+    setStatus('idle');
+    setErrorMessage('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,7 +172,13 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
         <div className="text-center py-12 space-y-4">
           <div className="inline-block w-10 h-10 border-4 border-sf-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-sf-heading font-bold">Reading words from image...</p>
-          <p className="text-sf-muted text-sm">This may take a few seconds</p>
+          <p className="text-sf-muted text-sm">This can take up to a minute on some devices</p>
+          <button
+            onClick={handleCancelProcessing}
+            className="text-sf-muted hover:text-sf-secondary py-2 text-sm mt-2"
+          >
+            Cancel
+          </button>
         </div>
       )}
 
