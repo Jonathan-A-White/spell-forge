@@ -14,10 +14,7 @@ export async function sayAndSpell(
   audioManager: AudioManager,
   word: string,
 ): Promise<void> {
-  // Use TTS directly for the word so it matches the voice used for spelling.
-  // The dictionary provider ignores voice preference, causing a voice mismatch
-  // between reading the word and spelling it out letter-by-letter.
-  await audioManager.speakTts(word);
+  await audioManager.speak(word);
   await delay(300);
   await audioManager.speakChunks(word.split(''), 400);
 }
@@ -30,5 +27,5 @@ export async function sayWordOnly(
   audioManager: AudioManager,
   word: string,
 ): Promise<void> {
-  await audioManager.speakTts(word);
+  await audioManager.speak(word);
 }

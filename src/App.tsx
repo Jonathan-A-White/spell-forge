@@ -644,7 +644,7 @@ function App() {
           onSessionEnd={handleSessionEnd}
           onStatsUpdate={handleStatsUpdate}
           onBack={() => setView('home')}
-          onSpeak={(word) => audioManager.speakTts(word)}
+          onSpeak={(word) => audioManager.speak(word)}
         />
       );
 
@@ -660,7 +660,7 @@ function App() {
           onSpendCoin={handleSpendCoin}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
-          onSpeak={(word) => audioManager.speakTts(word)}
+          onSpeak={(word) => audioManager.speak(word)}
         />
       );
 
@@ -673,7 +673,7 @@ function App() {
           allWords={allWords}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
-          onSpeak={(word) => audioManager.speakTts(word)}
+          onSpeak={(word) => audioManager.speak(word)}
         />
       );
 

@@ -1,12 +1,9 @@
 import type { AudioProvider } from '../contracts/types.ts';
-import { TtsProvider } from './tts.ts';
 
 export interface AudioManager {
   speak(word: string): Promise<void>;
   speakSlowly(word: string): Promise<void>;
   speakChunks(chunks: string[], delayMs?: number): Promise<void>;
-  /** Speak using TTS only (skips dictionary). */
-  speakTts(word: string): Promise<void>;
   registerProvider(provider: AudioProvider): void;
 }
 
@@ -20,19 +17,6 @@ export class AudioManagerImpl implements AudioManager {
 
   async speak(word: string): Promise<void> {
     await this.tryProviders((p) => p.speak(word));
-  }
-
-  async speakTts(word: string): Promise<void> {
-    const tts = this.providers.find((p) => p instanceof TtsProvider);
-    if (tts) {
-      try {
-        await tts.speak(word);
-        return;
-      } catch {
-        // TTS failed (timeout, no voices, etc.) — fall through to other providers
-      }
-    }
-    await this.speak(word);
   }
 
   async speakSlowly(word: string): Promise<void> {
