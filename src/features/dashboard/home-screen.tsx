@@ -210,7 +210,7 @@ export function HomeScreen({
           )}
 
           {/* Grid of feature cards */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <NavCard
               title="Progress"
               subtitle={`${mastered}/${allWords.length} mastered`}
@@ -326,7 +326,7 @@ function NavCard({ title, subtitle, icon, onClick, accent, iconColor }: NavCardP
   return (
     <button
       onClick={onClick}
-      className="group relative overflow-hidden rounded-xl bg-sf-surface border border-sf-border p-4 text-left hover:border-sf-border-strong hover:shadow-md transition-all active:scale-[0.97]"
+      className="group relative overflow-hidden rounded-xl bg-sf-surface border border-sf-border p-3 text-left hover:border-sf-border-strong hover:shadow-md transition-all active:scale-[0.97]"
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-0 group-hover:opacity-100 transition-opacity`} />
       <div className="relative">
@@ -349,7 +349,7 @@ function getGreeting(): string {
 
 function LearnIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
     </svg>
@@ -378,7 +378,7 @@ function SettingsIcon() {
 
 function ChartIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <path d="M18 20V10" />
       <path d="M12 20V4" />
       <path d="M6 20v-6" />
@@ -388,7 +388,7 @@ function ChartIcon() {
 
 function ListIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <line x1="8" y1="6" x2="21" y2="6" />
       <line x1="8" y1="12" x2="21" y2="12" />
       <line x1="8" y1="18" x2="21" y2="18" />
@@ -401,7 +401,7 @@ function ListIcon() {
 
 function PlusIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
@@ -410,7 +410,7 @@ function PlusIcon() {
 
 function GamesIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <rect x="2" y="2" width="9" height="9" rx="1" />
       <rect x="13" y="2" width="9" height="9" rx="1" />
       <rect x="2" y="13" width="9" height="9" rx="1" />
@@ -421,7 +421,7 @@ function GamesIcon() {
 
 function QuizNavIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
       <path d="M9 11l3 3L22 4" />
       <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
