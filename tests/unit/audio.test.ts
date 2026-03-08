@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TtsProvider } from '../../src/audio/tts.ts';
+import { TtsProvider, clearVoiceCache } from '../../src/audio/tts.ts';
 import { DictionaryProvider } from '../../src/audio/dictionary.ts';
 import { AudioManagerImpl } from '../../src/audio/manager.ts';
 import type { AudioProvider } from '../../src/contracts/types.ts';
@@ -40,6 +40,7 @@ beforeEach(() => {
   vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
   mockSynth = createMockSpeechSynthesis();
   vi.stubGlobal('speechSynthesis', mockSynth);
+  clearVoiceCache();
 });
 
 // ─── TTS Provider ────────────────────────────────────────────
