@@ -233,6 +233,7 @@ export function PracticeScreen({
         session.scaffoldingActive,
         { maxMinutes: profile.settings.sessionMaxMinutes, adaptive: profile.settings.sessionAdaptive },
         currentWordStats,
+        mistakes,
       );
 
       if (updatedStats) {
