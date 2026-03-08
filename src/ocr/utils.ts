@@ -145,7 +145,7 @@ export function filterImportWords(
 
   if (blocked.size === 0) return words;
 
-  return words.filter((w) => !blocked.has(w));
+  return words.filter((w) => w.length > 1 && !blocked.has(w));
 }
 
 /**
