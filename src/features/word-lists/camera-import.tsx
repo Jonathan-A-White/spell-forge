@@ -2,17 +2,19 @@
 
 import { useState, useRef, useCallback } from 'react';
 import type { OcrManager } from '../../ocr';
+import { filterImportWords } from '../../ocr';
 import type { OcrResult } from '../../contracts/types';
 
 type CameraImportStatus = 'idle' | 'processing' | 'preview' | 'error';
 
 interface CameraImportProps {
   ocrManager: OcrManager;
+  importFilterPhrases?: string[];
   onWordsAccepted: (words: string[]) => void;
   onCancel: () => void;
 }
 
-export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraImportProps) {
+export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted, onCancel }: CameraImportProps) {
   const [status, setStatus] = useState<CameraImportStatus>('idle');
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set());
@@ -26,14 +28,20 @@ export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraIm
     try {
       const result = await ocrManager.extractWords(file);
 
-      if (result.words.length === 0) {
+      // Apply import filter to auto-exclude heading words
+      const filteredWords = importFilterPhrases?.length
+        ? filterImportWords(result.words, importFilterPhrases)
+        : result.words;
+      const filteredResult: OcrResult = { ...result, words: filteredWords };
+
+      if (filteredResult.words.length === 0) {
         setStatus('error');
         setErrorMessage('No words found in the image. Try a clearer photo.');
         return;
       }
 
-      setOcrResult(result);
-      setSelectedWords(new Set(result.words));
+      setOcrResult(filteredResult);
+      setSelectedWords(new Set(filteredResult.words));
       setStatus('preview');
     } catch (err) {
       setStatus('error');
@@ -41,7 +49,7 @@ export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraIm
         err instanceof Error ? err.message : 'Failed to process image',
       );
     }
-  }, [ocrManager]);
+  }, [ocrManager, importFilterPhrases]);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

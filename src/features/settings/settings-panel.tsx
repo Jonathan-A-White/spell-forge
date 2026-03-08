@@ -3,12 +3,15 @@
 import { useRef } from 'react';
 import type { AccessibilitySettings } from '../../contracts/types';
 import { PRESETS, type NamedPreset } from '../../accessibility/presets';
+import { ImportFilterSettings } from './import-filter-settings';
 
 type ContrastMode = AccessibilitySettings['contrastMode'];
 
 interface SettingsPanelProps {
   profile: { name: string; themeId: string };
   settings: AccessibilitySettings;
+  importFilterWords?: string[];
+  onImportFilterWordsChange?: (phrases: string[]) => void;
   onContrastModeChange: (mode: ContrastMode) => void;
   onPresetApply: (preset: NamedPreset) => void;
   onExportProfile?: () => void;
@@ -27,6 +30,8 @@ const contrastModes: { value: ContrastMode; label: string; description: string; 
 export function SettingsPanel({
   profile,
   settings,
+  importFilterWords,
+  onImportFilterWordsChange,
   onContrastModeChange,
   onPresetApply,
   onExportProfile,
@@ -151,6 +156,14 @@ export function SettingsPanel({
             <SettingRow label="Theme" value={profile.themeId.replace(/-/g, ' ')} />
           </div>
         </section>
+
+        {/* Photo import filters */}
+        {onImportFilterWordsChange && (
+          <ImportFilterSettings
+            filterPhrases={importFilterWords ?? []}
+            onUpdate={onImportFilterWordsChange}
+          />
+        )}
 
         {/* Share */}
         {onShare && (

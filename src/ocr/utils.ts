@@ -120,6 +120,35 @@ function isAlpha(ch: string): boolean {
 }
 
 /**
+ * Filter out words that match any of the given filter phrases.
+ *
+ * Each filter phrase is split into individual words (lowercased), and any OCR
+ * word matching one of those tokens is removed.  For example, if the filter
+ * list contains "Challenge Words" and "High Frequency Words", the tokens
+ * "challenge", "words", "high", and "frequency" will all be excluded.
+ */
+export function filterImportWords(
+  words: string[],
+  filterPhrases: string[],
+): string[] {
+  if (filterPhrases.length === 0) return words;
+
+  const blocked = new Set<string>();
+  for (const phrase of filterPhrases) {
+    for (const token of phrase.split(/\s+/)) {
+      const normalized = token.toLowerCase().replace(/[^a-z-]/g, '');
+      if (normalized.length > 0) {
+        blocked.add(normalized);
+      }
+    }
+  }
+
+  if (blocked.size === 0) return words;
+
+  return words.filter((w) => !blocked.has(w));
+}
+
+/**
  * Normalize whitespace in raw OCR text (collapse runs of whitespace to a single space, trim).
  */
 export function normalizeWhitespace(text: string): string {
