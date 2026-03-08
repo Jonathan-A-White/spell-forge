@@ -35,7 +35,6 @@ const contrastModes: { value: ContrastMode; label: string; description: string; 
 ];
 
 export function SettingsPanel({
-  profile,
   settings,
   importFilterWords,
   onImportFilterWordsChange,
