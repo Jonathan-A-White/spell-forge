@@ -3,6 +3,7 @@
 import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 import { countMasteredWords } from '../../core/mastery';
+import { ThemedHero } from './themed-hero';
 
 interface HomeScreenProps {
   profile: Profile;
@@ -142,6 +143,9 @@ export function HomeScreen({
               </div>
             </button>
           )}
+
+          {/* Theme milestone progress */}
+          <ThemedHero profileId={profile.id} themeId={profile.themeId} />
 
           {/* 2x2 navigation grid */}
           <div className="grid grid-cols-2 gap-2">
