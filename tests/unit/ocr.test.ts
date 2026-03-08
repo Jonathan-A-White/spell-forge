@@ -4,7 +4,7 @@ import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
-import { addPadding, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
+import { addPadding, rotateImage, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
 import type { OcrWorker } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
 
@@ -220,6 +220,43 @@ describe('recognizeWithOrientationDetection', () => {
     // Both 0° and 180° produce 3 words, but 180° has higher confidence
     expect(result.text).toBe('edge badge judge');
     expect(result.confidence).toBeCloseTo(0.80);
+  });
+
+  it('continues trying other rotations when one attempt fails', async () => {
+    let callCount = 0;
+    const fakeWorker: OcrWorker = {
+      recognize: async (_image, opts) => {
+        callCount++;
+        const angle = (opts?.rotateRadians as number) ?? 0;
+        if (angle === 0) {
+          throw new Error('Tesseract WASM error');
+        }
+        if (Math.abs(angle - Math.PI) < 0.01) {
+          return { data: { text: 'badge edge judge pace mice', confidence: 85 } };
+        }
+        return { data: { text: 'xqz rrr ttt', confidence: 30 } };
+      },
+    };
+
+    const result = await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
+
+    // Should recover from the 0° failure and find good results at 180°
+    expect(result.text).toBe('badge edge judge pace mice');
+    expect(result.confidence).toBeCloseTo(0.85);
+    expect(callCount).toBeGreaterThan(1);
+  });
+
+  it('returns empty result when all rotation attempts fail', async () => {
+    const fakeWorker: OcrWorker = {
+      recognize: async () => {
+        throw new Error('Tesseract WASM error');
+      },
+    };
+
+    const result = await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
+
+    expect(result.text).toBe('');
+    expect(result.confidence).toBe(-1 / 100);
   });
 });
 
@@ -641,6 +678,124 @@ describe('addPadding', () => {
       const original = new Blob(['original'], { type: 'image/png' });
       const result = await addPadding(original);
       expect(result).toBe(original);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+// ─── rotateImage ────────────────────────────────────────────
+
+describe('rotateImage', () => {
+  it('returns null when OffscreenCanvas is unavailable', async () => {
+    // jsdom does not provide OffscreenCanvas
+    const blob = new Blob(['test'], { type: 'image/png' });
+    const result = await rotateImage(blob, Math.PI / 2);
+    expect(result).toBeNull();
+  });
+
+  it('rotates 90° CW (swaps width and height)', async () => {
+    const drawImageCalls: unknown[][] = [];
+
+    const fakeCtx = {
+      fillStyle: '',
+      fillRect: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      drawImage: (...args: unknown[]) => drawImageCalls.push(args),
+    };
+
+    const outputBlob = new Blob([new Uint8Array(2048)], { type: 'image/png' });
+
+    let canvasWidth = 0;
+    let canvasHeight = 0;
+    class MockOffscreenCanvas {
+      width: number;
+      height: number;
+      constructor(w: number, h: number) {
+        this.width = w;
+        this.height = h;
+        canvasWidth = w;
+        canvasHeight = h;
+      }
+      getContext() { return fakeCtx; }
+      convertToBlob() { return Promise.resolve(outputBlob); }
+    }
+
+    const fakeBitmap = { width: 200, height: 100, close: vi.fn() };
+    vi.stubGlobal('OffscreenCanvas', MockOffscreenCanvas);
+    vi.stubGlobal('createImageBitmap', () => Promise.resolve(fakeBitmap));
+
+    try {
+      const blob = new Blob(['test'], { type: 'image/png' });
+      const result = await rotateImage(blob, Math.PI / 2);
+
+      expect(result).toBe(outputBlob);
+      // 90° rotation swaps dimensions: 200x100 → 100x200
+      expect(canvasWidth).toBe(100);
+      expect(canvasHeight).toBe(200);
+      expect(fakeCtx.translate).toHaveBeenCalledWith(50, 100);
+      expect(fakeCtx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+      expect(drawImageCalls).toHaveLength(1);
+      expect(drawImageCalls[0]).toEqual([fakeBitmap, -100, -50]);
+      expect(fakeBitmap.close).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('rotates 180° (keeps same dimensions)', async () => {
+    const fakeCtx = {
+      fillStyle: '',
+      fillRect: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      drawImage: vi.fn(),
+    };
+
+    const outputBlob = new Blob([new Uint8Array(2048)], { type: 'image/png' });
+
+    let canvasWidth = 0;
+    let canvasHeight = 0;
+    class MockOffscreenCanvas {
+      width: number;
+      height: number;
+      constructor(w: number, h: number) {
+        this.width = w;
+        this.height = h;
+        canvasWidth = w;
+        canvasHeight = h;
+      }
+      getContext() { return fakeCtx; }
+      convertToBlob() { return Promise.resolve(outputBlob); }
+    }
+
+    const fakeBitmap = { width: 200, height: 100, close: vi.fn() };
+    vi.stubGlobal('OffscreenCanvas', MockOffscreenCanvas);
+    vi.stubGlobal('createImageBitmap', () => Promise.resolve(fakeBitmap));
+
+    try {
+      const blob = new Blob(['test'], { type: 'image/png' });
+      const result = await rotateImage(blob, Math.PI);
+
+      expect(result).toBe(outputBlob);
+      // 180° keeps same dimensions
+      expect(canvasWidth).toBe(200);
+      expect(canvasHeight).toBe(100);
+      expect(fakeBitmap.close).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('falls back to null when createImageBitmap throws', async () => {
+    vi.stubGlobal('OffscreenCanvas', class { constructor() {} });
+    vi.stubGlobal('createImageBitmap', () => Promise.reject(new Error('OOM')));
+
+    try {
+      const blob = new Blob(['test'], { type: 'image/png' });
+      const result = await rotateImage(blob, Math.PI / 2);
+      expect(result).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }
