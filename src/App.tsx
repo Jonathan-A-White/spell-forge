@@ -38,6 +38,7 @@ import { ListEditor } from './features/word-lists/list-editor';
 import { WordListsView } from './features/word-lists/word-lists-view';
 import { WordListDetail } from './features/word-lists/word-list-detail';
 import { FeedbackForm } from './features/feedback/feedback-form';
+import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
 import { AudioManagerImpl, TtsProvider, DictionaryProvider } from './audio';
@@ -493,6 +494,7 @@ function App() {
         contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : activeProfile.settings.contrastMode,
       });
       applySettings(newSettings);
+      audioManager.setVoicePreference(newSettings.voicePreference);
       const updated = { ...activeProfile, settings: newSettings };
       await profileRepo.update(updated.id, { settings: newSettings });
       setActiveProfile(updated);
@@ -512,6 +514,9 @@ function App() {
   );
 
   const handleFeedback = useCallback(async (text: string) => {
+    // If online, the mailto: link in the form already opened the email client,
+    // so mark as synced. If offline, mark as unsynced so the banner picks it up.
+    const isOnline = navigator.onLine;
     await db.syncQueue.add({
       id: uuidv4(),
       type: 'feedback',
@@ -527,7 +532,7 @@ function App() {
         createdAt: new Date(),
       },
       createdAt: new Date(),
-      synced: false,
+      synced: isOnline,
     });
   }, []);
 
@@ -600,8 +605,11 @@ function App() {
     ? Math.max(0, Math.ceil((nearestTestDate.getTime() - mountTime) / 86400000))
     : null;
 
-  // Render views
-  switch (view) {
+  // Show the offline-feedback banner on views where the DB is ready
+  const showSyncBanner = view !== 'loading' && view !== 'db-blocked' && view !== 'onboarding';
+
+  // Render view content
+  const renderView = () => { switch (view) {
     case 'loading':
       return (
         <div className="min-h-screen bg-sf-bg flex items-center justify-center">
@@ -824,7 +832,14 @@ function App() {
           hasMultipleProfiles={profiles.length > 1}
         />
       );
-  }
+  } };
+
+  return (
+    <>
+      {renderView()}
+      {showSyncBanner && <FeedbackSyncBanner />}
+    </>
+  );
 }
 
 export default App;

@@ -63,7 +63,6 @@ export function applySettings(settings: AccessibilitySettings): void {
   el.style.setProperty('--sf-font-family', settings.fontFamily);
   el.style.setProperty('--sf-letter-spacing', `${settings.letterSpacing}em`);
   el.style.setProperty('--sf-line-height', String(settings.lineHeight));
-  el.style.setProperty('--sf-background-color', settings.backgroundColor);
   el.style.setProperty('--sf-tap-target-size', `${settings.tapTargetSize}px`);
   el.style.setProperty(
     '--sf-reduced-motion',
@@ -75,6 +74,15 @@ export function applySettings(settings: AccessibilitySettings): void {
     ? settings.contrastMode
     : 'light';
   el.setAttribute('data-theme', theme);
+
+  // In light mode, honour the user's custom background colour.
+  // In dark / high-contrast modes, always use the theme's background so
+  // a stale light background doesn't bleed through.
+  if (theme === 'light') {
+    el.style.setProperty('--sf-background-color', settings.backgroundColor);
+  } else {
+    el.style.setProperty('--sf-background-color', 'var(--sf-color-bg)');
+  }
 }
 
 // ─── Merge helper ───────────────────────────────────────────────
