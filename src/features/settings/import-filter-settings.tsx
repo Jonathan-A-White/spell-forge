@@ -1,6 +1,6 @@
 // src/features/settings/import-filter-settings.tsx — Manage words/phrases to auto-exclude from camera import
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface ImportFilterSettingsProps {
   filterPhrases: string[];
@@ -9,6 +9,17 @@ interface ImportFilterSettingsProps {
 
 export function ImportFilterSettings({ filterPhrases, onUpdate }: ImportFilterSettingsProps) {
   const [newPhrase, setNewPhrase] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the edit input when entering edit mode
+  useEffect(() => {
+    if (editingIndex !== null) {
+      editInputRef.current?.focus();
+      editInputRef.current?.select();
+    }
+  }, [editingIndex]);
 
   const handleAdd = useCallback(() => {
     const trimmed = newPhrase.trim();
@@ -27,10 +38,50 @@ export function ImportFilterSettings({ filterPhrases, onUpdate }: ImportFilterSe
 
   const handleRemove = useCallback(
     (index: number) => {
+      setEditingIndex(null);
       onUpdate(filterPhrases.filter((_, i) => i !== index));
     },
     [filterPhrases, onUpdate],
   );
+
+  const handleEditStart = useCallback(
+    (index: number) => {
+      setEditingIndex(index);
+      setEditValue(filterPhrases[index]);
+    },
+    [filterPhrases],
+  );
+
+  const handleEditSave = useCallback(() => {
+    if (editingIndex === null) return;
+
+    const trimmed = editValue.trim();
+    if (trimmed === '') {
+      // Treat empty save as delete
+      handleRemove(editingIndex);
+      return;
+    }
+
+    // Check for duplicates (case-insensitive), excluding the item being edited
+    const lowerTrimmed = trimmed.toLowerCase();
+    const isDuplicate = filterPhrases.some(
+      (p, i) => i !== editingIndex && p.toLowerCase() === lowerTrimmed,
+    );
+    if (isDuplicate) {
+      // Revert — duplicate exists
+      setEditingIndex(null);
+      return;
+    }
+
+    const updated = [...filterPhrases];
+    updated[editingIndex] = trimmed;
+    onUpdate(updated);
+    setEditingIndex(null);
+  }, [editingIndex, editValue, filterPhrases, onUpdate, handleRemove]);
+
+  const handleEditCancel = useCallback(() => {
+    setEditingIndex(null);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -40,6 +91,19 @@ export function ImportFilterSettings({ filterPhrases, onUpdate }: ImportFilterSe
       }
     },
     [handleAdd],
+  );
+
+  const handleEditKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleEditSave();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleEditCancel();
+      }
+    },
+    [handleEditSave, handleEditCancel],
   );
 
   return (
@@ -53,26 +117,54 @@ export function ImportFilterSettings({ filterPhrases, onUpdate }: ImportFilterSe
           Words and phrases listed here will be automatically removed when
           importing from a photo. Useful for filtering headings like
           &ldquo;Challenge Words&rdquo; or &ldquo;High Frequency Words&rdquo;.
+          Tap a phrase to edit it.
         </p>
 
         {/* Existing phrases */}
         {filterPhrases.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {filterPhrases.map((phrase, index) => (
-              <span
-                key={`${phrase}-${index}`}
-                className="inline-flex items-center gap-1.5 bg-sf-track text-sf-text text-sm px-3 py-1.5 rounded-full"
-              >
-                {phrase}
-                <button
-                  onClick={() => handleRemove(index)}
-                  className="text-sf-muted hover:text-sf-error ml-0.5 -mr-1"
-                  aria-label={`Remove "${phrase}"`}
+            {filterPhrases.map((phrase, index) =>
+              editingIndex === index ? (
+                <div key={`${phrase}-${index}`} className="flex gap-1">
+                  <input
+                    ref={editInputRef}
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={handleEditKeyDown}
+                    onBlur={handleEditSave}
+                    className="border border-sf-primary rounded-lg px-2 py-1 text-sm text-sf-heading bg-sf-input-bg focus:outline-none focus:ring-2 focus:ring-sf-primary w-40"
+                  />
+                </div>
+              ) : (
+                <span
+                  key={`${phrase}-${index}`}
+                  className="inline-flex items-center gap-1.5 bg-sf-track text-sf-text text-sm px-3 py-1.5 rounded-full cursor-pointer hover:bg-sf-track/80 transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleEditStart(index)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleEditStart(index);
+                    }
+                  }}
+                  aria-label={`Edit "${phrase}"`}
                 >
-                  <RemoveIcon />
-                </button>
-              </span>
-            ))}
+                  {phrase}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemove(index);
+                    }}
+                    className="text-sf-muted hover:text-sf-error ml-0.5 -mr-1"
+                    aria-label={`Remove "${phrase}"`}
+                  >
+                    <RemoveIcon />
+                  </button>
+                </span>
+              ),
+            )}
           </div>
         )}
 
