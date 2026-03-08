@@ -115,76 +115,46 @@ describe('TtsProvider', () => {
     expect(u1.voice).toBe(u2.voice);
   });
 
-  it('should speak multi-character chunks with delays between them', async () => {
+  it('should queue all chunks at once via the browser speech queue', async () => {
     vi.useFakeTimers();
     const tts = new TtsProvider();
 
-    const promise = tts.speakChunks(['cat', 'dog', 'bird'], 100);
+    const promise = tts.speakChunks(['cat', 'dog', 'bird']);
 
-    // First chunk speaks immediately, then onend fires after setTimeout(0)
-    await vi.advanceTimersByTimeAsync(0);
-    expect(mockSynth.speak).toHaveBeenCalledTimes(1);
-
-    // Advance past the delay between chunks (100ms) + onend setTimeout(0)
-    await vi.advanceTimersByTimeAsync(101);
-    expect(mockSynth.speak).toHaveBeenCalledTimes(2);
-
-    // Advance past the second delay + onend
-    await vi.advanceTimersByTimeAsync(101);
+    // All three utterances are queued immediately (no delays between them)
     expect(mockSynth.speak).toHaveBeenCalledTimes(3);
+    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(0);
-    await promise;
-    vi.useRealTimers();
-  });
-
-  it('should spell single-character chunks as individual phonetic letter names', async () => {
-    vi.useFakeTimers();
-    const tts = new TtsProvider();
-
-    const promise = tts.speakChunks(['e', 'd', 'g', 'e'], 400);
-
-    // First letter spoken immediately
-    await vi.advanceTimersByTimeAsync(0);
-    expect(mockSynth.speak).toHaveBeenCalledTimes(1);
     const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(u1.text).toBe('ee');
-
-    // Second letter after delay
-    await vi.advanceTimersByTimeAsync(401);
-    expect(mockSynth.speak).toHaveBeenCalledTimes(2);
     const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    expect(u2.text).toBe('dee');
-
-    // Third letter after delay
-    await vi.advanceTimersByTimeAsync(401);
-    expect(mockSynth.speak).toHaveBeenCalledTimes(3);
     const u3 = vi.mocked(mockSynth.speak).mock.calls[2][0] as unknown as MockUtterance;
-    expect(u3.text).toBe('jee');
+    expect(u1.text).toBe('cat');
+    expect(u2.text).toBe('dog');
+    expect(u3.text).toBe('bird');
 
-    // Fourth letter after delay
-    await vi.advanceTimersByTimeAsync(401);
-    expect(mockSynth.speak).toHaveBeenCalledTimes(4);
-    const u4 = vi.mocked(mockSynth.speak).mock.calls[3][0] as unknown as MockUtterance;
-    expect(u4.text).toBe('ee');
-
+    // Only the last utterance's onend resolves the promise
     await vi.advanceTimersByTimeAsync(0);
     await promise;
     vi.useRealTimers();
   });
 
-  it('should cancel only once before the first chunk, not between them', async () => {
+  it('should uppercase single-character chunks for letter-name pronunciation', async () => {
     vi.useFakeTimers();
     const tts = new TtsProvider();
 
-    const promise = tts.speakChunks(['a', 'b'], 100);
+    const promise = tts.speakChunks(['e', 'd', 'g', 'e']);
 
-    await vi.advanceTimersByTimeAsync(0);
-    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
+    // All letters queued at once as uppercase
+    expect(mockSynth.speak).toHaveBeenCalledTimes(4);
 
-    await vi.advanceTimersByTimeAsync(101);
-    // Still only one cancel — not called before second letter
-    expect(mockSynth.cancel).toHaveBeenCalledTimes(1);
+    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
+    const u3 = vi.mocked(mockSynth.speak).mock.calls[2][0] as unknown as MockUtterance;
+    const u4 = vi.mocked(mockSynth.speak).mock.calls[3][0] as unknown as MockUtterance;
+    expect(u1.text).toBe('E');
+    expect(u2.text).toBe('D');
+    expect(u3.text).toBe('G');
+    expect(u4.text).toBe('E');
 
     await vi.advanceTimersByTimeAsync(0);
     await promise;
