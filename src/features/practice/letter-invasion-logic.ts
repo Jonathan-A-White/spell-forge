@@ -37,6 +37,7 @@ export function spawnInvader(
   config: WaveConfig,
   nextLetterIndex: number,
   invaderId: number,
+  forceTarget = false,
 ): Invader {
   const targetLetter = config.word[nextLetterIndex]?.toLowerCase();
   if (!targetLetter) {
@@ -52,8 +53,8 @@ export function spawnInvader(
     };
   }
 
-  // ~40% chance of spawning the target letter, otherwise a distractor
-  const spawnTarget = Math.random() < 0.4;
+  // Force target if requested, otherwise ~40% chance of spawning the target letter
+  const spawnTarget = forceTarget || Math.random() < 0.4;
   const letter = spawnTarget ? targetLetter : randomLetter(config.word);
 
   return {
