@@ -124,6 +124,43 @@ describe('Theme Palette Validation', () => {
   }
 });
 
+// ─── Theme Visual Effects Validation ────────────────────────
+
+describe('Theme Visual Effects', () => {
+  const allThemes: Theme[] = [dragonForgeTheme, monsterLabTheme, starTrailTheme];
+
+  for (const theme of allThemes) {
+    describe(`${theme.name} visualEffects`, () => {
+      it('has a CSS gradient string', () => {
+        expect(theme.visualEffects.gradient).toContain('linear-gradient');
+      });
+
+      it('has a glowColor as rgba', () => {
+        expect(theme.visualEffects.glowColor).toMatch(/^rgba\(/);
+      });
+
+      it('has 2-3 particleColors', () => {
+        expect(theme.visualEffects.particleColors.length).toBeGreaterThanOrEqual(2);
+        expect(theme.visualEffects.particleColors.length).toBeLessThanOrEqual(3);
+      });
+
+      it('has a shadowColor as rgba', () => {
+        expect(theme.visualEffects.shadowColor).toMatch(/^rgba\(/);
+      });
+
+      it('has a progress gradient', () => {
+        expect(theme.visualEffects.progressGradient).toContain('linear-gradient');
+      });
+    });
+  }
+
+  it('getVisualEffects returns effects for a valid theme', () => {
+    const vfx = themeEngine.getVisualEffects('dragon-forge');
+    expect(vfx.gradient).toContain('linear-gradient');
+    expect(vfx.particleColors).toHaveLength(3);
+  });
+});
+
 // ─── Reward Calculation ──────────────────────────────────────
 
 describe('Reward Calculation', () => {

@@ -193,6 +193,7 @@ export interface Theme {
   description: string;
   ageRange: string;
   palette: ThemePalette;
+  visualEffects: ThemeVisualEffects;
   rewardMechanic: RewardMechanic;
   assets: ThemeAssets;
 }
@@ -214,6 +215,14 @@ export interface RewardMechanic {
   progressPerCorrect: number;
   progressPerSession: number;
   weeklyGoalReward: string;
+}
+
+export interface ThemeVisualEffects {
+  gradient: string;          // CSS gradient for themed backgrounds
+  glowColor: string;         // glow/shadow accent color (rgba)
+  particleColors: string[];  // 2-3 colors for ambient animated particles
+  shadowColor: string;       // themed drop shadow color (rgba)
+  progressGradient: string;  // gradient for the progress bar fill
 }
 
 export interface ThemeAssets {

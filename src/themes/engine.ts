@@ -116,6 +116,16 @@ function applyThemePalette(themeId: string): void {
   el.style.setProperty('--sf-color-accent', p.accent);
   el.style.setProperty('--sf-color-accent-hover', adjustBrightness(p.accent, -20));
 
+  // Visual effects
+  const vfx = theme.visualEffects;
+  el.style.setProperty('--sf-gradient', vfx.gradient);
+  el.style.setProperty('--sf-glow-color', vfx.glowColor);
+  el.style.setProperty('--sf-shadow-color', vfx.shadowColor);
+  el.style.setProperty('--sf-progress-gradient', vfx.progressGradient);
+  el.style.setProperty('--sf-particle-1', vfx.particleColors[0]);
+  el.style.setProperty('--sf-particle-2', vfx.particleColors[1]);
+  el.style.setProperty('--sf-particle-3', vfx.particleColors[2] ?? vfx.particleColors[1]);
+
   el.setAttribute('data-spell-theme', themeId);
 }
 
@@ -139,6 +149,10 @@ function contrastText(hex: string): string {
   return luminance > 0.5 ? '#000000' : '#FFFFFF';
 }
 
+function getVisualEffects(themeId: string) {
+  return getTheme(themeId).visualEffects;
+}
+
 function getMaxProgress(themeId: string): number {
   const theme = getTheme(themeId);
   return theme.rewardMechanic.milestoneNames.length * UNITS_PER_MILESTONE;
@@ -150,6 +164,7 @@ export const themeEngine = {
   calculateReward,
   getMilestoneStatus,
   getMaxProgress,
+  getVisualEffects,
   applyThemePalette,
   UNITS_PER_MILESTONE,
 } as const;
