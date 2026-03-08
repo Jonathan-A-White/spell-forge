@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cleanWords, normalizeWhitespace, extractListName } from '../../src/ocr/utils.ts';
+import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
+import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
-import { addPadding } from '../../src/ocr/preprocess.ts';
+import { addPadding, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
+import type { OcrWorker } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
 
 // ─── Word Cleaning ───────────────────────────────────────────
@@ -92,86 +94,132 @@ describe('normalizeWhitespace', () => {
   });
 });
 
-// ─── extractListName ────────────────────────────────────────
+// ─── correctOcrWords (spell-check post-processing) ──────────
 
-describe('extractListName', () => {
-  it('extracts a "Unit X, WK Y" header from the first line', () => {
-    const text = 'Unit 3, WK 6\nbadge\nedge\njudge';
-    expect(extractListName(text)).toBe('Unit 3, WK 6');
+describe('correctOcrWords', () => {
+  it('leaves correctly spelled words unchanged', () => {
+    expect(correctOcrWords(['badge', 'edge', 'judge'])).toEqual(['badge', 'edge', 'judge']);
   });
 
-  it('extracts a "Week N" header', () => {
-    const text = 'Week 12\napple\nbanana';
-    expect(extractListName(text)).toBe('Week 12');
+  it('corrects d→a substitution (dlmost → almost)', () => {
+    expect(correctOcrWords(['dlmost'])).toEqual(['almost']);
   });
 
-  it('extracts a "Spelling List N" header', () => {
-    const text = 'Spelling List 5\nknight\nbridge';
-    expect(extractListName(text)).toBe('Spelling List 5');
+  it('corrects d→a substitution (pedce → peace)', () => {
+    expect(correctOcrWords(['pedce'])).toEqual(['peace']);
   });
 
-  it('extracts a "Lesson N" header', () => {
-    const text = 'Lesson 7\ncat\ndog';
-    expect(extractListName(text)).toBe('Lesson 7');
+  it('corrects rn→m substitution (cornputer → computer)', () => {
+    expect(correctOcrWords(['cornputer'])).toEqual(['computer']);
   });
 
-  it('extracts a "Chapter N" header', () => {
-    const text = 'Chapter 4 Vocabulary\nword1\nword2';
-    expect(extractListName(text)).toBe('Chapter 4 Vocabulary');
+  it('corrects l→i substitution (prlce → price)', () => {
+    expect(correctOcrWords(['prlce'])).toEqual(['price']);
   });
 
-  it('extracts header with keyword even without a number', () => {
-    const text = 'Spelling Test\napple\nbanana';
-    expect(extractListName(text)).toBe('Spelling Test');
+  it('leaves unknown words unchanged when no correction found', () => {
+    expect(correctOcrWords(['xyzqwk'])).toEqual(['xyzqwk']);
   });
 
-  it('extracts header from second line if first line is empty after trim', () => {
-    const text = '\n  \nUnit 5\nbadge\nedge';
-    expect(extractListName(text)).toBe('Unit 5');
+  it('handles mixed correct and incorrect words', () => {
+    const input = ['badge', 'dlmost', 'edge', 'pedce', 'huge'];
+    const result = correctOcrWords(input);
+    expect(result).toEqual(['badge', 'almost', 'edge', 'peace', 'huge']);
   });
 
-  it('returns null when no header pattern is found', () => {
-    const text = 'badge\nedge\njudge\npace';
-    expect(extractListName(text)).toBeNull();
+  it('handles empty input', () => {
+    expect(correctOcrWords([])).toEqual([]);
+  });
+});
+
+// ─── recognizeWithOrientationDetection ──────────────────────
+
+describe('recognizeWithOrientationDetection', () => {
+  it('picks the rotation that produces the most plausible words', async () => {
+    // Simulate: 0° returns garbage, 180° returns real words
+    const calls: number[] = [];
+    const fakeWorker: OcrWorker = {
+      recognize: async (_image, opts) => {
+        const angle = (opts?.rotateRadians as number) ?? 0;
+        calls.push(angle);
+        if (Math.abs(angle - Math.PI) < 0.01) {
+          // 180° — correct orientation
+          return { data: { text: 'badge edge judge pace mice', confidence: 85 } };
+        }
+        // All other orientations — garbage
+        return { data: { text: 'xqz rrr ttt bbb nnn', confidence: 70 } };
+      },
+    };
+
+    const result = await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
+
+    expect(result.text).toBe('badge edge judge pace mice');
+    expect(result.confidence).toBeCloseTo(0.85);
   });
 
-  it('returns null for empty input', () => {
-    expect(extractListName('')).toBeNull();
-    expect(extractListName('   \n  ')).toBeNull();
+  it('short-circuits when enough words with high confidence are found', async () => {
+    const calls: number[] = [];
+    const fakeWorker: OcrWorker = {
+      recognize: async (_image, opts) => {
+        const angle = (opts?.rotateRadians as number) ?? 0;
+        calls.push(angle);
+        if (angle === 0) {
+          // Upright — lots of real words with high confidence
+          return {
+            data: {
+              text: 'badge edge judge pace mice peace huge giraffe gems price',
+              confidence: 90,
+            },
+          };
+        }
+        return { data: { text: 'garbage noise', confidence: 50 } };
+      },
+    };
+
+    const result = await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
+
+    // Should short-circuit after 0° (≥5 words and ≥80 confidence)
+    expect(calls).toHaveLength(1);
+    expect(result.text).toContain('badge');
+    expect(result.confidence).toBeCloseTo(0.90);
   });
 
-  it('skips lines that are too long (> 60 chars)', () => {
-    const longLine = 'A'.repeat(61) + ' Unit 3';
-    const text = `${longLine}\nWeek 5\nbadge`;
-    expect(extractListName(text)).toBe('Week 5');
+  it('does not pass rotateRadians for 0° angle', async () => {
+    const receivedOpts: Array<Record<string, unknown> | undefined> = [];
+    const fakeWorker: OcrWorker = {
+      recognize: async (_image, opts) => {
+        receivedOpts.push(opts as Record<string, unknown> | undefined);
+        // Return high-quality result for all rotations to prevent short-circuit issues
+        return { data: { text: 'badge edge judge pace mice peace huge', confidence: 90 } };
+      },
+    };
+
+    await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
+
+    // First call (0°) should have no rotateRadians
+    expect(receivedOpts[0]).toEqual({});
   });
 
-  it('matches header keywords case-insensitively', () => {
-    expect(extractListName('UNIT 3\nbadge')).toBe('UNIT 3');
-    expect(extractListName('week 12\napple')).toBe('week 12');
-    expect(extractListName('VOCABULARY words\napple')).toBe('VOCABULARY words');
-  });
+  it('uses confidence as tiebreaker when word counts are equal', async () => {
+    const fakeWorker: OcrWorker = {
+      recognize: async (_image, opts) => {
+        const angle = (opts?.rotateRadians as number) ?? 0;
+        if (angle === 0) {
+          return { data: { text: 'apple banana cherry', confidence: 60 } };
+        }
+        if (Math.abs(angle - Math.PI) < 0.01) {
+          // Same word count but higher confidence
+          return { data: { text: 'edge badge judge', confidence: 80 } };
+        }
+        return { data: { text: 'xxx yyy zzz', confidence: 40 } };
+      },
+    };
 
-  it('matches a line with just a number (e.g. "3")', () => {
-    const text = '3\nbadge\nedge';
-    expect(extractListName(text)).toBe('3');
-  });
+    const result = await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
 
-  it('cleans special characters from the header', () => {
-    const text = 'Unit #3 — WK 6!\nbadge\nedge';
-    // # and — and ! are stripped, whitespace collapsed
-    expect(extractListName(text)).toBe('Unit 3 WK 6');
-  });
-
-  it('only inspects the first 3 lines', () => {
-    const text = 'badge\nedge\njudge\nWeek 12\npace';
-    // "Week 12" is on line 4 — should not be found
-    expect(extractListName(text)).toBeNull();
-  });
-
-  it('detects "Grade N Term M" style headers', () => {
-    const text = 'Grade 2 Term 3\napple\nbanana';
-    expect(extractListName(text)).toBe('Grade 2 Term 3');
+    // Both 0° and 180° produce 3 words, but 180° has higher confidence
+    expect(result.text).toBe('edge badge judge');
+    expect(result.confidence).toBeCloseTo(0.80);
   });
 });
 
@@ -206,19 +254,20 @@ describe('LocalOcrProvider', () => {
     expect(result.confidence).toBe(0.95);
     expect(result.words).toEqual(['hello', 'world']);
     expect(result.rawText).toBe('Hello WORLD hello');
-    expect(result.listName).toBeNull();
   });
 
-  it('extracts list name from recognizer text', async () => {
+  it('applies spell-check correction to OCR output', async () => {
     const recognizer: RecognizerFn = async () => ({
-      text: 'Unit 3, WK 6\nbadge\nedge\njudge',
+      text: 'badge edge dlmost pedce',
       confidence: 0.9,
     });
     const provider = new LocalOcrProvider(recognizer);
     const result = await provider.extractWords(new Blob());
 
-    expect(result.listName).toBe('Unit 3, WK 6');
+    expect(result.words).toContain('almost');
+    expect(result.words).toContain('peace');
     expect(result.words).toContain('badge');
+    expect(result.words).toContain('edge');
   });
 });
 
@@ -243,7 +292,7 @@ describe('RemoteOcrProvider', () => {
   it('posts image to endpoint and returns cleaned result', async () => {
     const provider = new RemoteOcrProvider('https://ocr.example.com/api');
 
-    const mockResponse = { text: 'Spelling  Words', confidence: 0.88 };
+    const mockResponse = { text: 'apple banana', confidence: 0.88 };
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify(mockResponse), { status: 200 }),
     );
@@ -253,25 +302,25 @@ describe('RemoteOcrProvider', () => {
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(result.source).toBe('remote');
     expect(result.confidence).toBe(0.88);
-    expect(result.words).toEqual(['spelling', 'words']);
-    expect(result.rawText).toBe('Spelling Words');
-    expect(result.listName).toBe('Spelling Words');
+    expect(result.words).toEqual(['apple', 'banana']);
+    expect(result.rawText).toBe('apple banana');
 
     fetchSpy.mockRestore();
   });
 
-  it('extracts list name from remote response', async () => {
+  it('applies spell-check correction to remote OCR output', async () => {
     const provider = new RemoteOcrProvider('https://ocr.example.com/api');
 
-    const mockResponse = { text: 'Week 12\nknight\nbridge\nlight', confidence: 0.9 };
+    const mockResponse = { text: 'dlmost pedce badge', confidence: 0.9 };
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify(mockResponse), { status: 200 }),
     );
 
     const result = await provider.extractWords(new Blob(['img']));
 
-    expect(result.listName).toBe('Week 12');
-    expect(result.words).toContain('knight');
+    expect(result.words).toContain('almost');
+    expect(result.words).toContain('peace');
+    expect(result.words).toContain('badge');
 
     fetchSpy.mockRestore();
   });

@@ -1,7 +1,7 @@
 // src/features/word-lists/list-editor.tsx — Word list CRUD UI
 
 import { useState, useCallback, useRef } from 'react';
-import type { WordList, OcrResult } from '../../contracts/types';
+import type { WordList } from '../../contracts/types';
 import type { OcrManager } from '../../ocr';
 
 interface ListEditorProps {
@@ -43,17 +43,12 @@ export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }
     setOcrError('');
 
     try {
-      const result: OcrResult = await ocrManager.extractWords(file);
+      const result = await ocrManager.extractWords(file);
 
       if (result.words.length === 0) {
         setOcrStatus('error');
         setOcrError('No words found. Try a clearer photo.');
         return;
-      }
-
-      // Auto-populate list name if the OCR detected one and the field is empty
-      if (result.listName && name.trim() === '') {
-        setName(result.listName);
       }
 
       // Append OCR words to existing text
@@ -71,7 +66,7 @@ export function ListEditor({ list, existingWords, ocrManager, onSave, onCancel }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [ocrManager, wordsText, name]);
+  }, [ocrManager, wordsText]);
 
   const wordCount = wordsText
     .split(/[\n,]+/)

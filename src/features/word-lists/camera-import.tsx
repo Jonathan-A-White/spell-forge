@@ -1,14 +1,14 @@
 // src/features/word-lists/camera-import.tsx — Camera / photo import for word lists
 
 import { useState, useRef, useCallback } from 'react';
-import type { OcrResult } from '../../contracts/types';
 import type { OcrManager } from '../../ocr';
+import type { OcrResult } from '../../contracts/types';
 
 type CameraImportStatus = 'idle' | 'processing' | 'preview' | 'error';
 
 interface CameraImportProps {
   ocrManager: OcrManager;
-  onWordsAccepted: (words: string[], listName?: string | null) => void;
+  onWordsAccepted: (words: string[]) => void;
   onCancel: () => void;
 }
 
@@ -76,8 +76,8 @@ export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraIm
   }, []);
 
   const handleAccept = useCallback(() => {
-    onWordsAccepted(Array.from(selectedWords), ocrResult?.listName);
-  }, [selectedWords, onWordsAccepted, ocrResult]);
+    onWordsAccepted(Array.from(selectedWords));
+  }, [selectedWords, onWordsAccepted]);
 
   const handleRetry = useCallback(() => {
     setStatus('idle');
@@ -175,12 +175,6 @@ export function CameraImport({ ocrManager, onWordsAccepted, onCancel }: CameraIm
                 Confidence: {Math.round(ocrResult.confidence * 100)}%
               </span>
             </div>
-
-            {ocrResult.listName && (
-              <p className="text-xs text-sf-muted mb-3">
-                List name detected: <span className="font-bold text-sf-heading">{ocrResult.listName}</span>
-              </p>
-            )}
 
             <div className="flex gap-2 mb-3">
               <button

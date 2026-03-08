@@ -9,14 +9,12 @@ function createMockOcrManager(opts?: {
   confidence?: number;
   shouldThrow?: boolean;
   errorMessage?: string;
-  listName?: string | null;
 }): OcrManager {
   const {
     words = ['apple', 'banana', 'cherry'],
     confidence = 0.9,
     shouldThrow = false,
     errorMessage = 'OCR failed',
-    listName = null,
   } = opts ?? {};
 
   return {
@@ -27,7 +25,6 @@ function createMockOcrManager(opts?: {
         words,
         confidence,
         source: 'local',
-        listName,
       };
     }),
     setRemoteEndpoint: vi.fn(),
@@ -119,57 +116,5 @@ describe('Camera import OCR integration', () => {
     // Verify the type system supports camera source
     const source: 'camera' | 'manual' | 'import' = 'camera';
     expect(source).toBe('camera');
-  });
-
-  it('OCR result includes detected list name', async () => {
-    const manager = createMockOcrManager({
-      words: ['badge', 'edge', 'judge'],
-      listName: 'Unit 3, WK 6',
-    });
-    const result = await manager.extractWords(new Blob());
-
-    expect(result.listName).toBe('Unit 3, WK 6');
-  });
-
-  it('list name is null when no header detected', async () => {
-    const manager = createMockOcrManager({
-      words: ['badge', 'edge', 'judge'],
-      listName: null,
-    });
-    const result = await manager.extractWords(new Blob());
-
-    expect(result.listName).toBeNull();
-  });
-
-  it('list name auto-populates empty name field', async () => {
-    const manager = createMockOcrManager({
-      words: ['badge', 'edge'],
-      listName: 'Week 12',
-    });
-    const result = await manager.extractWords(new Blob());
-
-    // Simulate the ListEditor logic: set name if empty
-    let listName = '';
-    if (result.listName && listName.trim() === '') {
-      listName = result.listName;
-    }
-
-    expect(listName).toBe('Week 12');
-  });
-
-  it('list name does not overwrite existing name', async () => {
-    const manager = createMockOcrManager({
-      words: ['badge', 'edge'],
-      listName: 'Week 12',
-    });
-    const result = await manager.extractWords(new Blob());
-
-    // Simulate the ListEditor logic: do not overwrite existing name
-    let listName = 'My Custom List';
-    if (result.listName && listName.trim() === '') {
-      listName = result.listName;
-    }
-
-    expect(listName).toBe('My Custom List');
   });
 });
