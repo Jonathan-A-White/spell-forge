@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
+import { QrShare } from './qr-share';
 
 interface WordListDetailProps {
   list: WordList;
@@ -32,6 +33,7 @@ export function WordListDetail({
   const [editText, setEditText] = useState('');
   const [newWordText, setNewWordText] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showQrShare, setShowQrShare] = useState(false);
 
   const startEditing = (word: Word) => {
     setEditingWordId(word.id);
@@ -95,14 +97,25 @@ export function WordListDetail({
               </p>
             </div>
           </div>
-          <button
-            onClick={() => onEditList(list)}
-            className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
-            aria-label="Edit list settings"
-            title="Edit list"
-          >
-            <EditIcon />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowQrShare(true)}
+              className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+              aria-label="Share list via QR code"
+              title="Share via QR"
+              data-testid="share-qr-btn"
+            >
+              <QrIcon />
+            </button>
+            <button
+              onClick={() => onEditList(list)}
+              className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+              aria-label="Edit list settings"
+              title="Edit list"
+            >
+              <EditIcon />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -206,6 +219,16 @@ export function WordListDetail({
           </div>
         )}
       </div>
+
+      {/* QR Share dialog */}
+      {showQrShare && (
+        <QrShare
+          listName={list.name}
+          words={words.map((w) => w.text)}
+          testDate={list.testDate}
+          onClose={() => setShowQrShare(false)}
+        />
+      )}
 
       {/* Delete confirmation dialog */}
       {confirmDeleteId && (
@@ -323,6 +346,20 @@ function CloseIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function QrIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="3" height="3" />
+      <line x1="21" y1="14" x2="21" y2="17" />
+      <line x1="14" y1="21" x2="17" y2="21" />
+      <line x1="21" y1="21" x2="21" y2="21" />
     </svg>
   );
 }
