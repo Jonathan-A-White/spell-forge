@@ -1,26 +1,11 @@
 // src/features/feedback/feedback-form.tsx — Send feedback UI (opens native email)
 
 import { useState, useCallback } from 'react';
-
-const FEEDBACK_EMAIL = 'jonathan.jawhite@gmail.com';
+import { FEEDBACK_EMAIL, buildMailtoUrl } from './mailto';
 
 interface FeedbackFormProps {
   onSubmit: (text: string) => void;
   onCancel: () => void;
-}
-
-function buildMailtoUrl(body: string): string {
-  const deviceInfo = [
-    `App Version: 0.1.0`,
-    `Platform: ${navigator.platform}`,
-    `Screen: ${window.innerWidth}x${window.innerHeight}`,
-    `User Agent: ${navigator.userAgent}`,
-  ].join('\n');
-
-  const fullBody = `${body}\n\n---\n${deviceInfo}`;
-  const subject = 'SpellForge Feedback';
-
-  return `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
 }
 
 export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
