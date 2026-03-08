@@ -101,6 +101,7 @@ export function recordAttempt(
   scaffoldingUsed: boolean,
   config: Partial<SessionConfig> = {},
   currentWordStats?: WordStats | null,
+  mistakeCount: number = 0,
 ): { state: SessionState; updatedStats: WordStats | null; result: TechniqueResult } {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
@@ -122,9 +123,14 @@ export function recordAttempt(
   let newWordsCorrect = state.wordsCorrect;
   let newWordsAttempted = state.wordsAttempted;
 
+  // A word counts as "correct" for accuracy only if completed without mistakes
+  const perfectAttempt = correct && mistakeCount === 0;
+
   if (correct) {
-    newWordsCorrect++;
     newWordsAttempted++;
+    if (perfectAttempt) {
+      newWordsCorrect++;
+    }
   } else if (newAttemptCount >= 3) {
     // After 3 failed attempts, mark as wrong and move on
     newWordsAttempted++;
