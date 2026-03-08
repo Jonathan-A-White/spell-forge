@@ -53,13 +53,21 @@ function pickVoice(): SpeechSynthesisVoice | null {
 /** How long to wait for speechSynthesis before assuming it silently failed (e.g. Kindle Silk). */
 const SPEAK_TIMEOUT_MS = 5000;
 
-function speakWord(word: string): Promise<void> {
+interface SpeakOptions {
+  /** Skip the synth.cancel() call — used between letters in a chunk sequence. */
+  skipCancel?: boolean;
+}
+
+function speakWord(word: string, options: SpeakOptions = {}): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const synth = window.speechSynthesis;
 
     // Some browsers (Kindle Silk) have speechSynthesis but no working voices.
-    // Cancel any queued speech first to avoid stale utterances.
-    synth.cancel();
+    // Cancel any queued speech first to avoid stale utterances — but skip this
+    // when speaking sequential letters so Kindle's slower TTS isn't interrupted.
+    if (!options.skipCancel) {
+      synth.cancel();
+    }
 
     const utterance = new SpeechSynthesisUtterance(word);
     const voice = pickVoice();
@@ -105,7 +113,11 @@ export class TtsProvider implements AudioProvider {
       if (i > 0) {
         await delay(delayMs);
       }
-      await this.speak(chunks[i]);
+      // Skip cancel between letters so slower TTS engines (Kindle Silk) aren't
+      // interrupted mid-utterance.  Append a period to single-character chunks
+      // so TTS engines treat them as letter names instead of ignoring them.
+      const text = chunks[i].length === 1 ? `${chunks[i]}.` : chunks[i];
+      await speakWord(text, { skipCancel: i > 0 });
     }
   }
 
