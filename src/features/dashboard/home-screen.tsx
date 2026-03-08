@@ -4,6 +4,7 @@ import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakDa
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 import { countMasteredWords } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
+import { monsterCollection } from '../rewards';
 
 interface HomeScreenProps {
   profile: Profile;
@@ -13,7 +14,7 @@ interface HomeScreenProps {
   learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -146,6 +147,22 @@ export function HomeScreen({
 
           {/* Theme milestone progress */}
           <ThemedHero profileId={profile.id} themeId={profile.themeId} />
+
+          {/* Monster Stable link */}
+          {monsterCollection.getCollectionCount(profile.id) > 0 && (
+            <button
+              onClick={() => onNavigate('monster-stable')}
+              className="w-full flex items-center justify-between rounded-lg bg-sf-surface/60 border border-sf-border/50 px-3 py-2 hover:border-sf-border-strong transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{'\u{1F9EA}'}</span>
+                <span className="text-xs font-medium text-sf-heading">Monster Stable</span>
+              </div>
+              <span className="text-xs text-sf-muted">
+                {monsterCollection.getCollectionCount(profile.id)} creature{monsterCollection.getCollectionCount(profile.id) !== 1 ? 's' : ''} →
+              </span>
+            </button>
+          )}
 
           {/* 2x2 navigation grid */}
           <div className="grid grid-cols-2 gap-2">
