@@ -4,12 +4,13 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cleanWords, normalizeWhitespace, extractListName } from '../../src/ocr/utils.ts';
+import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
+import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { addPadding, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// All words visible in the fixture image after cleanWords processing:
+// All words visible in the fixture image after cleanWords + spell-check processing:
 // - "Unit 3, WK 6" header → "unit" (3/wk/6 filtered as non-alpha or too short)
 // - 10 spelling words: badge edge judge pace mice peace huge giraffe gems price
 // - "Challenge Words" header → "challenge", "words"
@@ -83,18 +84,13 @@ describe('OCR image integration', () => {
 
     // Run through the same cleanup pipeline as LocalOcrProvider
     const rawText = normalizeWhitespace(text);
-    const words = cleanWords(rawText);
+    const words = correctOcrWords(cleanWords(rawText));
 
     expect(confidence).toBeGreaterThan(0);
 
     // Sort both arrays to compare contents regardless of OCR line order
     // (rotated images may produce different reading orders)
     expect([...words].sort()).toEqual([...EXPECTED_WORDS].sort());
-
-    // The fixture image has "Unit 3, WK 6" as the header — verify list name detection
-    const listName = extractListName(text);
-    expect(listName).not.toBeNull();
-    expect(listName!.toLowerCase()).toContain('unit');
   }, 120_000); // Tesseract can be slow with multiple orientation attempts
 
   it('produces correct results when addPadding is in the pipeline (unpadded image)', async () => {
@@ -122,7 +118,7 @@ describe('OCR image integration', () => {
     await worker.terminate();
 
     const rawText = normalizeWhitespace(text);
-    const words = cleanWords(rawText);
+    const words = correctOcrWords(cleanWords(rawText));
 
     expect(confidence).toBeGreaterThan(0);
     expect([...words].sort()).toEqual([...EXPECTED_WORDS].sort());

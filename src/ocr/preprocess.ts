@@ -1,5 +1,7 @@
 // src/ocr/preprocess.ts — image preprocessing utilities for OCR
 
+import { cleanWords } from './utils.ts';
+
 /**
  * A minimal Tesseract.js worker interface for orientation detection.
  */
@@ -24,6 +26,13 @@ const CANDIDATE_ROTATIONS = [
   Math.PI,            // 180°
   -Math.PI / 2,       // 90° CCW (equivalently 270° CW)
 ];
+
+/**
+ * Minimum number of plausible words required to short-circuit orientation search.
+ * If a rotation produces at least this many words with high confidence, we can
+ * skip trying the remaining rotations.
+ */
+const MIN_WORDS_FOR_EARLY_EXIT = 5;
 
 /** Confidence threshold (0-100 Tesseract scale) to short-circuit orientation search. */
 const HIGH_CONFIDENCE_THRESHOLD = 80;
@@ -105,11 +114,18 @@ export async function addPadding(image: Blob): Promise<Blob> {
 
 /**
  * Tries multiple orientations on the given image using the provided worker
- * and returns the result with the highest confidence.
+ * and returns the result that produces the most plausible English words.
  *
  * This is necessary because Tesseract's built-in auto-rotation (deskew) only
  * corrects small angles (~±15°), not the 90°/180°/270° rotations common in
  * phone-captured photos of spelling lists and worksheets.
+ *
+ * Scoring: the number of plausible words (via cleanWords) is the primary
+ * signal; Tesseract confidence is the tiebreaker.  Raw confidence alone is
+ * unreliable because Tesseract can report similar or even higher confidence
+ * for a wrongly-rotated image (it "recognizes" garbage characters with
+ * moderate per-character confidence).  The correct orientation consistently
+ * produces more real English words.
  */
 export async function recognizeWithOrientationDetection(
   worker: OcrWorker,
@@ -117,15 +133,30 @@ export async function recognizeWithOrientationDetection(
 ): Promise<{ text: string; confidence: number }> {
   let bestText = '';
   let bestConfidence = -1;
+  let bestWordCount = -1;
 
   for (const angle of CANDIDATE_ROTATIONS) {
-    const { data } = await worker.recognize(image, { rotateRadians: angle });
-    if (data.confidence > bestConfidence) {
+    // For 0° (upright), omit rotateRadians entirely so Tesseract uses its
+    // default path — passing rotateRadians: 0 can trigger unnecessary
+    // image-rotation codepaths in some Tesseract.js versions.
+    const opts = angle === 0 ? {} : { rotateRadians: angle };
+    const { data } = await worker.recognize(image, opts);
+
+    const wordCount = cleanWords(data.text).length;
+
+    if (
+      wordCount > bestWordCount ||
+      (wordCount === bestWordCount && data.confidence > bestConfidence)
+    ) {
       bestConfidence = data.confidence;
       bestText = data.text;
+      bestWordCount = wordCount;
     }
-    // Early exit: high-confidence result found, no need to try more angles
-    if (data.confidence >= HIGH_CONFIDENCE_THRESHOLD) break;
+
+    // Early exit: enough real words with high confidence — no need to try more
+    if (wordCount >= MIN_WORDS_FOR_EARLY_EXIT && data.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+      break;
+    }
   }
 
   return {
