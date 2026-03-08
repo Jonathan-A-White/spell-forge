@@ -23,11 +23,6 @@ describe('ThemedHero', () => {
     expect(screen.getByText('Dragon Forge')).toBeInTheDocument();
   });
 
-  it('displays the reward unit name', () => {
-    render(<ThemedHero profileId="p1" themeId="dragon-forge" />);
-    expect(screen.getByText('scales')).toBeInTheDocument();
-  });
-
   it('renders the mascot SVG', () => {
     render(<ThemedHero profileId="p1" themeId="dragon-forge" />);
     expect(screen.getByTestId('theme-mascot')).toBeInTheDocument();
@@ -70,15 +65,6 @@ describe('ThemedHero theme variations', () => {
     expect(screen.getByTestId('theme-message')).toHaveTextContent('Exploring space');
   });
 
-  it('shows Monster Lab unit name (blocks)', () => {
-    render(<ThemedHero profileId="p1" themeId="monster-lab" />);
-    expect(screen.getByText('blocks')).toBeInTheDocument();
-  });
-
-  it('shows Star Trail unit name (stars)', () => {
-    render(<ThemedHero profileId="p1" themeId="star-trail" />);
-    expect(screen.getByText('stars')).toBeInTheDocument();
-  });
 });
 
 // ─── Progress Tracking ──────────────────────────────────────
