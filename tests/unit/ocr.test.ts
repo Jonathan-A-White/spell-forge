@@ -136,11 +136,18 @@ describe('filterImportWords', () => {
     expect(filterImportWords(words, ['  ', ''])).toEqual(['badge', 'edge']);
   });
 
+  it('filters single-character OCR artifacts', () => {
+    const words = ['badge', 'a', 'edge', 'i', 'judge'];
+    const filters = ['Challenge Words'];
+    expect(filterImportWords(words, filters)).toEqual(['badge', 'edge', 'judge']);
+  });
+
   it('filters realistic OCR output from a spelling list photo', () => {
-    // Simulates OCR output from the photo in the issue
+    // Simulates OCR output from the photo in the issue — includes "a" artifact
+    // from OCR fragmenting the "Challenge Words" heading
     const ocrWords = [
       'unit', 'badge', 'edge', 'judge', 'pace', 'mice', 'peace', 'huge',
-      'giraffe', 'gems', 'price', 'challenge', 'words', 'celebrate',
+      'giraffe', 'gems', 'price', 'a', 'challenge', 'words', 'celebrate',
       'emergency', 'message', 'high', 'frequency', 'group', 'almost',
     ];
     const filters = ['Unit', 'Challenge Words', 'High Frequency Words'];
