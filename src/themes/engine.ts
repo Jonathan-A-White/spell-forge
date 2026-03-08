@@ -3,7 +3,7 @@ import { dragonForgeTheme } from './dragon-forge/theme.ts';
 import { monsterLabTheme } from './monster-lab/theme.ts';
 import { starTrailTheme } from './star-trail/theme.ts';
 
-export interface MilestoneStatus {
+interface MilestoneStatus {
   current: string;
   next: string | null;
   progressToNext: number;
