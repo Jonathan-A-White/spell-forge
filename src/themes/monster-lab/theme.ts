@@ -14,6 +14,13 @@ export const monsterLabTheme: Theme = {
     success: '#52C41A',
     error: '#FF4D4F',
   },
+  visualEffects: {
+    gradient: 'linear-gradient(135deg, #722ED1 0%, #13C2C2 50%, #52C41A 100%)',
+    glowColor: 'rgba(114, 46, 209, 0.4)',
+    particleColors: ['#B37FEB', '#13C2C2', '#52C41A'],
+    shadowColor: 'rgba(114, 46, 209, 0.25)',
+    progressGradient: 'linear-gradient(90deg, #722ED1 0%, #13C2C2 60%, #52C41A 100%)',
+  },
   rewardMechanic: {
     type: 'build',
     unitName: 'blocks',

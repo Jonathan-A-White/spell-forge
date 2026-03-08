@@ -14,6 +14,13 @@ export const starTrailTheme: Theme = {
     success: '#52C41A',
     error: '#FF4D4F',
   },
+  visualEffects: {
+    gradient: 'linear-gradient(135deg, #001D66 0%, #0D47A1 40%, #FAAD14 100%)',
+    glowColor: 'rgba(250, 173, 20, 0.35)',
+    particleColors: ['#FAAD14', '#D9D9D9', '#4FC3F7'],
+    shadowColor: 'rgba(0, 29, 102, 0.3)',
+    progressGradient: 'linear-gradient(90deg, #001D66 0%, #0D47A1 40%, #FAAD14 100%)',
+  },
   rewardMechanic: {
     type: 'collect',
     unitName: 'stars',

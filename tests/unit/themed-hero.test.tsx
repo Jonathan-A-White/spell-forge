@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ThemedHero } from '../../src/features/dashboard/themed-hero';
 import { rewardTracker } from '../../src/features/rewards/reward-tracker';
@@ -6,8 +6,10 @@ import { themeEngine } from '../../src/themes/engine';
 
 // ─── Setup ──────────────────────────────────────────────────
 
+// Mock canvas getContext for ThemeEffects (jsdom doesn't support it)
 beforeEach(() => {
   rewardTracker.resetAll();
+  HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(null);
 });
 
 // ─── Rendering ──────────────────────────────────────────────
@@ -44,6 +46,34 @@ describe('ThemedHero', () => {
     expect(progressBar).toHaveAttribute('aria-valuenow', '0');
     expect(progressBar).toHaveAttribute('aria-valuemin', '0');
     expect(progressBar).toHaveAttribute('aria-valuemax', '50');
+  });
+});
+
+// ─── Visual Effects Integration ─────────────────────────────
+
+describe('ThemedHero visual effects', () => {
+  it('renders the theme effects canvas', () => {
+    render(<ThemedHero profileId="p1" themeId="dragon-forge" />);
+    expect(screen.getByTestId('theme-effects-canvas')).toBeInTheDocument();
+  });
+
+  it('applies glow shadow to the hero container', () => {
+    render(<ThemedHero profileId="p1" themeId="dragon-forge" />);
+    const hero = screen.getByTestId('themed-hero');
+    expect(hero.style.boxShadow).toContain('rgba');
+  });
+
+  it('applies glow filter to the mascot', () => {
+    render(<ThemedHero profileId="p1" themeId="dragon-forge" />);
+    const mascot = screen.getByTestId('theme-mascot');
+    expect(mascot.style.filter).toContain('drop-shadow');
+  });
+
+  it('uses gradient on progress bar when progress > 0', () => {
+    rewardTracker.setProgress('p1', 'dragon-forge', 10);
+    render(<ThemedHero profileId="p1" themeId="dragon-forge" />);
+    const progressBar = screen.getByRole('progressbar');
+    expect(progressBar.style.background).toContain('linear-gradient');
   });
 });
 

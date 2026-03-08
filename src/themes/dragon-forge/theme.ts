@@ -14,6 +14,13 @@ export const dragonForgeTheme: Theme = {
     success: '#52C41A',
     error: '#FF4D4F',
   },
+  visualEffects: {
+    gradient: 'linear-gradient(135deg, #D4380D 0%, #FA8C16 50%, #FAAD14 100%)',
+    glowColor: 'rgba(212, 56, 13, 0.4)',
+    particleColors: ['#FF6B35', '#FA8C16', '#FAAD14'],
+    shadowColor: 'rgba(212, 56, 13, 0.25)',
+    progressGradient: 'linear-gradient(90deg, #D4380D 0%, #FA8C16 60%, #FAAD14 100%)',
+  },
   rewardMechanic: {
     type: 'build',
     unitName: 'scales',

@@ -1,6 +1,6 @@
 // src/features/dashboard/themed-hero.tsx — Theme-aware hero banner with mascot and milestone progress
 
-import { themeEngine } from '../../themes';
+import { themeEngine, ThemeEffects } from '../../themes';
 import { rewardTracker } from '../rewards';
 
 interface ThemedHeroProps {
@@ -170,13 +170,24 @@ export function ThemedHero({ profileId, themeId }: ThemedHeroProps) {
   const progressPercent = maxProgress > 0 ? Math.min(100, Math.round((progress / maxProgress) * 100)) : 0;
   const message = getThemeMessage(themeId, milestoneStatus.current, milestoneStatus.next);
 
+  const vfx = theme.visualEffects;
+
   return (
-    <div className="relative rounded-xl bg-sf-surface border border-sf-border p-3 overflow-hidden" data-testid="themed-hero">
+    <div
+      className="relative rounded-xl bg-sf-surface border border-sf-border p-3 overflow-hidden"
+      style={{ boxShadow: `0 0 20px ${vfx.shadowColor}, 0 0 40px ${vfx.shadowColor}` }}
+      data-testid="themed-hero"
+    >
       <ThemeDecorations themeId={themeId} />
+      <ThemeEffects themeId={themeId} />
 
       <div className="relative flex items-center gap-3">
-        {/* Mascot */}
-        <div className="flex-shrink-0 w-12 h-12 text-sf-primary" data-testid="theme-mascot">
+        {/* Mascot with glow */}
+        <div
+          className="flex-shrink-0 w-12 h-12 text-sf-primary"
+          style={{ filter: `drop-shadow(0 0 6px ${vfx.glowColor})` }}
+          data-testid="theme-mascot"
+        >
           <ThemeMascot themeId={themeId} milestone={milestoneStatus.current} />
         </div>
 
@@ -192,12 +203,16 @@ export function ThemedHero({ profileId, themeId }: ThemedHeroProps) {
             {message}
           </p>
 
-          {/* Progress bar */}
+          {/* Gradient progress bar */}
           <div className="mt-1.5 flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full bg-sf-border overflow-hidden">
+            <div className="flex-1 h-2 rounded-full bg-sf-border overflow-hidden">
               <div
-                className="h-full rounded-full bg-sf-primary transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${progressPercent}%`,
+                  background: vfx.progressGradient,
+                  boxShadow: progressPercent > 0 ? `0 0 8px ${vfx.glowColor}` : 'none',
+                }}
                 role="progressbar"
                 aria-valuenow={progress}
                 aria-valuemin={0}
