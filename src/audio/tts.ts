@@ -50,11 +50,10 @@ function pickVoice(): SpeechSynthesisVoice | null {
   return selected;
 }
 
-function speakWithRate(word: string, rate: number): Promise<void> {
+function speakWord(word: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const synth = window.speechSynthesis;
     const utterance = new SpeechSynthesisUtterance(word);
-    utterance.rate = rate;
     const voice = pickVoice();
     if (voice) {
       utterance.voice = voice;
@@ -69,11 +68,11 @@ export class TtsProvider implements AudioProvider {
   readonly priority = 1;
 
   speak(word: string): Promise<void> {
-    return speakWithRate(word, 1);
+    return speakWord(word);
   }
 
   speakSlowly(word: string): Promise<void> {
-    return speakWithRate(word, 0.6);
+    return speakWord(word);
   }
 
   async speakChunks(chunks: string[], delayMs = 500): Promise<void> {

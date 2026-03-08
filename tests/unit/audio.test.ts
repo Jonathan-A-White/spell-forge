@@ -66,14 +66,14 @@ describe('TtsProvider', () => {
     expect(utterance.rate).toBe(1);
   });
 
-  it('should speak slowly with rate < 1', async () => {
+  it('should speak slowly at normal rate (no modulation)', async () => {
     const tts = new TtsProvider();
     await tts.speakSlowly('world');
 
     expect(mockSynth.speak).toHaveBeenCalledOnce();
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     expect(utterance.text).toBe('world');
-    expect(utterance.rate).toBeLessThan(1);
+    expect(utterance.rate).toBe(1);
   });
 
   it('should select a male-hinted voice when available', async () => {

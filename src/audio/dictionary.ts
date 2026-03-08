@@ -23,7 +23,7 @@ export class DictionaryProvider implements AudioProvider {
     if (!url) {
       throw new Error(`No dictionary audio found for "${word}"`);
     }
-    await this.playUrl(url, 0.6);
+    await this.playUrl(url);
   }
 
   async speakChunks(chunks: string[], delayMs = 500): Promise<void> {

@@ -22,7 +22,7 @@ export class CustomAudioProvider implements AudioProvider {
   }
 
   async speakSlowly(word: string): Promise<void> {
-    await this.playRecording(word, 0.6);
+    await this.playRecording(word);
   }
 
   async speakChunks(chunks: string[], delayMs = 500): Promise<void> {
