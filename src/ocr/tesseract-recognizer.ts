@@ -1,7 +1,7 @@
 // src/ocr/tesseract-recognizer.ts — Lazy-loading Tesseract.js recognizer
 
 import type { RecognizerFn } from './local.ts';
-import { recognizeWithOrientationDetection } from './preprocess.ts';
+import { addPadding, recognizeWithOrientationDetection } from './preprocess.ts';
 
 /**
  * Resolve the base URL for language data bundled in public/tessdata/.
@@ -38,7 +38,8 @@ export function createTesseractRecognizer(): RecognizerFn {
 
   const recognizer: RecognizerFn = async (image: Blob) => {
     const worker = await getWorker();
-    return recognizeWithOrientationDetection(worker, image);
+    const padded = await addPadding(image);
+    return recognizeWithOrientationDetection(worker, padded);
   };
 
   return recognizer;
