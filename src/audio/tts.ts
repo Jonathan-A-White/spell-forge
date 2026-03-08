@@ -8,8 +8,28 @@ function delay(ms: number): Promise<void> {
 
 // Heuristic: voice names containing these words tend to match the gender.
 // Use word-boundary regex to avoid false positives (e.g. "Samantha" matching "man").
-const femaleHints = ['female', 'woman', 'zira', 'samantha', 'karen', 'moira', 'fiona', 'victoria', 'tessa'];
-const maleHints = ['\\bmale\\b', '\\bman\\b', 'david', 'daniel', 'james', 'alex', '\\btom\\b', '\\bmark\\b', 'fred', 'rishi'];
+const femaleHints = [
+  'female', 'woman',
+  // macOS / iOS
+  'samantha', 'karen', 'moira', 'fiona', 'victoria', 'tessa', 'kate',
+  // Windows / Edge
+  'zira', 'jenny', 'aria', 'sara',
+  // Google TTS
+  'google.*female',
+];
+const maleHints = [
+  '\\bmale\\b', '\\bman\\b',
+  // macOS / iOS
+  'daniel', 'james', '\\balex\\b', '\\btom\\b', 'fred', 'rishi',
+  // Windows / Edge
+  'david', '\\bmark\\b', '\\bguy\\b', 'ryan',
+  // Google TTS
+  'google.*\\bmale\\b',
+];
+
+// Pitch adjustment so male and female sound distinct even when the same underlying
+// voice is used (common on systems with only one available voice).
+const PITCH: Record<VoiceGender, number> = { female: 1.1, male: 0.85 };
 
 /** Cache of resolved voices keyed by gender so the same voice is used every time. */
 const voiceCache = new Map<VoiceGender, SpeechSynthesisVoice>();
@@ -73,6 +93,7 @@ function speakWithRate(word: string, rate: number, gender: VoiceGender): Promise
     const synth = window.speechSynthesis;
     const utterance = new SpeechSynthesisUtterance(word);
     utterance.rate = rate;
+    utterance.pitch = PITCH[gender];
     const voice = pickVoice(gender);
     if (voice) {
       utterance.voice = voice;
