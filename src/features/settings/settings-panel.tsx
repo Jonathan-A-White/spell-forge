@@ -5,11 +5,13 @@ import type { AccessibilitySettings } from '../../contracts/types';
 import { PRESETS, type NamedPreset } from '../../accessibility/presets';
 
 type ContrastMode = AccessibilitySettings['contrastMode'];
+type VoicePreference = AccessibilitySettings['voicePreference'];
 
 interface SettingsPanelProps {
   profile: { name: string; themeId: string };
   settings: AccessibilitySettings;
   onContrastModeChange: (mode: ContrastMode) => void;
+  onVoicePreferenceChange: (voice: VoicePreference) => void;
   onPresetApply: (preset: NamedPreset) => void;
   onExportProfile?: () => void;
   onImportProfile?: (file: File) => void;
@@ -17,6 +19,11 @@ interface SettingsPanelProps {
   onSendFeedback?: () => void;
   onBack: () => void;
 }
+
+const voiceOptions: { value: VoicePreference; label: string; description: string }[] = [
+  { value: 'female', label: 'Female', description: 'Female voice for reading and spelling' },
+  { value: 'male', label: 'Male', description: 'Male voice for reading and spelling' },
+];
 
 const contrastModes: { value: ContrastMode; label: string; description: string; icon: string }[] = [
   { value: 'light', label: 'Light', description: 'Warm, easy on the eyes', icon: 'sun' },
@@ -28,6 +35,7 @@ export function SettingsPanel({
   profile,
   settings,
   onContrastModeChange,
+  onVoicePreferenceChange,
   onPresetApply,
   onExportProfile,
   onImportProfile,
@@ -96,6 +104,48 @@ export function SettingsPanel({
           </div>
         </section>
 
+        {/* Voice section */}
+        <section>
+          <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+            Voice
+          </h2>
+          <div className="space-y-2">
+            {voiceOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => onVoicePreferenceChange(option.value)}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                  settings.voicePreference === option.value
+                    ? 'border-sf-primary bg-sf-surface shadow-md'
+                    : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                }`}
+                aria-pressed={settings.voicePreference === option.value}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  settings.voicePreference === option.value
+                    ? 'bg-sf-primary text-sf-primary-text'
+                    : 'bg-sf-track text-sf-muted'
+                }`}>
+                  <VoiceIcon />
+                </div>
+                <div className="text-left flex-1">
+                  <p className={`font-bold text-sm ${
+                    settings.voicePreference === option.value ? 'text-sf-heading' : 'text-sf-text'
+                  }`}>
+                    {option.label}
+                  </p>
+                  <p className="text-xs text-sf-muted">{option.description}</p>
+                </div>
+                {settings.voicePreference === option.value && (
+                  <div className="text-sf-primary">
+                    <CheckIcon />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </section>
+
         {/* Accessibility presets section */}
         <section>
           <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
@@ -148,6 +198,7 @@ export function SettingsPanel({
             <SettingRow label="Line Height" value={`${settings.lineHeight}`} />
             <SettingRow label="Tap Target" value={`${settings.tapTargetSize}px`} />
             <SettingRow label="Reduced Motion" value={settings.reducedMotion ? 'On' : 'Off'} />
+            <SettingRow label="Voice" value={settings.voicePreference} />
             <SettingRow label="Theme" value={profile.themeId.replace(/-/g, ' ')} />
           </div>
         </section>
@@ -345,6 +396,16 @@ function ModeIcon({ icon }: { icon: string }) {
     default:
       return null;
   }
+}
+
+function VoiceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+    </svg>
+  );
 }
 
 function FeedbackIcon() {

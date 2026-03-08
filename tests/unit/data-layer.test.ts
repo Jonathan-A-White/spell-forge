@@ -33,6 +33,7 @@ const defaultSettings: AccessibilitySettings = {
   sessionAdaptive: true,
   dailyGoalMinutes: 10,
   tapTargetSize: 48,
+  voicePreference: 'female',
 };
 
 function makeProfileData(overrides: Partial<Omit<Profile, 'id'>> = {}): Omit<Profile, 'id'> {
