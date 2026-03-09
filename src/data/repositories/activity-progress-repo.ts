@@ -40,6 +40,10 @@ export const activityProgressRepo = {
     await db.activityProgress.delete(id);
   },
 
+  async getAllForProfile(profileId: string): Promise<ActivityProgress[]> {
+    return db.activityProgress.where('profileId').equals(profileId).toArray();
+  },
+
   async clearAllForProfile(profileId: string): Promise<void> {
     await db.activityProgress.where('profileId').equals(profileId).delete();
   },

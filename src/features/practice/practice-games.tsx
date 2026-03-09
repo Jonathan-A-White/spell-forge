@@ -68,7 +68,22 @@ export function PracticeGames({
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
   const [coinGateVisible, setCoinGateVisible] = useState(false);
   const [pendingCoinGameMode, setPendingCoinGameMode] = useState<GameMode | null>(null);
+  const [savedProgressTypes, setSavedProgressTypes] = useState<Set<ActivityType>>(new Set());
   const coins = coinBalance?.coins ?? 0;
+
+  // Load which games have saved progress — for showing resume indicators on game cards
+  useEffect(() => {
+    if (mode !== 'select') return;
+    let cancelled = false;
+    async function loadSavedProgress() {
+      const all = await activityProgressRepo.getAllForProfile(profile.id);
+      if (!cancelled) {
+        setSavedProgressTypes(new Set(all.map((a) => a.activityType)));
+      }
+    }
+    loadSavedProgress();
+    return () => { cancelled = true; };
+  }, [profile.id, mode]);
 
   // Load mastered word IDs on mount — combine both learning progress and spaced-rep buckets
   useEffect(() => {
@@ -167,21 +182,6 @@ export function PracticeGames({
     setPendingGameMode(null);
   }, [resumePrompt]);
 
-  const handleResetSaved = useCallback(() => {
-    const activityType: ActivityType =
-      pendingGameMode === 'word-search-difficulty' ? 'word-search'
-      : pendingGameMode === 'spell-catcher' ? 'spell-catcher'
-      : pendingGameMode === 'word-volcano' ? 'word-volcano'
-      : pendingGameMode === 'letter-invasion' ? 'letter-invasion'
-      : 'relay-race';
-    activityProgressRepo.clear(profile.id, activityType);
-    setResumePrompt(null);
-    if (pendingGameMode) {
-      setMode(pendingGameMode);
-      setPendingGameMode(null);
-    }
-  }, [profile.id, pendingGameMode]);
-
   // Coin-gated game start: free if all mastered, otherwise costs 1 coin.
   // If there's saved progress, skip the coin gate — the coin was already spent.
   const handleStartGame = useCallback(async (targetMode: GameMode) => {
@@ -214,6 +214,23 @@ export function PracticeGames({
     setCoinGateVisible(true);
     setPendingCoinGameMode(null);
   }, [allMastered, coins, profile.id]);
+
+  const handleResetSaved = useCallback(async () => {
+    const activityType: ActivityType =
+      pendingGameMode === 'word-search-difficulty' ? 'word-search'
+      : pendingGameMode === 'spell-catcher' ? 'spell-catcher'
+      : pendingGameMode === 'word-volcano' ? 'word-volcano'
+      : pendingGameMode === 'letter-invasion' ? 'letter-invasion'
+      : 'relay-race';
+    await activityProgressRepo.clear(profile.id, activityType);
+    setResumePrompt(null);
+    // Re-run the coin gate — starting fresh costs a coin
+    if (pendingGameMode) {
+      const saved = pendingGameMode;
+      setPendingGameMode(null);
+      handleStartGame(saved);
+    }
+  }, [profile.id, pendingGameMode, handleStartGame]);
 
   const handleConfirmSpendCoin = useCallback(async () => {
     if (!pendingCoinGameMode) return;
@@ -581,6 +598,7 @@ export function PracticeGames({
               icon={<SearchGridIcon />}
               accent="from-blue-500/20 to-cyan-500/10"
               iconColor="text-blue-500"
+              hasSavedProgress={savedProgressTypes.has('word-search')}
               onClick={() => handleStartGame('word-search-difficulty')}
             />
             <GameCard
@@ -589,6 +607,7 @@ export function PracticeGames({
               icon={<RelayRaceIcon />}
               accent="from-emerald-500/20 to-green-500/10"
               iconColor="text-emerald-500"
+              hasSavedProgress={savedProgressTypes.has('relay-race')}
               onClick={() => handleStartGame('relay-race')}
             />
             <GameCard
@@ -597,6 +616,7 @@ export function PracticeGames({
               icon={<SpellCatcherIcon />}
               accent="from-purple-500/20 to-violet-500/10"
               iconColor="text-purple-500"
+              hasSavedProgress={savedProgressTypes.has('spell-catcher')}
               onClick={() => handleStartGame('spell-catcher')}
             />
             <GameCard
@@ -605,6 +625,7 @@ export function PracticeGames({
               icon={<WordVolcanoIcon />}
               accent="from-orange-500/20 to-red-500/10"
               iconColor="text-orange-500"
+              hasSavedProgress={savedProgressTypes.has('word-volcano')}
               onClick={() => handleStartGame('word-volcano')}
             />
             <GameCard
@@ -613,6 +634,7 @@ export function PracticeGames({
               icon={<LetterInvasionIcon />}
               accent="from-green-500/20 to-lime-500/10"
               iconColor="text-green-500"
+              hasSavedProgress={savedProgressTypes.has('letter-invasion')}
               onClick={() => handleStartGame('letter-invasion')}
             />
           </div>
@@ -814,10 +836,11 @@ interface GameCardProps {
   icon: React.ReactNode;
   accent: string;
   iconColor: string;
+  hasSavedProgress?: boolean;
   onClick: () => void;
 }
 
-function GameCard({ title, description, icon, onClick, accent, iconColor }: GameCardProps) {
+function GameCard({ title, description, icon, onClick, accent, iconColor, hasSavedProgress }: GameCardProps) {
   return (
     <button
       onClick={onClick}
@@ -827,7 +850,14 @@ function GameCard({ title, description, icon, onClick, accent, iconColor }: Game
       <div className="relative flex items-center gap-4">
         <div className={`${iconColor} flex-shrink-0`}>{icon}</div>
         <div>
-          <p className="font-bold text-sf-heading">{title}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-sf-heading">{title}</p>
+            {hasSavedProgress && (
+              <span className="inline-flex items-center gap-1 bg-amber-500/15 text-amber-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                In Progress
+              </span>
+            )}
+          </div>
           <p className="text-sf-muted text-sm mt-0.5">{description}</p>
         </div>
         <div className="ml-auto text-sf-muted group-hover:text-sf-heading text-xl transition-colors">
