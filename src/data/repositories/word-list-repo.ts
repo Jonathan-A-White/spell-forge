@@ -46,11 +46,16 @@ export const wordListRepo = {
   async delete(id: string): Promise<void> {
     const list = await db.wordLists.get(id);
     if (!list) return;
-    await db.transaction('rw', [db.wordLists, db.words, db.wordStats], async () => {
+    await db.transaction('rw', [db.wordLists, db.words, db.wordStats, db.learningProgress], async () => {
       const wordIds = await db.words.where('listId').equals(id).primaryKeys();
       for (const wordId of wordIds) {
         await db.wordStats.where('wordId').equals(wordId).delete();
       }
+      // Clean up learning progress for this list
+      await db.learningProgress
+        .where('[profileId+wordListId]')
+        .equals([list.profileId, id])
+        .delete();
       await db.words.where('listId').equals(id).delete();
       await db.wordLists.delete(id);
     });
