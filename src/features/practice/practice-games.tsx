@@ -33,6 +33,7 @@ interface PracticeGamesProps {
   onSpendCoin: () => Promise<boolean>;
   onSessionEnd: (log: SessionLog) => void;
   onBack: () => void;
+  onGoLearn?: () => void;
   onSpeak?: (word: string) => void;
 }
 
@@ -45,6 +46,7 @@ export function PracticeGames({
   onSpendCoin,
   onSessionEnd,
   onBack,
+  onGoLearn,
   onSpeak,
 }: PracticeGamesProps) {
   const [mode, setMode] = useState<GameMode>('select');
@@ -520,7 +522,7 @@ export function PracticeGames({
               </p>
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={() => { setCoinGateVisible(false); onBack(); }}
+                  onClick={() => { setCoinGateVisible(false); if (onGoLearn) { onGoLearn(); } else { onBack(); } }}
                   className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
                 >
                   Go Learn Words
