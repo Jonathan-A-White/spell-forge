@@ -522,16 +522,17 @@ async function loadFreshState(profileId: string): Promise<LearningSessionState> 
   // Sort shortest-to-longest
   const sortedWords = sortWordsForLearning(allWords);
 
-  // Load all learning progress
+  // Load all learning progress, filtered to active words only
   const progressList = await learningProgressRepo.getByProfileId(profileId);
+  const activeWordIds = new Set(sortedWords.map((w) => w.id));
   const progressMap = new Map<string, WordLearningProgress>();
   for (const p of progressList) {
-    progressMap.set(p.wordId, p);
+    if (activeWordIds.has(p.wordId)) {
+      progressMap.set(p.wordId, p);
+    }
   }
 
-  // Only count mastered words that exist in the current active word set
-  const activeWordIds = new Set(sortedWords.map((w) => w.id));
-  const masteredCount = progressList.filter((p) => p.mastered && activeWordIds.has(p.wordId)).length;
+  const masteredCount = Array.from(progressMap.values()).filter((p) => p.mastered).length;
   const currentWord = findNextWord(sortedWords, progressMap);
 
   return {
