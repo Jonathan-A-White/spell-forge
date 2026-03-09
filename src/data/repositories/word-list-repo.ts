@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
 import type { WordList } from '../../contracts/types';
+import { activityProgressRepo } from './activity-progress-repo';
 
 export const wordListRepo = {
   async create(data: Omit<WordList, 'id'>): Promise<WordList> {
@@ -59,5 +60,8 @@ export const wordListRepo = {
       await db.words.where('listId').equals(id).delete();
       await db.wordLists.delete(id);
     });
+    // Clear saved session progress so stale resume prompts don't appear
+    await activityProgressRepo.clear(list.profileId, 'learning');
+    await activityProgressRepo.clear(list.profileId, 'practice');
   },
 };

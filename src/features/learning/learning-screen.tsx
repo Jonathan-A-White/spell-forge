@@ -125,6 +125,12 @@ export function LearningScreen({
       if (saved) {
         const restored = deserializeState(saved.state);
         if (restored.currentWord) {
+          // Recalculate stats against actual words to fix stale saved sessions
+          const restoredWordIds = new Set(restored.words.map((w) => w.id));
+          const validMastered = Array.from(restored.progressMap.values())
+            .filter((p) => p.mastered && restoredWordIds.has(p.wordId)).length;
+          restored.masteredCount = validMastered;
+          restored.totalWords = restored.words.length;
           setResumePrompt(restored);
           setLoading(false);
           return;
