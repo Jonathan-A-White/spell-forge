@@ -523,7 +523,9 @@ async function loadFreshState(profileId: string): Promise<LearningSessionState> 
     progressMap.set(p.wordId, p);
   }
 
-  const masteredCount = progressList.filter((p) => p.mastered).length;
+  // Only count mastered words that exist in the current active word set
+  const activeWordIds = new Set(sortedWords.map((w) => w.id));
+  const masteredCount = progressList.filter((p) => p.mastered && activeWordIds.has(p.wordId)).length;
   const currentWord = findNextWord(sortedWords, progressMap);
 
   return {
