@@ -483,6 +483,7 @@ export function LearningScreen({
             onComplete={handleWordComplete}
             scaffolding={null}
             tapTargetSize={profile.settings.tapTargetSize}
+            showUndo={false}
           />
         ) : (
           <KeyboardInput

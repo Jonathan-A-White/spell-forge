@@ -8,6 +8,7 @@ interface LetterBankProps {
   onComplete: (correct: boolean, responseTimeMs: number, mistakes: number) => void;
   scaffolding?: { chunks: string[]; hints: string[] } | null;
   tapTargetSize: number;
+  showUndo?: boolean;
 }
 
 function generateDistractors(word: string, count: number): string[] {
@@ -23,7 +24,7 @@ function generateDistractors(word: string, count: number): string[] {
   return distractors;
 }
 
-export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: LetterBankProps) {
+export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showUndo = true }: LetterBankProps) {
   const [selected, setSelected] = useState<string[]>([]);
   const [startTime] = useState(() => Date.now());
   const [wrongFlash, setWrongFlash] = useState(false);
@@ -98,11 +99,11 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
     if (containerWidth === 0) return tapTargetSize;
     const gap = 8; // gap-2 = 0.5rem = 8px
     const padding = 36; // p-4 (32px) + border-2 (4px)
-    const undoWidth = selected.length > 0 ? 60 : 0; // approx undo button width + margin
+    const undoWidth = showUndo && selected.length > 0 ? 60 : 0; // approx undo button width + margin
     const availableWidth = containerWidth - padding - undoWidth;
     const maxPerSlot = (availableWidth - gap * (targetLetters.length - 1)) / targetLetters.length;
     return Math.max(24, Math.min(tapTargetSize, Math.floor(maxPerSlot)));
-  }, [containerWidth, tapTargetSize, targetLetters.length, selected.length]);
+  }, [containerWidth, tapTargetSize, targetLetters.length, selected.length, showUndo]);
 
   const buttonSize = `${slotSize}px`;
   const fontSize = `${Math.max(12, slotSize * 0.45)}px`;
@@ -162,7 +163,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize }: Let
             )}
           </div>
         ))}
-        {selected.length > 0 && (
+        {showUndo && selected.length > 0 && (
           <button
             onClick={handleUndo}
             className="ml-2 text-sm text-sf-faint hover:text-sf-text underline flex-shrink-0"
