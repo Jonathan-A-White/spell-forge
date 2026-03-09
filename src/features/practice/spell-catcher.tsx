@@ -69,7 +69,12 @@ export function SpellCatcher({
   const [fallingLetters, setFallingLetters] = useState<FallingLetter[]>([]);
   const [feedback, setFeedback] = useState<{ type: 'correct' | 'wrong'; letter: string } | null>(null);
   const [gameStarted, setGameStarted] = useState(!!savedState);
-  const [wordComplete, setWordComplete] = useState(false);
+  const [wordComplete, setWordComplete] = useState(() => {
+    if (!savedState) return false;
+    const wordLen = savedState.words[savedState.currentWordIndex]?.length ?? 0;
+    // Word was completed (all letters caught) or failed (no lives left)
+    return savedState.nextLetterIndex >= wordLen || savedState.lives <= 0;
+  });
   const [gameOver, setGameOver] = useState(false);
 
   const batchCounterRef = useRef(0);
