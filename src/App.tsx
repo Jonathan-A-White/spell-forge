@@ -716,7 +716,7 @@ function App() {
           onSpendCoin={handleSpendCoin}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
-          onGoLearn={() => setView('practice')}
+          onGoLearn={() => setView('learning')}
           onSpeak={(word) => audioManager.speak(word)}
         />
       );
