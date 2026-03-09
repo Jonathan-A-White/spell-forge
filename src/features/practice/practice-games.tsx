@@ -180,8 +180,23 @@ export function PracticeGames({
     }
   }, [profile.id, pendingGameMode]);
 
-  // Coin-gated game start: free if all mastered, otherwise costs 1 coin
-  const handleStartGame = useCallback((targetMode: GameMode) => {
+  // Coin-gated game start: free if all mastered, otherwise costs 1 coin.
+  // If there's saved progress, skip the coin gate — the coin was already spent.
+  const handleStartGame = useCallback(async (targetMode: GameMode) => {
+    // Check for saved progress first — if it exists, the coin was already spent
+    const activityType: ActivityType =
+      targetMode === 'word-search-difficulty' ? 'word-search'
+      : targetMode === 'spell-catcher' ? 'spell-catcher'
+      : targetMode === 'word-volcano' ? 'word-volcano'
+      : targetMode === 'letter-invasion' ? 'letter-invasion'
+      : 'relay-race';
+    const saved = await activityProgressRepo.get(profile.id, activityType);
+    if (saved) {
+      // Saved progress exists — go directly to resume flow without charging
+      setPendingGameMode(targetMode);
+      return;
+    }
+
     if (allMastered) {
       // All words mastered — free unlimited play
       setPendingGameMode(targetMode);
@@ -196,7 +211,7 @@ export function PracticeGames({
     // No coins, not all mastered — show gate
     setCoinGateVisible(true);
     setPendingCoinGameMode(null);
-  }, [allMastered, coins]);
+  }, [allMastered, coins, profile.id]);
 
   const handleConfirmSpendCoin = useCallback(async () => {
     if (!pendingCoinGameMode) return;

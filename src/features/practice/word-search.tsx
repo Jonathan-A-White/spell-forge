@@ -174,7 +174,7 @@ export function WordSearch({ words, difficulty, onComplete, tapTargetSize, saved
   const isDone = foundWords.size === placed.length;
 
   return (
-    <div ref={containerRef} className="flex flex-col items-center gap-3 w-full max-w-full overflow-hidden px-1">
+    <div ref={containerRef} className="flex flex-col items-center gap-3 w-full max-w-full overflow-x-auto px-1">
       <h2 className="text-xl font-bold text-sf-heading">Word Search</h2>
       <p className="text-sf-muted text-sm">
         Find {placed.length} word{placed.length !== 1 ? 's' : ''} hidden in the grid!
