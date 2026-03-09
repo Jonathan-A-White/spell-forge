@@ -35,6 +35,7 @@ interface LetterInvasionProps {
   words: string[];
   onComplete: (results: LetterInvasionResults) => void;
   onSpeak?: (word: string) => void;
+  audioBusy?: boolean;
   tapTargetSize: number;
   savedState?: LetterInvasionSavedState;
   onProgress?: (state: LetterInvasionSavedState) => void;
@@ -174,6 +175,7 @@ export function LetterInvasion({
   words,
   onComplete,
   onSpeak,
+  audioBusy,
   tapTargetSize,
   savedState,
   onProgress,
@@ -579,7 +581,12 @@ export function LetterInvasion({
           {onSpeak && (
             <button
               onClick={() => onSpeak(currentWord)}
-              className="mr-2 text-slate-400 hover:text-cyan-400 transition-colors"
+              disabled={audioBusy}
+              className={`mr-2 transition-colors ${
+                audioBusy
+                  ? 'opacity-50 cursor-not-allowed text-slate-600'
+                  : 'text-slate-400 hover:text-cyan-400'
+              }`}
               aria-label="Hear the word"
             >
               <SpeakerIcon />

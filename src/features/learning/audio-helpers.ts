@@ -8,24 +8,28 @@ function delay(ms: number): Promise<void> {
 
 /**
  * Say the full word, pause, then spell out each letter individually.
- * Used when entering a new stage level or when the user taps "Hear it".
+ * Uses runExclusive so overlapping taps are silently ignored.
  */
 export async function sayAndSpell(
   audioManager: AudioManager,
   word: string,
 ): Promise<void> {
-  await audioManager.speak(word);
-  await delay(300);
-  await audioManager.speakChunks(word.split(''), 400);
+  await audioManager.runExclusive(async () => {
+    await audioManager.speak(word);
+    await delay(300);
+    await audioManager.speakChunks(word.split(''), 400);
+  });
 }
 
 /**
  * Say the full word only, without spelling it out.
- * Used in test-out mode where spelling would reveal the answer.
+ * Uses runExclusive so overlapping taps are silently ignored.
  */
 export async function sayWordOnly(
   audioManager: AudioManager,
   word: string,
 ): Promise<void> {
-  await audioManager.speak(word);
+  await audioManager.runExclusive(async () => {
+    await audioManager.speak(word);
+  });
 }

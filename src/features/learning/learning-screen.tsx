@@ -10,6 +10,7 @@ import type {
   WordLearningProgress,
 } from '../../contracts/types';
 import type { AudioManager } from '../../audio/manager';
+import { useAudioBusy } from '../../audio/use-audio-busy';
 import {
   processAttempt,
   getInputMode,
@@ -106,6 +107,8 @@ export function LearningScreen({
   const [isComplete, setIsComplete] = useState(false);
   const [displayKey, setDisplayKey] = useState(0);
   const [testOutMode, setTestOutMode] = useState(false);
+
+  const audioBusy = useAudioBusy(audioManager);
 
   // Track the previous word so we know when a new stage starts
   const prevWordRef = useRef<string | null>(null);
@@ -454,7 +457,12 @@ export function LearningScreen({
         {/* Hear it button */}
         <button
           onClick={handleHearIt}
-          className="text-lg font-bold text-sf-heading hover:text-sf-text transition-colors bg-sf-surface border border-sf-border rounded-xl px-6 py-3"
+          disabled={audioBusy}
+          className={`text-lg font-bold transition-colors bg-sf-surface border border-sf-border rounded-xl px-6 py-3 ${
+            audioBusy
+              ? 'opacity-50 cursor-not-allowed text-sf-muted'
+              : 'text-sf-heading hover:text-sf-text'
+          }`}
           aria-label={`Hear the word`}
         >
           Hear it

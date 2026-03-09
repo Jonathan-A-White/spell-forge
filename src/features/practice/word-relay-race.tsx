@@ -34,6 +34,7 @@ interface WordRelayRaceProps {
   words: string[];
   onComplete: (results: RelayRaceResults) => void;
   onSpeak?: (word: string) => void;
+  audioBusy?: boolean;
   tapTargetSize: number;
   savedState?: RelayRaceSavedState;
   onProgress?: (state: RelayRaceSavedState) => void;
@@ -45,6 +46,7 @@ export function WordRelayRace({
   words,
   onComplete,
   onSpeak,
+  audioBusy,
   tapTargetSize,
   savedState,
   onProgress,
@@ -416,7 +418,12 @@ export function WordRelayRace({
           {onSpeak && (
             <button
               onClick={() => onSpeak(currentWord)}
-              className="text-sf-heading hover:text-sf-text font-bold text-lg transition-colors"
+              disabled={audioBusy}
+              className={`font-bold text-lg transition-colors ${
+                audioBusy
+                  ? 'opacity-50 cursor-not-allowed text-sf-muted'
+                  : 'text-sf-heading hover:text-sf-text'
+              }`}
               aria-label="Hear the word"
             >
               Hear the word

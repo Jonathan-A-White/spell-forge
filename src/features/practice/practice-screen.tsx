@@ -33,6 +33,7 @@ interface PracticeScreenProps {
   onStatsUpdate?: (stats: WordStats) => void;
   onBack: () => void;
   onSpeak?: (word: string) => void;
+  audioBusy?: boolean;
 }
 
 /** Serialize SessionState for IndexedDB storage */
@@ -105,6 +106,7 @@ export function PracticeScreen({
   onStatsUpdate,
   onBack,
   onSpeak,
+  audioBusy,
 }: PracticeScreenProps) {
   const [session, setSession] = useState<SessionState | null>(null);
   const [sessionLog, setSessionLog] = useState<SessionLog | null>(null);
@@ -384,7 +386,12 @@ export function PracticeScreen({
           <p className="text-sf-muted text-sm mb-2">Spell this word:</p>
           <button
             onClick={() => onSpeak?.(session.currentWord!.text)}
-            className="text-2xl font-bold text-sf-heading hover:text-sf-text transition-colors"
+            disabled={audioBusy}
+            className={`text-2xl font-bold transition-colors ${
+              audioBusy
+                ? 'opacity-50 cursor-not-allowed text-sf-muted'
+                : 'text-sf-heading hover:text-sf-text'
+            }`}
             aria-label={`Hear the word ${session.currentWord.text}`}
           >
             Hear it again

@@ -43,7 +43,7 @@ import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
-import { AudioManagerImpl, TtsProvider } from './audio';
+import { AudioManagerImpl, TtsProvider, useAudioBusy } from './audio';
 import { createOcrManager } from './ocr';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
@@ -93,6 +93,8 @@ function App() {
   const [editingList, setEditingList] = useState<WordList | null>(null);
   const [viewingList, setViewingList] = useState<WordList | null>(null);
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
+
+  const audioBusy = useAudioBusy(audioManager);
 
   // Sync view state with browser history so the OS back button
   // navigates within the app instead of closing it.
@@ -700,7 +702,8 @@ function App() {
           onSessionEnd={handleSessionEnd}
           onStatsUpdate={handleStatsUpdate}
           onBack={() => setView('home')}
-          onSpeak={(word) => audioManager.speak(word)}
+          onSpeak={(word) => audioManager.runExclusive(() => audioManager.speak(word))}
+          audioBusy={audioBusy}
         />
       );
 
@@ -717,7 +720,8 @@ function App() {
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
           onGoLearn={() => setView('learning')}
-          onSpeak={(word) => audioManager.speak(word)}
+          onSpeak={(word) => audioManager.runExclusive(() => audioManager.speak(word))}
+          audioBusy={audioBusy}
         />
       );
 
@@ -730,7 +734,8 @@ function App() {
           allWords={allWords}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
-          onSpeak={(word) => audioManager.speak(word)}
+          onSpeak={(word) => audioManager.runExclusive(() => audioManager.speak(word))}
+          audioBusy={audioBusy}
         />
       );
 

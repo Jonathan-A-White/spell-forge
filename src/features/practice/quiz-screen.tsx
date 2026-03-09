@@ -14,6 +14,7 @@ interface QuizScreenProps {
   onSessionEnd: (log: SessionLog) => void;
   onBack: () => void;
   onSpeak?: (word: string) => void;
+  audioBusy?: boolean;
 }
 
 interface QuizScreenSavedState {
@@ -27,6 +28,7 @@ export function QuizScreen({
   onSessionEnd,
   onBack,
   onSpeak,
+  audioBusy,
 }: QuizScreenProps) {
   const [masteredWordIds, setMasteredWordIds] = useState<Set<string> | null>(null);
   const [quizSaved, setQuizSaved] = useState<QuizSavedState | undefined>();
@@ -218,6 +220,7 @@ export function QuizScreen({
             words={wordTexts}
             onComplete={handleQuizComplete}
             onSpeak={onSpeak}
+            audioBusy={audioBusy}
             tapTargetSize={profile.settings.tapTargetSize}
             savedState={quizSaved}
             onProgress={handleQuizProgress}
