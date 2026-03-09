@@ -18,6 +18,12 @@ describe('sayAndSpell', () => {
       speakSlowly: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
       speakChunks: vi.fn<(chunks: string[], delayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
       registerProvider: vi.fn(),
+      isBusy: vi.fn(() => false),
+      runExclusive: vi.fn(async (action: () => Promise<void>) => {
+        await action();
+        return true;
+      }),
+      onBusyChange: vi.fn(() => () => {}),
     };
   });
 

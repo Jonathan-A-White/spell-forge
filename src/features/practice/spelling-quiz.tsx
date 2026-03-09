@@ -7,6 +7,7 @@ interface SpellingQuizProps {
   words: string[];
   onComplete: (results: QuizResults) => void;
   onSpeak?: (word: string) => void;
+  audioBusy?: boolean;
   tapTargetSize: number;
   savedState?: QuizSavedState;
   onProgress?: (state: QuizSavedState) => void;
@@ -137,7 +138,7 @@ function buildQuestions(words: string[]): QuizQuestion[] {
   });
 }
 
-export function SpellingQuiz({ words, onComplete, onSpeak, tapTargetSize, savedState, onProgress }: SpellingQuizProps) {
+export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetSize, savedState, onProgress }: SpellingQuizProps) {
   const questions = useMemo(() => {
     if (savedState) return savedState.questions;
     return buildQuestions(words);
@@ -325,7 +326,12 @@ export function SpellingQuiz({ words, onComplete, onSpeak, tapTargetSize, savedS
       {onSpeak && (currentQuestion.type === 'fill-blank' || currentQuestion.type === 'unscramble') && (
         <button
           onClick={() => onSpeak(currentQuestion.word)}
-          className="text-sf-heading hover:text-sf-text font-bold text-lg transition-colors"
+          disabled={audioBusy}
+          className={`font-bold text-lg transition-colors ${
+            audioBusy
+              ? 'opacity-50 cursor-not-allowed text-sf-muted'
+              : 'text-sf-heading hover:text-sf-text'
+          }`}
           aria-label={`Hear the word`}
         >
           Hear the word

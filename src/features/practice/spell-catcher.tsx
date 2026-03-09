@@ -35,6 +35,7 @@ interface SpellCatcherProps {
   words: string[];
   onComplete: (results: SpellCatcherResults) => void;
   onSpeak?: (word: string) => void;
+  audioBusy?: boolean;
   tapTargetSize: number;
   savedState?: SpellCatcherSavedState;
   onProgress?: (state: SpellCatcherSavedState) => void;
@@ -50,6 +51,7 @@ export function SpellCatcher({
   words,
   onComplete,
   onSpeak,
+  audioBusy,
   tapTargetSize,
   savedState,
   onProgress,
@@ -443,7 +445,12 @@ export function SpellCatcher({
           {onSpeak && (
             <button
               onClick={() => onSpeak(currentWord)}
-              className="mr-2 text-sf-muted hover:text-cyan-500 transition-colors"
+              disabled={audioBusy}
+              className={`mr-2 transition-colors ${
+                audioBusy
+                  ? 'opacity-50 cursor-not-allowed text-sf-muted'
+                  : 'text-sf-muted hover:text-cyan-500'
+              }`}
               aria-label="Hear the word"
             >
               🔊

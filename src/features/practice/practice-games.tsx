@@ -35,6 +35,7 @@ interface PracticeGamesProps {
   onBack: () => void;
   onGoLearn?: () => void;
   onSpeak?: (word: string) => void;
+  audioBusy?: boolean;
 }
 
 export function PracticeGames({
@@ -48,6 +49,7 @@ export function PracticeGames({
   onBack,
   onGoLearn,
   onSpeak,
+  audioBusy,
 }: PracticeGamesProps) {
   const [mode, setMode] = useState<GameMode>('select');
   const [wordSearchDifficulty, setWordSearchDifficulty] = useState<WordSearchDifficulty>('medium');
@@ -739,6 +741,7 @@ export function PracticeGames({
             words={wordTexts}
             onComplete={handleRelayRaceComplete}
             onSpeak={onSpeak}
+            audioBusy={audioBusy}
             tapTargetSize={profile.settings.tapTargetSize}
             savedState={relayRaceSaved}
             onProgress={handleRelayRaceProgress}
@@ -750,6 +753,7 @@ export function PracticeGames({
             words={wordTexts}
             onComplete={handleSpellCatcherComplete}
             onSpeak={onSpeak}
+            audioBusy={audioBusy}
             tapTargetSize={profile.settings.tapTargetSize}
             savedState={spellCatcherSaved}
             onProgress={handleSpellCatcherProgress}
@@ -761,6 +765,7 @@ export function PracticeGames({
             words={wordTexts}
             onComplete={handleWordVolcanoComplete}
             onSpeak={onSpeak}
+            audioBusy={audioBusy}
             tapTargetSize={profile.settings.tapTargetSize}
             savedState={wordVolcanoSaved}
             onProgress={handleWordVolcanoProgress}
@@ -772,6 +777,7 @@ export function PracticeGames({
             words={wordTexts}
             onComplete={handleLetterInvasionComplete}
             onSpeak={onSpeak}
+            audioBusy={audioBusy}
             tapTargetSize={profile.settings.tapTargetSize}
             savedState={letterInvasionSaved}
             onProgress={handleLetterInvasionProgress}

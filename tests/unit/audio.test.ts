@@ -265,4 +265,83 @@ describe('AudioManagerImpl', () => {
     await manager.speakChunks(['a', 'b'], 200);
     expect(provider.speakChunks).toHaveBeenCalledWith(['a', 'b'], 200);
   });
+
+  // ─── runExclusive / isBusy ──────────────────────────────────
+
+  it('should report isBusy=false by default', () => {
+    const manager = new AudioManagerImpl();
+    expect(manager.isBusy()).toBe(false);
+  });
+
+  it('should report isBusy=true while runExclusive action is executing', async () => {
+    const manager = new AudioManagerImpl();
+    const provider = createMockProvider(1, true);
+    manager.registerProvider(provider);
+
+    let busyDuringAction = false;
+    await manager.runExclusive(async () => {
+      busyDuringAction = manager.isBusy();
+      await manager.speak('test');
+    });
+
+    expect(busyDuringAction).toBe(true);
+    expect(manager.isBusy()).toBe(false);
+  });
+
+  it('should skip a second runExclusive call while one is already running', async () => {
+    const manager = new AudioManagerImpl();
+
+    let resolve1!: () => void;
+    const action1 = new Promise<void>((r) => { resolve1 = r; });
+    const action2Ran = vi.fn();
+
+    const p1 = manager.runExclusive(() => action1);
+    const p2Result = await manager.runExclusive(async () => { action2Ran(); });
+
+    // Second call should have been skipped (returned false)
+    expect(p2Result).toBe(false);
+    expect(action2Ran).not.toHaveBeenCalled();
+
+    // Finish the first action
+    resolve1();
+    const p1Result = await p1;
+    expect(p1Result).toBe(true);
+  });
+
+  it('should reset isBusy after runExclusive action throws', async () => {
+    const manager = new AudioManagerImpl();
+
+    await manager.runExclusive(async () => {
+      throw new Error('oops');
+    }).catch(() => { /* expected */ });
+
+    expect(manager.isBusy()).toBe(false);
+  });
+
+  it('should notify listeners on busy state changes', async () => {
+    const manager = new AudioManagerImpl();
+    const states: boolean[] = [];
+
+    manager.onBusyChange((busy) => states.push(busy));
+
+    await manager.runExclusive(async () => {
+      // no-op
+    });
+
+    expect(states).toEqual([true, false]);
+  });
+
+  it('should allow unsubscribing from busy state changes', async () => {
+    const manager = new AudioManagerImpl();
+    const states: boolean[] = [];
+
+    const unsub = manager.onBusyChange((busy) => states.push(busy));
+    unsub();
+
+    await manager.runExclusive(async () => {
+      // no-op
+    });
+
+    expect(states).toEqual([]);
+  });
 });
