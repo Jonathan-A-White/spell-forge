@@ -1,5 +1,5 @@
 import { db } from './db';
-import { profileRepo, wordListRepo, wordRepo, statsRepo, sessionRepo, streakRepo } from './repositories';
+import { profileRepo, wordListRepo, wordRepo, statsRepo, sessionRepo, streakRepo, activityProgressRepo, learningProgressRepo, coinRepo } from './repositories';
 import type { ExportPayload, ImportStrategy, ImportResult } from '../contracts/types';
 
 const EXPORT_VERSION = '1.0.0';
@@ -42,6 +42,9 @@ export async function exportProfile(profileId: string): Promise<ExportPayload> {
     lastSessionDate: null,
     weeklyProgress: [],
   };
+  const activityProgress = await activityProgressRepo.getAllForProfile(profileId);
+  const learningProgress = await learningProgressRepo.getByProfileId(profileId);
+  const coinBalance = await coinRepo.get(profileId) ?? null;
 
   return {
     version: EXPORT_VERSION,
@@ -52,6 +55,9 @@ export async function exportProfile(profileId: string): Promise<ExportPayload> {
     wordStats,
     sessionLogs,
     streakData,
+    activityProgress,
+    learningProgress,
+    coinBalance,
   };
 }
 
@@ -68,13 +74,16 @@ export async function importProfile(
 async function importReplace(payload: ExportPayload): Promise<ImportResult> {
   const profileId = payload.profile.id;
 
-  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks], async () => {
+  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks, db.activityProgress, db.learningProgress, db.coinBalances], async () => {
     // Clear all existing data for this profile
     await db.wordStats.where('profileId').equals(profileId).delete();
     await db.words.where('profileId').equals(profileId).delete();
     await db.wordLists.where('profileId').equals(profileId).delete();
     await db.sessionLogs.where('profileId').equals(profileId).delete();
     await db.streaks.where('profileId').equals(profileId).delete();
+    await db.activityProgress.where('profileId').equals(profileId).delete();
+    await db.learningProgress.where('profileId').equals(profileId).delete();
+    await db.coinBalances.delete(profileId);
     await db.profiles.delete(profileId);
 
     // Insert all imported data
@@ -84,6 +93,9 @@ async function importReplace(payload: ExportPayload): Promise<ImportResult> {
     if (payload.wordStats.length) await db.wordStats.bulkAdd(payload.wordStats);
     if (payload.sessionLogs.length) await db.sessionLogs.bulkAdd(payload.sessionLogs);
     await db.streaks.put(payload.streakData);
+    if (payload.activityProgress.length) await db.activityProgress.bulkAdd(payload.activityProgress);
+    if (payload.learningProgress.length) await db.learningProgress.bulkAdd(payload.learningProgress);
+    if (payload.coinBalance) await db.coinBalances.put(payload.coinBalance);
   });
 
   return {
@@ -103,7 +115,7 @@ async function importMerge(payload: ExportPayload): Promise<ImportResult> {
   let wordsPreserved = 0;
   let listsAdded = 0;
 
-  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks], async () => {
+  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks, db.activityProgress, db.learningProgress, db.coinBalances], async () => {
     // Profile: import wins
     const existingProfile = await db.profiles.get(profileId);
     if (existingProfile) {
@@ -167,6 +179,21 @@ async function importMerge(payload: ExportPayload): Promise<ImportResult> {
 
     // Streak: import wins
     await db.streaks.put(payload.streakData);
+
+    // Activity progress: import wins on conflict
+    for (const ap of payload.activityProgress) {
+      await db.activityProgress.put(ap);
+    }
+
+    // Learning progress: import wins on conflict
+    for (const lp of payload.learningProgress) {
+      await db.learningProgress.put(lp);
+    }
+
+    // Coin balance: import wins
+    if (payload.coinBalance) {
+      await db.coinBalances.put(payload.coinBalance);
+    }
   });
 
   return {
