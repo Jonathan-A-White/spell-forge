@@ -601,15 +601,33 @@ function App() {
       const updatedProfiles = await profileRepo.getAll();
       setProfiles(updatedProfiles);
 
-      // Switch to the imported profile
-      const importedProfile = updatedProfiles.find(p => p.id === payload.profile.id);
-      if (importedProfile) {
-        await selectProfile(importedProfile);
+      // If we imported data for the active profile, reload its data in place
+      // without navigating away from settings
+      if (activeProfile && payload.profile.id === activeProfile.id) {
+        const refreshed = updatedProfiles.find(p => p.id === activeProfile.id);
+        if (refreshed) {
+          setActiveProfile(refreshed);
+          applySettings(refreshed.settings);
+          const [words, stats, lists, streak, lp, coins] = await Promise.all([
+            wordRepo.getByProfileId(refreshed.id),
+            statsRepo.getByProfileId(refreshed.id),
+            wordListRepo.getByProfileId(refreshed.id),
+            streakRepo.get(refreshed.id),
+            learningProgressRepo.getByProfileId(refreshed.id),
+            getCoinBalance(refreshed.id),
+          ]);
+          setAllWords(words);
+          setAllStats(stats);
+          setWordLists(lists);
+          setStreakData(streak);
+          setLearningProgress(lp);
+          setCoinBalance(coins);
+        }
       }
     } catch (err) {
       console.error('Profile import failed:', err);
     }
-  }, [selectProfile]);
+  }, [activeProfile]);
 
   // Award coin when a word is mastered in learning mode
   const handleWordMasteredInLearning = useCallback(async (wordId: string) => {
