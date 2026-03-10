@@ -1,7 +1,7 @@
 // src/features/practice/practice-screen.tsx — Main practice session screen
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { LetterBank } from './letter-bank';
+import { SpellingInput } from './spelling-input';
 import { SessionSummary } from './session-summary';
 import type {
   Word,
@@ -398,7 +398,7 @@ export function PracticeScreen({
           </button>
         </div>
 
-        <LetterBank
+        <SpellingInput
           key={session.currentWord.id}
           word={session.currentWord.text}
           onComplete={handleWordComplete}
@@ -419,12 +419,6 @@ export function PracticeScreen({
           }
           tapTargetSize={profile.settings.tapTargetSize}
         />
-
-        {session.attemptCount > 0 && !session.scaffoldingActive && (
-          <p className="text-sf-text text-center">
-            Almost! Try sounding it out.
-          </p>
-        )}
       </div>
     </div>
   );
