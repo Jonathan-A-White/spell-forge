@@ -596,14 +596,20 @@ function App() {
       const payload = JSON.parse(text);
       const strategy: ImportStrategy = 'merge';
       await importProfile(payload, strategy);
-      // Reload current profile data
-      if (activeProfile) {
-        await selectProfile(activeProfile);
+
+      // Refresh the profile list so the imported profile appears
+      const updatedProfiles = await profileRepo.getAll();
+      setProfiles(updatedProfiles);
+
+      // Switch to the imported profile
+      const importedProfile = updatedProfiles.find(p => p.id === payload.profile.id);
+      if (importedProfile) {
+        await selectProfile(importedProfile);
       }
-    } catch {
-      // Import failed silently — could add error reporting later
+    } catch (err) {
+      console.error('Profile import failed:', err);
     }
-  }, [activeProfile, selectProfile]);
+  }, [selectProfile]);
 
   // Award coin when a word is mastered in learning mode
   const handleWordMasteredInLearning = useCallback(async (wordId: string) => {
