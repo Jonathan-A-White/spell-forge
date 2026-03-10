@@ -7,6 +7,9 @@ import {
   statsRepo,
   sessionRepo,
   streakRepo,
+  activityProgressRepo,
+  learningProgressRepo,
+  coinRepo,
 } from '../../src/data/repositories';
 import { exportProfile, importProfile } from '../../src/data/import-export';
 import type {
@@ -537,6 +540,22 @@ describe('import/export', () => {
     await statsRepo.create(makeWordStatsData(wordId, profileId));
     await sessionRepo.create(makeSessionData(profileId));
     await streakRepo.initialize(profileId);
+    await activityProgressRepo.save(profileId, 'practice', { currentIndex: 3 });
+    await learningProgressRepo.save({
+      id: `${profileId}:${wordId}`,
+      profileId,
+      wordId,
+      wordListId: listId,
+      stage: 1 as const,
+      consecutiveSuccesses: 1,
+      consecutiveFailures: 0,
+      mastered: false,
+      totalAttempts: 3,
+      totalErrors: 1,
+      lastAttemptAt: new Date('2026-01-20T10:05:00Z'),
+      createdAt: new Date('2026-01-15'),
+    });
+    await coinRepo.addCoins(profileId, 50);
   });
 
   it('exports complete profile data', async () => {
@@ -549,6 +568,12 @@ describe('import/export', () => {
     expect(payload.wordStats).toHaveLength(1);
     expect(payload.sessionLogs).toHaveLength(1);
     expect(payload.streakData.profileId).toBe(profileId);
+    expect(payload.activityProgress).toHaveLength(1);
+    expect(payload.activityProgress[0].activityType).toBe('practice');
+    expect(payload.learningProgress).toHaveLength(1);
+    expect(payload.learningProgress[0].wordId).toBe(wordId);
+    expect(payload.coinBalance).not.toBeNull();
+    expect(payload.coinBalance!.coins).toBe(50);
   });
 
   it('export throws for nonexistent profile', async () => {
@@ -556,7 +581,7 @@ describe('import/export', () => {
   });
 
   describe('replace strategy', () => {
-    it('replaces all profile data', async () => {
+    it('replaces all profile data including progress', async () => {
       const payload = await exportProfile(profileId);
 
       // Modify the exported profile name
@@ -569,6 +594,15 @@ describe('import/export', () => {
 
       const profile = await profileRepo.getById(profileId);
       expect(profile!.name).toBe('Replaced Name');
+
+      // Verify progress data survived the replace
+      const ap = await activityProgressRepo.getAllForProfile(profileId);
+      expect(ap).toHaveLength(1);
+      const lp = await learningProgressRepo.getByProfileId(profileId);
+      expect(lp).toHaveLength(1);
+      expect(lp[0].totalAttempts).toBe(3);
+      const coins = await coinRepo.get(profileId);
+      expect(coins!.coins).toBe(50);
     });
 
     it('removes locally-only data on replace', async () => {

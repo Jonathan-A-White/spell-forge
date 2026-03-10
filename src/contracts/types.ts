@@ -312,6 +312,9 @@ export interface ExportPayload {
   wordStats: WordStats[];
   sessionLogs: SessionLog[];
   streakData: StreakData;
+  activityProgress: ActivityProgress[];
+  learningProgress: WordLearningProgress[];
+  coinBalance: CoinBalance | null;
 }
 
 export type ImportStrategy = 'merge' | 'replace';
