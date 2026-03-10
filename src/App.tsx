@@ -48,7 +48,7 @@ import { createOcrManager } from './ocr';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
 import { themeEngine } from './themes';
-import { exportProfile, importProfile } from './data/import-export';
+import { exportProfile, importProfile, parseExportJson } from './data/import-export';
 import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
@@ -593,7 +593,7 @@ function App() {
   const handleImportProfile = useCallback(async (file: File) => {
     try {
       const text = await file.text();
-      const payload = JSON.parse(text);
+      const payload = parseExportJson(text);
       const strategy: ImportStrategy = 'merge';
       await importProfile(payload, strategy);
 
@@ -601,33 +601,23 @@ function App() {
       const updatedProfiles = await profileRepo.getAll();
       setProfiles(updatedProfiles);
 
-      // If we imported data for the active profile, reload its data in place
-      // without navigating away from settings
-      if (activeProfile && payload.profile.id === activeProfile.id) {
+      // Reload the active profile's data (including theme) so the UI
+      // reflects whatever was imported.  Use selectProfile for the full
+      // reload path which also applies the theme palette.
+      if (activeProfile) {
         const refreshed = updatedProfiles.find(p => p.id === activeProfile.id);
         if (refreshed) {
-          setActiveProfile(refreshed);
-          applySettings(refreshed.settings);
-          const [words, stats, lists, streak, lp, coins] = await Promise.all([
-            wordRepo.getByProfileId(refreshed.id),
-            statsRepo.getByProfileId(refreshed.id),
-            wordListRepo.getByProfileId(refreshed.id),
-            streakRepo.get(refreshed.id),
-            learningProgressRepo.getByProfileId(refreshed.id),
-            getCoinBalance(refreshed.id),
-          ]);
-          setAllWords(words);
-          setAllStats(stats);
-          setWordLists(lists);
-          setStreakData(streak);
-          setLearningProgress(lp);
-          setCoinBalance(coins);
+          // Re-select the current profile so theme + settings + data are
+          // all consistent.  selectProfile will set the view to 'home',
+          // so override it back to settings afterwards.
+          await selectProfile(refreshed);
+          setView('settings');
         }
       }
     } catch (err) {
       console.error('Profile import failed:', err);
     }
-  }, [activeProfile]);
+  }, [activeProfile, selectProfile]);
 
   // Award coin when a word is mastered in learning mode
   const handleWordMasteredInLearning = useCallback(async (wordId: string) => {

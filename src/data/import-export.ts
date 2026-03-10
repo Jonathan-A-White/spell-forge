@@ -4,6 +4,29 @@ import type { ExportPayload, ImportStrategy, ImportResult } from '../contracts/t
 
 const EXPORT_VERSION = '1.0.0';
 
+// ISO 8601 date pattern for JSON reviver
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?$/;
+
+/**
+ * JSON reviver that converts ISO-8601 date strings back to Date objects.
+ * Without this, dates round-tripped through JSON become strings and
+ * break any code that calls Date methods on them.
+ */
+function dateReviver(_key: string, value: unknown): unknown {
+  if (typeof value === 'string' && ISO_DATE_RE.test(value)) {
+    return new Date(value);
+  }
+  return value;
+}
+
+/**
+ * Parse a JSON export string, restoring Date objects that were
+ * serialised as ISO strings by JSON.stringify.
+ */
+export function parseExportJson(text: string): ExportPayload {
+  return JSON.parse(text, dateReviver) as ExportPayload;
+}
+
 export async function exportProfile(profileId: string): Promise<ExportPayload> {
   const profile = await profileRepo.getById(profileId);
   if (!profile) throw new Error(`Profile ${profileId} not found`);

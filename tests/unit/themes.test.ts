@@ -30,8 +30,9 @@ describe('Theme Loading', () => {
     expect(theme).toBe(starTrailTheme);
   });
 
-  it('throws for unknown theme id', () => {
-    expect(() => themeEngine.getTheme('nonexistent')).toThrow('Theme not found: nonexistent');
+  it('falls back to dragon-forge for unknown theme id', () => {
+    const theme = themeEngine.getTheme('nonexistent');
+    expect(theme.id).toBe('dragon-forge');
   });
 });
 
