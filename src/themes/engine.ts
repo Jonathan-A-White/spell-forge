@@ -20,7 +20,9 @@ const themeRegistry: Map<string, Theme> = new Map([
 function getTheme(id: string): Theme {
   const theme = themeRegistry.get(id);
   if (!theme) {
-    throw new Error(`Theme not found: ${id}`);
+    // Fall back to dragon-forge so a corrupt/unknown themeId never
+    // crashes the app (previously threw, causing a blank screen).
+    return themeRegistry.get(dragonForgeTheme.id)!;
   }
   return theme;
 }
