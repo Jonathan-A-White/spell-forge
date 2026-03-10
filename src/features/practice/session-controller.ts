@@ -106,7 +106,7 @@ export function recordAttempt(
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
   const result: TechniqueResult = {
-    techniqueId: 'letter-bank',
+    techniqueId: 'spelling-input',
     timestamp: new Date(),
     correct,
     responseTimeMs,
