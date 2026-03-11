@@ -42,6 +42,13 @@ export const learningProgressRepo = {
     return all.filter(p => p.mastered);
   },
 
+  async getEncountered(profileId: string): Promise<WordLearningProgress[]> {
+    return db.learningProgress
+      .where('profileId')
+      .equals(profileId)
+      .toArray();
+  },
+
   async delete(profileId: string, wordId: string): Promise<void> {
     const id = makeId(profileId, wordId);
     await db.learningProgress.delete(id);
