@@ -36,13 +36,13 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
   }, [phase]);
 
   // Hide the reference word after 5 seconds in the retype phase
+  // wordVisible is set to true by handleStartRetype and handleRetypeSubmit
   useEffect(() => {
-    if (phase === 'retype') {
-      setWordVisible(true);
+    if (phase === 'retype' && wordVisible) {
       const timer = setTimeout(() => setWordVisible(false), 5000);
       return () => clearTimeout(timer);
     }
-  }, [phase, retypeCount]);
+  }, [phase, wordVisible]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = attempt.trim().toLowerCase();
@@ -85,6 +85,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
     } else {
       setRetypeCount(newCount);
       setRetypeValue('');
+      setWordVisible(true);
       inputRef.current?.focus();
     }
   }, [retypeValue, targetWord, retypeCount, startTime, onComplete]);
@@ -103,6 +104,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
     setPhase('retype');
     setRetypeCount(0);
     setRetypeValue('');
+    setWordVisible(true);
   }, []);
 
   // Phase 1: Initial text input
