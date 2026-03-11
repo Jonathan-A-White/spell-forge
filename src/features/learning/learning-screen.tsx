@@ -1,6 +1,6 @@
 // src/features/learning/learning-screen.tsx — Main learning mode screen
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { LetterBank } from '../practice/letter-bank';
 import { KeyboardInput } from './keyboard-input';
 import { sayAndSpell, sayWordOnly } from './audio-helpers';
@@ -281,20 +281,23 @@ export function LearningScreen({
     }
   }, [sessionState, audioManager, testOutMode]);
 
-  // Derive current word display state
-  const wordDisplay = (() => {
-    if (!sessionState?.currentWord) return null;
+  // Derive current word display state — memoized so random blank positions
+  // stay stable across re-renders (e.g. when audio busy state changes).
+  const currentWord = sessionState?.currentWord ?? null;
+  const currentProgress = currentWord
+    ? sessionState?.progressMap.get(currentWord.id) ?? null
+    : null;
+  const wordDisplay = useMemo(() => {
+    if (!currentWord) return null;
 
-    const wordId = sessionState.currentWord.id;
-    const progress = sessionState.progressMap.get(wordId);
-    const stage = progress?.stage ?? 0;
-    const successes = progress?.consecutiveSuccesses ?? 0;
+    const stage = currentProgress?.stage ?? 0;
+    const successes = currentProgress?.consecutiveSuccesses ?? 0;
     const inputMode = getInputMode(stage, successes);
-    const hiddenCount = getHiddenCount(stage, sessionState.currentWord.text.length);
-    const display = generateWordDisplay(sessionState.currentWord.text, hiddenCount);
+    const hiddenCount = getHiddenCount(stage, currentWord.text.length);
+    const display = generateWordDisplay(currentWord.text, hiddenCount);
 
     return { stage, successes, inputMode, display, hiddenCount };
-  })();
+  }, [currentWord, currentProgress?.stage, currentProgress?.consecutiveSuccesses]);
 
   // Loading state
   if (loading) {
