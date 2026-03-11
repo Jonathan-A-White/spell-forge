@@ -196,9 +196,18 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
             {word.toLowerCase()}
           </p>
         ) : (
-          <p className="text-sf-muted text-sm italic">
-            Word hidden — type from memory!
-          </p>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-sf-muted text-sm italic">
+              Word hidden — type from memory!
+            </p>
+            <button
+              onClick={() => setWordVisible(true)}
+              className="text-sf-primary hover:text-sf-primary-hover text-sm font-medium underline transition-colors"
+              type="button"
+            >
+              Show word again
+            </button>
+          </div>
         )}
       </div>
 
