@@ -19,6 +19,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
   const [attempt, setAttempt] = useState('');
   const [retypeCount, setRetypeCount] = useState(0);
   const [retypeValue, setRetypeValue] = useState('');
+  const [wordVisible, setWordVisible] = useState(true);
   const [startTime] = useState(() => Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -33,6 +34,15 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
       return () => clearTimeout(timer);
     }
   }, [phase]);
+
+  // Hide the reference word after 5 seconds in the retype phase
+  // wordVisible is set to true by handleStartRetype and handleRetypeSubmit
+  useEffect(() => {
+    if (phase === 'retype' && wordVisible) {
+      const timer = setTimeout(() => setWordVisible(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, wordVisible]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = attempt.trim().toLowerCase();
@@ -75,6 +85,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
     } else {
       setRetypeCount(newCount);
       setRetypeValue('');
+      setWordVisible(true);
       inputRef.current?.focus();
     }
   }, [retypeValue, targetWord, retypeCount, startTime, onComplete]);
@@ -93,6 +104,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
     setPhase('retype');
     setRetypeCount(0);
     setRetypeValue('');
+    setWordVisible(true);
   }, []);
 
   // Phase 1: Initial text input
@@ -179,9 +191,15 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
         <p className="text-sf-muted text-sm mb-1">
           Type it correctly ({retypeCount + 1} of {REQUIRED_RETYPES})
         </p>
-        <p className="text-sf-heading font-bold text-2xl" style={{ fontSize }}>
-          {word.toLowerCase()}
-        </p>
+        {wordVisible ? (
+          <p className="text-sf-heading font-bold text-2xl" style={{ fontSize }}>
+            {word.toLowerCase()}
+          </p>
+        ) : (
+          <p className="text-sf-muted text-sm italic">
+            Word hidden — type from memory!
+          </p>
+        )}
       </div>
 
       <input
