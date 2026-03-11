@@ -19,6 +19,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
   const [attempt, setAttempt] = useState('');
   const [retypeCount, setRetypeCount] = useState(0);
   const [retypeValue, setRetypeValue] = useState('');
+  const [wordVisible, setWordVisible] = useState(true);
   const [startTime] = useState(() => Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -33,6 +34,15 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
       return () => clearTimeout(timer);
     }
   }, [phase]);
+
+  // Hide the reference word after 5 seconds in the retype phase
+  useEffect(() => {
+    if (phase === 'retype') {
+      setWordVisible(true);
+      const timer = setTimeout(() => setWordVisible(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, retypeCount]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = attempt.trim().toLowerCase();
@@ -179,9 +189,15 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
         <p className="text-sf-muted text-sm mb-1">
           Type it correctly ({retypeCount + 1} of {REQUIRED_RETYPES})
         </p>
-        <p className="text-sf-heading font-bold text-2xl" style={{ fontSize }}>
-          {word.toLowerCase()}
-        </p>
+        {wordVisible ? (
+          <p className="text-sf-heading font-bold text-2xl" style={{ fontSize }}>
+            {word.toLowerCase()}
+          </p>
+        ) : (
+          <p className="text-sf-muted text-sm italic">
+            Word hidden — type from memory!
+          </p>
+        )}
       </div>
 
       <input
