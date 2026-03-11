@@ -1,22 +1,22 @@
 // src/core/mastery.ts — Shared mastered-word counting logic
 
-import type { Word, WordStats, WordLearningProgress } from '../contracts/types';
+import type { Word, WordStats } from '../contracts/types';
 
 /**
- * Count how many words are considered "mastered" by combining
- * spaced-rep bucket status and learning-progress records.
+ * Count how many words are considered "mastered" using only
+ * spaced-rep bucket status. A word must reach 'mastered' or 'review'
+ * through practice (consecutive correct answers across multiple days)
+ * to be counted as truly mastered.
+ *
+ * Completing learning mode promotes a word to 'familiar', not 'mastered'.
+ * True mastery requires proving retention through spaced-rep practice.
  */
 export function countMasteredWords(
   allWords: Word[],
   allStats: WordStats[],
-  learningProgress: WordLearningProgress[],
 ): number {
-  const learningMasteredIds = new Set(
-    learningProgress.filter((lp) => lp.mastered).map((lp) => lp.wordId),
-  );
   return allWords.filter((w) => {
     const stat = allStats.find((s) => s.wordId === w.id);
-    if (stat && stat.timesAsked > 0 && (stat.currentBucket === 'mastered' || stat.currentBucket === 'review')) return true;
-    return learningMasteredIds.has(w.id);
+    return stat && (stat.currentBucket === 'mastered' || stat.currentBucket === 'review');
   }).length;
 }

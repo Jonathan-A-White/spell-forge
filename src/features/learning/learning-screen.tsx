@@ -319,7 +319,7 @@ export function LearningScreen({
           </h2>
           <p className="text-sf-muted text-center text-sm">
             You have a learning session in progress — {resumePrompt.masteredCount} of{' '}
-            {resumePrompt.totalWords} words mastered ({progressPercent}%).
+            {resumePrompt.totalWords} words learned ({progressPercent}%).
           </p>
           <div className="w-full bg-sf-track rounded-full h-2">
             <div
@@ -360,9 +360,10 @@ export function LearningScreen({
           <div className="w-24 h-24 mx-auto rounded-full bg-green-100 border-4 border-green-500 flex items-center justify-center">
             <span className="text-4xl">&#10003;</span>
           </div>
-          <h2 className="text-2xl font-bold text-sf-heading">All Words Mastered!</h2>
+          <h2 className="text-2xl font-bold text-sf-heading">All Words Learned!</h2>
           <p className="text-sf-muted">
             You have learned all {sessionState?.totalWords ?? 0} words across your active lists.
+            Practice to build mastery!
           </p>
           <button
             onClick={onBack}
@@ -404,7 +405,7 @@ export function LearningScreen({
           Back
         </button>
         <div className="text-sm text-sf-muted">
-          {sessionState.masteredCount} / {sessionState.totalWords} mastered
+          {sessionState.masteredCount} / {sessionState.totalWords} learned
         </div>
       </div>
 
@@ -420,7 +421,7 @@ export function LearningScreen({
       <div className="text-center mb-2">
         {testOutMode ? (
           <span className="text-xs text-sf-primary bg-sf-surface border border-sf-primary rounded-full px-3 py-1 font-medium">
-            Test Out — Spell the word to master it
+            Test Out — Spell the word to learn it
           </span>
         ) : (
           <span className="text-xs text-sf-muted bg-sf-surface border border-sf-border rounded-full px-3 py-1">

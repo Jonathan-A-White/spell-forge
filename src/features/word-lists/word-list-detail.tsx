@@ -279,8 +279,7 @@ function getWordCategory(
   }
 
   if (lp) {
-    if (lp.mastered) return 'mastered';
-    if (lp.stage >= 2) return 'familiar';
+    if (lp.mastered || lp.stage >= 2) return 'familiar';
     if (lp.stage >= 1 || lp.totalAttempts > 0) return 'learning';
   }
 

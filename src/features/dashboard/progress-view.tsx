@@ -47,9 +47,10 @@ function getWordCategory(
   }
 
   // Fall back to learning-stage progress
+  // Completing learning mode means the word is 'familiar', not 'mastered'.
+  // True mastery requires proven retention through spaced-rep practice.
   if (lp) {
-    if (lp.mastered) return 'mastered';
-    if (lp.stage >= 2) return 'familiar';
+    if (lp.mastered || lp.stage >= 2) return 'familiar';
     if (lp.stage >= 1 || lp.totalAttempts > 0) return 'learning';
   }
 
