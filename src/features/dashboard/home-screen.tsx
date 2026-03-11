@@ -1,6 +1,6 @@
 // src/features/dashboard/home-screen.tsx — Main hub screen with compact single-screen layout
 
-import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
+import type { Profile, WordList, Word, WordStats, StreakData, CoinBalance } from '../../contracts/types';
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 import { countMasteredWords } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
@@ -11,7 +11,6 @@ interface HomeScreenProps {
   wordLists: WordList[];
   allWords: Word[];
   allStats: WordStats[];
-  learningProgress: WordLearningProgress[];
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
   onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable') => void;
@@ -24,14 +23,13 @@ export function HomeScreen({
   wordLists,
   allWords,
   allStats,
-  learningProgress,
   streakData,
   coinBalance,
   onNavigate,
   onSwitchProfile,
   hasMultipleProfiles,
 }: HomeScreenProps) {
-  const mastered = countMasteredWords(allWords, allStats, learningProgress);
+  const mastered = countMasteredWords(allWords, allStats);
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
   const streak = streakData?.currentStreak ?? 0;
   const wordsDue = getWordsDueCount(allStats);

@@ -36,18 +36,18 @@ export function QuizScreen({
   const [started, setStarted] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Load mastered word IDs on mount
+  // Load word IDs that are at least familiar (completed learning or practiced)
   useEffect(() => {
     let cancelled = false;
     async function loadMastered() {
-      const [learningMastered, allStats] = await Promise.all([
+      const [learningCompleted, allStats] = await Promise.all([
         learningProgressRepo.getMastered(profile.id),
         statsRepo.getByProfileId(profile.id),
       ]);
       if (!cancelled) {
-        const ids = new Set(learningMastered.map((p) => p.wordId));
+        const ids = new Set(learningCompleted.map((p) => p.wordId));
         for (const stat of allStats) {
-          if (stat.currentBucket === 'mastered' || stat.currentBucket === 'review') {
+          if (stat.currentBucket === 'familiar' || stat.currentBucket === 'mastered' || stat.currentBucket === 'review') {
             ids.add(stat.wordId);
           }
         }

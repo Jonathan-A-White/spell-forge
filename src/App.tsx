@@ -619,15 +619,38 @@ function App() {
     }
   }, [activeProfile, selectProfile]);
 
-  // Award coin when a word is mastered in learning mode
+  // When a word completes learning mode, promote it to 'familiar' in spaced-rep
   const handleWordMasteredInLearning = useCallback(async (wordId: string) => {
     if (!activeProfile) return;
-    const newBalance = await earnCoinForMastery(activeProfile.id);
-    setCoinBalance(newBalance);
-    eventBus.emit({
-      type: 'coins:earned',
-      payload: { profileId: activeProfile.id, amount: 1, reason: 'word-mastered', wordId },
-    });
+
+    // Initialize or promote the word's spaced-rep stats to 'familiar' bucket
+    const existing = await statsRepo.getByWordId(wordId);
+    if (existing) {
+      // Only promote if the word hasn't already reached familiar or higher through practice
+      if (existing.currentBucket === 'new' || existing.currentBucket === 'learning') {
+        await statsRepo.update(existing.id, { currentBucket: 'familiar' });
+      }
+    } else {
+      // Create initial stats at familiar bucket
+      await statsRepo.create({
+        wordId,
+        profileId: activeProfile.id,
+        lastAsked: null,
+        timesAsked: 0,
+        timesWrong: 0,
+        timesStruggledRight: 0,
+        timesEasyRight: 0,
+        consecutiveCorrect: 0,
+        currentBucket: 'familiar',
+        nextReviewDate: new Date(),
+        difficultyScore: 0.5,
+        techniqueHistory: [],
+      });
+    }
+
+    // Refresh stats in state so dashboard reflects the change
+    const refreshedStats = await statsRepo.getByProfileId(activeProfile.id);
+    setAllStats(refreshedStats);
   }, [activeProfile]);
 
   // Coin spending for game access
@@ -646,7 +669,7 @@ function App() {
   }, [activeProfile]);
 
   // Compute mastered count for coin economy
-  const masteredCount = countMasteredWords(allWords, allStats, learningProgress);
+  const masteredCount = countMasteredWords(allWords, allStats);
   const allMastered = canPlayFree(allWords.length, masteredCount);
 
   // Compute active lists and days until nearest test
@@ -893,7 +916,6 @@ function App() {
           wordLists={wordLists}
           allWords={allWords}
           allStats={allStats}
-          learningProgress={learningProgress}
           streakData={streakData}
           coinBalance={coinBalance}
           onNavigate={(target) => setView(target)}
