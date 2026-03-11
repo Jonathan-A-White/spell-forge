@@ -83,7 +83,10 @@ export function determineAction(signals: EngagementSignals): AdaptiveAction {
 function computeResponseTimeTrend(
   recent: TechniqueResult[],
 ): 'stable' | 'increasing' | 'decreasing' {
-  if (recent.length < 3) return 'stable';
+  // Need at least 5 data points for a reliable trend — with fewer, the
+  // first/second-half split is too noisy (e.g. 1 vs 2 items) and normal
+  // variation can look like fatigue, causing premature session wrap-up.
+  if (recent.length < 5) return 'stable';
 
   const firstHalf = recent.slice(0, Math.floor(recent.length / 2));
   const secondHalf = recent.slice(Math.floor(recent.length / 2));

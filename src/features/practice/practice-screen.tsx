@@ -144,9 +144,9 @@ export function PracticeScreen({
         maxMinutes: profile.settings.sessionMaxMinutes,
         adaptive: profile.settings.sessionAdaptive,
       };
-      // Gate practice to learning-mastered words only
-      const mastered = await learningProgressRepo.getMastered(profile.id);
-      const masteredWordIds = new Set(mastered.map((p) => p.wordId));
+      // Gate practice to words the user has encountered in learning mode
+      const encountered = await learningProgressRepo.getEncountered(profile.id);
+      const encounteredWordIds = new Set(encountered.map((p) => p.wordId));
 
       const newSession = createSession(
         profile.id,
@@ -155,7 +155,7 @@ export function PracticeScreen({
         allStats,
         daysUntilTest,
         config,
-        masteredWordIds,
+        encounteredWordIds,
       );
       if (!cancelled) {
         setSession(newSession);
@@ -171,9 +171,9 @@ export function PracticeScreen({
       maxMinutes: profile.settings.sessionMaxMinutes,
       adaptive: profile.settings.sessionAdaptive,
     };
-    // Gate practice to learning-mastered words only
-    const mastered = await learningProgressRepo.getMastered(profile.id);
-    const masteredWordIds = new Set(mastered.map((p) => p.wordId));
+    // Gate practice to words the user has encountered in learning mode
+    const encountered = await learningProgressRepo.getEncountered(profile.id);
+    const encounteredWordIds = new Set(encountered.map((p) => p.wordId));
 
     const newSession = createSession(
       profile.id,
@@ -182,7 +182,7 @@ export function PracticeScreen({
       allStats,
       daysUntilTest,
       config,
-      masteredWordIds,
+      encounteredWordIds,
     );
     setSession(newSession);
     setResumePrompt(null);
@@ -339,7 +339,7 @@ export function PracticeScreen({
         <div className="max-w-sm md:max-w-xl w-full text-center space-y-4">
           <p className="text-sf-heading text-lg font-bold">No words ready for practice yet!</p>
           <p className="text-sf-muted text-sm">
-            Learn your spelling words first, then come back to practice the ones you&apos;ve mastered.
+            Start learning your spelling words first, then come back to practice them.
           </p>
           <button
             onClick={onBack}

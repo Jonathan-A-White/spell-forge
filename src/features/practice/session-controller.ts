@@ -54,7 +54,7 @@ export function createSession(
 ): SessionState {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
-  // Filter to only learning-mastered words when provided
+  // Filter to only words the user has encountered in learning mode when provided
   const filteredWords = masteredWordIds
     ? allWords.filter((w) => masteredWordIds.has(w.id))
     : allWords;
