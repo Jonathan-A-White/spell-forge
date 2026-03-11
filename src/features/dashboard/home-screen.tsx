@@ -149,20 +149,20 @@ export function HomeScreen({
           <ThemedHero profileId={profile.id} themeId={profile.themeId} />
 
           {/* Monster Stable link */}
-          {monsterCollection.getCollectionCount(profile.id) > 0 && (
-            <button
-              onClick={() => onNavigate('monster-stable')}
-              className="w-full flex items-center justify-between rounded-lg bg-sf-surface/60 border border-sf-border/50 px-3 py-2 hover:border-sf-border-strong transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{'\u{1F9EA}'}</span>
-                <span className="text-xs font-medium text-sf-heading">Monster Stable</span>
-              </div>
-              <span className="text-xs text-sf-muted">
-                {monsterCollection.getCollectionCount(profile.id)} creature{monsterCollection.getCollectionCount(profile.id) !== 1 ? 's' : ''} →
-              </span>
-            </button>
-          )}
+          <button
+            onClick={() => onNavigate('monster-stable')}
+            className="w-full flex items-center justify-between rounded-lg bg-sf-surface/60 border border-sf-border/50 px-3 py-2 hover:border-sf-border-strong transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{'\u{1F9EA}'}</span>
+              <span className="text-xs font-medium text-sf-heading">Monster Stable</span>
+            </div>
+            <span className="text-xs text-sf-muted">
+              {monsterCollection.getCollectionCount(profile.id) > 0
+                ? `${monsterCollection.getCollectionCount(profile.id)} creature${monsterCollection.getCollectionCount(profile.id) !== 1 ? 's' : ''} →`
+                : 'No creatures yet →'}
+            </span>
+          </button>
 
           {/* 2x2 navigation grid */}
           <div className="grid grid-cols-2 gap-2">
