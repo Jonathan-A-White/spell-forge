@@ -15,8 +15,18 @@ const THEME_ICONS: Record<string, string> = {
   'star-trail': '\u{2B50}',      // star
 };
 
+const COLLECTION_NAMES: Record<string, string> = {
+  'dragon-forge': 'Dragon Lair',
+  'monster-lab': 'Monster Stable',
+  'star-trail': 'Star Atlas',
+};
+
 function getThemeIcon(themeId: string): string {
   return THEME_ICONS[themeId] ?? '\u{1F9EA}';
+}
+
+function getCollectionName(themeId: string): string {
+  return COLLECTION_NAMES[themeId] ?? 'Monster Stable';
 }
 
 export function MonsterStable({ profile, collection, onBack }: MonsterStableProps) {
@@ -33,10 +43,17 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
     byTheme.set(creature.themeId, list);
   }
 
+  const activeTheme = themeEngine.getTheme(profile.themeId);
+  const vfx = activeTheme.visualEffects;
+  const collectionName = getCollectionName(profile.themeId);
+
   return (
     <div className="min-h-screen bg-sf-bg">
       {/* Header */}
-      <div className="bg-sf-surface border-b border-sf-border px-4 py-4">
+      <div
+        className="bg-sf-surface border-b border-sf-border px-4 py-4"
+        style={{ boxShadow: `0 2px 12px ${vfx.shadowColor}` }}
+      >
         <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto flex items-center gap-3">
           <button
             onClick={onBack}
@@ -45,11 +62,14 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
           >
             <BackIcon />
           </button>
-          <div>
-            <h1 className="text-xl font-bold text-sf-heading">Monster Stable</h1>
-            <p className="text-sm text-sf-muted">
-              {collection.length} creature{collection.length !== 1 ? 's' : ''} collected
-            </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">{getThemeIcon(profile.themeId)}</span>
+            <div>
+              <h1 className="text-xl font-bold text-sf-heading">{collectionName}</h1>
+              <p className="text-sm text-sf-muted">
+                {collection.length} creature{collection.length !== 1 ? 's' : ''} collected
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -58,7 +78,12 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
         {/* Empty state */}
         {collection.length === 0 && (
           <div className="text-center py-16">
-            <div className="text-6xl mb-4">{getThemeIcon(profile.themeId)}</div>
+            <div
+              className="text-6xl mb-4"
+              style={{ filter: `drop-shadow(0 0 12px ${vfx.glowColor})` }}
+            >
+              {getThemeIcon(profile.themeId)}
+            </div>
             <h2 className="text-lg font-bold text-sf-heading mb-2">No creatures yet!</h2>
             <p className="text-sf-muted text-sm max-w-xs mx-auto">
               Keep practicing to fill up your creature's progress bar. Once it's complete, your creature will be added here!
@@ -91,17 +116,26 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
 
 function CreatureCard({ creature, themeId }: { creature: CompletedCreature; themeId: string }) {
   const theme = themeEngine.getTheme(themeId);
+  const vfx = theme.visualEffects;
   const completedDate = new Date(creature.completedAt).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
   });
 
   return (
-    <div className="bg-sf-surface border border-sf-border rounded-xl p-4 hover:border-sf-border-strong transition-colors">
+    <div
+      className="bg-sf-surface border border-sf-border rounded-xl p-4 hover:border-sf-primary/50 transition-colors"
+      style={{ boxShadow: `0 0 10px ${vfx.shadowColor}` }}
+    >
       <div className="text-center">
-        <div className="text-3xl mb-2">{getThemeIcon(themeId)}</div>
+        <div
+          className="text-3xl mb-2"
+          style={{ filter: `drop-shadow(0 0 6px ${vfx.glowColor})` }}
+        >
+          {getThemeIcon(themeId)}
+        </div>
         <p className="font-bold text-sf-heading text-sm truncate">{creature.name}</p>
-        <p className="text-[10px] text-sf-muted mt-1">{theme.name}</p>
+        <p className="text-[10px] text-sf-primary mt-1">{theme.name}</p>
         <div className="flex items-center justify-center gap-1.5 mt-2">
           <span className="text-[10px] text-sf-faint">{completedDate}</span>
           <span className="text-sf-faint">·</span>

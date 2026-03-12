@@ -5,6 +5,19 @@ import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 import { countMasteredWords } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
 import { monsterCollection } from '../rewards';
+import { themeEngine } from '../../themes';
+
+const THEME_ICONS: Record<string, string> = {
+  'dragon-forge': '\u{1F409}',   // dragon
+  'monster-lab': '\u{1F9EA}',    // test tube
+  'star-trail': '\u{2B50}',      // star
+};
+
+const COLLECTION_NAMES: Record<string, string> = {
+  'dragon-forge': 'Dragon Lair',
+  'monster-lab': 'Monster Stable',
+  'star-trail': 'Star Atlas',
+};
 
 interface HomeScreenProps {
   profile: Profile;
@@ -146,21 +159,30 @@ export function HomeScreen({
           {/* Theme milestone progress */}
           <ThemedHero profileId={profile.id} themeId={profile.themeId} />
 
-          {/* Monster Stable link */}
-          <button
-            onClick={() => onNavigate('monster-stable')}
-            className="w-full flex items-center justify-between rounded-lg bg-sf-surface/60 border border-sf-border/50 px-3 py-2 hover:border-sf-border-strong transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{'\u{1F9EA}'}</span>
-              <span className="text-xs font-medium text-sf-heading">Monster Stable</span>
-            </div>
-            <span className="text-xs text-sf-muted">
-              {monsterCollection.getCollectionCount(profile.id) > 0
-                ? `${monsterCollection.getCollectionCount(profile.id)} creature${monsterCollection.getCollectionCount(profile.id) !== 1 ? 's' : ''} →`
-                : 'No creatures yet →'}
-            </span>
-          </button>
+          {/* Collection link — themed */}
+          {(() => {
+            const collectionVfx = themeEngine.getVisualEffects(profile.themeId);
+            const collectionIcon = THEME_ICONS[profile.themeId] ?? '\u{1F9EA}';
+            const collectionName = COLLECTION_NAMES[profile.themeId] ?? 'Monster Stable';
+            const collectionCount = monsterCollection.getCollectionCount(profile.id);
+            return (
+              <button
+                onClick={() => onNavigate('monster-stable')}
+                className="w-full flex items-center justify-between rounded-lg bg-sf-surface/60 border border-sf-border/50 px-3 py-2 hover:border-sf-primary/50 transition-colors"
+                style={{ boxShadow: `0 0 8px ${collectionVfx.shadowColor}` }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{collectionIcon}</span>
+                  <span className="text-xs font-medium text-sf-heading">{collectionName}</span>
+                </div>
+                <span className="text-xs text-sf-muted">
+                  {collectionCount > 0
+                    ? `${collectionCount} creature${collectionCount !== 1 ? 's' : ''} →`
+                    : 'No creatures yet →'}
+                </span>
+              </button>
+            );
+          })()}
 
           {/* 2x2 navigation grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
