@@ -219,7 +219,7 @@ export function ProgressView({
                     <div
                       key={creature.id}
                       className="flex-shrink-0 bg-sf-surface-hover rounded-lg px-3 py-2 text-center min-w-[80px]"
-                      title={`Completed ${creature.completedAt.toLocaleDateString()}`}
+                      title={`Completed ${new Date(creature.completedAt).toLocaleDateString()}`}
                     >
                       <div className="text-lg mb-0.5">&#129514;</div>
                       <p className="text-[10px] font-medium text-sf-heading truncate max-w-[70px]">{creature.name}</p>

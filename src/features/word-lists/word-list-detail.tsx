@@ -91,7 +91,7 @@ export function WordListDetail({
               <p className="text-xs text-sf-muted">
                 {words.length} word{words.length !== 1 ? 's' : ''}
                 {list.testDate && (
-                  <> · Test: {list.testDate.toLocaleDateString()}</>
+                  <> · Test: {new Date(list.testDate).toLocaleDateString()}</>
                 )}
                 {' · '}{pct}% mastered
               </p>

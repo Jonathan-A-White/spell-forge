@@ -150,7 +150,7 @@ export function WordListsView({
                         <p className="text-xs text-sf-muted mt-0.5">
                           {words.length} word{words.length !== 1 ? 's' : ''}
                           {list.testDate && (
-                            <> · Test: {list.testDate.toLocaleDateString()}</>
+                            <> · Test: {new Date(list.testDate).toLocaleDateString()}</>
                           )}
                         </p>
                       </div>
