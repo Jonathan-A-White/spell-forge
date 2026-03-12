@@ -7,6 +7,7 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  errorMessage: string | null;
 }
 
 /**
@@ -15,10 +16,10 @@ interface State {
  * "Reload" button and, as a last resort, a way to clear local data.
  */
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  state: State = { hasError: false, errorMessage: null };
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, errorMessage: error?.message ?? String(error) };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -62,6 +63,21 @@ export class ErrorBoundary extends Component<Props, State> {
           <p style={{ marginBottom: '1.5rem', textAlign: 'center', maxWidth: '24rem' }}>
             SpellForge ran into a problem. Try reloading the app.
           </p>
+          {this.state.errorMessage && (
+            <p style={{
+              marginBottom: '1rem',
+              textAlign: 'center',
+              maxWidth: '24rem',
+              fontSize: '0.75rem',
+              color: '#92400E',
+              backgroundColor: '#FEF3C7',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '0.5rem',
+              wordBreak: 'break-word',
+            }}>
+              {this.state.errorMessage}
+            </p>
+          )}
           <button
             onClick={this.handleReload}
             style={{

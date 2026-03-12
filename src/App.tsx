@@ -101,10 +101,12 @@ function App() {
   useBackButton(view, setView, 'home', ['loading', 'db-blocked']);
 
   const selectProfile = useCallback(async (profile: Profile) => {
-    setActiveProfile(profile);
-    activeProfileForBus = profile;
-    applySettings(profile.settings);
-    themeEngine.applyThemePalette(profile.themeId);
+    const safeSettings = validateSettings(profile.settings ?? {});
+    const safeProfile = { ...profile, settings: safeSettings };
+    setActiveProfile(safeProfile);
+    activeProfileForBus = safeProfile;
+    applySettings(safeSettings);
+    themeEngine.applyThemePalette(profile.themeId ?? 'dragon-forge');
     localStorage.setItem('sf-last-profile', profile.id);
 
     try {
@@ -678,7 +680,7 @@ function App() {
   const [mountTime] = useState(Date.now);
   const nearestTestDate = activeLists
     .map((l) => l.testDate)
-    .filter((d): d is Date => d !== null)
+    .filter((d): d is Date => d instanceof Date)
     .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   const daysUntilTest = nearestTestDate
     ? Math.max(0, Math.ceil((nearestTestDate.getTime() - mountTime) / 86400000))
