@@ -190,6 +190,89 @@ describe('profileRepo', () => {
     expect(await sessionRepo.getByProfileId(profile.id)).toHaveLength(0);
     expect(await streakRepo.get(profile.id)).toBeNull();
   });
+
+  it('archive sets profile status to archived', async () => {
+    const profile = await profileRepo.create(makeProfileData());
+    const archived = await profileRepo.archive(profile.id);
+    expect(archived.status).toBe('archived');
+
+    const fetched = await profileRepo.getById(profile.id);
+    expect(fetched!.status).toBe('archived');
+  });
+
+  it('restore sets profile status back to active', async () => {
+    const profile = await profileRepo.create(makeProfileData());
+    await profileRepo.archive(profile.id);
+    const restored = await profileRepo.restore(profile.id);
+    expect(restored.status).toBe('active');
+  });
+
+  it('getActive returns only active profiles', async () => {
+    const p1 = await profileRepo.create(makeProfileData({ name: 'Active' }));
+    const p2 = await profileRepo.create(makeProfileData({ name: 'Archived' }));
+    await profileRepo.archive(p2.id);
+
+    const active = await profileRepo.getActive();
+    expect(active).toHaveLength(1);
+    expect(active[0].name).toBe('Active');
+
+    // Also treats profiles without status as active (backward compat)
+    await db.profiles.update(p1.id, { status: undefined });
+    const active2 = await profileRepo.getActive();
+    expect(active2).toHaveLength(1);
+  });
+
+  it('getArchived returns only archived profiles', async () => {
+    await profileRepo.create(makeProfileData({ name: 'Active' }));
+    const p2 = await profileRepo.create(makeProfileData({ name: 'Archived' }));
+    await profileRepo.archive(p2.id);
+
+    const archived = await profileRepo.getArchived();
+    expect(archived).toHaveLength(1);
+    expect(archived[0].name).toBe('Archived');
+  });
+
+  it('archive preserves all profile data', async () => {
+    const profile = await profileRepo.create(makeProfileData());
+    const list = await wordListRepo.create(makeWordListData(profile.id));
+    const word = await wordRepo.create(makeWordData(list.id, profile.id, 'castle'));
+    await statsRepo.create(makeWordStatsData(word.id, profile.id));
+    await sessionRepo.create(makeSessionData(profile.id));
+
+    await profileRepo.archive(profile.id);
+
+    // All data should still exist
+    expect(await wordListRepo.getByProfileId(profile.id)).toHaveLength(1);
+    expect(await wordRepo.getByProfileId(profile.id)).toHaveLength(1);
+    expect(await statsRepo.getByProfileId(profile.id)).toHaveLength(1);
+    expect(await sessionRepo.getByProfileId(profile.id)).toHaveLength(1);
+  });
+
+  it('restore after archive makes profile selectable again', async () => {
+    const p1 = await profileRepo.create(makeProfileData({ name: 'Child' }));
+    await profileRepo.archive(p1.id);
+    expect(await profileRepo.getActive()).toHaveLength(0);
+
+    await profileRepo.restore(p1.id);
+    const active = await profileRepo.getActive();
+    expect(active).toHaveLength(1);
+    expect(active[0].name).toBe('Child');
+  });
+
+  it('delete permanently removes archived profile and data', async () => {
+    const profile = await profileRepo.create(makeProfileData());
+    const list = await wordListRepo.create(makeWordListData(profile.id));
+    const word = await wordRepo.create(makeWordData(list.id, profile.id, 'castle'));
+    await statsRepo.create(makeWordStatsData(word.id, profile.id));
+
+    await profileRepo.archive(profile.id);
+    await profileRepo.delete(profile.id);
+
+    expect(await profileRepo.getById(profile.id)).toBeNull();
+    expect(await wordListRepo.getByProfileId(profile.id)).toHaveLength(0);
+    expect(await wordRepo.getByProfileId(profile.id)).toHaveLength(0);
+    expect(await statsRepo.getByProfileId(profile.id)).toHaveLength(0);
+  });
 });
 
 // ─── WordList Repository ──────────────────────────────────────
