@@ -84,6 +84,7 @@ const ocrManager = createOcrManager();
 function App() {
   const [view, setView] = useState<AppView>('loading');
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [archivedProfiles, setArchivedProfiles] = useState<Profile[]>([]);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [allWords, setAllWords] = useState<Word[]>([]);
   const [allStats, setAllStats] = useState<WordStats[]>([]);
@@ -156,9 +157,11 @@ function App() {
 
       // Step 2: DB is open — load profiles
       try {
-        const profs = await profileRepo.getAll();
+        const profs = await profileRepo.getActive();
+        const archived = await profileRepo.getArchived();
         if (cancelled) return;
         setProfiles(profs);
+        setArchivedProfiles(archived);
 
         if (profs.length === 0) {
           setView('onboarding');
@@ -193,6 +196,7 @@ function App() {
         themeId,
         createdAt: new Date(),
         settings,
+        status: 'active',
       });
       setProfiles([profile]);
       await selectProfile(profile);
@@ -600,8 +604,9 @@ function App() {
       await importProfile(payload, strategy);
 
       // Refresh the profile list so the imported profile appears
-      const updatedProfiles = await profileRepo.getAll();
+      const updatedProfiles = await profileRepo.getActive();
       setProfiles(updatedProfiles);
+      setArchivedProfiles(await profileRepo.getArchived());
 
       // Reload the active profile's data (including theme) so the UI
       // reflects whatever was imported.  Use selectProfile for the full
@@ -620,6 +625,67 @@ function App() {
       console.error('Profile import failed:', err);
     }
   }, [activeProfile, selectProfile]);
+
+  const reloadProfiles = useCallback(async () => {
+    const active = await profileRepo.getActive();
+    const archived = await profileRepo.getArchived();
+    setProfiles(active);
+    setArchivedProfiles(archived);
+    return active;
+  }, []);
+
+  const handleArchiveProfile = useCallback(
+    async (profileId: string) => {
+      await profileRepo.archive(profileId);
+      const active = await reloadProfiles();
+      eventBus.emit({ type: 'profile:archived', payload: { profileId } });
+
+      // If we archived the active profile, deselect
+      if (activeProfile?.id === profileId) {
+        setActiveProfile(null);
+        activeProfileForBus = null;
+        if (active.length === 0) {
+          setView('onboarding');
+        } else if (active.length === 1) {
+          await selectProfile(active[0]);
+        } else {
+          setView('profile-select');
+        }
+      }
+    },
+    [activeProfile, reloadProfiles, selectProfile],
+  );
+
+  const handleRestoreProfile = useCallback(
+    async (profileId: string) => {
+      await profileRepo.restore(profileId);
+      await reloadProfiles();
+      eventBus.emit({ type: 'profile:restored', payload: { profileId } });
+    },
+    [reloadProfiles],
+  );
+
+  const handleDeleteProfile = useCallback(
+    async (profileId: string) => {
+      await profileRepo.delete(profileId);
+      const active = await reloadProfiles();
+      eventBus.emit({ type: 'profile:deleted', payload: { profileId } });
+
+      // If we deleted the active profile, deselect
+      if (activeProfile?.id === profileId) {
+        setActiveProfile(null);
+        activeProfileForBus = null;
+        if (active.length === 0) {
+          setView('onboarding');
+        } else if (active.length === 1) {
+          await selectProfile(active[0]);
+        } else {
+          setView('profile-select');
+        }
+      }
+    },
+    [activeProfile, reloadProfiles, selectProfile],
+  );
 
   // When a word completes learning mode, promote it to 'familiar' in spaced-rep
   const handleWordMasteredInLearning = useCallback(async (wordId: string) => {
@@ -723,8 +789,12 @@ function App() {
       return (
         <ProfileSelector
           profiles={profiles}
+          archivedProfiles={archivedProfiles}
           onSelect={selectProfile}
           onAddProfile={() => setView('onboarding')}
+          onArchiveProfile={handleArchiveProfile}
+          onRestoreProfile={handleRestoreProfile}
+          onDeleteProfile={handleDeleteProfile}
         />
       );
 

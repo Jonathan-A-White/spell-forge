@@ -2,6 +2,8 @@
 
 // ─── Core Entities ─────────────────────────────────────────────
 
+export type ProfileStatus = 'active' | 'archived' | 'deleted';
+
 export interface Profile {
   id: string;
   name: string;
@@ -11,6 +13,7 @@ export interface Profile {
   createdAt: Date;
   settings: AccessibilitySettings;
   importFilterWords?: string[];  // words/phrases to auto-exclude from camera import
+  status?: ProfileStatus; // defaults to 'active' for backward compat
 }
 
 export interface AccessibilitySettings {
@@ -339,7 +342,10 @@ export type AppEvent =
   | { type: 'profile:switched'; payload: { profileId: string } }
   | { type: 'settings:changed'; payload: { profileId: string; settings: Partial<AccessibilitySettings> } }
   | { type: 'coins:earned'; payload: { profileId: string; amount: number; reason: 'word-mastered'; wordId: string } }
-  | { type: 'coins:spent'; payload: { profileId: string; amount: number; reason: 'game-play' } };
+  | { type: 'coins:spent'; payload: { profileId: string; amount: number; reason: 'game-play' } }
+  | { type: 'profile:archived'; payload: { profileId: string } }
+  | { type: 'profile:restored'; payload: { profileId: string } }
+  | { type: 'profile:deleted'; payload: { profileId: string } };
 
 export interface EventBus {
   emit(event: AppEvent): void;
