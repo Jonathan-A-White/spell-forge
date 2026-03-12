@@ -28,9 +28,12 @@ export function canPlayFree(
  * Determine how many words are due for review (nextReviewDate <= now).
  */
 export function getWordsDueCount(allStats: WordStats[]): number {
-  const now = new Date();
+  const nowMs = Date.now();
   return allStats.filter(
-    (s) => s.timesAsked > 0 && s.currentBucket !== 'new' && s.nextReviewDate <= now,
+    (s) => s.timesAsked > 0
+      && s.currentBucket !== 'new'
+      && s.nextReviewDate instanceof Date
+      && s.nextReviewDate.getTime() <= nowMs,
   ).length;
 }
 
