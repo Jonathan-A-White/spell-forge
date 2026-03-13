@@ -42,13 +42,17 @@ export function HomeScreen({
   onSwitchProfile,
   hasMultipleProfiles,
 }: HomeScreenProps) {
-  const mastered = countMasteredWords(allWords, allStats);
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
+  const activeListIds = new Set(activeLists.map((l) => l.id));
+  const activeWords = allWords.filter((w) => activeListIds.has(w.listId));
+  const activeWordIds = new Set(activeWords.map((w) => w.id));
+  const activeStats = allStats.filter((s) => activeWordIds.has(s.wordId));
+  const mastered = countMasteredWords(activeWords, activeStats);
   const streak = streakData?.currentStreak ?? 0;
-  const wordsDue = getWordsDueCount(allStats);
+  const wordsDue = getWordsDueCount(activeStats);
   const coins = coinBalance?.coins ?? 0;
-  const allMastered = canPlayFree(allWords.length, mastered);
-  const masteryPercent = allWords.length > 0 ? Math.round((mastered / allWords.length) * 100) : 0;
+  const allMastered = canPlayFree(activeWords.length, mastered);
+  const masteryPercent = activeWords.length > 0 ? Math.round((mastered / activeWords.length) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -89,7 +93,7 @@ export function HomeScreen({
           </div>
 
           {/* Compact stats row — mastery, due, streak, coins */}
-          {allWords.length > 0 && (
+          {activeWords.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => onNavigate('progress')}
@@ -129,7 +133,7 @@ export function HomeScreen({
       <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto px-4 pb-6">
         <div className="space-y-3 mt-3">
           {/* Start Practice — hero card */}
-          {allWords.length > 0 && (
+          {activeWords.length > 0 && (
             <button
               onClick={() => mastered > 0 ? onNavigate('practice') : onNavigate('learning')}
               className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-sf-primary to-sf-primary-hover p-4 text-left shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
@@ -145,7 +149,7 @@ export function HomeScreen({
                   <p className="text-sf-primary-text/70 text-sm">
                     {mastered > 0
                       ? `${mastered} word${mastered !== 1 ? 's' : ''} ready to practice`
-                      : `${allWords.length} word${allWords.length !== 1 ? 's' : ''} to learn`
+                      : `${activeWords.length} word${activeWords.length !== 1 ? 's' : ''} to learn`
                     }
                   </p>
                 </div>
@@ -188,7 +192,7 @@ export function HomeScreen({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <NavCard
               title="Progress"
-              subtitle={`${mastered}/${allWords.length} mastered`}
+              subtitle={`${mastered}/${activeWords.length} mastered`}
               icon={<ChartIcon />}
               onClick={() => onNavigate('progress')}
               accent="from-green-500/20 to-emerald-500/10"
@@ -196,7 +200,7 @@ export function HomeScreen({
             />
             <NavCard
               title="Learn"
-              subtitle={`${allWords.length - mastered} new word${allWords.length - mastered !== 1 ? 's' : ''}`}
+              subtitle={`${activeWords.length - mastered} new word${activeWords.length - mastered !== 1 ? 's' : ''}`}
               icon={<LearnIcon />}
               onClick={() => onNavigate('learning')}
               accent="from-teal-500/20 to-cyan-500/10"
@@ -243,7 +247,7 @@ export function HomeScreen({
           </button>
 
           {/* Empty state for new users */}
-          {allWords.length === 0 && (
+          {activeWords.length === 0 && (
             <button
               onClick={() => onNavigate('list-editor')}
               className="w-full rounded-2xl border-2 border-dashed border-sf-border-strong bg-sf-surface p-8 text-center hover:bg-sf-surface-hover hover:border-sf-primary transition-all active:scale-[0.98]"
