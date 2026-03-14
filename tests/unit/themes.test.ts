@@ -63,15 +63,15 @@ describe('Dragon Forge Theme', () => {
 
 describe('Monster Lab Theme', () => {
   it('has correct reward mechanic', () => {
-    expect(monsterLabTheme.rewardMechanic.type).toBe('build');
-    expect(monsterLabTheme.rewardMechanic.unitName).toBe('blocks');
-    expect(monsterLabTheme.rewardMechanic.progressPerCorrect).toBe(1);
-    expect(monsterLabTheme.rewardMechanic.progressPerSession).toBe(3);
+    expect(monsterLabTheme.rewardMechanic.type).toBe('hatch');
+    expect(monsterLabTheme.rewardMechanic.unitName).toBe('energy');
+    expect(monsterLabTheme.rewardMechanic.progressPerCorrect).toBe(2);
+    expect(monsterLabTheme.rewardMechanic.progressPerSession).toBe(5);
   });
 
   it('has 5 milestones in correct order', () => {
     expect(monsterLabTheme.rewardMechanic.milestoneNames).toEqual([
-      'Blueprint', 'Base', 'Body', 'Details', 'Complete Creature',
+      'Egg Found', 'Egg Warming', 'Egg Cracking', 'Hatching', 'Monster Born!',
     ]);
   });
 
@@ -347,8 +347,8 @@ describe('getMilestoneStatus', () => {
 
   it('works correctly for Monster Lab theme', () => {
     const status = themeEngine.getMilestoneStatus('monster-lab', UNITS * 3);
-    expect(status.current).toBe('Details');
-    expect(status.next).toBe('Complete Creature');
+    expect(status.current).toBe('Hatching');
+    expect(status.next).toBe('Monster Born!');
     expect(status.progressToNext).toBe(UNITS);
   });
 });
@@ -422,7 +422,7 @@ describe('RewardTracker', () => {
 
   it('detects milestone transition through processEvent', () => {
     const UNITS = themeEngine.UNITS_PER_MILESTONE;
-    rewardTracker.setProgress('p1', 'monster-lab', UNITS - 1);
+    rewardTracker.setProgress('p1', 'monster-lab', UNITS - 2);
 
     const correctEvent: AppEvent = {
       type: 'word:attempted',
@@ -430,7 +430,7 @@ describe('RewardTracker', () => {
     };
 
     const reward = rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
-    expect(reward.milestoneReached).toBe('Base');
+    expect(reward.milestoneReached).toBe('Egg Warming');
     expect(reward.totalProgress).toBe(UNITS);
   });
 });
@@ -455,7 +455,8 @@ describe('Creature Completion Detection', () => {
       type: 'word:attempted',
       payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
     };
-    const reward = themeEngine.calculateReward(event, 'monster-lab', MAX_PROGRESS - 1);
+    // monster-lab progressPerCorrect=2, so earning 2 from 48 reaches 50
+    const reward = themeEngine.calculateReward(event, 'monster-lab', MAX_PROGRESS - 2);
     expect(reward.creatureCompleted).toBe(true);
     expect(reward.totalProgress).toBe(MAX_PROGRESS);
   });
@@ -559,7 +560,8 @@ describe('RewardTracker Collection Integration', () => {
 
   it('archives creature and resets progress on completion', () => {
     const maxProgress = themeEngine.getMaxProgress('monster-lab');
-    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 1);
+    // monster-lab progressPerCorrect=2, so set to maxProgress-2 to reach exactly maxProgress
+    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 2);
 
     const correctEvent: AppEvent = {
       type: 'word:attempted',
@@ -581,7 +583,7 @@ describe('RewardTracker Collection Integration', () => {
 
   it('allows building a new creature after completion', () => {
     const maxProgress = themeEngine.getMaxProgress('monster-lab');
-    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 1);
+    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 2);
 
     const correctEvent: AppEvent = {
       type: 'word:attempted',
@@ -592,19 +594,19 @@ describe('RewardTracker Collection Integration', () => {
     rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
     expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(0);
 
-    // Start building next creature
+    // Start building next creature (progressPerCorrect=2)
     const reward2 = rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
-    expect(reward2.totalProgress).toBe(1);
+    expect(reward2.totalProgress).toBe(2);
     expect(reward2.creatureCompleted).toBe(false);
-    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(1);
+    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(2);
 
     // First creature still in collection
     expect(monsterCollection.getCollectionCount('p1')).toBe(1);
   });
 
-  it('milestone resets to Blueprint after creature completion', () => {
+  it('milestone resets to Egg Found after creature completion', () => {
     const maxProgress = themeEngine.getMaxProgress('monster-lab');
-    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 1);
+    rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 2);
 
     const correctEvent: AppEvent = {
       type: 'word:attempted',
@@ -614,8 +616,8 @@ describe('RewardTracker Collection Integration', () => {
     rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
 
     const status = rewardTracker.getMilestoneStatus('p1', 'monster-lab');
-    expect(status.current).toBe('Blueprint');
-    expect(status.next).toBe('Base');
+    expect(status.current).toBe('Egg Found');
+    expect(status.next).toBe('Egg Warming');
     expect(status.progressToNext).toBe(UNITS);
   });
 });

@@ -3,7 +3,7 @@ import type { Theme } from '../../contracts/types.ts';
 export const monsterLabTheme: Theme = {
   id: 'monster-lab',
   name: 'Monster Lab',
-  description: 'Build your own creature block by block! Earn blocks for every word you spell and assemble an amazing monster.',
+  description: 'Hatch your own monster from an egg! Earn energy for every word you spell and watch your egg crack open into an amazing creature.',
   ageRange: '5-9',
   palette: {
     primary: '#722ED1',
@@ -22,26 +22,26 @@ export const monsterLabTheme: Theme = {
     progressGradient: 'linear-gradient(90deg, #722ED1 0%, #13C2C2 60%, #52C41A 100%)',
   },
   rewardMechanic: {
-    type: 'build',
-    unitName: 'blocks',
-    milestoneNames: ['Blueprint', 'Base', 'Body', 'Details', 'Complete Creature'],
-    progressPerCorrect: 1,
-    progressPerSession: 3,
-    weeklyGoalReward: 'Rare Monster Part',
+    type: 'hatch',
+    unitName: 'energy',
+    milestoneNames: ['Egg Found', 'Egg Warming', 'Egg Cracking', 'Hatching', 'Monster Born!'],
+    progressPerCorrect: 2,
+    progressPerSession: 5,
+    weeklyGoalReward: 'Rare Monster Egg',
   },
   assets: {
     icon: 'monster-lab-icon',
     sounds: {
-      correct: 'block-snap',
-      milestone: 'monster-cheer',
+      correct: 'egg-pulse',
+      milestone: 'egg-crack',
       session: 'lab-bubble',
     },
     images: {
-      blueprint: 'monster-blueprint',
-      base: 'monster-base',
-      body: 'monster-body',
-      details: 'monster-details',
-      complete: 'monster-complete',
+      eggFound: 'monster-egg',
+      eggWarming: 'monster-egg-warm',
+      eggCracking: 'monster-egg-crack',
+      hatching: 'monster-hatching',
+      monsterBorn: 'monster-born',
     },
   },
 };

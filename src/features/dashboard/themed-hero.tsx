@@ -39,7 +39,7 @@ function DragonMascot({ milestone }: { milestone: string }) {
 }
 
 function MonsterMascot({ milestone }: { milestone: string }) {
-  const isBlueprint = milestone === 'Blueprint';
+  const isBlueprint = milestone === 'Egg Found';
   return (
     <svg viewBox="0 0 64 64" className="w-full h-full" aria-hidden="true">
       {isBlueprint ? (
