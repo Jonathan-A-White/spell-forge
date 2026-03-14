@@ -94,6 +94,7 @@ function App() {
   const [editingList, setEditingList] = useState<WordList | null>(null);
   const [viewingList, setViewingList] = useState<WordList | null>(null);
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
+  const [practiceWordFilter, setPracticeWordFilter] = useState<Set<string> | null>(null);
 
   const audioBusy = useAudioBusy(audioManager);
 
@@ -736,12 +737,17 @@ function App() {
     return false;
   }, [activeProfile]);
 
-  // Compute mastered count for coin economy
-  const masteredCount = countMasteredWords(allWords, allStats);
-  const allMastered = canPlayFree(allWords.length, masteredCount);
-
-  // Compute active lists and days until nearest test
+  // Compute active lists and filter out archived words from counts
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
+  const activeListIds = new Set(activeLists.map((l) => l.id));
+  const activeWords = allWords.filter((w) => activeListIds.has(w.listId));
+  const activeWordIds = new Set(activeWords.map((w) => w.id));
+  const activeStats = allStats.filter((s) => activeWordIds.has(s.wordId));
+
+  // Compute mastered count for coin economy (only active, non-archived words)
+  const masteredCount = countMasteredWords(activeWords, activeStats);
+  const allMastered = canPlayFree(activeWords.length, masteredCount);
+
   const activeList = activeLists[0] ?? null;
   const [mountTime] = useState(Date.now);
   const nearestTestDate = activeLists
@@ -804,13 +810,13 @@ function App() {
         <PracticeScreen
           profile={activeProfile}
           activeList={activeList}
-          allWords={allWords}
-          allStats={allStats}
+          allWords={practiceWordFilter ? allWords.filter((w) => practiceWordFilter.has(w.id)) : activeWords}
+          allStats={activeStats}
           daysUntilTest={daysUntilTest}
           streakCount={streakData?.currentStreak ?? 0}
-          onSessionEnd={handleSessionEnd}
+          onSessionEnd={(log) => { handleSessionEnd(log); setPracticeWordFilter(null); }}
           onStatsUpdate={handleStatsUpdate}
-          onBack={() => setView('home')}
+          onBack={() => { setView('home'); setPracticeWordFilter(null); }}
           onSpeak={(word) => audioManager.runExclusive(() => audioManager.speak(word))}
           audioBusy={audioBusy}
         />
@@ -822,7 +828,7 @@ function App() {
         <PracticeGames
           profile={activeProfile}
           activeList={activeList}
-          allWords={allWords}
+          allWords={activeWords}
           coinBalance={coinBalance}
           allMastered={allMastered}
           onSpendCoin={handleSpendCoin}
@@ -840,7 +846,7 @@ function App() {
         <QuizScreen
           profile={activeProfile}
           activeList={activeList}
-          allWords={allWords}
+          allWords={activeWords}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
           onSpeak={(word) => audioManager.runExclusive(() => audioManager.speak(word))}
@@ -891,12 +897,16 @@ function App() {
             profileId={activeProfile.id}
             themeId={activeProfile.themeId}
             streakData={streakData}
-            allWords={allWords}
-            allStats={allStats}
+            allWords={activeWords}
+            allStats={activeStats}
             learningProgress={learningProgress}
             activeLists={activeLists}
             daysUntilTest={daysUntilTest}
             onStartPractice={() => setView('practice')}
+            onPracticeWords={(wordIds) => {
+              setPracticeWordFilter(new Set(wordIds));
+              setView('practice');
+            }}
             onAddWords={() => setView('list-editor')}
             onBack={() => setView('home')}
           />

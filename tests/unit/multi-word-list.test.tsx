@@ -61,6 +61,7 @@ const defaultProps = {
   learningProgress: [] as WordLearningProgress[],
   daysUntilTest: 7,
   onStartPractice: vi.fn(),
+  onPracticeWords: vi.fn(),
   onAddWords: vi.fn(),
   onBack: vi.fn(),
 };
