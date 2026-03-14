@@ -19,6 +19,7 @@ interface ProgressViewProps {
   activeLists: WordList[];
   daysUntilTest: number | null;
   onStartPractice: () => void;
+  onPracticeWords: (wordIds: string[]) => void;
   onAddWords: () => void;
   onBack: () => void;
 }
@@ -67,6 +68,7 @@ export function ProgressView({
   activeLists,
   daysUntilTest,
   onStartPractice,
+  onPracticeWords,
   onAddWords,
   onBack,
 }: ProgressViewProps) {
@@ -270,7 +272,13 @@ export function ProgressView({
             onToggle={() => handleToggleCategory('familiar')}
           />
           {expandedCategory === 'familiar' && (
-            <WordList words={categoryWords.familiar} color="text-yellow-500" />
+            <>
+              <WordList words={categoryWords.familiar} color="text-yellow-500" />
+              <PracticeCategoryButton
+                label="Practice Familiar Words"
+                onPractice={() => onPracticeWords(categoryWords.familiar.map((w) => w.id))}
+              />
+            </>
           )}
           <HealthBar
             label="Learning"
@@ -281,7 +289,13 @@ export function ProgressView({
             onToggle={() => handleToggleCategory('learning')}
           />
           {expandedCategory === 'learning' && (
-            <WordList words={categoryWords.learning} color="text-orange-500" />
+            <>
+              <WordList words={categoryWords.learning} color="text-orange-500" />
+              <PracticeCategoryButton
+                label="Practice Learning Words"
+                onPractice={() => onPracticeWords(categoryWords.learning.map((w) => w.id))}
+              />
+            </>
           )}
           <HealthBar
             label="New"
@@ -391,6 +405,19 @@ function StatCircle({ value, label, color }: { value: string; label: string; col
         <span className="text-white text-xl font-bold">{value}</span>
       </div>
       <span className="text-sm text-sf-muted font-medium">{label}</span>
+    </div>
+  );
+}
+
+function PracticeCategoryButton({ label, onPractice }: { label: string; onPractice: () => void }) {
+  return (
+    <div className="ml-2 mb-2 pl-4 border-l-2 border-sf-border">
+      <button
+        onClick={onPractice}
+        className="mt-1 w-full bg-sf-primary/20 hover:bg-sf-primary/30 text-sf-primary font-medium py-2 px-4 rounded-lg text-sm transition-colors"
+      >
+        {label}
+      </button>
     </div>
   );
 }
