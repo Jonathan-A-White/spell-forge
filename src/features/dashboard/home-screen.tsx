@@ -48,6 +48,10 @@ export function HomeScreen({
   const activeWordIds = new Set(activeWords.map((w) => w.id));
   const activeStats = allStats.filter((s) => activeWordIds.has(s.wordId));
   const mastered = countMasteredWords(activeWords, activeStats);
+  const practiceReady = activeWords.filter((w) => {
+    const stat = activeStats.find((s) => s.wordId === w.id);
+    return stat && (stat.currentBucket === 'familiar' || stat.currentBucket === 'mastered' || stat.currentBucket === 'review');
+  }).length;
   const streak = streakData?.currentStreak ?? 0;
   const wordsDue = getWordsDueCount(activeStats);
   const coins = coinBalance?.coins ?? 0;
@@ -135,7 +139,7 @@ export function HomeScreen({
           {/* Start Practice — hero card */}
           {activeWords.length > 0 && (
             <button
-              onClick={() => mastered > 0 ? onNavigate('practice') : onNavigate('learning')}
+              onClick={() => practiceReady > 0 ? onNavigate('practice') : onNavigate('learning')}
               className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-sf-primary to-sf-primary-hover p-4 text-left shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
             >
               <div className="absolute inset-0 opacity-20">
@@ -144,11 +148,11 @@ export function HomeScreen({
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sf-primary-text font-bold text-lg">
-                    {mastered > 0 ? 'Start Practice' : 'Start Learning'}
+                    {practiceReady > 0 ? 'Start Practice' : 'Start Learning'}
                   </p>
                   <p className="text-sf-primary-text/70 text-sm">
-                    {mastered > 0
-                      ? `${mastered} word${mastered !== 1 ? 's' : ''} ready to practice`
+                    {practiceReady > 0
+                      ? `${practiceReady} word${practiceReady !== 1 ? 's' : ''} ready to practice`
                       : `${activeWords.length} word${activeWords.length !== 1 ? 's' : ''} to learn`
                     }
                   </p>
