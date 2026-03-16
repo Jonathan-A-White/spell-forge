@@ -43,7 +43,7 @@ import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
-import { AudioManagerImpl, TtsProvider, useAudioBusy } from './audio';
+import { AudioManagerImpl, TtsProvider, DictionaryProvider, useAudioBusy } from './audio';
 import { createOcrManager } from './ocr';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
@@ -78,6 +78,7 @@ eventBus.on('word:attempted', (event) => {
 
 const audioManager = new AudioManagerImpl();
 audioManager.registerProvider(new TtsProvider());
+audioManager.registerProvider(new DictionaryProvider());
 
 const ocrManager = createOcrManager();
 
