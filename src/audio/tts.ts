@@ -63,6 +63,9 @@ function speakWithRate(word: string, rate: number): Promise<void> {
 
     utterance.onend = () => resolve();
     utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`));
+    // Chrome (especially Android) silently drops speak() calls unless the
+    // queue is explicitly cleared first.  cancel() is a no-op when idle.
+    synth.cancel();
     synth.speak(utterance);
   });
 }
