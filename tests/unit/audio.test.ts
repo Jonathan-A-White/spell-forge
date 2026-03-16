@@ -46,9 +46,9 @@ beforeEach(() => {
 // ─── TTS Provider ────────────────────────────────────────────
 
 describe('TtsProvider', () => {
-  it('should have priority 1', () => {
+  it('should have priority 10', () => {
     const tts = new TtsProvider();
-    expect(tts.priority).toBe(1);
+    expect(tts.priority).toBe(10);
   });
 
   it('should be available when speechSynthesis exists', () => {
@@ -133,9 +133,9 @@ describe('TtsProvider', () => {
 // ─── Dictionary Provider ─────────────────────────────────────
 
 describe('DictionaryProvider', () => {
-  it('should have priority 3', () => {
+  it('should have priority 1', () => {
     const dict = new DictionaryProvider();
-    expect(dict.priority).toBe(3);
+    expect(dict.priority).toBe(1);
   });
 
   it('should be available by default', () => {
