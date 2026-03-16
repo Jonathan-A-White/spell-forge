@@ -143,12 +143,13 @@ describe('DictionaryProvider', () => {
     expect(dict.isAvailable()).toBe(true);
   });
 
-  it('should become unavailable on network error', async () => {
+  it('should remain available on network error (transient failures)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     const dict = new DictionaryProvider();
 
     await expect(dict.speak('hello')).rejects.toThrow();
-    expect(dict.isAvailable()).toBe(false);
+    // Transient errors should not permanently disable the provider
+    expect(dict.isAvailable()).toBe(true);
 
     vi.unstubAllGlobals();
     // Re-stub speechSynthesis after unstubbing

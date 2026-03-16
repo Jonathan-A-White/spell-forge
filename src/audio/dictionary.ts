@@ -60,7 +60,8 @@ export class DictionaryProvider implements AudioProvider {
       }
       return null;
     } catch {
-      this.available = false;
+      // Don't permanently disable — transient network errors shouldn't
+      // prevent future attempts.
       return null;
     }
   }
