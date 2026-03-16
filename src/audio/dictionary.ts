@@ -5,7 +5,7 @@ interface DictionaryEntry {
 }
 
 export class DictionaryProvider implements AudioProvider {
-  readonly priority = 3;
+  readonly priority = 1;
 
   private cache = new Map<string, string>();
   private available = true;

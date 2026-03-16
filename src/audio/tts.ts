@@ -53,53 +53,71 @@ function delay(ms: number): Promise<void> {
 /** Max time (ms) to wait for an utterance before treating it as a silent failure. */
 const SPEAK_TIMEOUT_MS = 5_000;
 
+/**
+ * Delay (ms) between cancel() and speak() — Chrome Android drops the new
+ * utterance if speak() is called synchronously after cancel().
+ */
+const CANCEL_SETTLE_MS = 50;
+
 function speakWithRate(word: string, rate: number): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const synth = window.speechSynthesis;
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.rate = rate;
+  const synth = window.speechSynthesis;
 
-    const voice = pickVoice();
-    if (voice) {
-      utterance.voice = voice;
-    }
+  // Chrome Android sometimes silently pauses synthesis (e.g. after screen
+  // off or tab switch).  resume() is a no-op when not paused.
+  synth.resume();
 
-    // Guard against Chrome Android silently dropping the utterance — if
-    // neither onend nor onerror fires within the timeout, reject so the
-    // manager can fall through to the next provider.
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        synth.cancel();
-        reject(new Error('Speech synthesis timed out'));
-      }
-    }, SPEAK_TIMEOUT_MS);
-
-    utterance.onend = () => {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        resolve();
-      }
-    };
-    utterance.onerror = (event) => {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        reject(new Error(`Speech synthesis error: ${event.error}`));
-      }
-    };
-
-    // Chrome (especially Android) silently drops speak() calls unless the
-    // queue is explicitly cleared first.  cancel() is a no-op when idle.
+  // Only cancel if there is actually something in the queue.
+  const needsCancel = synth.speaking || synth.pending;
+  if (needsCancel) {
     synth.cancel();
-    synth.speak(utterance);
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    // If we cancelled, give Chrome a moment to settle before queuing the
+    // next utterance — an immediate speak() after cancel() is silently
+    // dropped on Chrome Android.
+    const startDelay = needsCancel ? CANCEL_SETTLE_MS : 0;
+
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.rate = rate;
+
+      const voice = pickVoice();
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          synth.cancel();
+          reject(new Error('Speech synthesis timed out'));
+        }
+      }, SPEAK_TIMEOUT_MS);
+
+      utterance.onend = () => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve();
+        }
+      };
+      utterance.onerror = (event) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          reject(new Error(`Speech synthesis error: ${event.error}`));
+        }
+      };
+
+      synth.speak(utterance);
+    }, startDelay);
   });
 }
 
 export class TtsProvider implements AudioProvider {
-  readonly priority = 1;
+  readonly priority = 10;
 
   speak(word: string): Promise<void> {
     return speakWithRate(word, 1);
