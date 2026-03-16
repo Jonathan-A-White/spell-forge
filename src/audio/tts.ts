@@ -50,6 +50,9 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Max time (ms) to wait for an utterance before treating it as a silent failure. */
+const SPEAK_TIMEOUT_MS = 5_000;
+
 function speakWithRate(word: string, rate: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const synth = window.speechSynthesis;
@@ -61,8 +64,33 @@ function speakWithRate(word: string, rate: number): Promise<void> {
       utterance.voice = voice;
     }
 
-    utterance.onend = () => resolve();
-    utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`));
+    // Guard against Chrome Android silently dropping the utterance — if
+    // neither onend nor onerror fires within the timeout, reject so the
+    // manager can fall through to the next provider.
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        synth.cancel();
+        reject(new Error('Speech synthesis timed out'));
+      }
+    }, SPEAK_TIMEOUT_MS);
+
+    utterance.onend = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      }
+    };
+    utterance.onerror = (event) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(new Error(`Speech synthesis error: ${event.error}`));
+      }
+    };
+
     // Chrome (especially Android) silently drops speak() calls unless the
     // queue is explicitly cleared first.  cancel() is a no-op when idle.
     synth.cancel();
