@@ -9,14 +9,23 @@ interface SessionSummaryProps {
   onDone: () => void;
 }
 
+function getHeading(wordsAttempted: number, accuracy: number): string {
+  if (wordsAttempted === 0) return 'Session Complete';
+  if (accuracy >= 80) return 'Amazing Work!';
+  if (accuracy >= 50) return 'Good Effort!';
+  return 'Keep Practicing!';
+}
+
 export function SessionSummary({ session, reward, streakCount, onDone }: SessionSummaryProps) {
   const accuracy = session.wordsAttempted > 0
     ? Math.round((session.wordsCorrect / session.wordsAttempted) * 100)
     : 0;
 
+  const heading = getHeading(session.wordsAttempted, accuracy);
+
   return (
     <div className="min-h-screen bg-sf-bg flex flex-col items-center gap-6 p-8 text-center max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
-      <h2 className="text-3xl font-bold text-sf-heading">Amazing Work!</h2>
+      <h2 className="text-3xl font-bold text-sf-heading">{heading}</h2>
 
       <div className="grid grid-cols-2 gap-4 w-full">
         <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border">
