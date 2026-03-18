@@ -56,8 +56,16 @@ export class AudioManagerImpl implements AudioManager {
     await this.tryProviders((p) => p.speakSlowly(word));
   }
 
-  async speakChunks(chunks: string[], delayMs?: number): Promise<void> {
-    await this.tryProviders((p) => p.speakChunks(chunks, delayMs));
+  async speakChunks(chunks: string[], delayMs = 500): Promise<void> {
+    // Speak each chunk individually through the full provider fallback chain.
+    // This prevents a single provider failure mid-sequence from losing the
+    // remaining letters (e.g. Chrome Android TTS dropping short utterances).
+    for (let i = 0; i < chunks.length; i++) {
+      if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      await this.speak(chunks[i]);
+    }
   }
 
   private notifyBusy(): void {

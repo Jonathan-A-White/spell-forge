@@ -258,13 +258,16 @@ describe('AudioManagerImpl', () => {
     expect(provider.speakSlowly).toHaveBeenCalledWith('slow');
   });
 
-  it('should delegate speakChunks to the best available provider', async () => {
+  it('should speak each chunk individually through provider fallback', async () => {
     const manager = new AudioManagerImpl();
     const provider = createMockProvider(3, true);
     manager.registerProvider(provider);
 
     await manager.speakChunks(['a', 'b'], 200);
-    expect(provider.speakChunks).toHaveBeenCalledWith(['a', 'b'], 200);
+    // Each chunk is spoken individually via speak(), not delegated to provider.speakChunks
+    expect(provider.speak).toHaveBeenCalledWith('a');
+    expect(provider.speak).toHaveBeenCalledWith('b');
+    expect(provider.speak).toHaveBeenCalledTimes(2);
   });
 
   // ─── runExclusive / isBusy ──────────────────────────────────

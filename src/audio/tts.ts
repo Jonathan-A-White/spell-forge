@@ -66,17 +66,13 @@ function speakWithRate(word: string, rate: number): Promise<void> {
   // off or tab switch).  resume() is a no-op when not paused.
   synth.resume();
 
-  // Only cancel if there is actually something in the queue.
-  const needsCancel = synth.speaking || synth.pending;
-  if (needsCancel) {
-    synth.cancel();
-  }
+  // Always cancel before speaking — Chrome Android can silently drop new
+  // utterances even when synth.speaking and synth.pending both report false
+  // (stuck internal queue). Unconditional cancel + settle delay fixes this.
+  synth.cancel();
 
   return new Promise<void>((resolve, reject) => {
-    // If we cancelled, give Chrome a moment to settle before queuing the
-    // next utterance — an immediate speak() after cancel() is silently
-    // dropped on Chrome Android.
-    const startDelay = needsCancel ? CANCEL_SETTLE_MS : 0;
+    const startDelay = CANCEL_SETTLE_MS;
 
     setTimeout(() => {
       const utterance = new SpeechSynthesisUtterance(word);
