@@ -28,7 +28,7 @@ interface HomeScreenProps {
   coinBalance: CoinBalance | null;
   learningProgress: WordLearningProgress[];
   gradeGoal?: number;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history' | 'practice-calendar') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -128,10 +128,13 @@ export function HomeScreen({
                   <span className="text-xs opacity-70">Due</span>
                 </button>
               )}
-              <div className="flex items-center gap-1.5 bg-sf-surface/60 rounded-full px-3 py-1.5 text-sm">
+              <button
+                onClick={() => onNavigate('practice-calendar')}
+                className="flex items-center gap-1.5 bg-sf-surface/60 hover:bg-sf-surface-hover rounded-full px-3 py-1.5 text-sm transition-colors"
+              >
                 <span>🔥</span>
                 <span className="font-medium text-sf-heading">{streak}</span>
-              </div>
+              </button>
               <button
                 onClick={() => onNavigate('coin-history')}
                 className="flex items-center gap-1.5 bg-sf-surface/60 hover:bg-sf-surface-hover rounded-full px-3 py-1.5 text-sm transition-colors"
