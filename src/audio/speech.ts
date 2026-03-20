@@ -301,10 +301,11 @@ export function warmUp(): Promise<void> {
       resolve();
     };
 
-    // Use bare-minimum config — no voice, no lang.  This maximises the chance
-    // of the primer succeeding across different Chrome/Android combinations.
-    const primer = new SpeechSynthesisUtterance('.');
-    primer.volume = 0.01; // nearly silent but not zero
+    // Use a truly silent utterance — just enough to unlock the audio context
+    // during a user gesture.  An empty string is ignored by some engines, so
+    // we use a single space.  Volume 0 ensures nothing is audible.
+    const primer = new SpeechSynthesisUtterance(' ');
+    primer.volume = 0;
 
     primer.onend = () => finish('primer succeeded');
     primer.onerror = () => finish('primer failed — engine may need user gesture');

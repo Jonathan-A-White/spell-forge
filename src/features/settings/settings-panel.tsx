@@ -18,6 +18,8 @@ interface SettingsPanelProps {
   onImportProfile?: (file: File) => void;
   onShare?: () => void;
   onSendFeedback?: () => void;
+  ttsDebugEnabled?: boolean;
+  onToggleTtsDebug?: () => void;
   onBack: () => void;
 }
 
@@ -37,6 +39,8 @@ export function SettingsPanel({
   onImportProfile,
   onShare,
   onSendFeedback,
+  ttsDebugEnabled,
+  onToggleTtsDebug,
   onBack,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -241,6 +245,45 @@ export function SettingsPanel({
             </button>
           </section>
         )}
+
+        {/* Developer Settings */}
+        {onToggleTtsDebug && (
+          <section>
+            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+              Developer
+            </h2>
+            <button
+              onClick={onToggleTtsDebug}
+              className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                ttsDebugEnabled
+                  ? 'border-sf-primary bg-sf-surface shadow-md'
+                  : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+              }`}
+              aria-pressed={ttsDebugEnabled}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
+                ttsDebugEnabled
+                  ? 'bg-sf-primary text-sf-primary-text'
+                  : 'bg-sf-track text-sf-muted'
+              }`}>
+                <TerminalIcon />
+              </div>
+              <div className="text-left flex-1">
+                <p className={`font-bold text-sm ${
+                  ttsDebugEnabled ? 'text-sf-heading' : 'text-sf-text'
+                }`}>
+                  TTS Debug Log
+                </p>
+                <p className="text-xs text-sf-muted">Show speech synthesis diagnostics on screen</p>
+              </div>
+              {ttsDebugEnabled && (
+                <div className="text-sf-primary">
+                  <CheckIcon />
+                </div>
+              )}
+            </button>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -338,6 +381,15 @@ function FeedbackIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function TerminalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <polyline points="4 17 10 11 4 5" />
+      <line x1="12" y1="19" x2="20" y2="19" />
     </svg>
   );
 }
