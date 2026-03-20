@@ -294,6 +294,22 @@ export interface CoinBalance {
   updatedAt: Date;
 }
 
+export type CoinTransactionReason =
+  | 'word-mastered'
+  | 'all-learning'
+  | 'all-familiar'
+  | 'game-play';
+
+export interface CoinTransaction {
+  id: string;
+  profileId: string;
+  amount: number;          // positive = earned, negative = spent
+  reason: CoinTransactionReason;
+  description: string;     // human-readable description
+  wordId?: string;         // associated word (for word-mastered)
+  createdAt: Date;
+}
+
 // ─── Import/Export ────────────────────────────────────────────
 
 export interface ExportPayload {
@@ -331,8 +347,8 @@ export type AppEvent =
   | { type: 'streak:updated'; payload: StreakData }
   | { type: 'profile:switched'; payload: { profileId: string } }
   | { type: 'settings:changed'; payload: { profileId: string; settings: Partial<AccessibilitySettings> } }
-  | { type: 'coins:earned'; payload: { profileId: string; amount: number; reason: 'word-mastered'; wordId: string } }
-  | { type: 'coins:spent'; payload: { profileId: string; amount: number; reason: 'game-play' } }
+  | { type: 'coins:earned'; payload: { profileId: string; amount: number; reason: CoinTransactionReason; wordId?: string } }
+  | { type: 'coins:spent'; payload: { profileId: string; amount: number; reason: CoinTransactionReason } }
   | { type: 'profile:archived'; payload: { profileId: string } }
   | { type: 'profile:restored'; payload: { profileId: string } }
   | { type: 'profile:deleted'; payload: { profileId: string } };

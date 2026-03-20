@@ -1,6 +1,6 @@
 // src/App.tsx — Root component: routing, state management, event bus wiring
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { APP_VERSION } from './version';
 import { useBackButton } from './hooks/use-back-button';
 import type {
@@ -24,13 +24,13 @@ import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
 import { learningProgressRepo } from './data/repositories/learning-progress-repo';
-import { earnCoinForMastery, spendCoinForGame, canPlayFree, getCoinBalance } from './core/spaced-rep';
+import { earnCoinForMastery, earnCoinForAllLearning, earnCoinForAllFamiliar, spendCoinForGame, canPlayFree, getCoinBalance, allWordsAtLeastBucket } from './core/spaced-rep';
 import { applySettings, mergeSetting, validateSettings } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
 import { HomeScreen } from './features/dashboard/home-screen';
 import { ProgressView } from './features/dashboard/progress-view';
-import { WordDetailView } from './features/dashboard';
+import { WordDetailView, CoinHistory } from './features/dashboard';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { PracticeGames } from './features/practice/practice-games';
 import { QuizScreen } from './features/practice/quiz-screen';
@@ -56,7 +56,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history';
 
 const eventBus = createEventBus();
 
@@ -98,6 +98,9 @@ function App() {
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
   const [practiceWordFilter, setPracticeWordFilter] = useState<Set<string> | null>(null);
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
+  // Track whether all-learning / all-familiar milestone coins have been awarded this session
+  const allLearningAwarded = useRef(false);
+  const allFamiliarAwarded = useRef(false);
 
   const audioBusy = useAudioBusy(audioManager);
   const [ttsDebugEnabled, toggleTtsDebug] = useTtsDebug();
@@ -127,6 +130,8 @@ function App() {
     const safeProfile = { ...profile, settings: safeSettings };
     setActiveProfile(safeProfile);
     activeProfileForBus = safeProfile;
+    allLearningAwarded.current = false;
+    allFamiliarAwarded.current = false;
     applySettings(safeSettings);
     themeEngine.applyThemePalette(profile.themeId ?? 'dragon-forge');
     localStorage.setItem('sf-last-profile', profile.id);
@@ -275,15 +280,43 @@ function App() {
 
       // Award a coin for mastering a word
       if (justMastered) {
-        const newBalance = await earnCoinForMastery(activeProfile.id);
+        const word = allWords.find((w) => w.id === updated.wordId);
+        const newBalance = await earnCoinForMastery(activeProfile.id, updated.wordId, word?.text);
         setCoinBalance(newBalance);
         eventBus.emit({
           type: 'coins:earned',
           payload: { profileId: activeProfile.id, amount: 1, reason: 'word-mastered', wordId: updated.wordId },
         });
       }
+
+      // Check for all-learning and all-familiar milestones
+      const updatedStats = allStats.map((s) => (s.id === updated.id ? updated : s));
+      const lists = wordLists.filter((l) => l.active && !l.archived);
+      const listIds = new Set(lists.map((l) => l.id));
+      const wordsInActiveLists = allWords.filter((w) => listIds.has(w.listId));
+      const wordIds = new Set(wordsInActiveLists.map((w) => w.id));
+      const statsForActive = updatedStats.filter((s) => wordIds.has(s.wordId));
+
+      if (!allLearningAwarded.current && allWordsAtLeastBucket(statsForActive, wordsInActiveLists.length, 'learning')) {
+        allLearningAwarded.current = true;
+        const newBalance = await earnCoinForAllLearning(activeProfile.id);
+        setCoinBalance(newBalance);
+        eventBus.emit({
+          type: 'coins:earned',
+          payload: { profileId: activeProfile.id, amount: 1, reason: 'all-learning' },
+        });
+      }
+      if (!allFamiliarAwarded.current && allWordsAtLeastBucket(statsForActive, wordsInActiveLists.length, 'familiar')) {
+        allFamiliarAwarded.current = true;
+        const newBalance = await earnCoinForAllFamiliar(activeProfile.id);
+        setCoinBalance(newBalance);
+        eventBus.emit({
+          type: 'coins:earned',
+          payload: { profileId: activeProfile.id, amount: 1, reason: 'all-familiar' },
+        });
+      }
     },
-    [activeProfile, allStats],
+    [activeProfile, allStats, allWords, wordLists],
   );
 
   const refreshListData = useCallback(async () => {
@@ -1028,6 +1061,16 @@ function App() {
         <MonsterStable
           profile={activeProfile}
           collection={monsterCollection.getCollection(activeProfile.id)}
+          onBack={() => setView('home')}
+        />
+      );
+
+    case 'coin-history':
+      if (!activeProfile) return null;
+      return (
+        <CoinHistory
+          profileId={activeProfile.id}
+          coinBalance={coinBalance}
           onBack={() => setView('home')}
         />
       );

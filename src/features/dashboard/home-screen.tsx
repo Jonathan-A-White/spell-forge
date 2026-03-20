@@ -28,7 +28,7 @@ interface HomeScreenProps {
   coinBalance: CoinBalance | null;
   learningProgress: WordLearningProgress[];
   gradeGoal?: number;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -132,10 +132,13 @@ export function HomeScreen({
                 <span>🔥</span>
                 <span className="font-medium text-sf-heading">{streak}</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-sf-surface/60 rounded-full px-3 py-1.5 text-sm">
+              <button
+                onClick={() => onNavigate('coin-history')}
+                className="flex items-center gap-1.5 bg-sf-surface/60 hover:bg-sf-surface-hover rounded-full px-3 py-1.5 text-sm transition-colors"
+              >
                 <CoinIcon />
                 <span className="font-bold text-yellow-400">{coins}</span>
-              </div>
+              </button>
             </div>
           )}
         </div>
