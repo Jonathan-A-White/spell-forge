@@ -110,6 +110,9 @@ export function LearningScreen({
 
   const audioBusy = useAudioBusy(audioManager);
 
+  // Guard against concurrent submissions (e.g. double-tapping "Check")
+  const processingRef = useRef(false);
+
   // Track the previous word so we know when a new stage starts
   const prevWordRef = useRef<string | null>(null);
   const prevStageRef = useRef<number | null>(null);
@@ -219,53 +222,69 @@ export function LearningScreen({
     async (correct: boolean) => {
       if (!sessionState?.currentWord) return;
 
-      const isTestOut = testOutMode;
+      // Prevent concurrent submissions (double-tap guard)
+      if (processingRef.current) return;
+      processingRef.current = true;
 
-      const wordId = sessionState.currentWord.id;
-      const wordListId = sessionState.currentWord.listId;
-      let progress = sessionState.progressMap.get(wordId);
+      try {
+        const isTestOut = testOutMode;
 
-      if (!progress) {
-        progress = createInitialProgress(profile.id, wordId, wordListId);
-      }
+        const wordId = sessionState.currentWord.id;
+        const wordListId = sessionState.currentWord.listId;
+        let progress = sessionState.progressMap.get(wordId);
 
-      const updated = processAttempt(progress, { correct, testOut: isTestOut });
+        if (!progress) {
+          progress = createInitialProgress(profile.id, wordId, wordListId);
+        }
 
-      // Exit test-out mode after attempt
-      if (isTestOut) {
-        setTestOutMode(false);
-      }
+        const updated = processAttempt(progress, { correct, testOut: isTestOut });
 
-      // Save to DB
-      await learningProgressRepo.save(updated);
+        // Exit test-out mode after attempt
+        if (isTestOut) {
+          setTestOutMode(false);
+        }
 
-      // Notify parent if word just became mastered
-      if (updated.mastered && !progress.mastered) {
-        onWordMastered?.(wordId);
-      }
+        // Update local state FIRST (optimistic update) so UI advances immediately
+        const newMap = new Map(sessionState.progressMap);
+        newMap.set(wordId, updated);
 
-      // Update local state
-      const newMap = new Map(sessionState.progressMap);
-      newMap.set(wordId, updated);
+        const newMastered = Array.from(newMap.values()).filter((p) => p.mastered).length;
 
-      const newMastered = Array.from(newMap.values()).filter((p) => p.mastered).length;
+        // Find next word
+        const nextWord = findNextWord(sessionState.words, newMap);
 
-      // Find next word
-      const nextWord = findNextWord(sessionState.words, newMap);
+        const newState: LearningSessionState = {
+          ...sessionState,
+          progressMap: newMap,
+          currentWord: nextWord,
+          masteredCount: newMastered,
+        };
 
-      const newState: LearningSessionState = {
-        ...sessionState,
-        progressMap: newMap,
-        currentWord: nextWord,
-        masteredCount: newMastered,
-      };
+        setSessionState(newState);
+        setDisplayKey((prev) => prev + 1);
 
-      setSessionState(newState);
-      setDisplayKey((prev) => prev + 1);
+        if (!nextWord) {
+          setIsComplete(true);
+        }
 
-      if (!nextWord) {
-        setIsComplete(true);
-        await activityProgressRepo.clear(profile.id, 'learning');
+        // Notify parent if word just became mastered
+        if (updated.mastered && !progress.mastered) {
+          onWordMastered?.(wordId);
+        }
+
+        // Persist to DB in background (UI already updated above)
+        try {
+          await learningProgressRepo.save(updated);
+        } catch {
+          // DB save failed — UI already reflects the correct state;
+          // the auto-save effect will persist the full session state as backup.
+        }
+
+        if (!nextWord) {
+          await activityProgressRepo.clear(profile.id, 'learning');
+        }
+      } finally {
+        processingRef.current = false;
       }
     },
     [sessionState, profile.id, testOutMode, onWordMastered],
