@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
 import { SpellingField } from './custom-keyboard';
+import { UnscrambleDragDrop } from './unscramble-drag-drop';
 import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface SpellingQuizProps {
@@ -359,16 +360,34 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
         <p className="text-sf-text font-medium mb-4">{currentQuestion.prompt}</p>
 
         {currentQuestion.type === 'unscramble' && (
-          <div className="flex justify-center gap-2 mb-4">
-            {currentQuestion.scrambled!.split('').map((letter, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-sf-surface border-2 border-sf-border-strong font-bold uppercase text-sf-heading"
-              >
-                {letter}
-              </span>
-            ))}
-          </div>
+          <UnscrambleDragDrop
+            scrambledLetters={currentQuestion.scrambled!}
+            wordLength={currentQuestion.word.length}
+            onSubmit={(answer) => {
+              setInputValue(answer);
+              // Trigger submit with the drag-drop answer
+              const correct = answer.toLowerCase() === currentQuestion.word.toLowerCase();
+              if (correct) hapticSuccess();
+              else hapticError();
+              setLastCorrect(correct);
+              setShowFeedback(true);
+              setAnswers((prev) => [
+                ...prev,
+                {
+                  word: currentQuestion.word,
+                  userAnswer: answer,
+                  correct,
+                  questionType: currentQuestion.type,
+                },
+              ]);
+            }}
+            disabled={showFeedback}
+            tapTargetSize={tapTargetSize}
+            submitLabel={showFeedback
+              ? (currentIndex + 1 < questions.length ? 'Next Question' : 'See Results')
+              : 'Submit'}
+            submitDisabled={showFeedback}
+          />
         )}
 
         {currentQuestion.type === 'multiple-choice' && currentQuestion.options && (
@@ -400,7 +419,7 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
           </div>
         )}
 
-        {(currentQuestion.type === 'fill-blank' || currentQuestion.type === 'unscramble') && (
+        {currentQuestion.type === 'fill-blank' && (
           <SpellingField
             value={inputValue}
             onChange={setInputValue}
@@ -431,7 +450,16 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
         </div>
       )}
 
-      {/* Action buttons — only for multiple-choice (fill-blank/unscramble use custom keyboard submit) */}
+      {/* Action buttons — for multiple-choice and unscramble next */}
+      {currentQuestion.type === 'unscramble' && showFeedback && (
+        <button
+          onClick={handleNext}
+          className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+          style={{ minHeight: buttonSize }}
+        >
+          {currentIndex + 1 < questions.length ? 'Next Question' : 'See Results'}
+        </button>
+      )}
       {currentQuestion.type === 'multiple-choice' && (
         !showFeedback ? (
           <button
