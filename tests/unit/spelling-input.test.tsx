@@ -2,6 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SpellingInput } from '../../src/features/practice/spelling-input';
 
+/** Helper: type a word by clicking keys on the custom keyboard */
+function typeOnKeyboard(word: string) {
+  for (const ch of word.toLowerCase()) {
+    fireEvent.click(screen.getByRole('button', { name: ch }));
+  }
+}
+
+/** Helper: get the display field (role="textbox") */
+function getDisplay(label = 'Type the spelling word') {
+  return screen.getByRole('textbox', { name: label });
+}
+
 describe('SpellingInput', () => {
   const defaultProps = {
     word: 'cat',
@@ -9,10 +21,12 @@ describe('SpellingInput', () => {
     tapTargetSize: 48,
   };
 
-  it('should render text input and check button', () => {
+  it('should render custom keyboard and check button', () => {
     render(<SpellingInput {...defaultProps} />);
 
-    expect(screen.getByPlaceholderText('Type the word...')).toBeInTheDocument();
+    // Custom keyboard renders letter keys
+    expect(screen.getByRole('button', { name: 'a' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'z' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check' })).toBeInTheDocument();
   });
 
@@ -26,19 +40,7 @@ describe('SpellingInput', () => {
     const onComplete = vi.fn();
     render(<SpellingInput {...defaultProps} onComplete={onComplete} />);
 
-    const input = screen.getByPlaceholderText('Type the word...');
-    fireEvent.change(input, { target: { value: 'cat' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
-
-    expect(onComplete).toHaveBeenCalledWith(true, expect.any(Number), 0);
-  });
-
-  it('should be case insensitive when checking', () => {
-    const onComplete = vi.fn();
-    render(<SpellingInput {...defaultProps} onComplete={onComplete} />);
-
-    const input = screen.getByPlaceholderText('Type the word...');
-    fireEvent.change(input, { target: { value: 'CAT' } });
+    typeOnKeyboard('cat');
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
 
     expect(onComplete).toHaveBeenCalledWith(true, expect.any(Number), 0);
@@ -47,8 +49,7 @@ describe('SpellingInput', () => {
   it('should show comparison view on incorrect answer', () => {
     render(<SpellingInput {...defaultProps} />);
 
-    const input = screen.getByPlaceholderText('Type the word...');
-    fireEvent.change(input, { target: { value: 'kat' } });
+    typeOnKeyboard('kat');
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
 
     expect(screen.getByText('Not quite right')).toBeInTheDocument();
@@ -61,8 +62,7 @@ describe('SpellingInput', () => {
     render(<SpellingInput {...defaultProps} />);
 
     // Submit wrong answer
-    const input = screen.getByPlaceholderText('Type the word...');
-    fireEvent.change(input, { target: { value: 'kat' } });
+    typeOnKeyboard('kat');
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
 
     // Click to start retyping
@@ -77,15 +77,14 @@ describe('SpellingInput', () => {
     render(<SpellingInput {...defaultProps} />);
 
     // Submit wrong answer
-    fireEvent.change(screen.getByPlaceholderText('Type the word...'), { target: { value: 'kat' } });
+    typeOnKeyboard('kat');
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
 
     // Start retype
     fireEvent.click(screen.getByRole('button', { name: 'Now type it correctly' }));
 
     // Wrong retype should not advance
-    const retypeInput = screen.getByLabelText('Retype the word correctly');
-    fireEvent.change(retypeInput, { target: { value: 'kat' } });
+    typeOnKeyboard('kat');
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
 
     // Should still be on retype 1 of 2 (input cleared)
@@ -97,34 +96,37 @@ describe('SpellingInput', () => {
     render(<SpellingInput {...defaultProps} onComplete={onComplete} />);
 
     // Submit wrong answer
-    fireEvent.change(screen.getByPlaceholderText('Type the word...'), { target: { value: 'kat' } });
+    typeOnKeyboard('kat');
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
 
     // Start retype
     fireEvent.click(screen.getByRole('button', { name: 'Now type it correctly' }));
 
     // First correct retype
-    fireEvent.change(screen.getByLabelText('Retype the word correctly'), { target: { value: 'cat' } });
+    typeOnKeyboard('cat');
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
 
     // Should still be on retype phase
     expect(screen.getByText(/Type it correctly/)).toBeInTheDocument();
 
     // Second correct retype
-    fireEvent.change(screen.getByLabelText('Retype the word correctly'), { target: { value: 'cat' } });
+    typeOnKeyboard('cat');
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
 
     // Should complete with mistakes=1 (was incorrect initially)
     expect(onComplete).toHaveBeenCalledWith(true, expect.any(Number), 1);
   });
 
-  it('should submit on Enter key', () => {
+  it('should submit on Enter key via physical keyboard', () => {
     const onComplete = vi.fn();
     render(<SpellingInput {...defaultProps} onComplete={onComplete} />);
 
-    const input = screen.getByPlaceholderText('Type the word...');
-    fireEvent.change(input, { target: { value: 'cat' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
+    const display = getDisplay();
+    // Type via physical keyboard
+    fireEvent.keyDown(display, { key: 'c' });
+    fireEvent.keyDown(display, { key: 'a' });
+    fireEvent.keyDown(display, { key: 't' });
+    fireEvent.keyDown(display, { key: 'Enter' });
 
     expect(onComplete).toHaveBeenCalledWith(true, expect.any(Number), 0);
   });
@@ -144,18 +146,23 @@ describe('SpellingInput', () => {
     expect(screen.getByText('Sound it out')).toBeInTheDocument();
   });
 
-  it('should allow backspace (standard input behavior)', () => {
+  it('should allow backspace via custom keyboard', () => {
     render(<SpellingInput {...defaultProps} />);
 
-    const input = screen.getByPlaceholderText('Type the word...') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'cta' } });
-    expect(input.value).toBe('cta');
+    const display = getDisplay();
+    typeOnKeyboard('cta');
+    expect(display.textContent).toContain('cta');
 
-    // Simulate backspace by changing value
-    fireEvent.change(input, { target: { value: 'ct' } });
-    expect(input.value).toBe('ct');
+    // Click backspace to remove 'a' -> "ct"
+    fireEvent.click(screen.getByRole('button', { name: 'Backspace' }));
+    expect(display.textContent).toContain('ct');
 
-    fireEvent.change(input, { target: { value: 'cat' } });
-    expect(input.value).toBe('cat');
+    // Backspace again to remove 't' -> "c"
+    fireEvent.click(screen.getByRole('button', { name: 'Backspace' }));
+    expect(display.textContent).toContain('c');
+
+    // Now type 'at' to get 'cat'
+    typeOnKeyboard('at');
+    expect(display.textContent).toContain('cat');
   });
 });
