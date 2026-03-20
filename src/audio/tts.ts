@@ -113,47 +113,57 @@ function speakWithRate(word: string, rate: number): Promise<void> {
 }
 
 /**
- * Speak a short chunk (single letter) without calling cancel() first.
- * Used inside speakChunks where cancel is done once before the loop.
+ * Speak a short chunk (single letter) without an unconditional cancel.
+ * Uses conditional cancel only when synth is actively speaking/pending,
+ * which avoids Chrome Android dropping short utterances.
  */
-function speakChunkDirect(word: string): Promise<void> {
+function speakChunkConditional(word: string): Promise<void> {
   const synth = window.speechSynthesis;
   synth.resume();
 
+  const needsCancel = synth.speaking || synth.pending;
+  if (needsCancel) {
+    synth.cancel();
+  }
+
   return new Promise<void>((resolve, reject) => {
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.rate = 1;
+    const startDelay = needsCancel ? CANCEL_SETTLE_MS : 0;
 
-    const voice = pickVoice();
-    if (voice) {
-      utterance.voice = voice;
-    }
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.rate = 1;
 
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        synth.cancel();
-        reject(new Error('Speech synthesis timed out'));
+      const voice = pickVoice();
+      if (voice) {
+        utterance.voice = voice;
       }
-    }, SPEAK_TIMEOUT_MS);
 
-    utterance.onend = () => {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        resolve();
-      }
-    };
-    utterance.onerror = (event) => {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        reject(new Error(`Speech synthesis error: ${event.error}`));
-      }
-    };
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          synth.cancel();
+          reject(new Error('Speech synthesis timed out'));
+        }
+      }, SPEAK_TIMEOUT_MS);
 
-    synth.speak(utterance);
+      utterance.onend = () => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve();
+        }
+      };
+      utterance.onerror = (event) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          reject(new Error(`Speech synthesis error: ${event.error}`));
+        }
+      };
+
+      synth.speak(utterance);
+    }, startDelay);
   });
 }
 
@@ -169,20 +179,16 @@ export class TtsProvider implements AudioProvider {
   }
 
   async speakChunks(chunks: string[], delayMs = 500): Promise<void> {
-    const synth = window.speechSynthesis;
-
-    // Cancel once at the start so previous audio stops, then speak each
-    // chunk without the per-utterance cancel+settle that drops short
-    // utterances on Chrome Android.
-    synth.resume();
-    synth.cancel();
-    await delay(CANCEL_SETTLE_MS);
-
+    // Each chunk uses conditional cancel — only cancels when
+    // synth.speaking/pending is true.  Between letters the previous
+    // utterance has already ended, so no cancel happens and Chrome
+    // Android doesn't drop short utterances.  This matches the approach
+    // from commit b5d8a92 that worked on the Samsung tablet.
     for (let i = 0; i < chunks.length; i++) {
       if (i > 0) {
         await delay(delayMs);
       }
-      await speakChunkDirect(chunks[i]);
+      await speakChunkConditional(chunks[i]);
     }
   }
 
