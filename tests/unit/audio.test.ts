@@ -20,7 +20,6 @@ vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
 
 function createMockSpeechSynthesis() {
   const speak = vi.fn((utterance: MockUtterance) => {
-    // Simulate async completion
     setTimeout(() => utterance.onend?.(new Event('end')), 0);
   });
 
@@ -48,10 +47,9 @@ beforeEach(() => {
   vi.stubGlobal('speechSynthesis', mockSynth);
 });
 
-// ─── speech.ts functions ────────────────────────────────────
+// ─── speech.ts ──────────────────────────────────────────────
 
 describe('sayWord', () => {
-  // Import dynamically so the module picks up the mocked globals
   async function getSpeech() {
     return await import('../../src/audio/speech.ts');
   }
@@ -82,17 +80,13 @@ describe('spellWord', () => {
     return await import('../../src/audio/speech.ts');
   }
 
-  it('should speak each letter of the word', async () => {
+  it('should build a single utterance with comma-separated letters', async () => {
     const { spellWord } = await getSpeech();
-    await spellWord('cat', 0);
+    await spellWord('cat');
 
-    expect(mockSynth.speak).toHaveBeenCalledTimes(3);
-    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    const u3 = vi.mocked(mockSynth.speak).mock.calls[2][0] as unknown as MockUtterance;
-    expect(u1.text).toBe('c');
-    expect(u2.text).toBe('a');
-    expect(u3.text).toBe('t');
+    expect(mockSynth.speak).toHaveBeenCalledOnce();
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.text).toBe('c, a, t');
   });
 });
 
@@ -101,16 +95,13 @@ describe('sayThenSpell', () => {
     return await import('../../src/audio/speech.ts');
   }
 
-  it('should say the word then spell each letter', async () => {
+  it('should build a single utterance with word then spelled letters', async () => {
     const { sayThenSpell } = await getSpeech();
-    await sayThenSpell('hi', 0, 0);
+    await sayThenSpell('hi');
 
-    // 1 full word + 2 letters = 3 calls
-    expect(mockSynth.speak).toHaveBeenCalledTimes(3);
-    const texts = vi.mocked(mockSynth.speak).mock.calls.map(
-      (c) => (c[0] as unknown as MockUtterance).text,
-    );
-    expect(texts).toEqual(['hi', 'h', 'i']);
+    expect(mockSynth.speak).toHaveBeenCalledOnce();
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.text).toBe('hi,,,, h, i');
   });
 });
 
@@ -197,7 +188,9 @@ describe('AudioManagerImpl', () => {
 
   it('should delegate spellWord to speech module', async () => {
     const manager = new AudioManagerImpl();
-    await manager.spellWord('ab', 0);
-    expect(mockSynth.speak).toHaveBeenCalledTimes(2);
+    await manager.spellWord('ab');
+    expect(mockSynth.speak).toHaveBeenCalledOnce();
+    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
+    expect(utterance.text).toBe('a, b');
   });
 });

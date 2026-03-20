@@ -1,47 +1,51 @@
 // src/audio/speech.ts — Minimal TTS for Chrome PWA on Android.
-// One speak function, no cancel/resume gymnastics.
+// Every public function builds a text string and makes ONE synth.speak()
+// call, avoiding all multi-utterance queuing issues.
 
-const TIMEOUT_MS = 5_000;
+const TIMEOUT_MS = 10_000;
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Speak a piece of text.  Returns when the utterance finishes. */
+/** Single speak call.  cancel() clears stuck Chrome queue, resume()
+ *  recovers from Chrome's silent-pause state. */
 function speak(text: string, rate = 1): Promise<void> {
   const synth = window.speechSynthesis;
+  synth.resume();
+  synth.cancel();
 
   return new Promise<void>((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = rate;
+    // Short delay after cancel — Chrome Android drops speak() if it
+    // fires synchronously after cancel().
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = rate;
 
-    let done = false;
+      let done = false;
 
-    const timeout = setTimeout(() => {
-      if (!done) {
-        done = true;
-        synth.cancel();
-        resolve(); // treat timeout as silent success so spelling continues
-      }
-    }, TIMEOUT_MS);
+      const timeout = setTimeout(() => {
+        if (!done) {
+          done = true;
+          synth.cancel();
+          resolve();
+        }
+      }, TIMEOUT_MS);
 
-    utterance.onend = () => {
-      if (!done) {
-        done = true;
-        clearTimeout(timeout);
-        resolve();
-      }
-    };
+      utterance.onend = () => {
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          resolve();
+        }
+      };
 
-    utterance.onerror = () => {
-      if (!done) {
-        done = true;
-        clearTimeout(timeout);
-        resolve(); // swallow errors so spelling continues
-      }
-    };
+      utterance.onerror = () => {
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          resolve();
+        }
+      };
 
-    synth.speak(utterance);
+      synth.speak(utterance);
+    }, 50);
   });
 }
 
@@ -57,23 +61,16 @@ export function sayWordSlowly(word: string): Promise<void> {
   return speak(word, 0.6);
 }
 
-/** Spell a word letter-by-letter. */
-export async function spellWord(word: string, delayMs = 400): Promise<void> {
-  for (const letter of word) {
-    await speak(letter);
-    await delay(delayMs);
-  }
+/** Spell a word letter-by-letter (single utterance, commas create pauses). */
+export function spellWord(word: string): Promise<void> {
+  const spelled = word.split('').join(', ');
+  return speak(spelled);
 }
 
-/** Say the word, pause, then spell it. */
-export async function sayThenSpell(
-  word: string,
-  gapMs = 300,
-  letterDelayMs = 400,
-): Promise<void> {
-  await sayWord(word);
-  await delay(gapMs);
-  await spellWord(word, letterDelayMs);
+/** Say the word, pause, then spell it (single utterance). */
+export function sayThenSpell(word: string): Promise<void> {
+  const spelled = word.split('').join(', ');
+  return speak(`${word},,,, ${spelled}`);
 }
 
 /** True when the browser supports speech synthesis. */
