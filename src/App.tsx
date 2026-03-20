@@ -148,6 +148,12 @@ function App() {
         getCoinBalance(profile.id),
       ]);
 
+      // Restore theme progress (creature growth, milestones) from IndexedDB
+      await Promise.all([
+        rewardTracker.hydrateProfile(profile.id),
+        monsterCollection.hydrateProfile(profile.id),
+      ]);
+
       setAllWords(words);
       setAllStats(stats);
       setWordLists(lists);

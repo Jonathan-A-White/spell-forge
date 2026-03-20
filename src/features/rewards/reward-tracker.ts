@@ -1,6 +1,7 @@
 import type { AppEvent, RewardEvent } from '../../contracts/types.ts';
 import { themeEngine } from '../../themes/engine.ts';
 import { monsterCollection } from './monster-collection.ts';
+import { themeProgressRepo } from '../../data/repositories/theme-progress-repo.ts';
 
 interface ProfileProgress {
   themeId: string;
@@ -21,6 +22,10 @@ function getProgress(profileId: string, themeId: string): number {
 function setProgress(profileId: string, themeId: string, progress: number): void {
   const key = getProfileKey(profileId, themeId);
   progressStore.set(key, { themeId, totalProgress: progress });
+  // Persist to IndexedDB (fire-and-forget to avoid blocking the UI)
+  themeProgressRepo.saveProgress(profileId, themeId, progress).catch(() => {
+    // Silently ignore DB errors — in-memory state is still correct
+  });
 }
 
 function processEvent(profileId: string, themeId: string, event: AppEvent): RewardEvent {
@@ -52,6 +57,18 @@ function resetAll(): void {
   progressStore.clear();
 }
 
+/**
+ * Load persisted progress from IndexedDB into the in-memory store.
+ * Call this when selecting / switching profiles.
+ */
+async function hydrateProfile(profileId: string): Promise<void> {
+  const records = await themeProgressRepo.getAllForProfile(profileId);
+  for (const rec of records) {
+    const key = getProfileKey(rec.profileId, rec.themeId);
+    progressStore.set(key, { themeId: rec.themeId, totalProgress: rec.totalProgress });
+  }
+}
+
 export const rewardTracker = {
   getProgress,
   setProgress,
@@ -59,4 +76,5 @@ export const rewardTracker = {
   getMilestoneStatus,
   resetProgress,
   resetAll,
+  hydrateProfile,
 } as const;
