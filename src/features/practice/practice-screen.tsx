@@ -11,6 +11,7 @@ import type {
   RewardEvent,
   Profile,
 } from '../../contracts/types';
+import type { WordResult } from './performance-report';
 import {
   createSession,
   recordAttempt,
@@ -34,6 +35,28 @@ interface PracticeScreenProps {
   onBack: () => void;
   onSpeak?: (word: string) => void;
   audioBusy?: boolean;
+}
+
+/** Build word-level results from session state. Each word may have 1-3 attempts;
+ *  the final attempt determines whether the word counted as correct. */
+function buildWordResults(state: SessionState): WordResult[] {
+  const wordResults: WordResult[] = [];
+  let wordIdx = 0;
+  let attemptCount = 0;
+
+  for (const result of state.results) {
+    if (wordIdx >= state.words.length) break;
+    attemptCount++;
+
+    const shouldAdvance = result.correct || attemptCount >= 3;
+    if (shouldAdvance) {
+      wordResults.push({ word: state.words[wordIdx], result });
+      wordIdx++;
+      attemptCount = 0;
+    }
+  }
+
+  return wordResults;
 }
 
 /** Serialize SessionState for IndexedDB storage */
@@ -111,6 +134,7 @@ export function PracticeScreen({
   const [session, setSession] = useState<SessionState | null>(null);
   const [sessionLog, setSessionLog] = useState<SessionLog | null>(null);
   const [reward] = useState<RewardEvent | null>(null);
+  const [wordResults, setWordResults] = useState<WordResult[]>([]);
   const [resumePrompt, setResumePrompt] = useState<SessionState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -247,6 +271,7 @@ export function PracticeScreen({
       if (newState.isComplete) {
         const log = endSession(newState);
         setSessionLog(log);
+        setWordResults(buildWordResults(newState));
         onSessionEnd(log);
         // Clear saved progress on completion
         activityProgressRepo.clear(profile.id, 'practice');
@@ -259,6 +284,7 @@ export function PracticeScreen({
     if (session) {
       const log = endSession(session, 'user-quit');
       setSessionLog(log);
+      setWordResults(buildWordResults(session));
       onSessionEnd(log);
       // Clear saved progress on quit
       activityProgressRepo.clear(profile.id, 'practice');
@@ -328,6 +354,8 @@ export function PracticeScreen({
         session={sessionLog}
         reward={reward}
         streakCount={streakCount}
+        wordResults={wordResults}
+        totalWordsInList={allWords.length}
         onDone={onBack}
       />
     );
