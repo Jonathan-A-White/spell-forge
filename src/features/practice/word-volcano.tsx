@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
+import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
   createLetterTiles,
   checkWordBuilt,
@@ -127,15 +128,19 @@ export function WordVolcano({
 
       // Check if word is complete
       if (checkWordBuilt(newSelected, currentWord)) {
+        hapticSuccess();
         const score = calcVolcanoWordScore(currentWord.length, wordMistakes, wordHints);
         setTotalScore((prev) => prev + score);
         setWordsCompleted((prev) => prev + 1);
         setWordComplete(true);
         setFeedback('correct');
         setTimeout(() => setFeedback(null), 800);
+      } else {
+        hapticTap();
       }
     } else {
       // Wrong letter
+      hapticError();
       setFeedback('wrong');
       setWordMistakes((prev) => prev + 1);
       setMistakes((prev) => prev + 1);

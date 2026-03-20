@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
+import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 
 interface LetterBankProps {
   word: string;
@@ -54,10 +55,14 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showU
         );
 
         if (newSelected.length === targetLetters.length) {
+          hapticSuccess();
           const responseTimeMs = Date.now() - startTime;
           onComplete(true, responseTimeMs, mistakeCount);
+        } else {
+          hapticTap();
         }
       } else {
+        hapticError();
         setMistakeCount((prev) => prev + 1);
         setWrongFlash(true);
         setTimeout(() => setWrongFlash(false), 300);

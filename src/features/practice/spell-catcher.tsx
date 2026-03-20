@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
+import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
   createLetterBatch,
   checkCatch,
@@ -186,13 +187,17 @@ export function SpellCatcher({
 
         // Check if word is complete
         if (newIndex >= currentWord.length) {
+          hapticSuccess();
           const score = calcWordScore(lives, maxLives, currentWord.length);
           setTotalScore((prev) => prev + score);
           setWordsCompleted((prev) => prev + 1);
           setWordComplete(true);
           setFallingLetters([]);
+        } else {
+          hapticTap();
         }
       } else {
+        hapticError();
         setFeedback({ type: 'wrong', letter: letter.letter });
         const newLives = lives - 1;
         setLives(newLives);
