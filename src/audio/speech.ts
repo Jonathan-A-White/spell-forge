@@ -54,13 +54,13 @@ function speak(text: string, rate = 1): Promise<void> {
     paused: synth.paused,
   });
 
-  // Cancel any stuck utterances sitting in the queue.  Without this,
-  // a prior utterance that never fired "end" blocks all future speech.
-  synth.cancel();
-  dbg('speak() after cancel()', { speaking: synth.speaking, pending: synth.pending });
+  // Do NOT call cancel() here — on Chrome Android, cancel() + speak() in
+  // the same tick causes "synthesis-failed".  The warmUp() call on first
+  // user interaction handles stuck-queue cleanup instead.
 
   // resume() recovers from Chrome's silent-pause (screen off / tab switch).
   synth.resume();
+  dbg('speak() after resume()', { speaking: synth.speaking, pending: synth.pending });
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = rate;
@@ -131,9 +131,13 @@ export function warmUp(): void {
   warmedUp = true;
   const synth = window.speechSynthesis;
   dbg('warmUp() priming TTS engine');
+  // Clear any stuck utterances from a previous session.
+  synth.cancel();
   // Force voice enumeration.
   pickVoice();
   // Speak a truly silent utterance so the engine is unlocked for later calls.
+  // The cancel() above is safe here because the silent utterance is just for
+  // priming — the real speak() calls happen later in separate user gestures.
   const silent = new SpeechSynthesisUtterance('');
   silent.volume = 0;
   synth.speak(silent);
