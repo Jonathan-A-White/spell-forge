@@ -30,7 +30,6 @@ function makeWord(listId: string, text: string, overrides: Partial<Word> = {}): 
     patterns: [],
     imageUrl: null,
     imageCached: false,
-    audioCustom: null,
     createdAt: new Date('2026-01-15'),
     ...overrides,
   };

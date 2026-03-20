@@ -53,7 +53,7 @@ src/
 │   ├── db.ts           # Dexie database schema (v1)
 │   ├── import-export.ts # JSON backup/restore with merge strategies
 │   └── repositories/   # Repository pattern: profile, word-list, word, stats, session, streak
-├── audio/              # Layered providers: TTS → dictionary API → custom recordings
+├── audio/              # Layered providers: TTS → dictionary API fallback
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks

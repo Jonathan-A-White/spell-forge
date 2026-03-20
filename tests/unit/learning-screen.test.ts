@@ -55,7 +55,6 @@ describe('createSession — mastered word filtering', () => {
       patterns: [],
       imageUrl: null,
       imageCached: false,
-      audioCustom: null,
       createdAt: new Date('2026-03-01'),
     };
   }

@@ -33,7 +33,6 @@ export const sampleWords: Word[] = [
     patterns: [],
     imageUrl: null,
     imageCached: false,
-    audioCustom: null,
     createdAt: new Date('2026-03-07'),
   },
   {
@@ -46,7 +45,6 @@ export const sampleWords: Word[] = [
     patterns: [],
     imageUrl: null,
     imageCached: false,
-    audioCustom: null,
     createdAt: new Date('2026-03-07'),
   },
   {
@@ -59,7 +57,6 @@ export const sampleWords: Word[] = [
     patterns: [],
     imageUrl: null,
     imageCached: false,
-    audioCustom: null,
     createdAt: new Date('2026-03-07'),
   },
   {
@@ -72,7 +69,6 @@ export const sampleWords: Word[] = [
     patterns: [],
     imageUrl: null,
     imageCached: false,
-    audioCustom: null,
     createdAt: new Date('2026-02-28'),
   },
   {
@@ -85,7 +81,6 @@ export const sampleWords: Word[] = [
     patterns: [],
     imageUrl: null,
     imageCached: false,
-    audioCustom: null,
     createdAt: new Date('2026-02-28'),
   },
 ];

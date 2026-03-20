@@ -331,7 +331,6 @@ function App() {
               patterns: [],
               imageUrl: null,
               imageCached: false,
-              audioCustom: null,
               createdAt: new Date(),
             };
             await wordRepo.create(word);
@@ -377,7 +376,6 @@ function App() {
             patterns: [],
             imageUrl: null,
             imageCached: false,
-            audioCustom: null,
             createdAt: new Date(),
           };
           await wordRepo.create(word);
@@ -441,7 +439,6 @@ function App() {
           patterns: [],
           imageUrl: null,
           imageCached: false,
-          audioCustom: null,
           createdAt: new Date(),
         };
         await wordRepo.create(word);
@@ -515,7 +512,6 @@ function App() {
         patterns: [],
         imageUrl: null,
         imageCached: false,
-        audioCustom: null,
         createdAt: new Date(),
       };
       await wordRepo.create(word);
