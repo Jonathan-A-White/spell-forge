@@ -3,6 +3,7 @@
 // call synchronously from the user gesture so Chrome doesn't block it.
 
 const TIMEOUT_MS = 10_000;
+const RETRY_DELAY_MS = 150;
 
 // ─── Debug logging ──────────────────────────────────────────
 
@@ -12,19 +13,20 @@ function dbg(msg: string, data?: Record<string, unknown>): void {
   console.log(`[TTS ${ts}] ${msg}${extra}`);
 }
 
-// ─── Voice caching ──────────────────────────────────────────
+// ─── Voice helpers ──────────────────────────────────────────
 
-let cachedVoice: SpeechSynthesisVoice | null = null;
-function pickVoice(): SpeechSynthesisVoice | null {
-  if (cachedVoice) return cachedVoice;
-  const synth = window.speechSynthesis;
-  const voices = synth.getVoices();
-  dbg('pickVoice()', { voiceCount: voices.length, sampleVoices: voices.slice(0, 5).map((v) => `${v.name} (${v.lang})`) });
-  if (voices.length === 0) return null;
-  // Prefer an English voice; fall back to whatever is first.
-  cachedVoice = voices.find((v) => v.lang.startsWith('en')) ?? voices[0];
-  dbg('pickVoice() selected', { name: cachedVoice.name, lang: cachedVoice.lang });
-  return cachedVoice;
+function logVoices(): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  dbg('Available voices', {
+    count: voices.length,
+    voices: voices.map((v) => ({
+      name: v.name,
+      lang: v.lang,
+      default: v.default,
+      local: v.localService,
+    })),
+  });
 }
 
 // Listen for voices to load asynchronously (Chrome Android fires this late).
@@ -32,81 +34,94 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   dbg('Registering onvoiceschanged listener');
   window.speechSynthesis.onvoiceschanged = () => {
     dbg('voiceschanged fired');
-    cachedVoice = null; // reset so pickVoice() re-selects
-    pickVoice();
+    logVoices();
   };
   // Also try eagerly — voices may already be available.
-  const earlyVoices = window.speechSynthesis.getVoices();
-  dbg('Early voice check', { count: earlyVoices.length });
+  logVoices();
 }
 
 // ─── Core speak() ───────────────────────────────────────────
 
-function speak(text: string, rate = 1): Promise<void> {
+/**
+ * Attempt to speak. Returns true if onend fired (success), false if
+ * onerror/timeout fired.
+ */
+function trySpeak(text: string, rate: number): Promise<boolean> {
   const synth = window.speechSynthesis;
 
-  dbg('speak() called', {
+  dbg('trySpeak()', {
     text: text.slice(0, 60),
     rate,
-    synthAvailable: !!synth,
     speaking: synth.speaking,
     pending: synth.pending,
     paused: synth.paused,
   });
 
-  // Do NOT call cancel() here — on Chrome Android, cancel() + speak() in
-  // the same tick causes "synthesis-failed".  The warmUp() call on first
-  // user interaction handles stuck-queue cleanup instead.
-
   // resume() recovers from Chrome's silent-pause (screen off / tab switch).
   synth.resume();
-  dbg('speak() after resume()', { speaking: synth.speaking, pending: synth.pending });
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = rate;
 
-  // Explicitly set a voice — Chrome Android sometimes silently fails
-  // when no voice is set and voices loaded asynchronously.
-  const voice = pickVoice();
-  if (voice) {
-    utterance.voice = voice;
-    dbg('speak() voice set', { name: voice.name, lang: voice.lang });
-  } else {
-    dbg('speak() WARNING: no voice available — using browser default');
-  }
+  // Do NOT set utterance.voice — let the OS/browser pick its default voice.
+  // On Chrome Android, forcing a voice from getVoices() can cause
+  // "synthesis-failed" if that voice isn't actually usable on the device.
 
-  return new Promise<void>((resolve) => {
+  return new Promise<boolean>((resolve) => {
     let done = false;
 
-    const finish = (reason: string) => {
+    const finish = (reason: string, success: boolean) => {
       if (!done) {
         done = true;
         clearTimeout(timeout);
-        dbg(`speak() finished — ${reason}`, {
+        dbg(`trySpeak() finished — ${reason}`, {
+          success,
           speaking: synth.speaking,
           pending: synth.pending,
         });
-        resolve();
+        resolve(success);
       }
     };
 
-    const timeout = setTimeout(() => finish('timeout'), TIMEOUT_MS);
-
-    utterance.onend = () => finish('onend');
-
+    const timeout = setTimeout(() => finish('timeout', false), TIMEOUT_MS);
+    utterance.onend = () => finish('onend', true);
     utterance.onerror = (ev) => {
-      dbg('speak() onerror fired', { error: (ev as SpeechSynthesisErrorEvent).error ?? 'unknown' });
-      finish('onerror');
+      const err = (ev as SpeechSynthesisErrorEvent).error ?? 'unknown';
+      dbg('trySpeak() onerror', { error: err });
+      finish('onerror', false);
     };
 
-    // speak() must be synchronous in the user-gesture call stack.
-    // Do NOT wrap in setTimeout — Chrome Android blocks non-gesture speech.
     synth.speak(utterance);
-    dbg('speak() synth.speak() returned', {
+    dbg('trySpeak() synth.speak() returned', {
       speaking: synth.speaking,
       pending: synth.pending,
     });
   });
+}
+
+/**
+ * Speak text with one automatic retry.  On the first attempt we call
+ * speak() synchronously in the user-gesture call stack.  If that fails
+ * with synthesis-failed, we cancel(), wait a short delay, and retry.
+ * The retry is outside the gesture context but Chrome typically allows
+ * it after a successful warm-up.
+ */
+async function speak(text: string, rate = 1): Promise<void> {
+  dbg('speak() attempt 1');
+  const ok = await trySpeak(text, rate);
+  if (ok) return;
+
+  // Retry: cancel any stuck state, short delay, then try again.
+  dbg('speak() attempt 1 failed — retrying after cancel + delay');
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  await new Promise<void>((r) => setTimeout(r, RETRY_DELAY_MS));
+
+  dbg('speak() attempt 2');
+  const ok2 = await trySpeak(text, rate);
+  if (!ok2) {
+    dbg('speak() attempt 2 also failed — giving up');
+  }
 }
 
 // ─── Warm-up ────────────────────────────────────────────────
@@ -131,16 +146,13 @@ export function warmUp(): void {
   warmedUp = true;
   const synth = window.speechSynthesis;
   dbg('warmUp() priming TTS engine');
-  // Clear any stuck utterances from a previous session.
   synth.cancel();
-  // Force voice enumeration.
-  pickVoice();
-  // Speak a truly silent utterance so the engine is unlocked for later calls.
-  // The cancel() above is safe here because the silent utterance is just for
-  // priming — the real speak() calls happen later in separate user gestures.
-  const silent = new SpeechSynthesisUtterance('');
-  silent.volume = 0;
-  synth.speak(silent);
+  logVoices();
+  // Speak a short word so the engine is truly initialised.  An empty string
+  // or volume=0 may be silently ignored by some Android TTS engines.
+  const primer = new SpeechSynthesisUtterance('.');
+  primer.volume = 0.01;   // nearly silent but not zero
+  synth.speak(primer);
   dbg('warmUp() done', { speaking: synth.speaking, pending: synth.pending });
 }
 
