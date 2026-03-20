@@ -1071,7 +1071,10 @@ function App() {
         <CoinHistory
           profileId={activeProfile.id}
           coinBalance={coinBalance}
+          allStats={activeStats}
+          activeWordCount={activeWords.length}
           onBack={() => setView('home')}
+          onNavigate={(v) => setView(v)}
         />
       );
 
