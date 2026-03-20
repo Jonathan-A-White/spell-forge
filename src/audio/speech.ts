@@ -1,12 +1,9 @@
-// src/audio/speech.ts — TTS for Chrome PWA on Android, with dictionary API
-// fallback.  Every public function first attempts the Web Speech API.  If TTS
-// fails (common on some Android devices), it falls back to fetching
-// pronunciation audio from the Free Dictionary API.
-
-import { playFromDictionary } from './dictionary-provider.ts';
+// src/audio/speech.ts — TTS for Chrome PWA on Android.  Uses only the Web
+// Speech API with robust retry logic (exponential backoff, voice fallback).
 
 const TIMEOUT_MS = 10_000;
-const RETRY_DELAY_MS = 150;
+const MAX_ATTEMPTS = 4;
+const BASE_DELAY_MS = 150;
 
 // ─── Debug logging ──────────────────────────────────────────
 
@@ -92,22 +89,38 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 // ─── TTS engine status ──────────────────────────────────────
 
-// Track whether TTS has ever succeeded.  Once we know the engine is broken
-// we skip it entirely and go straight to the dictionary fallback.
-let ttsKnownBroken = false;
+// Track consecutive failures.  After repeated failures we back off with a
+// cooldown rather than permanently giving up — TTS can recover after the
+// engine finishes initialising or after a user gesture.
+let consecutiveFailures = 0;
+let cooldownUntil = 0;
+const COOLDOWN_MS = 5_000; // wait 5 s before retrying after all attempts fail
 
 // ─── Core TTS speak ─────────────────────────────────────────
 
 /**
  * Attempt to speak via Web Speech API.  Returns true if onend fired
  * (success), false if onerror/timeout fired.
+ *
+ * @param clearFirst — cancel any stuck state before speaking (used on retries)
+ * @param voiceOverride — explicit voice to use (undefined = browser default)
  */
-function trySpeak(text: string, rate: number): Promise<boolean> {
+function trySpeak(
+  text: string,
+  rate: number,
+  clearFirst = false,
+  voiceOverride?: SpeechSynthesisVoice | null,
+): Promise<boolean> {
   const synth = window.speechSynthesis;
+
+  if (clearFirst) {
+    synth.cancel();
+  }
 
   dbg('trySpeak()', {
     text: text.slice(0, 60),
     rate,
+    clearFirst,
     speaking: synth.speaking,
     pending: synth.pending,
     paused: synth.paused,
@@ -119,12 +132,14 @@ function trySpeak(text: string, rate: number): Promise<boolean> {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = rate;
 
-  // Explicitly pick an English voice.  Many Android devices default to a
-  // non-English voice (e.g. Assamese), causing instant "synthesis-failed"
-  // when speaking English text.
-  const voice = resolveVoice();
-  if (voice) {
-    utterance.voice = voice;
+  // Use the provided voice override.  When voiceOverride is explicitly null
+  // we intentionally skip setting a voice (browser default).  When undefined
+  // we auto-resolve.
+  if (voiceOverride === undefined) {
+    const voice = resolveVoice();
+    if (voice) utterance.voice = voice;
+  } else if (voiceOverride !== null) {
+    utterance.voice = voiceOverride;
   }
 
   return new Promise<boolean>((resolve) => {
@@ -160,58 +175,56 @@ function trySpeak(text: string, rate: number): Promise<boolean> {
 }
 
 /**
- * Try TTS with one automatic retry.  Returns true if audio played.
+ * Try TTS with up to MAX_ATTEMPTS retries and exponential backoff.
+ *
+ * Strategy:
+ *   1. First attempt with the resolved English voice, no cancel.
+ *   2. Subsequent attempts cancel stuck state, wait with exponential backoff,
+ *      then retry.
+ *   3. Final attempt falls back to browser-default voice (no explicit voice)
+ *      in case the selected voice itself is broken.
+ *
+ * On total failure a short cooldown is set so callers can back off instead of
+ * hammering a broken engine.  The cooldown is reset on success.
  */
 async function ttsSpeak(text: string, rate: number): Promise<boolean> {
-  if (ttsKnownBroken) {
-    dbg('ttsSpeak() skipped — TTS known broken');
+  // Respect cooldown after repeated failures.
+  if (Date.now() < cooldownUntil) {
+    dbg('ttsSpeak() skipped — cooling down', {
+      remainingMs: cooldownUntil - Date.now(),
+    });
     return false;
   }
 
-  dbg('ttsSpeak() attempt 1');
-  const ok = await trySpeak(text, rate);
-  if (ok) return true;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const isLast = attempt === MAX_ATTEMPTS;
+    // On the last attempt, fall back to browser-default voice (null = skip
+    // explicit voice assignment) in case the selected voice is the problem.
+    const voiceOverride = isLast ? null : undefined;
 
-  // Retry: cancel any stuck state, short delay, then try again.
-  dbg('ttsSpeak() attempt 1 failed — retrying after cancel + delay');
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  await new Promise<void>((r) => setTimeout(r, RETRY_DELAY_MS));
+    dbg(`ttsSpeak() attempt ${attempt}/${MAX_ATTEMPTS}`);
+    const ok = await trySpeak(text, rate, attempt > 1, voiceOverride);
 
-  dbg('ttsSpeak() attempt 2');
-  const ok2 = await trySpeak(text, rate);
-  if (ok2) return true;
-
-  dbg('ttsSpeak() both attempts failed — marking TTS as broken');
-  ttsKnownBroken = true;
-  return false;
-}
-
-// ─── Speak with dictionary fallback ─────────────────────────
-
-/**
- * Speak a word, falling back to the dictionary API if TTS fails.
- * The `word` param is the plain word (for dictionary lookup).
- * The `ttsText` param is what to send to TTS (may include spelling).
- */
-async function speakWithFallback(
-  word: string,
-  ttsText: string,
-  rate = 1,
-): Promise<void> {
-  const ok = await ttsSpeak(ttsText, rate);
-  if (ok) return;
-
-  // Dictionary API fallback — can only pronounce whole words, not spelling.
-  dbg('Falling back to dictionary audio', { word });
-  try {
-    const played = await playFromDictionary(word);
-    if (!played) {
-      dbg('Dictionary fallback also failed', { word });
+    if (ok) {
+      consecutiveFailures = 0;
+      cooldownUntil = 0;
+      return true;
     }
-  } catch (err) {
-    dbg('Dictionary fallback threw', { word, error: String(err) });
+
+    if (!isLast) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      dbg(`ttsSpeak() attempt ${attempt} failed — retrying after ${delay}ms`);
+      await new Promise<void>((r) => setTimeout(r, delay));
+    }
   }
+
+  consecutiveFailures++;
+  cooldownUntil = Date.now() + COOLDOWN_MS;
+  dbg('ttsSpeak() all attempts failed — entering cooldown', {
+    consecutiveFailures,
+    cooldownMs: COOLDOWN_MS,
+  });
+  return false;
 }
 
 // ─── Warm-up ────────────────────────────────────────────────
@@ -251,31 +264,29 @@ export function warmUp(): void {
 // ─── Public API ─────────────────────────────────────────────
 
 /** Say a word out loud. */
-export function sayWord(word: string): Promise<void> {
+export async function sayWord(word: string): Promise<void> {
   dbg(`sayWord("${word}")`);
-  return speakWithFallback(word, word);
+  await ttsSpeak(word, 1);
 }
 
 /** Say a word slowly (0.6× speed). */
-export function sayWordSlowly(word: string): Promise<void> {
+export async function sayWordSlowly(word: string): Promise<void> {
   dbg(`sayWordSlowly("${word}")`);
-  return speakWithFallback(word, word, 0.6);
+  await ttsSpeak(word, 0.6);
 }
 
 /** Spell a word letter-by-letter (single utterance, commas create pauses). */
-export function spellWord(word: string): Promise<void> {
+export async function spellWord(word: string): Promise<void> {
   dbg(`spellWord("${word}")`);
   const spelled = word.split('').join(', ');
-  // Dictionary audio can't spell — but at least say the word as fallback.
-  return speakWithFallback(word, spelled);
+  await ttsSpeak(spelled, 1);
 }
 
 /** Say the word, pause, then spell it (single utterance). */
-export function sayThenSpell(word: string): Promise<void> {
+export async function sayThenSpell(word: string): Promise<void> {
   dbg(`sayThenSpell("${word}")`);
   const spelled = word.split('').join(', ');
-  // Dictionary fallback will just say the word (no spelling).
-  return speakWithFallback(word, `${word},,,, ${spelled}`);
+  await ttsSpeak(`${word},,,, ${spelled}`, 1);
 }
 
 /** True when the browser supports speech synthesis. */
