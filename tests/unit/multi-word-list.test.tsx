@@ -81,7 +81,7 @@ describe('ProgressView multi-list readiness', () => {
     );
 
     expect(screen.getByText('Text')).toBeTruthy();
-    expect(screen.getByText('0 of 2 words ready')).toBeTruthy();
+    expect(screen.getByText('0 of 2 words needed')).toBeTruthy();
   });
 
   it('aggregates words across multiple active lists', () => {
@@ -105,7 +105,7 @@ describe('ProgressView multi-list readiness', () => {
 
     // Should show combined count from both lists
     expect(screen.getByText('2 Active Lists')).toBeTruthy();
-    expect(screen.getByText('0 of 5 words ready')).toBeTruthy();
+    expect(screen.getByText('0 of 5 words needed')).toBeTruthy();
   });
 
   it('counts mastered/familiar words as ready across multiple lists', () => {
@@ -131,7 +131,7 @@ describe('ProgressView multi-list readiness', () => {
       />,
     );
 
-    expect(screen.getByText('2 of 4 words ready')).toBeTruthy();
+    expect(screen.getByText('2 of 4 words needed')).toBeTruthy();
   });
 
   it('does not count words from inactive/archived lists', () => {
@@ -152,7 +152,7 @@ describe('ProgressView multi-list readiness', () => {
 
     // Only 1 word from the active list
     expect(screen.getByText('Active')).toBeTruthy();
-    expect(screen.getByText('0 of 1 words ready')).toBeTruthy();
+    expect(screen.getByText('0 of 1 words needed')).toBeTruthy();
   });
 
   it('shows nothing when there are no active lists', () => {
