@@ -1,7 +1,7 @@
 // src/features/dashboard/word-detail-view.tsx — Detailed view for a single word's progress
 
 import { useState, useEffect } from 'react';
-import type { Word, WordStats, WordBucket } from '../../contracts/types';
+import type { Word, WordStats, WordBucket, WordLearningProgress } from '../../contracts/types';
 import { db } from '../../data/db';
 
 const MASTERED_MIN_DAYS = 3;
@@ -13,6 +13,7 @@ interface WordDetailViewProps {
   profileId: string;
   onBack: () => void;
   onPlayAudio?: (word: string) => void;
+  onPracticeWord?: (wordId: string) => void;
 }
 
 function formatTechniqueId(techniqueId: string): string {
@@ -56,19 +57,44 @@ function getBucketBadge(bucket: WordBucket): { label: string; className: string 
   }
 }
 
-export function WordDetailView({ wordId, profileId, onBack, onPlayAudio }: WordDetailViewProps) {
+/**
+ * Compute the effective bucket by combining spaced-rep stats with
+ * learning-stage progress, matching the logic in progress-view.tsx.
+ */
+function getEffectiveBucket(
+  stats: WordStats | null,
+  learningProgress: WordLearningProgress | null,
+): WordBucket {
+  // If word has been through spaced-rep practice, use that bucket
+  if (stats && stats.timesAsked > 0) {
+    return stats.currentBucket;
+  }
+
+  // Fall back to learning-stage progress
+  if (learningProgress) {
+    if (learningProgress.mastered || learningProgress.stage >= 2) return 'familiar';
+    if (learningProgress.stage >= 1 || learningProgress.totalAttempts > 0) return 'learning';
+  }
+
+  return stats?.currentBucket ?? 'new';
+}
+
+export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPracticeWord }: WordDetailViewProps) {
   const [word, setWord] = useState<Word | null>(null);
   const [stats, setStats] = useState<WordStats | null>(null);
+  const [learningProgress, setLearningProgress] = useState<WordLearningProgress | null>(null);
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
     async function load() {
-      const [loadedWord, loadedStats] = await Promise.all([
+      const [loadedWord, loadedStats, loadedLp] = await Promise.all([
         db.words.get(wordId),
         db.wordStats.where({ wordId, profileId }).first(),
+        db.learningProgress.where({ wordId, profileId }).first(),
       ]);
       setWord(loadedWord ?? null);
       setStats(loadedStats ?? null);
+      setLearningProgress(loadedLp ?? null);
     }
     load();
   }, [wordId, profileId]);
@@ -81,7 +107,7 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio }: WordD
     );
   }
 
-  const bucket: WordBucket = stats?.currentBucket ?? 'new';
+  const bucket: WordBucket = getEffectiveBucket(stats, learningProgress);
   const badge = getBucketBadge(bucket);
 
   // Distinct correct days
@@ -204,6 +230,14 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio }: WordD
               Mastered! Next review in {daysUntilReview ?? 0} day{daysUntilReview !== 1 ? 's' : ''}
             </span>
           </div>
+        )}
+        {onPracticeWord && bucket !== 'mastered' && bucket !== 'review' && (
+          <button
+            onClick={() => onPracticeWord(wordId)}
+            className="mt-3 w-full py-2.5 rounded-lg bg-sf-primary text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+          >
+            {bucket === 'new' ? 'Start Practicing' : 'Practice This Word'}
+          </button>
         )}
       </div>
 
