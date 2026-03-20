@@ -70,7 +70,7 @@ export function HomeScreen({
     <div className="min-h-screen bg-sf-bg">
       {/* Hero header */}
       <div className="relative overflow-hidden bg-gradient-to-br from-sf-surface via-sf-surface to-sf-surface-hover px-4 pt-3 pb-3">
-        <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 opacity-10 pointer-events-none" aria-hidden="true">
           <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-sf-primary blur-3xl" />
           <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-sf-track-fill blur-3xl" />
         </div>
