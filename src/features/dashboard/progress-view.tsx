@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { StreakData, WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
 import { getWordsDueCount } from '../../core/spaced-rep';
-import { computeProgressPercent } from '../../core/mastery';
+import { computeProgressPercent, getWordCategory } from '../../core/mastery';
 import { ReadinessIndicator } from './readiness-indicator';
 import { rewardTracker, monsterCollection } from '../rewards';
 import { themeEngine } from '../../themes';
@@ -25,40 +25,6 @@ interface ProgressViewProps {
   onSelectWord?: (wordId: string) => void;
   onAddWords: () => void;
   onBack: () => void;
-}
-
-/**
- * Compute a unified health category for each word, combining
- * spaced-rep bucket status with learning-stage progress.
- *
- * Priority: spaced-rep bucket wins if the word has been practiced.
- * If a word is still "new" in spaced-rep but has learning progress,
- * its learning stage determines the category.
- */
-function getWordCategory(
-  wordId: string,
-  statsMap: Map<string, WordStats>,
-  learningMap: Map<string, WordLearningProgress>,
-): HealthCategory {
-  const stat = statsMap.get(wordId);
-  const lp = learningMap.get(wordId);
-
-  // If word has been through spaced-rep practice, use that bucket
-  if (stat && stat.timesAsked > 0) {
-    if (stat.currentBucket === 'mastered' || stat.currentBucket === 'review') return 'mastered';
-    if (stat.currentBucket === 'familiar') return 'familiar';
-    if (stat.currentBucket === 'learning') return 'learning';
-  }
-
-  // Fall back to learning-stage progress
-  // Completing learning mode means the word is 'familiar', not 'mastered'.
-  // True mastery requires proven retention through spaced-rep practice.
-  if (lp) {
-    if (lp.mastered || lp.stage >= 2) return 'familiar';
-    if (lp.stage >= 1 || lp.totalAttempts > 0) return 'learning';
-  }
-
-  return 'new';
 }
 
 export function ProgressView({
@@ -180,7 +146,7 @@ export function ProgressView({
       {allWords.length > 0 && (
         <div className="flex justify-center gap-6 mb-4">
           <StatCircle
-            value={`${computeProgressPercent(allWords, allStats)}%`}
+            value={`${computeProgressPercent(allWords, allStats, learningProgress)}%`}
             label="Progress"
             color="bg-purple-500"
           />
