@@ -141,10 +141,10 @@ function buildQuestions(words: string[]): QuizQuestion[] {
 }
 
 export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetSize, savedState, onProgress }: SpellingQuizProps) {
-  const questions = useMemo(() => {
+  const [questions] = useState<QuizQuestion[]>(() => {
     if (savedState) return savedState.questions;
     return buildQuestions(words);
-  }, [words, savedState]);
+  });
 
   const [currentIndex, setCurrentIndex] = useState(savedState?.currentIndex ?? 0);
   const [answers, setAnswers] = useState<QuizAnswer[]>(savedState?.answers ?? []);
