@@ -356,6 +356,11 @@ export function PracticeScreen({
         streakCount={streakCount}
         wordResults={wordResults}
         totalWordsInList={allWords.length}
+        onContinue={() => {
+          setSessionLog(null);
+          setWordResults([]);
+          startFreshSession();
+        }}
         onDone={onBack}
       />
     );
