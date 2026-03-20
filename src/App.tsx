@@ -43,7 +43,7 @@ import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
-import { AudioManagerImpl, useAudioBusy } from './audio';
+import { AudioManagerImpl, useAudioBusy, warmUp as warmUpTts } from './audio';
 import { createOcrManager } from './ocr';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
@@ -96,6 +96,22 @@ function App() {
   const [practiceWordFilter, setPracticeWordFilter] = useState<Set<string> | null>(null);
 
   const audioBusy = useAudioBusy(audioManager);
+
+  // Prime the TTS engine on the first user interaction so Chrome Android
+  // unlocks audio and loads voices before the user taps "Hear it".
+  useEffect(() => {
+    const handler = () => {
+      warmUpTts();
+      document.removeEventListener('click', handler, true);
+      document.removeEventListener('touchstart', handler, true);
+    };
+    document.addEventListener('click', handler, true);
+    document.addEventListener('touchstart', handler, true);
+    return () => {
+      document.removeEventListener('click', handler, true);
+      document.removeEventListener('touchstart', handler, true);
+    };
+  }, []);
 
   // Sync view state with browser history so the OS back button
   // navigates within the app instead of closing it.
