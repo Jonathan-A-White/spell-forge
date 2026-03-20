@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
+import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
   createWaveConfig,
   spawnInvader,
@@ -305,13 +306,17 @@ export function LetterInvasion({
 
         // Check if wave (word) is complete
         if (newIndex >= currentWord.length) {
+          hapticSuccess();
           const score = calcWaveScore(currentWord.length, shield, maxShield);
           setTotalScore((prev) => prev + score);
           setWavesCleared((prev) => prev + 1);
           setWaveComplete(true);
           setInvaders([]);
+        } else {
+          hapticTap();
         }
       } else {
+        hapticError();
         setFeedback({ type: 'miss', letter: invader.letter });
         setShield((s) => {
           const newShield = s - 1;
