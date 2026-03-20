@@ -6,8 +6,8 @@ import { sayWord, sayWordSlowly, sayThenSpell, spellWord } from './speech.ts';
 export interface AudioManager {
   sayWord(word: string): Promise<void>;
   sayWordSlowly(word: string): Promise<void>;
-  spellWord(word: string, delayMs?: number): Promise<void>;
-  sayThenSpell(word: string, gapMs?: number, letterDelayMs?: number): Promise<void>;
+  spellWord(word: string): Promise<void>;
+  sayThenSpell(word: string): Promise<void>;
   isBusy(): boolean;
   runExclusive(action: () => Promise<void>): Promise<boolean>;
   onBusyChange(cb: (busy: boolean) => void): () => void;
@@ -47,12 +47,12 @@ export class AudioManagerImpl implements AudioManager {
     return sayWordSlowly(word);
   }
 
-  spellWord(word: string, delayMs?: number): Promise<void> {
-    return spellWord(word, delayMs);
+  spellWord(word: string): Promise<void> {
+    return spellWord(word);
   }
 
-  sayThenSpell(word: string, gapMs?: number, letterDelayMs?: number): Promise<void> {
-    return sayThenSpell(word, gapMs, letterDelayMs);
+  sayThenSpell(word: string): Promise<void> {
+    return sayThenSpell(word);
   }
 
   private notifyBusy(): void {

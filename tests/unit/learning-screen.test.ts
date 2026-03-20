@@ -16,8 +16,8 @@ describe('sayAndSpell', () => {
     mockAudioManager = {
       sayWord: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
       sayWordSlowly: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
-      spellWord: vi.fn<(word: string, delayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
-      sayThenSpell: vi.fn<(word: string, gapMs?: number, letterDelayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
+      spellWord: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
+      sayThenSpell: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
       isBusy: vi.fn(() => false),
       runExclusive: vi.fn(async (action: () => Promise<void>) => {
         await action();
