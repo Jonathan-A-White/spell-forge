@@ -361,7 +361,9 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
           <UnscrambleDragDrop
             scrambledLetters={currentQuestion.scrambled!}
             wordLength={currentQuestion.word.length}
-            onSubmit={(answer) => {
+            onSubmit={showFeedback
+              ? () => handleNext()
+              : (answer) => {
               setInputValue(answer);
               // Trigger submit with the drag-drop answer
               const correct = answer.toLowerCase() === currentQuestion.word.toLowerCase();
@@ -384,7 +386,6 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
             submitLabel={showFeedback
               ? (currentIndex + 1 < questions.length ? 'Next Question' : 'See Results')
               : 'Submit'}
-            submitDisabled={showFeedback}
           />
         )}
 
@@ -448,16 +449,7 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
         </div>
       )}
 
-      {/* Action buttons — for multiple-choice and unscramble next */}
-      {currentQuestion.type === 'unscramble' && showFeedback && (
-        <button
-          onClick={handleNext}
-          className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
-          style={{ minHeight: buttonSize }}
-        >
-          {currentIndex + 1 < questions.length ? 'Next Question' : 'See Results'}
-        </button>
-      )}
+      {/* Action buttons — for multiple-choice */}
       {currentQuestion.type === 'multiple-choice' && (
         !showFeedback ? (
           <button

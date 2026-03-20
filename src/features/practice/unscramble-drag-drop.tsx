@@ -369,7 +369,7 @@ export function UnscrambleDragDrop({
       {/* Submit */}
       <button
         onClick={handleSubmit}
-        disabled={disabled || submitDisabled || !allPlaced}
+        disabled={submitDisabled || !allPlaced}
         className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ minHeight: buttonSize }}
       >
