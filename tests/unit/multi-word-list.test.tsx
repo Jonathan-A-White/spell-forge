@@ -165,6 +165,6 @@ describe('ProgressView multi-list readiness', () => {
     );
 
     // Readiness indicator should not render
-    expect(screen.queryByText(/words ready/)).toBeNull();
+    expect(screen.queryByText(/words needed/)).toBeNull();
   });
 });
