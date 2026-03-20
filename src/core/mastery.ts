@@ -20,3 +20,33 @@ export function countMasteredWords(
     return stat && (stat.currentBucket === 'mastered' || stat.currentBucket === 'review');
   }).length;
 }
+
+/**
+ * Compute a weighted progress percentage that reflects partial mastery.
+ * - mastered/review: 100%
+ * - familiar: 60%
+ * - learning: 25%
+ * - new/no stats: 0%
+ */
+export function computeProgressPercent(
+  allWords: Word[],
+  allStats: WordStats[],
+): number {
+  if (allWords.length === 0) return 0;
+  const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
+
+  let totalWeight = 0;
+  for (const w of allWords) {
+    const stat = statsMap.get(w.id);
+    if (!stat || stat.timesAsked === 0) continue;
+    if (stat.currentBucket === 'mastered' || stat.currentBucket === 'review') {
+      totalWeight += 1.0;
+    } else if (stat.currentBucket === 'familiar') {
+      totalWeight += 0.6;
+    } else if (stat.currentBucket === 'learning') {
+      totalWeight += 0.25;
+    }
+  }
+
+  return Math.round((totalWeight / allWords.length) * 100);
+}

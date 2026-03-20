@@ -2,7 +2,7 @@
 
 import type { Profile, WordList, Word, WordStats, StreakData, CoinBalance } from '../../contracts/types';
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
-import { countMasteredWords } from '../../core/mastery';
+import { countMasteredWords, computeProgressPercent } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
 import { monsterCollection } from '../rewards';
 import { themeEngine } from '../../themes';
@@ -50,13 +50,13 @@ export function HomeScreen({
   const mastered = countMasteredWords(activeWords, activeStats);
   const practiceReady = activeWords.filter((w) => {
     const stat = activeStats.find((s) => s.wordId === w.id);
-    return stat && (stat.currentBucket === 'familiar' || stat.currentBucket === 'mastered' || stat.currentBucket === 'review');
+    return stat && stat.timesAsked > 0;
   }).length;
   const streak = streakData?.currentStreak ?? 0;
   const wordsDue = getWordsDueCount(activeStats);
   const coins = coinBalance?.coins ?? 0;
   const allMastered = canPlayFree(activeWords.length, mastered);
-  const masteryPercent = activeWords.length > 0 ? Math.round((mastered / activeWords.length) * 100) : 0;
+  const progressPercent = computeProgressPercent(activeWords, activeStats);
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -108,8 +108,8 @@ export function HomeScreen({
                 }`}
               >
                 {allMastered && <span className="text-xs">&#10003;</span>}
-                <span>{masteryPercent}%</span>
-                <span className="text-xs opacity-70">Mastery</span>
+                <span>{progressPercent}%</span>
+                <span className="text-xs opacity-70">Progress</span>
               </button>
               {wordsDue > 0 && (
                 <button
@@ -196,7 +196,7 @@ export function HomeScreen({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <NavCard
               title="Progress"
-              subtitle={`${mastered}/${activeWords.length} mastered`}
+              subtitle={`${practiceReady}/${activeWords.length} practiced`}
               icon={<ChartIcon />}
               onClick={() => onNavigate('progress')}
               accent="from-green-500/20 to-emerald-500/10"
@@ -204,7 +204,7 @@ export function HomeScreen({
             />
             <NavCard
               title="Learn"
-              subtitle={`${activeWords.length - mastered} new word${activeWords.length - mastered !== 1 ? 's' : ''}`}
+              subtitle={`${activeWords.length - practiceReady} new word${activeWords.length - practiceReady !== 1 ? 's' : ''}`}
               icon={<LearnIcon />}
               onClick={() => onNavigate('learning')}
               accent="from-teal-500/20 to-cyan-500/10"
