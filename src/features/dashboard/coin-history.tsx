@@ -12,9 +12,10 @@ interface CoinHistoryProps {
   activeWordCount: number;
   onBack: () => void;
   onNavigate: (view: 'learning' | 'practice') => void;
+  onAddWords: () => void;
 }
 
-export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount, onBack, onNavigate }: CoinHistoryProps) {
+export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount, onBack, onNavigate, onAddWords }: CoinHistoryProps) {
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,8 +88,8 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               reward="+1 coin"
               color="text-blue-400"
               achieved={allLearning}
-              actionLabel={activeWordCount === 0 ? undefined : 'Start Learning'}
-              onAction={() => onNavigate('learning')}
+              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Start Learning'}
+              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('learning')}
             />
             <EarnRule
               icon="🌟"
@@ -97,8 +98,8 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               reward="+1 coin"
               color="text-purple-400"
               achieved={allFamiliar}
-              actionLabel={activeWordCount === 0 ? undefined : 'Start Practice'}
-              onAction={() => onNavigate('practice')}
+              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Start Practice'}
+              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('practice')}
             />
             <EarnRule
               icon="🏆"
@@ -107,8 +108,8 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               reward="+1 coin each"
               color="text-yellow-400"
               achieved={allMastered}
-              actionLabel={activeWordCount === 0 ? undefined : 'Keep Practicing'}
-              onAction={() => onNavigate('practice')}
+              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Keep Practicing'}
+              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('practice')}
             />
           </div>
         </div>

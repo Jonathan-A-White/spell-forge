@@ -1075,6 +1075,7 @@ function App() {
           activeWordCount={activeWords.length}
           onBack={() => setView('home')}
           onNavigate={(v) => setView(v)}
+          onAddWords={() => { setEditingList(null); setView('list-editor'); }}
         />
       );
 
