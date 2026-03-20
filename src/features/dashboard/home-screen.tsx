@@ -106,7 +106,7 @@ export function HomeScreen({
 
           {/* Compact stats row — mastery, due, streak, coins */}
           {activeWords.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap relative z-10">
               <button
                 onClick={() => onNavigate('progress')}
                 className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
