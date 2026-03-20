@@ -47,6 +47,7 @@ import { SharePanel } from './features/settings/share-panel';
 import { AudioManagerImpl, useAudioBusy, warmUp as warmUpTts } from './audio';
 import { TtsDebugOverlay } from './audio/tts-debug-overlay';
 import { useTtsDebug } from './audio/tts-debug-state';
+import { useDebugMode, DebugOverlay } from './debug';
 import { createOcrManager } from './ocr';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
@@ -104,6 +105,7 @@ function App() {
 
   const audioBusy = useAudioBusy(audioManager);
   const [ttsDebugEnabled, toggleTtsDebug] = useTtsDebug();
+  const [debugModeEnabled, toggleDebugMode] = useDebugMode();
 
   // Prime the TTS engine on the first user interaction so Chrome Android
   // unlocks audio and loads voices before the user taps "Hear it".
@@ -1003,6 +1005,8 @@ function App() {
           onSendFeedback={() => setView('feedback')}
           ttsDebugEnabled={ttsDebugEnabled}
           onToggleTtsDebug={toggleTtsDebug}
+          debugModeEnabled={debugModeEnabled}
+          onToggleDebugMode={toggleDebugMode}
           onBack={() => setView('home')}
         />
       );
@@ -1114,6 +1118,7 @@ function App() {
       {renderView()}
       {showSyncBanner && <FeedbackSyncBanner />}
       <TtsDebugOverlay enabled={ttsDebugEnabled} />
+      <DebugOverlay enabled={debugModeEnabled} />
     </>
   );
 }

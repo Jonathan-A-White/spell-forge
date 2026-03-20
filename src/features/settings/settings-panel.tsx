@@ -21,6 +21,8 @@ interface SettingsPanelProps {
   onSendFeedback?: () => void;
   ttsDebugEnabled?: boolean;
   onToggleTtsDebug?: () => void;
+  debugModeEnabled?: boolean;
+  onToggleDebugMode?: () => void;
   onBack: () => void;
 }
 
@@ -50,6 +52,8 @@ export function SettingsPanel({
   onSendFeedback,
   ttsDebugEnabled,
   onToggleTtsDebug,
+  debugModeEnabled,
+  onToggleDebugMode,
   onBack,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -306,41 +310,77 @@ export function SettingsPanel({
         )}
 
         {/* Developer Settings */}
-        {onToggleTtsDebug && (
+        {(onToggleTtsDebug || onToggleDebugMode) && (
           <section>
             <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
               Developer
             </h2>
-            <button
-              onClick={onToggleTtsDebug}
-              className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
-                ttsDebugEnabled
-                  ? 'border-sf-primary bg-sf-surface shadow-md'
-                  : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
-              }`}
-              aria-pressed={ttsDebugEnabled}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
-                ttsDebugEnabled
-                  ? 'bg-sf-primary text-sf-primary-text'
-                  : 'bg-sf-track text-sf-muted'
-              }`}>
-                <TerminalIcon />
-              </div>
-              <div className="text-left flex-1">
-                <p className={`font-bold text-sm ${
-                  ttsDebugEnabled ? 'text-sf-heading' : 'text-sf-text'
-                }`}>
-                  TTS Debug Log
-                </p>
-                <p className="text-xs text-sf-muted">Show speech synthesis diagnostics on screen</p>
-              </div>
-              {ttsDebugEnabled && (
-                <div className="text-sf-primary">
-                  <CheckIcon />
-                </div>
+            <div className="space-y-2">
+              {onToggleDebugMode && (
+                <button
+                  onClick={onToggleDebugMode}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                    debugModeEnabled
+                      ? 'border-sf-primary bg-sf-surface shadow-md'
+                      : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                  }`}
+                  aria-pressed={debugModeEnabled}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
+                    debugModeEnabled
+                      ? 'bg-sf-primary text-sf-primary-text'
+                      : 'bg-sf-track text-sf-muted'
+                  }`}>
+                    <BugIcon />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className={`font-bold text-sm ${
+                      debugModeEnabled ? 'text-sf-heading' : 'text-sf-text'
+                    }`}>
+                      Debug Mode
+                    </p>
+                    <p className="text-xs text-sf-muted">Show tap targets, click log, and element info</p>
+                  </div>
+                  {debugModeEnabled && (
+                    <div className="text-sf-primary">
+                      <CheckIcon />
+                    </div>
+                  )}
+                </button>
               )}
-            </button>
+              {onToggleTtsDebug && (
+                <button
+                  onClick={onToggleTtsDebug}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                    ttsDebugEnabled
+                      ? 'border-sf-primary bg-sf-surface shadow-md'
+                      : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                  }`}
+                  aria-pressed={ttsDebugEnabled}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
+                    ttsDebugEnabled
+                      ? 'bg-sf-primary text-sf-primary-text'
+                      : 'bg-sf-track text-sf-muted'
+                  }`}>
+                    <TerminalIcon />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className={`font-bold text-sm ${
+                      ttsDebugEnabled ? 'text-sf-heading' : 'text-sf-text'
+                    }`}>
+                      TTS Debug Log
+                    </p>
+                    <p className="text-xs text-sf-muted">Show speech synthesis diagnostics on screen</p>
+                  </div>
+                  {ttsDebugEnabled && (
+                    <div className="text-sf-primary">
+                      <CheckIcon />
+                    </div>
+                  )}
+                </button>
+              )}
+            </div>
           </section>
         )}
       </div>
@@ -440,6 +480,20 @@ function FeedbackIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function BugIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <rect x="8" y="6" width="8" height="14" rx="4" />
+      <path d="M6 10H2" />
+      <path d="M22 10h-4" />
+      <path d="M6 14H2" />
+      <path d="M22 14h-4" />
+      <path d="M8 6l-2-2" />
+      <path d="M16 6l2-2" />
     </svg>
   );
 }
