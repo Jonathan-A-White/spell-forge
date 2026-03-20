@@ -16,7 +16,51 @@ function dbg(msg: string, data?: Record<string, unknown>): void {
   console.log(`[TTS ${ts}] ${msg}${extra}`);
 }
 
-// ─── Voice helpers ──────────────────────────────────────────
+// ─── Voice selection ────────────────────────────────────────
+
+// Cache the best English voice once found.  Null means "not yet resolved",
+// undefined means "no suitable voice found — use browser default".
+let cachedEnglishVoice: SpeechSynthesisVoice | undefined | null = null;
+
+/**
+ * Pick the best English voice from the available set.
+ * Preference order: en_US > en_GB > en_AU > en_IN > any en_*.
+ * Returns undefined if no English voice is available.
+ */
+function pickEnglishVoice(): SpeechSynthesisVoice | undefined {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return undefined;
+
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return undefined;
+
+  // Normalise lang tags: "en_US" and "en-US" both occur.
+  const english = voices.filter((v) => /^en[-_]/i.test(v.lang));
+  if (english.length === 0) return undefined;
+
+  // Rank by preference.
+  const rank = (v: SpeechSynthesisVoice): number => {
+    const lang = v.lang.replace('_', '-').toLowerCase();
+    if (lang.startsWith('en-us')) return 0;
+    if (lang.startsWith('en-gb')) return 1;
+    if (lang.startsWith('en-au')) return 2;
+    return 3;
+  };
+
+  english.sort((a, b) => rank(a) - rank(b));
+  return english[0];
+}
+
+function resolveVoice(): SpeechSynthesisVoice | undefined {
+  if (cachedEnglishVoice !== null) return cachedEnglishVoice;
+  const voice = pickEnglishVoice();
+  cachedEnglishVoice = voice;
+  if (voice) {
+    dbg('Selected English voice', { name: voice.name, lang: voice.lang });
+  } else {
+    dbg('No English voice found — using browser default');
+  }
+  return voice;
+}
 
 function logVoices(): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -38,6 +82,9 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => {
     dbg('voiceschanged fired');
     logVoices();
+    // Re-resolve voice when the list changes (voices load async on Android).
+    cachedEnglishVoice = null;
+    resolveVoice();
   };
   // Also try eagerly — voices may already be available.
   logVoices();
@@ -72,9 +119,13 @@ function trySpeak(text: string, rate: number): Promise<boolean> {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = rate;
 
-  // Do NOT set utterance.voice — let the OS/browser pick its default voice.
-  // On Chrome Android, forcing a voice from getVoices() can cause
-  // "synthesis-failed" if that voice isn't actually usable on the device.
+  // Explicitly pick an English voice.  Many Android devices default to a
+  // non-English voice (e.g. Assamese), causing instant "synthesis-failed"
+  // when speaking English text.
+  const voice = resolveVoice();
+  if (voice) {
+    utterance.voice = voice;
+  }
 
   return new Promise<boolean>((resolve) => {
     let done = false;
@@ -153,9 +204,13 @@ async function speakWithFallback(
 
   // Dictionary API fallback — can only pronounce whole words, not spelling.
   dbg('Falling back to dictionary audio', { word });
-  const played = await playFromDictionary(word);
-  if (!played) {
-    dbg('Dictionary fallback also failed', { word });
+  try {
+    const played = await playFromDictionary(word);
+    if (!played) {
+      dbg('Dictionary fallback also failed', { word });
+    }
+  } catch (err) {
+    dbg('Dictionary fallback threw', { word, error: String(err) });
   }
 }
 
@@ -187,6 +242,8 @@ export function warmUp(): void {
   // or volume=0 may be silently ignored by some Android TTS engines.
   const primer = new SpeechSynthesisUtterance('.');
   primer.volume = 0.01; // nearly silent but not zero
+  const voice = resolveVoice();
+  if (voice) primer.voice = voice;
   synth.speak(primer);
   dbg('warmUp() done', { speaking: synth.speaking, pending: synth.pending });
 }
