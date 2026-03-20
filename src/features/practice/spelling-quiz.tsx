@@ -230,6 +230,17 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
     }
   }, [results, onComplete]);
 
+  // Auto-play audio when a new question appears (fill-blank and unscramble only)
+  const onSpeakRef = useRef(onSpeak);
+  useEffect(() => {
+    onSpeakRef.current = onSpeak;
+  }, [onSpeak]);
+  useEffect(() => {
+    if (currentQuestion && (currentQuestion.type === 'fill-blank' || currentQuestion.type === 'unscramble')) {
+      onSpeakRef.current?.(currentQuestion.word);
+    }
+  }, [currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const buttonSize = `${tapTargetSize}px`;
 
   // Results screen
