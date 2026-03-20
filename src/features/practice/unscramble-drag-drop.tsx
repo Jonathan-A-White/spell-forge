@@ -296,9 +296,9 @@ export function UnscrambleDragDrop({
         })}
       </div>
 
-      {/* Drag hint */}
-      <p className="text-xs text-sf-faint select-none">
-        Drag letters into the slots, or tap to place
+      {/* Instruction hint */}
+      <p className="text-xs text-sf-faint select-none text-center">
+        Tap a letter to place it in the next empty slot. Tap a placed letter to remove it.
       </p>
 
       {/* Letter bank */}

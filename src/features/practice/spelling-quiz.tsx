@@ -125,7 +125,7 @@ function buildQuestions(words: string[]): QuizQuestion[] {
         return {
           word,
           type,
-          prompt: `Unscramble the letters to spell the word:`,
+          prompt: `Tap the letters in order to spell the word:`,
           scrambled: scrambleWord(lower),
         };
       }
@@ -323,8 +323,6 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
 
   return (
     <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto w-full">
-      <h2 className="text-xl font-bold text-sf-heading">Spelling Quiz</h2>
-
       {/* Progress */}
       <div className="w-full">
         <div className="flex justify-between text-sm text-sf-muted mb-1">

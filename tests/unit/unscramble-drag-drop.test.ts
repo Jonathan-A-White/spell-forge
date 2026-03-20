@@ -95,7 +95,7 @@ describe('UnscrambleDragDrop', () => {
 
   it('renders drag hint text', () => {
     renderComponent();
-    expect(screen.getByText('Drag letters into the slots, or tap to place')).toBeDefined();
+    expect(screen.getByText('Tap a letter to place it in the next empty slot. Tap a placed letter to remove it.')).toBeDefined();
   });
 
   it('supports HTML5 drag and drop to a slot', () => {
