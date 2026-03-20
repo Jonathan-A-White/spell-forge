@@ -315,7 +315,13 @@ export function ProgressView({
             onToggle={() => handleToggleCategory('new')}
           />
           {expandedCategory === 'new' && (
-            <WordList words={categoryWords.new} color="text-sf-muted" onSelectWord={onSelectWord} />
+            <>
+              <WordList words={categoryWords.new} color="text-sf-muted" onSelectWord={onSelectWord} />
+              <PracticeCategoryButton
+                label="Learn New Words"
+                onPractice={() => onPracticeWords(categoryWords.new.map((w) => w.id))}
+              />
+            </>
           )}
         </div>
       </div>
