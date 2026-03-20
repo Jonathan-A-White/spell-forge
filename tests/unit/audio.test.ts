@@ -64,6 +64,12 @@ describe('sayWord', () => {
     expect(utterance.rate).toBe(1);
   });
 
+  it('should cancel pending speech before speaking', async () => {
+    const { sayWord } = await getSpeech();
+    await sayWord('hello');
+    expect(mockSynth.cancel).toHaveBeenCalled();
+  });
+
   it('should speak slowly at reduced rate', async () => {
     const { sayWordSlowly } = await getSpeech();
     await sayWordSlowly('world');
@@ -102,6 +108,15 @@ describe('sayThenSpell', () => {
     expect(mockSynth.speak).toHaveBeenCalledOnce();
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     expect(utterance.text).toBe('hi,,,, h, i');
+  });
+});
+
+describe('warmUp', () => {
+  it('should speak a silent utterance to prime the TTS engine', async () => {
+    const { warmUp } = await import('../../src/audio/speech.ts');
+    warmUp();
+    // warmUp speaks one silent utterance (volume=0) to unlock audio.
+    expect(mockSynth.speak).toHaveBeenCalled();
   });
 });
 
