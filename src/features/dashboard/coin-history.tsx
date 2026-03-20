@@ -1,16 +1,20 @@
 // src/features/dashboard/coin-history.tsx — Coin history view: shows earning/spending log + how to earn
 
 import { useState, useEffect } from 'react';
-import type { CoinBalance, CoinTransaction } from '../../contracts/types';
+import type { CoinBalance, CoinTransaction, WordStats } from '../../contracts/types';
 import { coinTransactionRepo } from '../../data/repositories/coin-transaction-repo';
+import { allWordsAtLeastBucket } from '../../core/spaced-rep';
 
 interface CoinHistoryProps {
   profileId: string;
   coinBalance: CoinBalance | null;
+  allStats: WordStats[];
+  activeWordCount: number;
   onBack: () => void;
+  onNavigate: (view: 'learning' | 'practice') => void;
 }
 
-export function CoinHistory({ profileId, coinBalance, onBack }: CoinHistoryProps) {
+export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount, onBack, onNavigate }: CoinHistoryProps) {
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,6 +28,10 @@ export function CoinHistory({ profileId, coinBalance, onBack }: CoinHistoryProps
   const coins = coinBalance?.coins ?? 0;
   const totalEarned = coinBalance?.totalEarned ?? 0;
   const totalSpent = coinBalance?.totalSpent ?? 0;
+
+  const allLearning = activeWordCount > 0 && allWordsAtLeastBucket(allStats, activeWordCount, 'learning');
+  const allFamiliar = activeWordCount > 0 && allWordsAtLeastBucket(allStats, activeWordCount, 'familiar');
+  const allMastered = activeWordCount > 0 && allWordsAtLeastBucket(allStats, activeWordCount, 'mastered');
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -78,6 +86,9 @@ export function CoinHistory({ profileId, coinBalance, onBack }: CoinHistoryProps
               description="Get all your active words to the Learning stage"
               reward="+1 coin"
               color="text-blue-400"
+              achieved={allLearning}
+              actionLabel={activeWordCount === 0 ? undefined : 'Start Learning'}
+              onAction={() => onNavigate('learning')}
             />
             <EarnRule
               icon="🌟"
@@ -85,6 +96,9 @@ export function CoinHistory({ profileId, coinBalance, onBack }: CoinHistoryProps
               description="Get all your active words to the Familiar stage"
               reward="+1 coin"
               color="text-purple-400"
+              achieved={allFamiliar}
+              actionLabel={activeWordCount === 0 ? undefined : 'Start Practice'}
+              onAction={() => onNavigate('practice')}
             />
             <EarnRule
               icon="🏆"
@@ -92,6 +106,9 @@ export function CoinHistory({ profileId, coinBalance, onBack }: CoinHistoryProps
               description="Get 5+ correct in a row across 3+ days"
               reward="+1 coin each"
               color="text-yellow-400"
+              achieved={allMastered}
+              actionLabel={activeWordCount === 0 ? undefined : 'Keep Practicing'}
+              onAction={() => onNavigate('practice')}
             />
           </div>
         </div>
@@ -134,9 +151,12 @@ interface EarnRuleProps {
   description: string;
   reward: string;
   color: string;
+  achieved?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-function EarnRule({ icon, title, description, reward, color }: EarnRuleProps) {
+function EarnRule({ icon, title, description, reward, color, achieved, actionLabel, onAction }: EarnRuleProps) {
   return (
     <div className="flex items-start gap-3">
       <span className="text-lg flex-shrink-0">{icon}</span>
@@ -146,6 +166,21 @@ function EarnRule({ icon, title, description, reward, color }: EarnRuleProps) {
           <span className={`text-xs font-bold ${color} flex-shrink-0`}>{reward}</span>
         </div>
         <p className="text-sf-muted text-xs">{description}</p>
+        {achieved ? (
+          <span className="inline-flex items-center gap-1 mt-1.5 text-xs text-green-400 font-medium">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Achieved
+          </span>
+        ) : actionLabel && onAction ? (
+          <button
+            onClick={onAction}
+            className="mt-1.5 px-3 py-1 text-xs font-medium rounded-full bg-sf-primary/20 text-sf-primary hover:bg-sf-primary/30 transition-colors"
+          >
+            {actionLabel}
+          </button>
+        ) : null}
       </div>
     </div>
   );
