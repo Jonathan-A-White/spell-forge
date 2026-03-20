@@ -1078,7 +1078,7 @@ function App() {
           allStats={activeStats}
           activeWordCount={activeWords.length}
           onBack={() => setView('home')}
-          onNavigate={(v) => setView(v)}
+          onNavigate={(v, wordFilter) => { if (wordFilter) setPracticeWordFilter(wordFilter); setView(v); }}
           onAddWords={() => { setEditingList(null); setView('list-editor'); }}
         />
       );
