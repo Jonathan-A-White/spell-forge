@@ -44,6 +44,7 @@ import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { SharePanel } from './features/settings/share-panel';
 import { AudioManagerImpl, useAudioBusy, warmUp as warmUpTts } from './audio';
+import { TtsDebugOverlay } from './audio/tts-debug-overlay';
 import { createOcrManager } from './ocr';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
@@ -832,7 +833,7 @@ function App() {
           onSessionEnd={(log) => { handleSessionEnd(log); setPracticeWordFilter(null); }}
           onStatsUpdate={handleStatsUpdate}
           onBack={() => { setView('home'); setPracticeWordFilter(null); }}
-          onSpeak={(word) => audioManager.runExclusive(() => audioManager.sayWord(word))}
+          onSpeak={(word) => { console.log(`[Audio] onSpeak("${word}")`); return audioManager.runExclusive(() => audioManager.sayWord(word)); }}
           audioBusy={audioBusy}
         />
       );
@@ -850,7 +851,7 @@ function App() {
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
           onGoLearn={() => setView('learning')}
-          onSpeak={(word) => audioManager.runExclusive(() => audioManager.sayWord(word))}
+          onSpeak={(word) => { console.log(`[Audio] onSpeak("${word}")`); return audioManager.runExclusive(() => audioManager.sayWord(word)); }}
           audioBusy={audioBusy}
         />
       );
@@ -864,7 +865,7 @@ function App() {
           allWords={activeWords}
           onSessionEnd={handleSessionEnd}
           onBack={() => setView('home')}
-          onSpeak={(word) => audioManager.runExclusive(() => audioManager.sayWord(word))}
+          onSpeak={(word) => { console.log(`[Audio] onSpeak("${word}")`); return audioManager.runExclusive(() => audioManager.sayWord(word)); }}
           audioBusy={audioBusy}
         />
       );
@@ -1026,6 +1027,7 @@ function App() {
     <>
       {renderView()}
       {showSyncBanner && <FeedbackSyncBanner />}
+      <TtsDebugOverlay />
     </>
   );
 }
