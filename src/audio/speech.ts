@@ -1,51 +1,49 @@
 // src/audio/speech.ts — Minimal TTS for Chrome PWA on Android.
 // Every public function builds a text string and makes ONE synth.speak()
-// call, avoiding all multi-utterance queuing issues.
+// call synchronously from the user gesture so Chrome doesn't block it.
 
 const TIMEOUT_MS = 10_000;
 
-/** Single speak call.  cancel() clears stuck Chrome queue, resume()
- *  recovers from Chrome's silent-pause state. */
 function speak(text: string, rate = 1): Promise<void> {
   const synth = window.speechSynthesis;
+
+  // resume() recovers from Chrome's silent-pause (screen off / tab switch).
   synth.resume();
-  synth.cancel();
+
+  // Speak synchronously — no setTimeout, no cancel().  setTimeout would
+  // move speak() out of the user-gesture call stack and Chrome Android
+  // would block it.  cancel() before speak() causes the new utterance to
+  // be immediately cancelled on modern Chrome.
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = rate;
 
   return new Promise<void>((resolve) => {
-    // Short delay after cancel — Chrome Android drops speak() if it
-    // fires synchronously after cancel().
-    setTimeout(() => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = rate;
+    let done = false;
 
-      let done = false;
+    const timeout = setTimeout(() => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    }, TIMEOUT_MS);
 
-      const timeout = setTimeout(() => {
-        if (!done) {
-          done = true;
-          synth.cancel();
-          resolve();
-        }
-      }, TIMEOUT_MS);
+    utterance.onend = () => {
+      if (!done) {
+        done = true;
+        clearTimeout(timeout);
+        resolve();
+      }
+    };
 
-      utterance.onend = () => {
-        if (!done) {
-          done = true;
-          clearTimeout(timeout);
-          resolve();
-        }
-      };
+    utterance.onerror = () => {
+      if (!done) {
+        done = true;
+        clearTimeout(timeout);
+        resolve();
+      }
+    };
 
-      utterance.onerror = () => {
-        if (!done) {
-          done = true;
-          clearTimeout(timeout);
-          resolve();
-        }
-      };
-
-      synth.speak(utterance);
-    }, 50);
+    synth.speak(utterance);
   });
 }
 
