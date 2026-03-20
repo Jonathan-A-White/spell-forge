@@ -3,6 +3,8 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
 import { calcRunnerPosition, formatTime, calcStumbleDelay, calcStarRating } from './relay-race-logic';
+import { SpellingField } from './custom-keyboard';
+import { hapticSuccess, hapticError } from '../../core/haptics';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -72,7 +74,6 @@ export function WordRelayRace({
   const [elapsedMs, setElapsedMs] = useState(savedState?.elapsedMs ?? 0);
   const [countdownValue, setCountdownValue] = useState<number | null>(null);
 
-  const inputRef = useRef<HTMLInputElement>(null);
   const onProgressRef = useRef(onProgress);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -126,8 +127,7 @@ export function WordRelayRace({
         const now = Date.now();
         setRaceStartTime(now);
         setWordStartTime(now);
-        // Focus the input after countdown
-        setTimeout(() => inputRef.current?.focus(), 50);
+        // Countdown complete
       }
     }, 700);
   }, []);
@@ -152,15 +152,16 @@ export function WordRelayRace({
 
     if (correct) {
       // Advance immediately
+      hapticSuccess();
       const newTimes = [...wordTimes, wordTime];
       setWordTimes(newTimes);
       setCurrentIndex((prev) => prev + 1);
       setInputValue('');
       setWordStartTime(Date.now());
       setLastCorrect(null);
-      setTimeout(() => inputRef.current?.focus(), 50);
     } else {
       // Stumble — brief delay, then let them try again
+      hapticError();
       setStumbling(true);
       const delay = calcStumbleDelay(currentWord.length);
 
@@ -173,7 +174,6 @@ export function WordRelayRace({
         setLastCorrect(null);
         setCurrentIndex((prev) => prev + 1);
         setWordStartTime(Date.now());
-        setTimeout(() => inputRef.current?.focus(), 50);
       }, delay);
     }
   }, [currentWord, inputValue, stumbling, wordStartTime, wordTimes]);
@@ -435,28 +435,22 @@ export function WordRelayRace({
           </p>
 
           {/* Input */}
-          <input
-            ref={inputRef}
-            type="text"
+          <SpellingField
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSubmit();
-            }}
+            onChange={setInputValue}
+            onSubmit={handleSubmit}
             disabled={stumbling}
             placeholder={stumbling ? 'Stumbled! Wait...' : 'Type spelling...'}
-            className={`w-full p-3 rounded-xl border-2 font-medium text-center text-lg focus:outline-none focus:ring-2 transition-all ${
+            tapTargetSize={tapTargetSize}
+            submitLabel="Go!"
+            ariaLabel="Type the spelling word"
+            displayClassName={
               stumbling
-                ? 'border-red-400 bg-red-50 text-red-400 focus:ring-red-300'
+                ? 'border-red-400 bg-red-50 text-red-400'
                 : lastCorrect === false
-                  ? 'border-red-400 bg-sf-surface text-sf-heading focus:ring-red-300'
-                  : 'border-sf-border-strong bg-sf-surface text-sf-heading focus:ring-sf-primary/50'
-            }`}
-            style={{ minHeight: buttonSize }}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
+                  ? 'border-red-400'
+                  : undefined
+            }
           />
 
           {/* Feedback flash */}
@@ -468,17 +462,6 @@ export function WordRelayRace({
         </div>
       )}
 
-      {/* Submit button */}
-      {!stumbling && (
-        <button
-          onClick={handleSubmit}
-          disabled={!inputValue.trim()}
-          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ minHeight: buttonSize }}
-        >
-          Go!
-        </button>
-      )}
     </div>
   );
 }

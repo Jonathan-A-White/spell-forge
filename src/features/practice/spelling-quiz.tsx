@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
+import { SpellingField } from './custom-keyboard';
+import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface SpellingQuizProps {
   words: string[];
@@ -197,6 +199,9 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
       correct = userAnswer === currentQuestion.word.toLowerCase();
     }
 
+    if (correct) hapticSuccess();
+    else hapticError();
+
     setLastCorrect(correct);
     setShowFeedback(true);
 
@@ -385,25 +390,18 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
         )}
 
         {(currentQuestion.type === 'fill-blank' || currentQuestion.type === 'unscramble') && (
-          <input
-            type="text"
+          <SpellingField
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                if (showFeedback) handleNext();
-                else handleSubmit();
-              }
-            }}
+            onChange={setInputValue}
+            onSubmit={showFeedback ? handleNext : handleSubmit}
             disabled={showFeedback}
             placeholder="Type your answer..."
-            className="w-full p-3 rounded-xl border-2 border-sf-border-strong bg-sf-surface text-sf-heading font-medium text-center text-lg focus:outline-none focus:ring-2 focus:ring-sf-primary/50"
-            style={{ minHeight: buttonSize }}
-            autoFocus
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
+            tapTargetSize={tapTargetSize}
+            submitLabel={showFeedback
+              ? (currentIndex + 1 < questions.length ? 'Next Question' : 'See Results')
+              : 'Submit'}
+            submitDisabled={!showFeedback && !inputValue.trim()}
+            ariaLabel="Type your answer"
           />
         )}
       </div>
@@ -422,27 +420,26 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
         </div>
       )}
 
-      {/* Action buttons */}
-      {!showFeedback ? (
-        <button
-          onClick={handleSubmit}
-          disabled={
-            (currentQuestion.type === 'multiple-choice' && !selectedOption) ||
-            ((currentQuestion.type === 'fill-blank' || currentQuestion.type === 'unscramble') && !inputValue.trim())
-          }
-          className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ minHeight: buttonSize }}
-        >
-          Submit
-        </button>
-      ) : (
-        <button
-          onClick={handleNext}
-          className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
-          style={{ minHeight: buttonSize }}
-        >
-          {currentIndex + 1 < questions.length ? 'Next Question' : 'See Results'}
-        </button>
+      {/* Action buttons — only for multiple-choice (fill-blank/unscramble use custom keyboard submit) */}
+      {currentQuestion.type === 'multiple-choice' && (
+        !showFeedback ? (
+          <button
+            onClick={handleSubmit}
+            disabled={!selectedOption}
+            className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ minHeight: buttonSize }}
+          >
+            Submit
+          </button>
+        ) : (
+          <button
+            onClick={handleNext}
+            className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
+            style={{ minHeight: buttonSize }}
+          >
+            {currentIndex + 1 < questions.length ? 'Next Question' : 'See Results'}
+          </button>
+        )
       )}
     </div>
   );

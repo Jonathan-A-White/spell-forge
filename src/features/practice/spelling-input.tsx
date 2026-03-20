@@ -1,7 +1,9 @@
 // src/features/practice/spelling-input.tsx — Full word text input for practice mode
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SpellingComparison } from './spelling-comparison';
+import { SpellingField } from './custom-keyboard';
+import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface SpellingInputProps {
   word: string;
@@ -21,19 +23,9 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
   const [retypeValue, setRetypeValue] = useState('');
   const [wordVisible, setWordVisible] = useState(true);
   const [startTime] = useState(() => Date.now());
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const targetWord = word.toLowerCase();
   const fontSize = `${Math.max(18, tapTargetSize * 0.5)}px`;
-
-  // Focus the input when the phase changes to input or retype
-  useEffect(() => {
-    if (phase === 'input' || phase === 'retype') {
-      // Small delay to ensure the element is rendered
-      const timer = setTimeout(() => inputRef.current?.focus(), 50);
-      return () => clearTimeout(timer);
-    }
-  }, [phase]);
 
   // Hide the reference word after 5 seconds in the retype phase
   // wordVisible is set to true by handleStartRetype and handleRetypeSubmit
@@ -50,55 +42,38 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
 
     if (trimmed === targetWord) {
       // Correct on first try — move on immediately
+      hapticSuccess();
       const responseTimeMs = Date.now() - startTime;
       onComplete(true, responseTimeMs, 0);
     } else {
       // Wrong — show comparison, then require retypes
+      hapticError();
       setPhase('comparison');
     }
   }, [attempt, targetWord, startTime, onComplete]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleSubmit();
-      }
-    },
-    [handleSubmit],
-  );
 
   const handleRetypeSubmit = useCallback(() => {
     const trimmed = retypeValue.trim().toLowerCase();
     if (trimmed !== targetWord) {
       // Wrong retype — clear and let them try again
+      hapticError();
       setRetypeValue('');
-      inputRef.current?.focus();
       return;
     }
 
     const newCount = retypeCount + 1;
     if (newCount >= REQUIRED_RETYPES) {
       // Done retyping — move on (counted as incorrect since initial attempt was wrong)
+      hapticSuccess();
       const responseTimeMs = Date.now() - startTime;
       onComplete(true, responseTimeMs, 1);
     } else {
+      hapticSuccess();
       setRetypeCount(newCount);
       setRetypeValue('');
       setWordVisible(true);
-      inputRef.current?.focus();
     }
   }, [retypeValue, targetWord, retypeCount, startTime, onComplete]);
-
-  const handleRetypeKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleRetypeSubmit();
-      }
-    },
-    [handleRetypeSubmit],
-  );
 
   const handleStartRetype = useCallback(() => {
     setPhase('retype');
@@ -132,33 +107,16 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
           </div>
         )}
 
-        <input
-          ref={inputRef}
-          type="text"
+        <SpellingField
           value={attempt}
-          onChange={(e) => setAttempt(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onChange={setAttempt}
+          onSubmit={handleSubmit}
           placeholder="Type the word..."
-          autoComplete="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          className="w-full text-center font-bold rounded-xl border-2 border-sf-border-strong bg-sf-surface text-sf-heading focus:border-sf-primary focus:outline-none transition-colors"
-          style={{
-            fontSize,
-            padding: `${tapTargetSize * 0.3}px ${tapTargetSize * 0.4}px`,
-            minHeight: `${tapTargetSize}px`,
-          }}
-          aria-label="Type the spelling word"
+          tapTargetSize={tapTargetSize}
+          fontSize={fontSize}
+          submitLabel="Check"
+          ariaLabel="Type the spelling word"
         />
-
-        <button
-          onClick={handleSubmit}
-          disabled={attempt.trim().length === 0}
-          className="w-full bg-sf-primary hover:bg-sf-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
-          style={{ minHeight: `${tapTargetSize}px`, fontSize }}
-        >
-          Check
-        </button>
       </div>
     );
   }
@@ -211,33 +169,16 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
         )}
       </div>
 
-      <input
-        ref={inputRef}
-        type="text"
+      <SpellingField
         value={retypeValue}
-        onChange={(e) => setRetypeValue(e.target.value)}
-        onKeyDown={handleRetypeKeyDown}
+        onChange={setRetypeValue}
+        onSubmit={handleRetypeSubmit}
         placeholder="Type the word..."
-        autoComplete="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        className="w-full text-center font-bold rounded-xl border-2 border-sf-border-strong bg-sf-surface text-sf-heading focus:border-sf-primary focus:outline-none transition-colors"
-        style={{
-          fontSize,
-          padding: `${tapTargetSize * 0.3}px ${tapTargetSize * 0.4}px`,
-          minHeight: `${tapTargetSize}px`,
-        }}
-        aria-label="Retype the word correctly"
+        tapTargetSize={tapTargetSize}
+        fontSize={fontSize}
+        submitLabel="Submit"
+        ariaLabel="Retype the word correctly"
       />
-
-      <button
-        onClick={handleRetypeSubmit}
-        disabled={retypeValue.trim().length === 0}
-        className="w-full bg-sf-primary hover:bg-sf-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors"
-        style={{ minHeight: `${tapTargetSize}px`, fontSize }}
-      >
-        Submit
-      </button>
     </div>
   );
 }
