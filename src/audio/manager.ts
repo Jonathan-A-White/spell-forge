@@ -3,6 +3,8 @@
 
 import { sayWord, sayWordSlowly, sayThenSpell, spellWord } from './speech.ts';
 
+const dbg = (msg: string) => console.log(`[AudioMgr] ${msg}`);
+
 export interface AudioManager {
   sayWord(word: string): Promise<void>;
   sayWordSlowly(word: string): Promise<void>;
@@ -22,11 +24,18 @@ export class AudioManagerImpl implements AudioManager {
   }
 
   async runExclusive(action: () => Promise<void>): Promise<boolean> {
-    if (this.busy) return false;
+    if (this.busy) {
+      dbg('runExclusive() SKIPPED — already busy');
+      return false;
+    }
+    dbg('runExclusive() starting');
     this.busy = true;
     this.notifyBusy();
     try {
       await action();
+      dbg('runExclusive() action completed');
+    } catch (err) {
+      dbg(`runExclusive() action threw: ${err}`);
     } finally {
       this.busy = false;
       this.notifyBusy();
