@@ -68,7 +68,6 @@ Built for children like Paul — a 3rd grader with double vision who loves creat
 
 ### Multi-Layer Audio
 
-- **Custom recordings** — highest priority, for personalized pronunciation
 - **Browser TTS** — Web Speech API, works fully offline
 - **Dictionary API** — online fallback with natural pronunciation
 - Supports `speak()`, `speakSlowly()`, and `speakChunks()` for scaffolding

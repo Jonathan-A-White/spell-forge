@@ -52,7 +52,6 @@ export interface Word {
   patterns: DetectedPattern[];
   imageUrl: string | null;
   imageCached: boolean;
-  audioCustom: Blob | null;
   createdAt: Date;
 }
 

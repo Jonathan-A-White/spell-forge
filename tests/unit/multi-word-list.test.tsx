@@ -30,7 +30,6 @@ function makeWord(listId: string, text: string): Word {
     patterns: [],
     imageUrl: null,
     imageCached: false,
-    audioCustom: null,
     createdAt: new Date('2026-03-07'),
   };
 }
