@@ -2,8 +2,8 @@
 // Speech API with robust retry logic (exponential backoff, voice fallback).
 
 const TIMEOUT_MS = 10_000;
-const MAX_ATTEMPTS = 4;
-const BASE_DELAY_MS = 150;
+const MAX_ATTEMPTS = 5;
+const BASE_DELAY_MS = 500; // longer base delay — engine needs real recovery time
 
 // ─── Debug logging ──────────────────────────────────────────
 
@@ -95,23 +95,28 @@ const COOLDOWN_MS = 5_000; // wait 5 s before retrying after all attempts fail
 
 // ─── Core TTS speak ─────────────────────────────────────────
 
+/** Voice + lang strategy for a single TTS attempt. */
+interface SpeakStrategy {
+  voice: SpeechSynthesisVoice | null;
+  lang: string | null; // null = don't set lang attribute
+  label: string;       // human-readable label for logs
+}
+
 /**
  * Attempt to speak via Web Speech API.  Returns true if onend fired
  * (success), false if onerror/timeout fired.
- *
- * @param voice — explicit voice to use, or null to use only the lang attribute
  */
 function trySpeak(
   text: string,
   rate: number,
-  voice: SpeechSynthesisVoice | null,
+  strategy: SpeakStrategy,
 ): Promise<boolean> {
   const synth = window.speechSynthesis;
 
   dbg('trySpeak()', {
     text: text.slice(0, 60),
     rate,
-    voice: voice ? { name: voice.name, lang: voice.lang } : 'none (lang-only)',
+    strategy: strategy.label,
     speaking: synth.speaking,
     pending: synth.pending,
     paused: synth.paused,
@@ -122,12 +127,12 @@ function trySpeak(
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = rate;
-  // Always set the lang attribute so the engine knows this is English text,
-  // even when the device default voice is non-English (e.g. Assamese).
-  utterance.lang = 'en-US';
 
-  if (voice) {
-    utterance.voice = voice;
+  if (strategy.lang) {
+    utterance.lang = strategy.lang;
+  }
+  if (strategy.voice) {
+    utterance.voice = strategy.voice;
   }
 
   return new Promise<boolean>((resolve) => {
@@ -163,27 +168,49 @@ function trySpeak(
 }
 
 /**
- * Build a list of voice strategies to try.  Each entry is a voice object or
- * null (meaning "no explicit voice — rely on utterance.lang only").
+ * Build a list of strategies to try.  Each one varies the voice and/or lang
+ * attribute to work around different failure modes:
  *
- * We try each distinct English voice once, then a final lang-only attempt.
- * This way if en_US is listed but broken, en_GB / en_AU / en_IN get a shot.
+ *   1-3. English voices (en_US, en_GB, en_AU) with lang='en-US'
+ *   4.   Device default voice with lang='en-US' — some engines can speak any
+ *        language with any voice; the default voice may have a working synth
+ *        pipeline even when English-specific ones are broken.
+ *   5.   Bare-minimum utterance — no voice, no lang.  Lets the engine pick
+ *        everything itself.  Works around Chrome bugs where setting lang
+ *        triggers a broken code path.
  */
-function buildVoiceStrategies(): Array<SpeechSynthesisVoice | null> {
-  const voices = getEnglishVoices();
-  // Cap at MAX_ATTEMPTS-1 voices so we always have room for a lang-only try.
-  const strategies: Array<SpeechSynthesisVoice | null> = voices.slice(0, MAX_ATTEMPTS - 1);
-  strategies.push(null); // final: lang-only, no explicit voice
+function buildStrategies(): SpeakStrategy[] {
+  const englishVoices = getEnglishVoices();
+  const strategies: SpeakStrategy[] = [];
+
+  // English voices with lang='en-US' (up to 3).
+  for (const v of englishVoices.slice(0, 3)) {
+    strategies.push({ voice: v, lang: 'en-US', label: `${v.name} + lang=en-US` });
+  }
+
+  // Device default voice with lang='en-US'.  On Android, the default voice
+  // (e.g. Assamese) may still be able to synthesise English text — the lang
+  // attribute tells the engine what language the text is in.
+  const allVoices = typeof window !== 'undefined' && 'speechSynthesis' in window
+    ? window.speechSynthesis.getVoices()
+    : [];
+  const defaultVoice = allVoices.find((v) => v.default) ?? allVoices[0] ?? null;
+  if (defaultVoice && !englishVoices.includes(defaultVoice)) {
+    strategies.push({
+      voice: defaultVoice,
+      lang: 'en-US',
+      label: `default voice (${defaultVoice.name}) + lang=en-US`,
+    });
+  }
+
+  // Bare-minimum: no voice, no lang.  The engine picks everything.
+  strategies.push({ voice: null, lang: null, label: 'bare-minimum (no voice, no lang)' });
+
   return strategies;
 }
 
 /**
- * Try TTS, cycling through available English voices with exponential backoff.
- *
- * Strategy per attempt:
- *   1. cancel() to clear any stuck engine state (skipped on first attempt)
- *   2. Wait with exponential backoff (skipped on first attempt)
- *   3. Try a different English voice (cycles through en_US → en_GB → … → lang-only)
+ * Try TTS, cycling through voice strategies with exponential backoff.
  *
  * On total failure a short cooldown prevents hammering a broken engine.
  */
@@ -196,26 +223,26 @@ async function ttsSpeak(text: string, rate: number): Promise<boolean> {
     return false;
   }
 
-  const strategies = buildVoiceStrategies();
+  const strategies = buildStrategies();
   const attempts = Math.min(strategies.length, MAX_ATTEMPTS);
 
   for (let i = 0; i < attempts; i++) {
-    const voice = strategies[i];
+    const strategy = strategies[i];
     const attemptNum = i + 1;
 
     // On retries: cancel stuck state and wait for the engine to recover.
     if (i > 0) {
       const synth = window.speechSynthesis;
       synth.cancel();
-      const delay = BASE_DELAY_MS * Math.pow(2, i);
+      const delay = BASE_DELAY_MS * Math.pow(2, i - 1);
       dbg(`ttsSpeak() attempt ${attemptNum - 1} failed — cancel + wait ${delay}ms`);
       await new Promise<void>((r) => setTimeout(r, delay));
     }
 
     dbg(`ttsSpeak() attempt ${attemptNum}/${attempts}`, {
-      voice: voice ? voice.name : 'lang-only',
+      strategy: strategy.label,
     });
-    const ok = await trySpeak(text, rate, voice);
+    const ok = await trySpeak(text, rate, strategy);
 
     if (ok) {
       consecutiveFailures = 0;
@@ -258,29 +285,32 @@ export function warmUp(): Promise<void> {
   warmedUp = true;
   const synth = window.speechSynthesis;
   dbg('warmUp() priming TTS engine');
-  synth.cancel();
   logVoices();
 
-  return new Promise<void>((resolve) => {
-    const primer = new SpeechSynthesisUtterance('.');
-    primer.volume = 0.01; // nearly silent but not zero
-    primer.lang = 'en-US';
-    const voices = getEnglishVoices();
-    if (voices.length > 0) primer.voice = voices[0];
+  // Don't cancel() before the primer — on some Chrome versions, cancel()
+  // leaves the engine in a bad state that makes the next speak() fail.
+  // Instead, just speak the primer directly.  If something was queued, the
+  // primer will be appended and eventually played.
 
-    const done = () => {
-      dbg('warmUp() engine primed', { speaking: synth.speaking, pending: synth.pending });
+  return new Promise<void>((resolve) => {
+    let resolved = false;
+    const finish = (reason: string) => {
+      if (resolved) return;
+      resolved = true;
+      dbg(`warmUp() ${reason}`, { speaking: synth.speaking, pending: synth.pending });
       resolve();
     };
 
-    primer.onend = done;
-    primer.onerror = () => {
-      dbg('warmUp() primer failed — engine may need user gesture');
-      resolve(); // resolve anyway so callers aren't blocked
-    };
+    // Use bare-minimum config — no voice, no lang.  This maximises the chance
+    // of the primer succeeding across different Chrome/Android combinations.
+    const primer = new SpeechSynthesisUtterance('.');
+    primer.volume = 0.01; // nearly silent but not zero
+
+    primer.onend = () => finish('primer succeeded');
+    primer.onerror = () => finish('primer failed — engine may need user gesture');
 
     // Safety timeout — don't block forever if the engine is unresponsive.
-    setTimeout(done, 2000);
+    setTimeout(() => finish('primer timed out'), 2000);
 
     synth.speak(primer);
     dbg('warmUp() primer queued', { speaking: synth.speaking, pending: synth.pending });
