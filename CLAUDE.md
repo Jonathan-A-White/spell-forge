@@ -53,7 +53,7 @@ src/
 │   ├── db.ts           # Dexie database schema (v1)
 │   ├── import-export.ts # JSON backup/restore with merge strategies
 │   └── repositories/   # Repository pattern: profile, word-list, word, stats, session, streak
-├── audio/              # Layered providers: TTS → dictionary API fallback
+├── audio/              # Web Speech API TTS with robust retry logic
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks
@@ -64,7 +64,7 @@ src/
 
 - **Repository pattern** — all data access goes through `src/data/repositories/`. Never access Dexie tables directly from UI code.
 - **Event bus** — cross-module communication via `src/contracts/events.ts`. Events include `word:attempted`, `session:started`, `session:ended`, `reward:earned`, `streak:updated`, `profile:switched`, `settings:changed`.
-- **Provider pattern** — audio system uses priority-based provider fallback (TTS → dictionary → custom).
+- **TTS retry pattern** — audio uses Web Speech API with exponential backoff, voice fallback, and cooldown recovery.
 - **Central contracts** — all entity types defined in `src/contracts/types.ts`. Import types from `src/contracts/`, not from individual modules.
 
 ### Database Schema (Dexie v1)
