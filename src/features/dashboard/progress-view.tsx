@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { StreakData, WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
 import { getWordsDueCount } from '../../core/spaced-rep';
+import { computeProgressPercent } from '../../core/mastery';
 import { ReadinessIndicator } from './readiness-indicator';
 import { rewardTracker, monsterCollection } from '../rewards';
 import { themeEngine } from '../../themes';
@@ -172,8 +173,8 @@ export function ProgressView({
       {allWords.length > 0 && (
         <div className="flex justify-center gap-6 mb-4">
           <StatCircle
-            value={`${allWords.length > 0 ? Math.round((mastered / allWords.length) * 100) : 0}%`}
-            label="Mastery"
+            value={`${computeProgressPercent(allWords, allStats)}%`}
+            label="Progress"
             color="bg-purple-500"
           />
           <StatCircle
