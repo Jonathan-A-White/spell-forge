@@ -394,7 +394,7 @@ export function LearningScreen({
     ? Math.round((sessionState.masteredCount / sessionState.totalWords) * 100)
     : 0;
 
-  const stageLabels = ['Full Word', '1 Hidden', '2 Hidden', 'Audio Only'];
+  const stageLabels = ['Full Word', '⅓ Hidden', '⅔ Hidden', 'Audio Only'];
 
   return (
     <div className="min-h-screen bg-sf-bg p-4 flex flex-col">

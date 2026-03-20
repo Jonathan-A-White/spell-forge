@@ -81,14 +81,21 @@ describe('getInputMode', () => {
 describe('getHiddenCount', () => {
   it('hides 0 letters at stage 0', () => {
     expect(getHiddenCount(0, 5)).toBe(0);
+    expect(getHiddenCount(0, 9)).toBe(0);
   });
 
-  it('hides 1 letter at stage 1', () => {
-    expect(getHiddenCount(1, 5)).toBe(1);
+  it('hides ~1/3 of letters at stage 1', () => {
+    expect(getHiddenCount(1, 3)).toBe(1);   // round(3/3) = 1
+    expect(getHiddenCount(1, 5)).toBe(2);   // round(5/3) = 2
+    expect(getHiddenCount(1, 9)).toBe(3);   // round(9/3) = 3
+    expect(getHiddenCount(1, 1)).toBe(1);   // min 1
   });
 
-  it('hides 2 letters at stage 2', () => {
-    expect(getHiddenCount(2, 5)).toBe(2);
+  it('hides ~2/3 of letters at stage 2', () => {
+    expect(getHiddenCount(2, 3)).toBe(2);   // round(6/3) = 2
+    expect(getHiddenCount(2, 5)).toBe(3);   // round(10/3) = 3
+    expect(getHiddenCount(2, 9)).toBe(6);   // round(18/3) = 6
+    expect(getHiddenCount(2, 1)).toBe(1);   // min 1
   });
 
   it('hides all letters at stage 3', () => {
