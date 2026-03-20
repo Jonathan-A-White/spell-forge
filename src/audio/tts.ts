@@ -112,6 +112,51 @@ function speakWithRate(word: string, rate: number): Promise<void> {
   });
 }
 
+/**
+ * Speak a short chunk (single letter) without calling cancel() first.
+ * Used inside speakChunks where cancel is done once before the loop.
+ */
+function speakChunkDirect(word: string): Promise<void> {
+  const synth = window.speechSynthesis;
+  synth.resume();
+
+  return new Promise<void>((resolve, reject) => {
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 1;
+
+    const voice = pickVoice();
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        synth.cancel();
+        reject(new Error('Speech synthesis timed out'));
+      }
+    }, SPEAK_TIMEOUT_MS);
+
+    utterance.onend = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      }
+    };
+    utterance.onerror = (event) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(new Error(`Speech synthesis error: ${event.error}`));
+      }
+    };
+
+    synth.speak(utterance);
+  });
+}
+
 export class TtsProvider implements AudioProvider {
   readonly priority = 10;
 
@@ -124,11 +169,20 @@ export class TtsProvider implements AudioProvider {
   }
 
   async speakChunks(chunks: string[], delayMs = 500): Promise<void> {
+    const synth = window.speechSynthesis;
+
+    // Cancel once at the start so previous audio stops, then speak each
+    // chunk without the per-utterance cancel+settle that drops short
+    // utterances on Chrome Android.
+    synth.resume();
+    synth.cancel();
+    await delay(CANCEL_SETTLE_MS);
+
     for (let i = 0; i < chunks.length; i++) {
       if (i > 0) {
         await delay(delayMs);
       }
-      await this.speak(chunks[i]);
+      await speakChunkDirect(chunks[i]);
     }
   }
 

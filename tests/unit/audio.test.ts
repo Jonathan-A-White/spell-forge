@@ -258,16 +258,28 @@ describe('AudioManagerImpl', () => {
     expect(provider.speakSlowly).toHaveBeenCalledWith('slow');
   });
 
-  it('should speak each chunk individually through provider fallback', async () => {
+  it('should delegate speakChunks to a single provider for voice consistency', async () => {
     const manager = new AudioManagerImpl();
     const provider = createMockProvider(3, true);
     manager.registerProvider(provider);
 
     await manager.speakChunks(['a', 'b'], 200);
-    // Each chunk is spoken individually via speak(), not delegated to provider.speakChunks
-    expect(provider.speak).toHaveBeenCalledWith('a');
-    expect(provider.speak).toHaveBeenCalledWith('b');
-    expect(provider.speak).toHaveBeenCalledTimes(2);
+    // Entire sequence is delegated to the provider so the voice stays consistent
+    expect(provider.speakChunks).toHaveBeenCalledWith(['a', 'b'], 200);
+    expect(provider.speak).not.toHaveBeenCalled();
+  });
+
+  it('should fall back to next provider when speakChunks fails', async () => {
+    const manager = new AudioManagerImpl();
+    const failing = createMockProvider(5, true, true);
+    const backup = createMockProvider(1, true);
+
+    manager.registerProvider(failing);
+    manager.registerProvider(backup);
+
+    await manager.speakChunks(['a', 'b'], 0);
+    expect(failing.speakChunks).toHaveBeenCalled();
+    expect(backup.speakChunks).toHaveBeenCalled();
   });
 
   // ─── runExclusive / isBusy ──────────────────────────────────
