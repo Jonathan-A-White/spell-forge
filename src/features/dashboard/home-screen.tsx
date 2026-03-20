@@ -63,8 +63,8 @@ export function HomeScreen({
   const allMastered = canPlayFree(activeWords.length, mastered);
   const readinessTarget = Math.ceil(activeWords.length * (gradeGoal ?? 100) / 100);
   const progressPercent = readinessTarget > 0
-    ? Math.min(100, Math.round(computeProgressPercent(activeWords, activeStats) * activeWords.length / readinessTarget))
-    : computeProgressPercent(activeWords, activeStats);
+    ? Math.min(100, Math.round(computeProgressPercent(activeWords, activeStats, learningProgress) * activeWords.length / readinessTarget))
+    : computeProgressPercent(activeWords, activeStats, learningProgress);
 
   return (
     <div className="min-h-screen bg-sf-bg">
