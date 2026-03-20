@@ -30,7 +30,7 @@ import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
 import { HomeScreen } from './features/dashboard/home-screen';
 import { ProgressView } from './features/dashboard/progress-view';
-import { WordDetailView, CoinHistory } from './features/dashboard';
+import { WordDetailView, CoinHistory, PracticeCalendar } from './features/dashboard';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { PracticeGames } from './features/practice/practice-games';
 import { QuizScreen } from './features/practice/quiz-screen';
@@ -56,7 +56,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar';
 
 const eventBus = createEventBus();
 
@@ -1071,6 +1071,16 @@ function App() {
         <CoinHistory
           profileId={activeProfile.id}
           coinBalance={coinBalance}
+          onBack={() => setView('home')}
+        />
+      );
+
+    case 'practice-calendar':
+      if (!activeProfile) return null;
+      return (
+        <PracticeCalendar
+          profileId={activeProfile.id}
+          streakData={streakData}
           onBack={() => setView('home')}
         />
       );
