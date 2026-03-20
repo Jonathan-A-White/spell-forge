@@ -127,6 +127,7 @@ function App() {
   // navigates within the app instead of closing it.
   useBackButton(view, setView, 'home', ['loading', 'db-blocked']);
 
+
   const selectProfile = useCallback(async (profile: Profile) => {
     const safeSettings = validateSettings(profile.settings ?? {});
     const safeProfile = { ...profile, settings: safeSettings };
@@ -336,6 +337,21 @@ function App() {
     setLearningProgress(updatedLp);
     setCoinBalance(updatedCoins);
   }, [activeProfile]);
+
+  // Navigate back through browser history instead of hardcoding destinations.
+  // Performs cleanup for the current view before navigating.
+  const goBack = useCallback(() => {
+    if (view === 'practice') {
+      setPracticeWordFilter(null);
+    } else if (view === 'learning') {
+      refreshListData();
+    } else if (view === 'list-editor') {
+      setEditingList(null);
+    } else if (view === 'word-list-detail') {
+      setViewingList(null);
+    }
+    window.history.back();
+  }, [view, refreshListData]);
 
   const handleSaveList = useCallback(
     async (name: string, words: string[], testDate: Date | null) => {
@@ -867,7 +883,7 @@ function App() {
           streakCount={streakData?.currentStreak ?? 0}
           onSessionEnd={(log) => { handleSessionEnd(log); setPracticeWordFilter(null); }}
           onStatsUpdate={handleStatsUpdate}
-          onBack={() => { setView('home'); setPracticeWordFilter(null); }}
+          onBack={goBack}
           onSpeak={(word) => { console.log(`[Audio] onSpeak("${word}")`); return audioManager.runExclusive(() => audioManager.sayWord(word)); }}
           audioBusy={audioBusy}
         />
@@ -884,7 +900,7 @@ function App() {
           allMastered={allMastered}
           onSpendCoin={handleSpendCoin}
           onSessionEnd={handleSessionEnd}
-          onBack={() => setView('home')}
+          onBack={goBack}
           onGoLearn={() => setView('learning')}
           onSpeak={(word) => { console.log(`[Audio] onSpeak("${word}")`); return audioManager.runExclusive(() => audioManager.sayWord(word)); }}
           audioBusy={audioBusy}
@@ -899,7 +915,7 @@ function App() {
           activeList={activeList}
           allWords={activeWords}
           onSessionEnd={handleSessionEnd}
-          onBack={() => setView('home')}
+          onBack={goBack}
           onSpeak={(word) => { console.log(`[Audio] onSpeak("${word}")`); return audioManager.runExclusive(() => audioManager.sayWord(word)); }}
           audioBusy={audioBusy}
         />
@@ -911,7 +927,7 @@ function App() {
         <LearningScreen
           profile={activeProfile}
           audioManager={audioManager}
-          onBack={() => { refreshListData(); setView('home'); }}
+          onBack={goBack}
           onWordMastered={handleWordMasteredInLearning}
         />
       );
@@ -927,7 +943,7 @@ function App() {
           ocrManager={ocrManager}
           importFilterPhrases={activeProfile?.importFilterWords}
           onSave={handleSaveList}
-          onCancel={() => { setEditingList(null); setView('word-lists'); }}
+          onCancel={goBack}
         />
       );
     }
@@ -936,7 +952,7 @@ function App() {
       return (
         <FeedbackForm
           onSubmit={handleFeedback}
-          onCancel={() => setView('home')}
+          onCancel={goBack}
         />
       );
 
@@ -964,7 +980,7 @@ function App() {
               setView('word-detail');
             }}
             onAddWords={() => setView('list-editor')}
-            onBack={() => setView('home')}
+            onBack={goBack}
           />
         </div>
       );
@@ -975,7 +991,7 @@ function App() {
         <WordDetailView
           wordId={selectedWordId}
           profileId={activeProfile.id}
-          onBack={() => setView('progress')}
+          onBack={goBack}
           onPlayAudio={(word) => audioManager.runExclusive(() => audioManager.sayWord(word))}
           onPracticeWord={(wordId) => {
             setPracticeWordFilter(new Set([wordId]));
@@ -1007,12 +1023,12 @@ function App() {
           onToggleTtsDebug={toggleTtsDebug}
           debugModeEnabled={debugModeEnabled}
           onToggleDebugMode={toggleDebugMode}
-          onBack={() => setView('home')}
+          onBack={goBack}
         />
       );
 
     case 'share':
-      return <SharePanel onBack={() => setView('home')} />;
+      return <SharePanel onBack={goBack} />;
 
     case 'word-list-detail':
       if (!activeProfile || !viewingList) return null;
@@ -1025,7 +1041,7 @@ function App() {
           onUpdateWord={handleUpdateWord}
           onDeleteWord={handleDeleteWord}
           onAddWord={handleAddWordToList}
-          onBack={() => { setViewingList(null); setView('word-lists'); }}
+          onBack={goBack}
           onEditList={(list) => { setEditingList(list); setView('list-editor'); }}
         />
       );
@@ -1046,7 +1062,7 @@ function App() {
           onUnarchiveList={handleUnarchiveList}
           onImportFromCamera={() => { setEditingList(null); setView('list-editor'); }}
           onImportFromQr={() => setView('qr-import')}
-          onBack={() => setView('home')}
+          onBack={goBack}
         />
       );
 
@@ -1055,7 +1071,7 @@ function App() {
       return (
         <QrImport
           onImport={handleQrImport}
-          onCancel={() => setView('word-lists')}
+          onCancel={goBack}
         />
       );
 
@@ -1065,7 +1081,7 @@ function App() {
         <MonsterStable
           profile={activeProfile}
           collection={monsterCollection.getCollection(activeProfile.id)}
-          onBack={() => setView('home')}
+          onBack={goBack}
         />
       );
 
@@ -1077,7 +1093,7 @@ function App() {
           coinBalance={coinBalance}
           allStats={activeStats}
           activeWordCount={activeWords.length}
-          onBack={() => setView('home')}
+          onBack={goBack}
           onNavigate={(v, wordFilter) => { if (wordFilter) setPracticeWordFilter(wordFilter); setView(v); }}
           onAddWords={() => { setEditingList(null); setView('list-editor'); }}
         />
@@ -1089,7 +1105,7 @@ function App() {
         <PracticeCalendar
           profileId={activeProfile.id}
           streakData={streakData}
-          onBack={() => setView('home')}
+          onBack={goBack}
         />
       );
 
