@@ -942,6 +942,10 @@ function App() {
           profileId={activeProfile.id}
           onBack={() => setView('progress')}
           onPlayAudio={(word) => audioManager.runExclusive(() => audioManager.sayWord(word))}
+          onPracticeWord={(wordId) => {
+            setPracticeWordFilter(new Set([wordId]));
+            setView('practice');
+          }}
         />
       );
 
