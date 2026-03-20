@@ -366,9 +366,9 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
               let optionStyle = 'bg-sf-surface border-sf-border hover:border-sf-primary';
               if (showFeedback) {
                 if (option === currentQuestion.word.toLowerCase()) {
-                  optionStyle = 'bg-green-100 border-green-500';
+                  optionStyle = 'bg-green-100 border-green-500 text-green-900';
                 } else if (option === selectedOption && !lastCorrect) {
-                  optionStyle = 'bg-red-100 border-red-400';
+                  optionStyle = 'bg-red-100 border-red-400 text-red-900';
                 }
               } else if (option === selectedOption) {
                 optionStyle = 'bg-sf-primary/20 border-sf-primary';
