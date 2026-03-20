@@ -30,6 +30,7 @@ import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
 import { HomeScreen } from './features/dashboard/home-screen';
 import { ProgressView } from './features/dashboard/progress-view';
+import { WordDetailView } from './features/dashboard';
 import { PracticeScreen } from './features/practice/practice-screen';
 import { PracticeGames } from './features/practice/practice-games';
 import { QuizScreen } from './features/practice/quiz-screen';
@@ -55,7 +56,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import';
 
 const eventBus = createEventBus();
 
@@ -96,6 +97,7 @@ function App() {
   const [viewingList, setViewingList] = useState<WordList | null>(null);
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
   const [practiceWordFilter, setPracticeWordFilter] = useState<Set<string> | null>(null);
+  const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
 
   const audioBusy = useAudioBusy(audioManager);
   const [ttsDebugEnabled, toggleTtsDebug] = useTtsDebug();
@@ -916,15 +918,31 @@ function App() {
             learningProgress={learningProgress}
             activeLists={activeLists}
             daysUntilTest={daysUntilTest}
+            gradeGoal={activeProfile?.gradeGoal ?? 100}
             onStartPractice={() => setView('practice')}
             onPracticeWords={(wordIds) => {
               setPracticeWordFilter(new Set(wordIds));
               setView('practice');
             }}
+            onSelectWord={(wordId) => {
+              setSelectedWordId(wordId);
+              setView('word-detail');
+            }}
             onAddWords={() => setView('list-editor')}
             onBack={() => setView('home')}
           />
         </div>
+      );
+
+    case 'word-detail':
+      if (!activeProfile || !selectedWordId) return null;
+      return (
+        <WordDetailView
+          wordId={selectedWordId}
+          profileId={activeProfile.id}
+          onBack={() => setView('progress')}
+          onPlayAudio={(word) => audioManager.runExclusive(() => audioManager.sayWord(word))}
+        />
       );
 
     case 'settings':
@@ -937,6 +955,11 @@ function App() {
           onImportFilterWordsChange={handleImportFilterWordsChange}
           onContrastModeChange={handleContrastModeChange}
           onPresetApply={handlePresetApply}
+          onGradeGoalChange={async (goal) => {
+            const updated = { ...activeProfile, gradeGoal: goal };
+            await profileRepo.update(updated.id, { gradeGoal: goal });
+            setActiveProfile(updated);
+          }}
           onExportProfile={handleExportProfile}
           onImportProfile={handleImportProfile}
           onShare={() => setView('share')}
@@ -1017,6 +1040,7 @@ function App() {
           streakData={streakData}
           coinBalance={coinBalance}
           learningProgress={learningProgress}
+          gradeGoal={activeProfile?.gradeGoal}
           onNavigate={(target) => setView(target)}
           onSwitchProfile={() => setView('profile-select')}
           hasMultipleProfiles={profiles.length > 1}

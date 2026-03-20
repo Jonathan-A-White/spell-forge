@@ -14,6 +14,7 @@ export interface Profile {
   settings: AccessibilitySettings;
   importFilterWords?: string[];  // words/phrases to auto-exclude from camera import
   status?: ProfileStatus; // defaults to 'active' for backward compat
+  gradeGoal?: number; // target % of words at familiar+ for readiness (80, 90, or 100; default 100)
 }
 
 export interface AccessibilitySettings {

@@ -19,8 +19,10 @@ interface ProgressViewProps {
   learningProgress: WordLearningProgress[];
   activeLists: WordList[];
   daysUntilTest: number | null;
+  gradeGoal?: number;
   onStartPractice: () => void;
   onPracticeWords: (wordIds: string[]) => void;
+  onSelectWord?: (wordId: string) => void;
   onAddWords: () => void;
   onBack: () => void;
 }
@@ -68,8 +70,10 @@ export function ProgressView({
   learningProgress,
   activeLists,
   daysUntilTest,
+  gradeGoal,
   onStartPractice,
   onPracticeWords,
+  onSelectWord,
   onAddWords,
   onBack,
 }: ProgressViewProps) {
@@ -111,8 +115,11 @@ export function ProgressView({
     const cat = getWordCategory(w.id, statsMap, learningMap);
     return cat === 'mastered' || cat === 'familiar';
   }).length;
-  const readinessPercent = activeListWords.length > 0
-    ? Math.round((activeListReady / activeListWords.length) * 100)
+  const readinessTarget = activeListWords.length > 0
+    ? Math.ceil(activeListWords.length * (gradeGoal ?? 100) / 100)
+    : 0;
+  const readinessPercent = readinessTarget > 0
+    ? Math.min(100, Math.round((activeListReady / readinessTarget) * 100))
     : 0;
   const readinessLabel = activeLists.length === 1
     ? activeLists[0].name
@@ -243,6 +250,7 @@ export function ProgressView({
           daysUntilTest={daysUntilTest}
           wordsTotal={activeListWords.length}
           wordsReady={activeListReady}
+          gradeGoal={gradeGoal}
         />
       )}
 
@@ -262,7 +270,7 @@ export function ProgressView({
             onToggle={() => handleToggleCategory('mastered')}
           />
           {expandedCategory === 'mastered' && (
-            <WordList words={categoryWords.mastered} color="text-green-500" />
+            <WordList words={categoryWords.mastered} color="text-green-500" onSelectWord={onSelectWord} />
           )}
           <HealthBar
             label="Familiar"
@@ -274,7 +282,7 @@ export function ProgressView({
           />
           {expandedCategory === 'familiar' && (
             <>
-              <WordList words={categoryWords.familiar} color="text-yellow-500" />
+              <WordList words={categoryWords.familiar} color="text-yellow-500" onSelectWord={onSelectWord} />
               <PracticeCategoryButton
                 label="Practice Familiar Words"
                 onPractice={() => onPracticeWords(categoryWords.familiar.map((w) => w.id))}
@@ -291,7 +299,7 @@ export function ProgressView({
           />
           {expandedCategory === 'learning' && (
             <>
-              <WordList words={categoryWords.learning} color="text-orange-500" />
+              <WordList words={categoryWords.learning} color="text-orange-500" onSelectWord={onSelectWord} />
               <PracticeCategoryButton
                 label="Practice Learning Words"
                 onPractice={() => onPracticeWords(categoryWords.learning.map((w) => w.id))}
@@ -307,7 +315,7 @@ export function ProgressView({
             onToggle={() => handleToggleCategory('new')}
           />
           {expandedCategory === 'new' && (
-            <WordList words={categoryWords.new} color="text-sf-muted" />
+            <WordList words={categoryWords.new} color="text-sf-muted" onSelectWord={onSelectWord} />
           )}
         </div>
       </div>
@@ -423,19 +431,22 @@ function PracticeCategoryButton({ label, onPractice }: { label: string; onPracti
   );
 }
 
-function WordList({ words, color }: { words: Word[]; color: string }) {
+function WordList({ words, color, onSelectWord }: { words: Word[]; color: string; onSelectWord?: (wordId: string) => void }) {
   if (words.length === 0) return null;
 
   return (
     <div className="ml-2 mb-2 pl-4 border-l-2 border-sf-border">
       <div className="flex flex-wrap gap-2 py-2">
         {words.map((w) => (
-          <span
+          <button
             key={w.id}
-            className={`inline-block text-sm font-medium ${color} bg-sf-surface border border-sf-border rounded-lg px-3 py-1`}
+            onClick={() => onSelectWord?.(w.id)}
+            className={`inline-flex items-center gap-1 text-sm font-medium ${color} bg-sf-surface border border-sf-border rounded-lg px-3 py-1 hover:bg-sf-surface-hover cursor-pointer transition-colors`}
+            aria-label={`View details for ${w.text}`}
           >
             {w.text}
-          </span>
+            <span className="text-sf-muted text-xs" aria-hidden="true">&rsaquo;</span>
+          </button>
         ))}
       </div>
     </div>

@@ -8,12 +8,13 @@ import { ImportFilterSettings } from './import-filter-settings';
 type ContrastMode = AccessibilitySettings['contrastMode'];
 
 interface SettingsPanelProps {
-  profile: { name: string; themeId: string };
+  profile: { name: string; themeId: string; gradeGoal?: number };
   settings: AccessibilitySettings;
   importFilterWords?: string[];
   onImportFilterWordsChange?: (phrases: string[]) => void;
   onContrastModeChange: (mode: ContrastMode) => void;
   onPresetApply: (preset: NamedPreset) => void;
+  onGradeGoalChange?: (goal: number) => void;
   onExportProfile?: () => void;
   onImportProfile?: (file: File) => void;
   onShare?: () => void;
@@ -23,6 +24,12 @@ interface SettingsPanelProps {
   onBack: () => void;
 }
 
+const gradeGoalOptions: { value: number; label: string; description: string }[] = [
+  { value: 80, label: '80%', description: 'A solid foundation' },
+  { value: 90, label: '90%', description: 'Well prepared' },
+  { value: 100, label: '100%', description: 'Fully mastered' },
+];
+
 const contrastModes: { value: ContrastMode; label: string; description: string; icon: string }[] = [
   { value: 'light', label: 'Light', description: 'Warm, easy on the eyes', icon: 'sun' },
   { value: 'dark', label: 'Dark', description: 'Easier in low light', icon: 'moon' },
@@ -30,11 +37,13 @@ const contrastModes: { value: ContrastMode; label: string; description: string; 
 ];
 
 export function SettingsPanel({
+  profile,
   settings,
   importFilterWords,
   onImportFilterWordsChange,
   onContrastModeChange,
   onPresetApply,
+  onGradeGoalChange,
   onExportProfile,
   onImportProfile,
   onShare,
@@ -143,6 +152,56 @@ export function SettingsPanel({
             })}
           </div>
         </section>
+
+        {/* Grade Goal */}
+        {onGradeGoalChange && (
+          <section>
+            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-1">
+              Grade Goal
+            </h2>
+            <p className="text-xs text-sf-muted mb-3">
+              Percentage of words that need to be familiar or mastered to be test-ready
+            </p>
+            <div className="space-y-2">
+              {gradeGoalOptions.map((option) => {
+                const isSelected = (profile.gradeGoal ?? 100) === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => onGradeGoalChange(option.value)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                      isSelected
+                        ? 'border-sf-primary bg-sf-surface shadow-md'
+                        : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${
+                      isSelected
+                        ? 'bg-sf-primary text-sf-primary-text'
+                        : 'bg-sf-track text-sf-muted'
+                    }`}>
+                      {option.label}
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className={`font-bold text-sm ${
+                        isSelected ? 'text-sf-heading' : 'text-sf-text'
+                      }`}>
+                        {option.label}
+                      </p>
+                      <p className="text-xs text-sf-muted">{option.description}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="text-sf-primary">
+                        <CheckIcon />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Photo import filters */}
         {onImportFilterWordsChange && (
