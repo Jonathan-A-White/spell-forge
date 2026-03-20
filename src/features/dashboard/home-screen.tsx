@@ -1,6 +1,6 @@
 // src/features/dashboard/home-screen.tsx — Main hub screen with compact single-screen layout
 
-import type { Profile, WordList, Word, WordStats, StreakData, CoinBalance } from '../../contracts/types';
+import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
 import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
 import { countMasteredWords, computeProgressPercent } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
@@ -26,6 +26,7 @@ interface HomeScreenProps {
   allStats: WordStats[];
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
+  learningProgress: WordLearningProgress[];
   onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
@@ -38,6 +39,7 @@ export function HomeScreen({
   allStats,
   streakData,
   coinBalance,
+  learningProgress,
   onNavigate,
   onSwitchProfile,
   hasMultipleProfiles,
@@ -48,10 +50,11 @@ export function HomeScreen({
   const activeWordIds = new Set(activeWords.map((w) => w.id));
   const activeStats = allStats.filter((s) => activeWordIds.has(s.wordId));
   const mastered = countMasteredWords(activeWords, activeStats);
-  const practiceReady = activeWords.filter((w) => {
-    const stat = activeStats.find((s) => s.wordId === w.id);
-    return stat && stat.timesAsked > 0;
-  }).length;
+  // Count words encountered in learning mode — this matches the gate used
+  // by the practice session (learningProgressRepo.getEncountered), so the
+  // number shown here equals the pool the session draws from.
+  const encounteredWordIds = new Set(learningProgress.map((lp) => lp.wordId));
+  const practiceReady = activeWords.filter((w) => encounteredWordIds.has(w.id)).length;
   const streak = streakData?.currentStreak ?? 0;
   const wordsDue = getWordsDueCount(activeStats);
   const coins = coinBalance?.coins ?? 0;

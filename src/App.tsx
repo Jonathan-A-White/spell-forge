@@ -1016,6 +1016,7 @@ function App() {
           allStats={allStats}
           streakData={streakData}
           coinBalance={coinBalance}
+          learningProgress={learningProgress}
           onNavigate={(target) => setView(target)}
           onSwitchProfile={() => setView('profile-select')}
           hasMultipleProfiles={profiles.length > 1}
