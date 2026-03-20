@@ -33,11 +33,14 @@ export function getInputMode(
 
 /**
  * Number of letters to hide in the word display.
- * Stage 0 = 0 hidden, Stage 1 = 1, Stage 2 = 2, Stage 3 = all hidden.
+ * Stage 0 = 0 hidden, Stage 1 = ~1/3, Stage 2 = ~2/3, Stage 3 = all hidden.
  */
 export function getHiddenCount(stage: LearningStage, wordLength: number): number {
   if (stage >= MAX_STAGE) return wordLength;
-  return stage;
+  if (stage === 0) return 0;
+  if (stage === 1) return Math.max(1, Math.round(wordLength / 3));
+  // stage 2
+  return Math.max(1, Math.round((2 * wordLength) / 3));
 }
 
 /**
