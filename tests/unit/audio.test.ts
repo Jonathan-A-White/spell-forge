@@ -64,10 +64,10 @@ describe('sayWord', () => {
     expect(utterance.rate).toBe(1);
   });
 
-  it('should cancel pending speech before speaking', async () => {
+  it('should NOT cancel before speak (Chrome Android synthesis-failed bug)', async () => {
     const { sayWord } = await getSpeech();
     await sayWord('hello');
-    expect(mockSynth.cancel).toHaveBeenCalled();
+    expect(mockSynth.cancel).not.toHaveBeenCalled();
   });
 
   it('should speak slowly at reduced rate', async () => {
