@@ -27,6 +27,7 @@ interface HomeScreenProps {
   streakData: StreakData | null;
   coinBalance: CoinBalance | null;
   learningProgress: WordLearningProgress[];
+  gradeGoal?: number;
   onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable') => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
@@ -40,6 +41,7 @@ export function HomeScreen({
   streakData,
   coinBalance,
   learningProgress,
+  gradeGoal,
   onNavigate,
   onSwitchProfile,
   hasMultipleProfiles,
@@ -59,7 +61,10 @@ export function HomeScreen({
   const wordsDue = getWordsDueCount(activeStats);
   const coins = coinBalance?.coins ?? 0;
   const allMastered = canPlayFree(activeWords.length, mastered);
-  const progressPercent = computeProgressPercent(activeWords, activeStats);
+  const readinessTarget = Math.ceil(activeWords.length * (gradeGoal ?? 100) / 100);
+  const progressPercent = readinessTarget > 0
+    ? Math.min(100, Math.round(computeProgressPercent(activeWords, activeStats) * activeWords.length / readinessTarget))
+    : computeProgressPercent(activeWords, activeStats);
 
   return (
     <div className="min-h-screen bg-sf-bg">

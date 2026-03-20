@@ -8,6 +8,7 @@ interface ReadinessIndicatorProps {
   daysUntilTest: number | null;
   wordsTotal: number;
   wordsReady: number;
+  gradeGoal?: number;
 }
 
 function getReadinessLevel(pct: number): { level: ReadinessLevel; label: string; color: string } {
@@ -23,6 +24,7 @@ export function ReadinessIndicator({
   daysUntilTest,
   wordsTotal,
   wordsReady,
+  gradeGoal,
 }: ReadinessIndicatorProps) {
   const { label, color } = getReadinessLevel(percentage);
   const gaugeRotation = (percentage / 100) * 180 - 90; // -90 to 90 degrees
@@ -59,7 +61,9 @@ export function ReadinessIndicator({
 
       <p className={`text-center text-lg font-bold ${color}`}>{label}</p>
       <p className="text-center text-sm text-sf-muted mt-1">
-        {wordsReady} of {wordsTotal} words ready
+        {gradeGoal != null && gradeGoal < 100
+          ? `${wordsReady} of ${Math.ceil(wordsTotal * gradeGoal / 100)} words ready (${gradeGoal}% goal)`
+          : `${wordsReady} of ${wordsTotal} words ready`}
       </p>
     </div>
   );

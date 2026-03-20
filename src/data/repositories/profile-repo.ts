@@ -11,30 +11,32 @@ export const profileRepo = {
 
   async getById(id: string): Promise<Profile | null> {
     const profile = await db.profiles.get(id);
-    return profile ?? null;
+    if (!profile) return null;
+    return { ...profile, gradeGoal: profile.gradeGoal ?? 100 };
   },
 
   async getAll(): Promise<Profile[]> {
-    return db.profiles.toArray();
+    const profiles = await db.profiles.toArray();
+    return profiles.map((p) => ({ ...p, gradeGoal: p.gradeGoal ?? 100 }));
   },
 
   /** Returns profiles that are active (or have no status for backward compat). */
   async getActive(): Promise<Profile[]> {
     const all = await db.profiles.toArray();
-    return all.filter((p) => !p.status || p.status === 'active');
+    return all.filter((p) => !p.status || p.status === 'active').map((p) => ({ gradeGoal: 100, ...p }));
   },
 
   /** Returns profiles with 'archived' status. */
   async getArchived(): Promise<Profile[]> {
     const all = await db.profiles.toArray();
-    return all.filter((p) => p.status === 'archived');
+    return all.filter((p) => p.status === 'archived').map((p) => ({ gradeGoal: 100, ...p }));
   },
 
   async update(id: string, data: Partial<Profile>): Promise<Profile> {
     await db.profiles.update(id, data);
     const updated = await db.profiles.get(id);
     if (!updated) throw new Error(`Profile ${id} not found`);
-    return updated;
+    return { gradeGoal: 100, ...updated };
   },
 
   /** Soft-archive a profile (preserves all data). */
