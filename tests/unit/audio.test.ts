@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TtsProvider, clearVoiceCache } from '../../src/audio/tts.ts';
-import { DictionaryProvider } from '../../src/audio/dictionary.ts';
 import { AudioManagerImpl } from '../../src/audio/manager.ts';
-import type { AudioProvider } from '../../src/contracts/types.ts';
 
 // ─── Mock SpeechSynthesisUtterance ───────────────────────────
 
@@ -17,21 +14,30 @@ class MockUtterance {
   }
 }
 
-function createMockVoice(name: string, lang: string): SpeechSynthesisVoice {
-  return { name, lang, default: false, localService: true, voiceURI: name } as SpeechSynthesisVoice;
-}
-
 vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
 
 // ─── Mock SpeechSynthesis ────────────────────────────────────
 
-function createMockSpeechSynthesis(voices: SpeechSynthesisVoice[] = []) {
+function createMockSpeechSynthesis() {
   const speak = vi.fn((utterance: MockUtterance) => {
     // Simulate async completion
     setTimeout(() => utterance.onend?.(new Event('end')), 0);
   });
 
-  return { speak, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(), pending: false, speaking: false, paused: false, getVoices: vi.fn(() => voices), onvoiceschanged: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(() => true) } as unknown as SpeechSynthesis;
+  return {
+    speak,
+    cancel: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    pending: false,
+    speaking: false,
+    paused: false,
+    getVoices: vi.fn(() => []),
+    onvoiceschanged: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(() => true),
+  } as unknown as SpeechSynthesis;
 }
 
 let mockSynth: SpeechSynthesis;
@@ -40,25 +46,19 @@ beforeEach(() => {
   vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
   mockSynth = createMockSpeechSynthesis();
   vi.stubGlobal('speechSynthesis', mockSynth);
-  clearVoiceCache();
 });
 
-// ─── TTS Provider ────────────────────────────────────────────
+// ─── speech.ts functions ────────────────────────────────────
 
-describe('TtsProvider', () => {
-  it('should have priority 10', () => {
-    const tts = new TtsProvider();
-    expect(tts.priority).toBe(10);
-  });
-
-  it('should be available when speechSynthesis exists', () => {
-    const tts = new TtsProvider();
-    expect(tts.isAvailable()).toBe(true);
-  });
+describe('sayWord', () => {
+  // Import dynamically so the module picks up the mocked globals
+  async function getSpeech() {
+    return await import('../../src/audio/speech.ts');
+  }
 
   it('should speak a word via SpeechSynthesis', async () => {
-    const tts = new TtsProvider();
-    await tts.speak('hello');
+    const { sayWord } = await getSpeech();
+    await sayWord('hello');
 
     expect(mockSynth.speak).toHaveBeenCalledOnce();
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
@@ -67,223 +67,56 @@ describe('TtsProvider', () => {
   });
 
   it('should speak slowly at reduced rate', async () => {
-    const tts = new TtsProvider();
-    await tts.speakSlowly('world');
+    const { sayWordSlowly } = await getSpeech();
+    await sayWordSlowly('world');
 
     expect(mockSynth.speak).toHaveBeenCalledOnce();
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     expect(utterance.text).toBe('world');
     expect(utterance.rate).toBe(0.6);
   });
+});
 
-  it('should speak chunks sequentially', async () => {
-    const tts = new TtsProvider();
+describe('spellWord', () => {
+  async function getSpeech() {
+    return await import('../../src/audio/speech.ts');
+  }
 
-    await tts.speakChunks(['cat', 'dog', 'bird'], 0);
+  it('should speak each letter of the word', async () => {
+    const { spellWord } = await getSpeech();
+    await spellWord('cat', 0);
 
     expect(mockSynth.speak).toHaveBeenCalledTimes(3);
     const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
     const u3 = vi.mocked(mockSynth.speak).mock.calls[2][0] as unknown as MockUtterance;
-    expect(u1.text).toBe('cat');
-    expect(u2.text).toBe('dog');
-    expect(u3.text).toBe('bird');
-  });
-
-  it('should select a male-hinted voice when available', async () => {
-    const genericVoice = createMockVoice('SomeVoice', 'en-US');
-    const maleVoice = createMockVoice('Daniel', 'en-US');
-    mockSynth = createMockSpeechSynthesis([genericVoice, maleVoice]);
-    vi.stubGlobal('speechSynthesis', mockSynth);
-
-    const tts = new TtsProvider();
-    await tts.speak('test');
-
-    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(utterance.voice).toBe(maleVoice);
-  });
-
-  it('should fall back to first voice when no male match', async () => {
-    const unknownVoice = createMockVoice('SomeVoice', 'en-US');
-    mockSynth = createMockSpeechSynthesis([unknownVoice]);
-    vi.stubGlobal('speechSynthesis', mockSynth);
-
-    const tts = new TtsProvider();
-    await tts.speak('test');
-
-    const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    expect(utterance.voice).toBe(unknownVoice);
-  });
-
-  it('should use the same cached voice across multiple calls', async () => {
-    const maleVoice = createMockVoice('David', 'en-US');
-    mockSynth = createMockSpeechSynthesis([maleVoice]);
-    vi.stubGlobal('speechSynthesis', mockSynth);
-
-    const tts = new TtsProvider();
-    await tts.speak('hello');
-    await tts.speak('world');
-
-    const u1 = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
-    const u2 = vi.mocked(mockSynth.speak).mock.calls[1][0] as unknown as MockUtterance;
-    expect(u1.voice).toBe(u2.voice);
+    expect(u1.text).toBe('c');
+    expect(u2.text).toBe('a');
+    expect(u3.text).toBe('t');
   });
 });
 
-// ─── Dictionary Provider ─────────────────────────────────────
+describe('sayThenSpell', () => {
+  async function getSpeech() {
+    return await import('../../src/audio/speech.ts');
+  }
 
-describe('DictionaryProvider', () => {
-  it('should have priority 1', () => {
-    const dict = new DictionaryProvider();
-    expect(dict.priority).toBe(1);
-  });
+  it('should say the word then spell each letter', async () => {
+    const { sayThenSpell } = await getSpeech();
+    await sayThenSpell('hi', 0, 0);
 
-  it('should be available by default', () => {
-    const dict = new DictionaryProvider();
-    expect(dict.isAvailable()).toBe(true);
-  });
-
-  it('should remain available on network error (transient failures)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
-    const dict = new DictionaryProvider();
-
-    await expect(dict.speak('hello')).rejects.toThrow();
-    // Transient errors should not permanently disable the provider
-    expect(dict.isAvailable()).toBe(true);
-
-    vi.unstubAllGlobals();
-    // Re-stub speechSynthesis after unstubbing
-    vi.stubGlobal('speechSynthesis', mockSynth);
+    // 1 full word + 2 letters = 3 calls
+    expect(mockSynth.speak).toHaveBeenCalledTimes(3);
+    const texts = vi.mocked(mockSynth.speak).mock.calls.map(
+      (c) => (c[0] as unknown as MockUtterance).text,
+    );
+    expect(texts).toEqual(['hi', 'h', 'i']);
   });
 });
 
 // ─── AudioManager ────────────────────────────────────────────
 
 describe('AudioManagerImpl', () => {
-  function createMockProvider(
-    prio: number,
-    available: boolean,
-    shouldFail = false,
-  ): AudioProvider {
-    return {
-      priority: prio,
-      isAvailable: vi.fn(() => available),
-      speak: vi.fn(shouldFail
-        ? () => Promise.reject(new Error('fail'))
-        : () => Promise.resolve()),
-      speakSlowly: vi.fn(shouldFail
-        ? () => Promise.reject(new Error('fail'))
-        : () => Promise.resolve()),
-      speakChunks: vi.fn(shouldFail
-        ? () => Promise.reject(new Error('fail'))
-        : () => Promise.resolve()),
-    };
-  }
-
-  it('should try providers in priority order (highest first)', async () => {
-    const manager = new AudioManagerImpl();
-    const low = createMockProvider(1, true);
-    const high = createMockProvider(5, true);
-
-    manager.registerProvider(low);
-    manager.registerProvider(high);
-
-    await manager.speak('test');
-
-    expect(high.speak).toHaveBeenCalledWith('test');
-    expect(low.speak).not.toHaveBeenCalled();
-  });
-
-  it('should fall back when top provider is unavailable', async () => {
-    const manager = new AudioManagerImpl();
-    const unavailable = createMockProvider(5, false);
-    const available = createMockProvider(1, true);
-
-    manager.registerProvider(unavailable);
-    manager.registerProvider(available);
-
-    await manager.speak('fallback');
-
-    expect(unavailable.speak).not.toHaveBeenCalled();
-    expect(available.speak).toHaveBeenCalledWith('fallback');
-  });
-
-  it('should fall back when top provider fails', async () => {
-    const manager = new AudioManagerImpl();
-    const failing = createMockProvider(5, true, true);
-    const backup = createMockProvider(1, true);
-
-    manager.registerProvider(failing);
-    manager.registerProvider(backup);
-
-    await manager.speak('recover');
-
-    expect(failing.speak).toHaveBeenCalledWith('recover');
-    expect(backup.speak).toHaveBeenCalledWith('recover');
-  });
-
-  it('should handle all providers failing gracefully (no throw)', async () => {
-    const manager = new AudioManagerImpl();
-    const failing1 = createMockProvider(5, true, true);
-    const failing2 = createMockProvider(1, true, true);
-
-    manager.registerProvider(failing1);
-    manager.registerProvider(failing2);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    // Should not throw
-    await expect(manager.speak('nope')).resolves.toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledWith('All audio providers failed or none available');
-
-    warnSpy.mockRestore();
-  });
-
-  it('should handle no providers registered gracefully', async () => {
-    const manager = new AudioManagerImpl();
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    await expect(manager.speak('empty')).resolves.toBeUndefined();
-    expect(warnSpy).toHaveBeenCalled();
-
-    warnSpy.mockRestore();
-  });
-
-  it('should delegate speakSlowly to the best available provider', async () => {
-    const manager = new AudioManagerImpl();
-    const provider = createMockProvider(3, true);
-    manager.registerProvider(provider);
-
-    await manager.speakSlowly('slow');
-    expect(provider.speakSlowly).toHaveBeenCalledWith('slow');
-  });
-
-  it('should delegate speakChunks to a single provider for voice consistency', async () => {
-    const manager = new AudioManagerImpl();
-    const provider = createMockProvider(3, true);
-    manager.registerProvider(provider);
-
-    await manager.speakChunks(['a', 'b'], 200);
-    // Entire sequence is delegated to the provider so the voice stays consistent
-    expect(provider.speakChunks).toHaveBeenCalledWith(['a', 'b'], 200);
-    expect(provider.speak).not.toHaveBeenCalled();
-  });
-
-  it('should fall back to next provider when speakChunks fails', async () => {
-    const manager = new AudioManagerImpl();
-    const failing = createMockProvider(5, true, true);
-    const backup = createMockProvider(1, true);
-
-    manager.registerProvider(failing);
-    manager.registerProvider(backup);
-
-    await manager.speakChunks(['a', 'b'], 0);
-    expect(failing.speakChunks).toHaveBeenCalled();
-    expect(backup.speakChunks).toHaveBeenCalled();
-  });
-
-  // ─── runExclusive / isBusy ──────────────────────────────────
-
   it('should report isBusy=false by default', () => {
     const manager = new AudioManagerImpl();
     expect(manager.isBusy()).toBe(false);
@@ -291,13 +124,10 @@ describe('AudioManagerImpl', () => {
 
   it('should report isBusy=true while runExclusive action is executing', async () => {
     const manager = new AudioManagerImpl();
-    const provider = createMockProvider(1, true);
-    manager.registerProvider(provider);
 
     let busyDuringAction = false;
     await manager.runExclusive(async () => {
       busyDuringAction = manager.isBusy();
-      await manager.speak('test');
     });
 
     expect(busyDuringAction).toBe(true);
@@ -314,11 +144,9 @@ describe('AudioManagerImpl', () => {
     const p1 = manager.runExclusive(() => action1);
     const p2Result = await manager.runExclusive(async () => { action2Ran(); });
 
-    // Second call should have been skipped (returned false)
     expect(p2Result).toBe(false);
     expect(action2Ran).not.toHaveBeenCalled();
 
-    // Finish the first action
     resolve1();
     const p1Result = await p1;
     expect(p1Result).toBe(true);
@@ -359,5 +187,17 @@ describe('AudioManagerImpl', () => {
     });
 
     expect(states).toEqual([]);
+  });
+
+  it('should delegate sayWord to speech module', async () => {
+    const manager = new AudioManagerImpl();
+    await manager.sayWord('test');
+    expect(mockSynth.speak).toHaveBeenCalledOnce();
+  });
+
+  it('should delegate spellWord to speech module', async () => {
+    const manager = new AudioManagerImpl();
+    await manager.spellWord('ab', 0);
+    expect(mockSynth.speak).toHaveBeenCalledTimes(2);
   });
 });

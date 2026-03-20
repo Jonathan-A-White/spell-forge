@@ -164,16 +164,6 @@ export interface AdaptiveAction {
   reason: string;
 }
 
-// ─── Audio ────────────────────────────────────────────────────
-
-export interface AudioProvider {
-  speak(word: string): Promise<void>;
-  speakSlowly(word: string): Promise<void>;
-  speakChunks(chunks: string[], delayMs?: number): Promise<void>;
-  isAvailable(): boolean;
-  priority: number;   // higher = preferred
-}
-
 // ─── OCR ──────────────────────────────────────────────────────
 
 export interface OcrResult {

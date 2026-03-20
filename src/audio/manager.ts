@@ -1,30 +1,21 @@
-import type { AudioProvider } from '../contracts/types.ts';
+// src/audio/manager.ts — Thin wrapper that adds exclusive-execution (busy
+// state) on top of the speech functions in speech.ts.
+
+import { sayWord, sayWordSlowly, sayThenSpell, spellWord } from './speech.ts';
 
 export interface AudioManager {
-  speak(word: string): Promise<void>;
-  speakSlowly(word: string): Promise<void>;
-  speakChunks(chunks: string[], delayMs?: number): Promise<void>;
-  registerProvider(provider: AudioProvider): void;
-  /** Returns true while a runExclusive block is executing. */
+  sayWord(word: string): Promise<void>;
+  sayWordSlowly(word: string): Promise<void>;
+  spellWord(word: string, delayMs?: number): Promise<void>;
+  sayThenSpell(word: string, gapMs?: number, letterDelayMs?: number): Promise<void>;
   isBusy(): boolean;
-  /**
-   * Run an async action exclusively — if audio is already playing the call
-   * is silently skipped (returns false). Returns true when the action ran.
-   */
   runExclusive(action: () => Promise<void>): Promise<boolean>;
-  /** Subscribe to busy-state changes. Returns an unsubscribe function. */
   onBusyChange(cb: (busy: boolean) => void): () => void;
 }
 
 export class AudioManagerImpl implements AudioManager {
-  private providers: AudioProvider[] = [];
   private busy = false;
   private busyListeners = new Set<(busy: boolean) => void>();
-
-  registerProvider(provider: AudioProvider): void {
-    this.providers.push(provider);
-    this.providers.sort((a, b) => b.priority - a.priority);
-  }
 
   isBusy(): boolean {
     return this.busy;
@@ -48,37 +39,23 @@ export class AudioManagerImpl implements AudioManager {
     return () => this.busyListeners.delete(cb);
   }
 
-  async speak(word: string): Promise<void> {
-    await this.tryProviders((p) => p.speak(word));
+  sayWord(word: string): Promise<void> {
+    return sayWord(word);
   }
 
-  async speakSlowly(word: string): Promise<void> {
-    await this.tryProviders((p) => p.speakSlowly(word));
+  sayWordSlowly(word: string): Promise<void> {
+    return sayWordSlowly(word);
   }
 
-  async speakChunks(chunks: string[], delayMs = 500): Promise<void> {
-    // Use a single provider for the entire sequence so the voice stays
-    // consistent.  If that provider fails mid-sequence we fall back to the
-    // next provider and replay only the remaining chunks.
-    await this.tryProviders((p) => p.speakChunks(chunks, delayMs));
+  spellWord(word: string, delayMs?: number): Promise<void> {
+    return spellWord(word, delayMs);
+  }
+
+  sayThenSpell(word: string, gapMs?: number, letterDelayMs?: number): Promise<void> {
+    return sayThenSpell(word, gapMs, letterDelayMs);
   }
 
   private notifyBusy(): void {
     for (const cb of this.busyListeners) cb(this.busy);
-  }
-
-  private async tryProviders(
-    action: (provider: AudioProvider) => Promise<void>,
-  ): Promise<void> {
-    for (const provider of this.providers) {
-      if (!provider.isAvailable()) continue;
-      try {
-        await action(provider);
-        return;
-      } catch {
-        // provider failed, try next
-      }
-    }
-    console.warn('All audio providers failed or none available');
   }
 }

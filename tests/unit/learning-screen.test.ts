@@ -14,10 +14,10 @@ describe('sayAndSpell', () => {
 
   beforeEach(() => {
     mockAudioManager = {
-      speak: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
-      speakSlowly: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
-      speakChunks: vi.fn<(chunks: string[], delayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
-      registerProvider: vi.fn(),
+      sayWord: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
+      sayWordSlowly: vi.fn<(word: string) => Promise<void>>().mockResolvedValue(undefined),
+      spellWord: vi.fn<(word: string, delayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
+      sayThenSpell: vi.fn<(word: string, gapMs?: number, letterDelayMs?: number) => Promise<void>>().mockResolvedValue(undefined),
       isBusy: vi.fn(() => false),
       runExclusive: vi.fn(async (action: () => Promise<void>) => {
         await action();
@@ -27,38 +27,15 @@ describe('sayAndSpell', () => {
     };
   });
 
-  it('calls speak with the full word first', async () => {
+  it('delegates to sayThenSpell via runExclusive', async () => {
     await sayAndSpell(mockAudioManager, 'cat');
-    expect(mockAudioManager.speak).toHaveBeenCalledWith('cat');
-    expect(mockAudioManager.speak).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls speakChunks with individual letters and 400ms delay', async () => {
-    await sayAndSpell(mockAudioManager, 'cat');
-    expect(mockAudioManager.speakChunks).toHaveBeenCalledWith(
-      ['c', 'a', 't'],
-      400,
-    );
-    expect(mockAudioManager.speakChunks).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls speak before speakChunks', async () => {
-    const callOrder: string[] = [];
-    vi.mocked(mockAudioManager.speak).mockImplementation(async () => {
-      callOrder.push('speak');
-    });
-    vi.mocked(mockAudioManager.speakChunks).mockImplementation(async () => {
-      callOrder.push('speakChunks');
-    });
-
-    await sayAndSpell(mockAudioManager, 'dog');
-    expect(callOrder).toEqual(['speak', 'speakChunks']);
+    expect(mockAudioManager.runExclusive).toHaveBeenCalledTimes(1);
+    expect(mockAudioManager.sayThenSpell).toHaveBeenCalledWith('cat');
   });
 
   it('handles single-character words', async () => {
     await sayAndSpell(mockAudioManager, 'a');
-    expect(mockAudioManager.speak).toHaveBeenCalledWith('a');
-    expect(mockAudioManager.speakChunks).toHaveBeenCalledWith(['a'], 400);
+    expect(mockAudioManager.sayThenSpell).toHaveBeenCalledWith('a');
   });
 });
 
