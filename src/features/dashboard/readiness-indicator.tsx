@@ -60,11 +60,20 @@ export function ReadinessIndicator({
       </div>
 
       <p className={`text-center text-lg font-bold ${color}`}>{label}</p>
-      <p className="text-center text-sm text-sf-muted mt-1">
-        {gradeGoal != null && gradeGoal < 100
-          ? `${wordsReady} of ${Math.ceil(wordsTotal * gradeGoal / 100)} words ready (${gradeGoal}% goal)`
-          : `${wordsReady} of ${wordsTotal} words ready`}
-      </p>
+      {(() => {
+        const effectiveGoal = gradeGoal ?? 100;
+        const target = Math.ceil(wordsTotal * effectiveGoal / 100);
+        return (
+          <>
+            <p className="text-center text-sm text-sf-muted mt-1">
+              {wordsReady} of {target} words needed{effectiveGoal < 100 ? ` (${effectiveGoal}% goal)` : ''}
+            </p>
+            <p className="text-center text-xs text-sf-faint mt-0.5">
+              A word is ready when it reaches Familiar or Mastered
+            </p>
+          </>
+        );
+      })()}
     </div>
   );
 }
