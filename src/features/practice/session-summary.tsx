@@ -9,6 +9,7 @@ interface SessionSummaryProps {
   streakCount: number;
   wordResults: WordResult[];
   totalWordsInList: number;
+  onContinue: () => void;
   onDone: () => void;
 }
 
@@ -36,6 +37,7 @@ export function SessionSummary({
   streakCount,
   wordResults,
   totalWordsInList,
+  onContinue,
   onDone,
 }: SessionSummaryProps) {
   const accuracy = session.wordsAttempted > 0
@@ -98,12 +100,20 @@ export function SessionSummary({
 
       <PerformanceReport wordResults={wordResults} />
 
-      <button
-        onClick={onDone}
-        className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-4 px-8 rounded-xl text-lg transition-colors mt-2"
-      >
-        Done
-      </button>
+      <div className="w-full flex flex-col gap-3 mt-2">
+        <button
+          onClick={onContinue}
+          className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-4 px-8 rounded-xl text-lg transition-colors"
+        >
+          Keep Going
+        </button>
+        <button
+          onClick={onDone}
+          className="w-full bg-sf-surface border border-sf-border hover:bg-sf-surface-hover text-sf-heading font-bold py-4 px-8 rounded-xl text-lg transition-colors"
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 }
