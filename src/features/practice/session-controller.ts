@@ -112,6 +112,7 @@ export function recordAttempt(
     responseTimeMs,
     struggled,
     scaffoldingUsed,
+    mistakeCount,
   };
 
   const newResults = [...state.results, result];

@@ -5,6 +5,8 @@ import type { Word, TechniqueResult } from '../../contracts/types';
 export interface WordResult {
   word: Word;
   result: TechniqueResult;
+  /** True only if the word was answered correctly with zero mistakes */
+  perfect: boolean;
 }
 
 interface PerformanceReportProps {
@@ -18,21 +20,21 @@ export function PerformanceReport({ wordResults }: PerformanceReportProps) {
     <div className="w-full space-y-2">
       <h3 className="text-lg font-bold text-sf-heading text-center">Reviewed Words:</h3>
       <ul className="space-y-2">
-        {wordResults.map(({ word, result }) => (
+        {wordResults.map(({ word, result, perfect }) => (
           <li
             key={`${word.id}-${result.timestamp.getTime()}`}
             className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
-              result.correct
+              perfect
                 ? 'border-green-600/40 bg-green-900/20'
                 : 'border-red-600/40 bg-red-900/20'
             }`}
           >
             <span className="text-sf-heading font-semibold text-base">{word.text}</span>
             <span
-              className={`text-xl ${result.correct ? 'text-green-500' : 'text-red-500'}`}
-              aria-label={result.correct ? 'Correct' : 'Incorrect'}
+              className={`text-xl ${perfect ? 'text-green-500' : 'text-red-500'}`}
+              aria-label={perfect ? 'Correct' : 'Incorrect'}
             >
-              {result.correct ? '\u2713' : '\u2717'}
+              {perfect ? '\u2713' : '\u2717'}
             </span>
           </li>
         ))}

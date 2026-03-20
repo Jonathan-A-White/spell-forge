@@ -81,6 +81,7 @@ export interface TechniqueResult {
   responseTimeMs: number;
   struggled: boolean;
   scaffoldingUsed: boolean;
+  mistakeCount?: number;
 }
 
 export interface SessionLog {

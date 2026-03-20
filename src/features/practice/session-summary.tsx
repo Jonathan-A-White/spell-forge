@@ -51,8 +51,8 @@ export function SessionSummary({
     totalWordsInList,
   );
 
-  const correctCount = wordResults.filter((r) => r.result.correct).length;
-  const incorrectCount = wordResults.filter((r) => !r.result.correct).length;
+  const correctCount = wordResults.filter((r) => r.perfect).length;
+  const incorrectCount = wordResults.filter((r) => !r.perfect).length;
 
   return (
     <div className="min-h-screen bg-sf-bg flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto overflow-y-auto">

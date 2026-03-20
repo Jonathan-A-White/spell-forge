@@ -38,7 +38,8 @@ interface PracticeScreenProps {
 }
 
 /** Build word-level results from session state. Each word may have 1-3 attempts;
- *  the final attempt determines whether the word counted as correct. */
+ *  the final attempt determines whether the word counted as correct.
+ *  A word is "perfect" only if correct with zero mistakes (consistent with accuracy). */
 function buildWordResults(state: SessionState): WordResult[] {
   const wordResults: WordResult[] = [];
   let wordIdx = 0;
@@ -50,7 +51,8 @@ function buildWordResults(state: SessionState): WordResult[] {
 
     const shouldAdvance = result.correct || attemptCount >= 3;
     if (shouldAdvance) {
-      wordResults.push({ word: state.words[wordIdx], result });
+      const perfect = result.correct && (result.mistakeCount ?? 0) === 0;
+      wordResults.push({ word: state.words[wordIdx], result, perfect });
       wordIdx++;
       attemptCount = 0;
     }
