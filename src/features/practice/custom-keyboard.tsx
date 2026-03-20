@@ -1,6 +1,7 @@
 // src/features/practice/custom-keyboard.tsx — On-screen QWERTY keyboard to prevent native keyboard autocomplete hints
 
 import { useCallback, useRef, useEffect } from 'react';
+import { hapticTap } from '../../core/haptics';
 
 interface CustomKeyboardProps {
   onKey: (key: string) => void;
@@ -44,7 +45,7 @@ export function CustomKeyboard({
               key={key}
               type="button"
               onMouseDown={preventFocusLoss}
-              onClick={() => { if (!disabled) onKey(key); }}
+              onClick={() => { if (!disabled) { hapticTap(); onKey(key); } }}
               disabled={disabled}
               className="flex-1 max-w-[10%] rounded-lg bg-sf-surface border border-sf-border font-bold text-sf-heading active:bg-sf-primary active:text-sf-primary-text transition-colors disabled:opacity-40"
               style={{ minHeight: `${keySize}px`, fontSize }}
@@ -57,7 +58,7 @@ export function CustomKeyboard({
             <button
               type="button"
               onMouseDown={preventFocusLoss}
-              onClick={() => { if (!disabled) onBackspace(); }}
+              onClick={() => { if (!disabled) { hapticTap(); onBackspace(); } }}
               disabled={disabled}
               className="flex-[1.5] max-w-[15%] rounded-lg bg-sf-surface border border-sf-border font-bold text-sf-heading active:bg-red-400 active:text-white transition-colors disabled:opacity-40"
               style={{ minHeight: `${keySize}px`, fontSize }}

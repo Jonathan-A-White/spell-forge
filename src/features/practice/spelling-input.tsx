@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SpellingComparison } from './spelling-comparison';
 import { SpellingField } from './custom-keyboard';
+import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface SpellingInputProps {
   word: string;
@@ -41,10 +42,12 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
 
     if (trimmed === targetWord) {
       // Correct on first try — move on immediately
+      hapticSuccess();
       const responseTimeMs = Date.now() - startTime;
       onComplete(true, responseTimeMs, 0);
     } else {
       // Wrong — show comparison, then require retypes
+      hapticError();
       setPhase('comparison');
     }
   }, [attempt, targetWord, startTime, onComplete]);
@@ -53,6 +56,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
     const trimmed = retypeValue.trim().toLowerCase();
     if (trimmed !== targetWord) {
       // Wrong retype — clear and let them try again
+      hapticError();
       setRetypeValue('');
       return;
     }
@@ -60,9 +64,11 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
     const newCount = retypeCount + 1;
     if (newCount >= REQUIRED_RETYPES) {
       // Done retyping — move on (counted as incorrect since initial attempt was wrong)
+      hapticSuccess();
       const responseTimeMs = Date.now() - startTime;
       onComplete(true, responseTimeMs, 1);
     } else {
+      hapticSuccess();
       setRetypeCount(newCount);
       setRetypeValue('');
       setWordVisible(true);

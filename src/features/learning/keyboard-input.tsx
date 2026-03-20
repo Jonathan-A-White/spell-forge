@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { SpellingField } from '../practice/custom-keyboard';
+import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface KeyboardInputProps {
   word: string;
@@ -22,8 +23,10 @@ export function KeyboardInput({ word, onComplete, tapTargetSize }: KeyboardInput
     const responseTimeMs = Date.now() - startTime;
 
     if (trimmed.toLowerCase() === word.toLowerCase()) {
+      hapticSuccess();
       onComplete(true, responseTimeMs, mistakeCount);
     } else {
+      hapticError();
       setMistakeCount((prev) => prev + 1);
       setWrongFlash(true);
       setTimeout(() => setWrongFlash(false), 300);

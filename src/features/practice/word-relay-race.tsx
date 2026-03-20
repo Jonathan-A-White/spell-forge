@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
 import { calcRunnerPosition, formatTime, calcStumbleDelay, calcStarRating } from './relay-race-logic';
 import { SpellingField } from './custom-keyboard';
+import { hapticSuccess, hapticError } from '../../core/haptics';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -151,6 +152,7 @@ export function WordRelayRace({
 
     if (correct) {
       // Advance immediately
+      hapticSuccess();
       const newTimes = [...wordTimes, wordTime];
       setWordTimes(newTimes);
       setCurrentIndex((prev) => prev + 1);
@@ -159,6 +161,7 @@ export function WordRelayRace({
       setLastCorrect(null);
     } else {
       // Stumble — brief delay, then let them try again
+      hapticError();
       setStumbling(true);
       const delay = calcStumbleDelay(currentWord.length);
 

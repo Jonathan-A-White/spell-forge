@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
 import { SpellingField } from './custom-keyboard';
+import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface SpellingQuizProps {
   words: string[];
@@ -197,6 +198,9 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
       userAnswer = inputValue.trim().toLowerCase();
       correct = userAnswer === currentQuestion.word.toLowerCase();
     }
+
+    if (correct) hapticSuccess();
+    else hapticError();
 
     setLastCorrect(correct);
     setShowFeedback(true);
