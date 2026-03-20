@@ -305,20 +305,6 @@ export function LearningScreen({
     return { stage, successes, inputMode, display, hiddenCount };
   }, [currentWord, currentProgress?.stage, currentProgress?.consecutiveSuccesses]);
 
-  // ─── On-screen debug overlay for TTS (no dev tools needed) ──
-  const [debugLines, setDebugLines] = useState<string[]>([]);
-  useEffect(() => {
-    const orig = console.log.bind(console);
-    console.log = (...args: unknown[]) => {
-      orig(...args);
-      const line = args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
-      if (line.includes('[TTS') || line.includes('[AudioMgr') || line.includes('[HearIt')) {
-        setDebugLines((prev) => [...prev.slice(-19), line]);
-      }
-    };
-    return () => { console.log = orig; };
-  }, []);
-
   // Loading state
   if (loading) {
     return (
@@ -418,19 +404,6 @@ export function LearningScreen({
 
   return (
     <div className="min-h-screen bg-sf-bg p-4 flex flex-col">
-      {/* TTS debug overlay — tap to dismiss */}
-      {debugLines.length > 0 && (
-        <div
-          onClick={() => setDebugLines([])}
-          className="fixed bottom-0 left-0 right-0 z-50 bg-black/90 text-green-400 text-[10px] leading-tight font-mono p-2 max-h-[40vh] overflow-y-auto"
-        >
-          {debugLines.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
-          <div className="text-gray-500 mt-1">tap to clear</div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <button
