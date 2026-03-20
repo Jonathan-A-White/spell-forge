@@ -11,7 +11,7 @@ interface CoinHistoryProps {
   allStats: WordStats[];
   activeWordCount: number;
   onBack: () => void;
-  onNavigate: (view: 'learning' | 'practice') => void;
+  onNavigate: (view: 'learning' | 'practice', wordFilter?: Set<string>) => void;
   onAddWords: () => void;
 }
 
@@ -33,6 +33,23 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
   const allLearning = activeWordCount > 0 && allWordsAtLeastBucket(allStats, activeWordCount, 'learning');
   const allFamiliar = activeWordCount > 0 && allWordsAtLeastBucket(allStats, activeWordCount, 'familiar');
   const allMastered = activeWordCount > 0 && allWordsAtLeastBucket(allStats, activeWordCount, 'mastered');
+
+  // Progress calculations
+  const bucketLevel: Record<string, number> = { 'new': 0, 'learning': 1, 'familiar': 2, 'mastered': 3, 'review': 4 };
+  const atLeastLearningCount = allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) >= 1).length;
+  const atLeastFamiliarCount = allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) >= 2).length;
+  const atLeastMasteredCount = allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) >= 3).length;
+
+  // Word IDs not yet at target bucket (for filtering practice)
+  const notYetLearningIds = new Set(
+    allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) < 1).map((s) => s.wordId),
+  );
+  const notYetFamiliarIds = new Set(
+    allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) < 2).map((s) => s.wordId),
+  );
+  const notYetMasteredIds = new Set(
+    allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) < 3).map((s) => s.wordId),
+  );
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -88,8 +105,11 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               reward="+1 coin"
               color="text-blue-400"
               achieved={allLearning}
-              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Start Learning'}
-              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('learning')}
+              progress={activeWordCount > 0 ? atLeastLearningCount : 0}
+              total={activeWordCount}
+              progressColor="bg-blue-400"
+              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Do it'}
+              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('learning', notYetLearningIds.size > 0 ? notYetLearningIds : undefined)}
             />
             <EarnRule
               icon="🌟"
@@ -98,8 +118,11 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               reward="+1 coin"
               color="text-purple-400"
               achieved={allFamiliar}
-              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Start Practice'}
-              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('practice')}
+              progress={activeWordCount > 0 ? atLeastFamiliarCount : 0}
+              total={activeWordCount}
+              progressColor="bg-purple-400"
+              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Do it'}
+              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('practice', notYetFamiliarIds.size > 0 ? notYetFamiliarIds : undefined)}
             />
             <EarnRule
               icon="🏆"
@@ -108,8 +131,11 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               reward="+1 coin each"
               color="text-yellow-400"
               achieved={allMastered}
-              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Keep Practicing'}
-              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('practice')}
+              progress={activeWordCount > 0 ? atLeastMasteredCount : 0}
+              total={activeWordCount}
+              progressColor="bg-yellow-400"
+              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Do it'}
+              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('practice', notYetMasteredIds.size > 0 ? notYetMasteredIds : undefined)}
             />
           </div>
         </div>
@@ -153,11 +179,17 @@ interface EarnRuleProps {
   reward: string;
   color: string;
   achieved?: boolean;
+  progress?: number;
+  total?: number;
+  progressColor?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-function EarnRule({ icon, title, description, reward, color, achieved, actionLabel, onAction }: EarnRuleProps) {
+function EarnRule({ icon, title, description, reward, color, achieved, progress, total, progressColor, actionLabel, onAction }: EarnRuleProps) {
+  const showProgress = total != null && total > 0 && progress != null && !achieved;
+  const pct = showProgress ? Math.round((progress / total) * 100) : 0;
+
   return (
     <div className="flex items-start gap-3">
       <span className="text-lg flex-shrink-0">{icon}</span>
@@ -174,14 +206,29 @@ function EarnRule({ icon, title, description, reward, color, achieved, actionLab
             </svg>
             Achieved
           </span>
-        ) : actionLabel && onAction ? (
-          <button
-            onClick={onAction}
-            className="mt-1.5 px-3 py-1 text-xs font-medium rounded-full bg-sf-primary/20 text-sf-primary hover:bg-sf-primary/30 transition-colors"
-          >
-            {actionLabel}
-          </button>
-        ) : null}
+        ) : (
+          <>
+            {showProgress && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-sf-border overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${progressColor ?? 'bg-sf-primary'}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="text-sf-muted text-xs flex-shrink-0">{progress}/{total}</span>
+              </div>
+            )}
+            {actionLabel && onAction ? (
+              <button
+                onClick={onAction}
+                className="mt-1.5 px-3 py-1 text-xs font-medium rounded-full bg-sf-primary/20 text-sf-primary hover:bg-sf-primary/30 transition-colors"
+              >
+                {actionLabel}
+              </button>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );
