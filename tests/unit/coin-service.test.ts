@@ -92,20 +92,20 @@ describe('Coin Service', () => {
   });
 
   it('earnCoinForMastery awards 1 coin', async () => {
-    const balance = await earnCoinForMastery(PROFILE_ID);
+    const balance = await earnCoinForMastery(PROFILE_ID, 'word-1', 'test');
     expect(balance.coins).toBe(1);
     expect(balance.totalEarned).toBe(1);
   });
 
   it('earning multiple mastery coins accumulates', async () => {
-    await earnCoinForMastery(PROFILE_ID);
-    await earnCoinForMastery(PROFILE_ID);
+    await earnCoinForMastery(PROFILE_ID, 'word-1', 'test');
+    await earnCoinForMastery(PROFILE_ID, 'word-1', 'test');
     const balance = await getCoinBalance(PROFILE_ID);
     expect(balance.coins).toBe(2);
   });
 
   it('spendCoinForGame succeeds when coins available', async () => {
-    await earnCoinForMastery(PROFILE_ID);
+    await earnCoinForMastery(PROFILE_ID, 'word-1', 'test');
     const result = await spendCoinForGame(PROFILE_ID);
     expect(result).not.toBeNull();
     expect(result!.coins).toBe(0);
