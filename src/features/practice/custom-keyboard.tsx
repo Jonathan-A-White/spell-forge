@@ -72,8 +72,8 @@ export function CustomKeyboard({
       <button
         type="button"
         onMouseDown={preventFocusLoss}
-        onClick={() => { if (!disabled && !submitDisabled) onSubmit(); }}
-        disabled={disabled || submitDisabled}
+        onClick={() => { if (!submitDisabled) onSubmit(); }}
+        disabled={submitDisabled}
         className="w-full bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-1"
         style={{ minHeight: `${tapTargetSize}px`, fontSize: `${Math.max(16, tapTargetSize * 0.4)}px` }}
       >
@@ -161,7 +161,7 @@ export function SpellingField({
     [value, onChange],
   );
 
-  const effectiveSubmitDisabled = submitDisabled ?? value.trim().length === 0;
+  const effectiveSubmitDisabled = submitDisabled ?? (disabled || value.trim().length === 0);
 
   return (
     <div className={`flex flex-col items-center gap-3 w-full ${className}`}>
