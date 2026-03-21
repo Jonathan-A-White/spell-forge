@@ -87,6 +87,7 @@ function makeWordStatsData(wordId: string, profileId: string, overrides: Partial
     timesStruggledRight: 0,
     timesEasyRight: 0,
     consecutiveCorrect: 0,
+    consecutiveWrong: 0,
     currentBucket: 'new' as const,
     nextReviewDate: new Date('2026-02-01'),
     difficultyScore: 0.5,

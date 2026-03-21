@@ -116,24 +116,83 @@ describe('Bucket Transitions', () => {
     expect(stats.currentBucket).toBe('familiar');
   });
 
-  it('should drop mastered word to learning on incorrect answer', () => {
+  it('should hold mastered word during 1-2 wrong grace period', () => {
     let stats = createWordStats('word-knight', 'profile-paul');
     stats = applyCorrectResults(stats, 5, 1);
     expect(stats.currentBucket).toBe('mastered');
 
-    // Miss one
+    // Miss once — grace period, stays mastered
     stats = updateWordStats(stats, makeResult({ correct: false }));
-    expect(stats.consecutiveCorrect).toBe(0);
-    expect(stats.currentBucket).toBe('learning');
+    expect(stats.currentBucket).toBe('mastered');
+    expect(stats.consecutiveWrong).toBe(1);
+
+    // Miss twice — still in grace period
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.currentBucket).toBe('mastered');
+    expect(stats.consecutiveWrong).toBe(2);
   });
 
-  it('should drop familiar word to learning on incorrect answer', () => {
+  it('should drop mastered word to familiar after 3 consecutive wrong', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = applyCorrectResults(stats, 5, 1);
+    expect(stats.currentBucket).toBe('mastered');
+
+    // 3 wrong in a row → drop one level (mastered → familiar)
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.currentBucket).toBe('familiar');
+    expect(stats.consecutiveWrong).toBe(0); // reset after demotion
+    expect(stats.consecutiveCorrect).toBe(3); // set to bucket minimum
+  });
+
+  it('should drop familiar word to learning after 3 consecutive wrong', () => {
     let stats = createWordStats('word-knight', 'profile-paul');
     stats = applyCorrectResults(stats, 3);
     expect(stats.currentBucket).toBe('familiar');
 
     stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.currentBucket).toBe('learning');
+    expect(stats.consecutiveWrong).toBe(0);
     expect(stats.consecutiveCorrect).toBe(0);
+  });
+
+  it('should recover from grace period on correct answer', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = applyCorrectResults(stats, 3);
+    expect(stats.currentBucket).toBe('familiar');
+    expect(stats.consecutiveCorrect).toBe(3);
+
+    // Miss twice — grace period, stays familiar
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.currentBucket).toBe('familiar');
+    expect(stats.consecutiveWrong).toBe(2);
+
+    // Get correct — resets wrong counter, resumes building correct streak
+    stats = updateWordStats(stats, makeResult({ correct: true, timestamp: new Date('2026-03-10T15:00:00') }));
+    expect(stats.currentBucket).toBe('familiar');
+    expect(stats.consecutiveWrong).toBe(0);
+    expect(stats.consecutiveCorrect).toBe(4);
+  });
+
+  it('should cascade demotion across 6 consecutive wrongs (mastered → familiar → learning)', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = applyCorrectResults(stats, 5, 1);
+    expect(stats.currentBucket).toBe('mastered');
+
+    // First 3 wrongs: mastered → familiar
+    for (let i = 0; i < 3; i++) {
+      stats = updateWordStats(stats, makeResult({ correct: false }));
+    }
+    expect(stats.currentBucket).toBe('familiar');
+
+    // Next 3 wrongs: familiar → learning
+    for (let i = 0; i < 3; i++) {
+      stats = updateWordStats(stats, makeResult({ correct: false }));
+    }
     expect(stats.currentBucket).toBe('learning');
   });
 
@@ -165,14 +224,17 @@ describe('Bucket Transitions', () => {
     expect(stats.currentBucket).toBe('review');
   });
 
-  it('should drop review word to learning on incorrect answer', () => {
+  it('should drop review word to mastered after 3 consecutive wrong', () => {
     let stats = createWordStats('word-knight', 'profile-paul');
     stats = applyCorrectResults(stats, 7, 1);
     expect(stats.currentBucket).toBe('review');
 
+    // 3 wrongs: review → mastered (one level down)
     stats = updateWordStats(stats, makeResult({ correct: false }));
-    expect(stats.consecutiveCorrect).toBe(0);
-    expect(stats.currentBucket).toBe('learning');
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.currentBucket).toBe('mastered');
+    expect(stats.consecutiveWrong).toBe(0);
   });
 });
 
@@ -187,26 +249,44 @@ describe('Consecutive Correct Counting', () => {
     expect(stats.consecutiveCorrect).toBe(2);
   });
 
-  it('should reset consecutive correct on wrong answer', () => {
+  it('should preserve consecutive correct during wrong grace period', () => {
     let stats = createWordStats('word-knight', 'profile-paul');
     stats = updateWordStats(stats, makeResult({ correct: true }));
     stats = updateWordStats(stats, makeResult({ correct: true }));
     expect(stats.consecutiveCorrect).toBe(2);
 
+    // Wrong during grace period preserves cc
     stats = updateWordStats(stats, makeResult({ correct: false }));
-    expect(stats.consecutiveCorrect).toBe(0);
+    expect(stats.consecutiveCorrect).toBe(2);
+    expect(stats.consecutiveWrong).toBe(1);
   });
 
-  it('should restart counting from zero after a reset', () => {
+  it('should reset consecutive correct after 3 wrongs trigger demotion', () => {
     let stats = createWordStats('word-knight', 'profile-paul');
     stats = applyCorrectResults(stats, 3);
     expect(stats.consecutiveCorrect).toBe(3);
+    expect(stats.currentBucket).toBe('familiar');
 
+    // 3 wrongs → demotion to learning, cc reset to bucket minimum (0)
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
     stats = updateWordStats(stats, makeResult({ correct: false }));
     expect(stats.consecutiveCorrect).toBe(0);
+    expect(stats.consecutiveWrong).toBe(0);
 
     stats = updateWordStats(stats, makeResult({ correct: true }));
     expect(stats.consecutiveCorrect).toBe(1);
+  });
+
+  it('should reset consecutive wrong on correct answer', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = updateWordStats(stats, makeResult({ correct: true }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.consecutiveWrong).toBe(1);
+
+    stats = updateWordStats(stats, makeResult({ correct: true }));
+    expect(stats.consecutiveWrong).toBe(0);
+    expect(stats.consecutiveCorrect).toBe(2);
   });
 });
 
@@ -346,6 +426,7 @@ describe('updateWordStats', () => {
     expect(updated.timesEasyRight).toBe(0);
     expect(updated.timesStruggledRight).toBe(0);
     expect(updated.consecutiveCorrect).toBe(0);
+    expect(updated.consecutiveWrong).toBe(1);
   });
 
   it('should recalculate difficulty and next review date', () => {

@@ -1,7 +1,7 @@
 // src/core/spaced-rep/scheduler.ts — SM-2 adaptation for children's spelling practice
 
 import type { WordStats, TechniqueResult } from '../../contracts/types';
-import { transitionBucket } from './buckets';
+import { transitionBucket, DEMOTION_THRESHOLD, bucketMinCorrect } from './buckets';
 import { computeDifficulty } from './difficulty';
 
 /**
@@ -60,8 +60,24 @@ export function updateWordStats(stats: WordStats, result: TechniqueResult): Word
   const timesStruggledRight = stats.timesStruggledRight + (result.correct && result.struggled ? 1 : 0);
   const timesEasyRight = stats.timesEasyRight + (result.correct && !result.struggled ? 1 : 0);
 
-  // Consecutive correct: reset on wrong, increment on correct
-  const consecutiveCorrect = result.correct ? stats.consecutiveCorrect + 1 : 0;
+  // Track consecutive correct & consecutive wrong
+  let consecutiveCorrect: number;
+  let consecutiveWrong: number;
+
+  if (result.correct) {
+    consecutiveCorrect = stats.consecutiveCorrect + 1;
+    consecutiveWrong = 0;
+  } else {
+    consecutiveWrong = (stats.consecutiveWrong ?? 0) + 1;
+    if (consecutiveWrong >= DEMOTION_THRESHOLD) {
+      // Demotion triggered — reset consecutiveCorrect to 0 so the demoted
+      // bucket can be set properly, then we'll fix cc after transition.
+      consecutiveCorrect = 0;
+    } else {
+      // Grace period — preserve consecutiveCorrect so the word holds its bucket
+      consecutiveCorrect = stats.consecutiveCorrect;
+    }
+  }
 
   // Build intermediate stats for bucket transition and difficulty calculation
   const intermediate: WordStats = {
@@ -72,12 +88,20 @@ export function updateWordStats(stats: WordStats, result: TechniqueResult): Word
     timesStruggledRight,
     timesEasyRight,
     consecutiveCorrect,
+    consecutiveWrong,
     techniqueHistory: updatedHistory,
   };
 
   // Transition bucket based on new stats
   const newBucket = transitionBucket(intermediate);
   intermediate.currentBucket = newBucket;
+
+  // After demotion: reset consecutiveWrong and set consecutiveCorrect
+  // to the minimum needed to hold the new bucket level
+  if (consecutiveWrong >= DEMOTION_THRESHOLD) {
+    intermediate.consecutiveWrong = 0;
+    intermediate.consecutiveCorrect = bucketMinCorrect(newBucket);
+  }
 
   // Recompute difficulty
   intermediate.difficultyScore = computeDifficulty(intermediate);

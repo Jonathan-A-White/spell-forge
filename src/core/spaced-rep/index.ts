@@ -1,7 +1,7 @@
 // src/core/spaced-rep/index.ts — barrel export
 
 export { updateWordStats, calculateNextReview } from './scheduler';
-export { transitionBucket } from './buckets';
+export { transitionBucket, demoteOneLevel, DEMOTION_THRESHOLD } from './buckets';
 export { computeDifficulty } from './difficulty';
 export {
   earnCoinForMastery,
