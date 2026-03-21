@@ -8,6 +8,11 @@ import type { WordStats, WordBucket } from '../../contracts/types';
 const MASTERED_MIN_DAYS = 3;
 
 /**
+ * Number of consecutive wrong answers required to trigger a one-level demotion.
+ */
+export const DEMOTION_THRESHOLD = 3;
+
+/**
  * Count the number of distinct days on which correct answers were given.
  */
 function countCorrectDays(stats: WordStats): number {
@@ -25,6 +30,33 @@ function countCorrectDays(stats: WordStats): number {
 }
 
 /**
+ * Demote a bucket by exactly one level.
+ *
+ * review → mastered → familiar → learning
+ */
+export function demoteOneLevel(bucket: WordBucket): WordBucket {
+  switch (bucket) {
+    case 'review': return 'mastered';
+    case 'mastered': return 'familiar';
+    case 'familiar': return 'learning';
+    default: return 'learning';
+  }
+}
+
+/**
+ * Minimum consecutiveCorrect value needed to hold a given bucket.
+ * Used after demotion so the word stays at its new level.
+ */
+export function bucketMinCorrect(bucket: WordBucket): number {
+  switch (bucket) {
+    case 'familiar': return 3;
+    case 'mastered': return 5;
+    case 'review': return 5;
+    default: return 0;
+  }
+}
+
+/**
  * Determine the appropriate bucket for a word based on its current stats.
  *
  * Bucket rules:
@@ -34,7 +66,9 @@ function countCorrectDays(stats: WordStats): number {
  * - mastered: 5+ consecutive correct across 3+ distinct days
  * - review: mastered words entering long-term maintenance
  *
- * Words move BOTH directions: a mastered word that is missed drops to learning.
+ * Demotion is graduated: 3 consecutive wrong answers drops ONE level
+ * (review → mastered → familiar → learning). During a grace period
+ * (1-2 wrongs), the word holds its current bucket.
  */
 export function transitionBucket(stats: WordStats): WordBucket {
   // Never attempted
@@ -43,9 +77,21 @@ export function transitionBucket(stats: WordStats): WordBucket {
   }
 
   const cc = stats.consecutiveCorrect;
+  const cw = stats.consecutiveWrong ?? 0;
 
-  // If consecutive correct is 0 (just got one wrong) and they've been asked,
-  // they're in learning
+  // Demotion: 3+ consecutive wrong → drop one level from current bucket
+  if (cw >= DEMOTION_THRESHOLD) {
+    return demoteOneLevel(stats.currentBucket);
+  }
+
+  // Grace period: 1-2 consecutive wrongs → hold current bucket
+  // (don't drop immediately; give the learner a chance to recover)
+  if (cw > 0 && stats.currentBucket !== 'new') {
+    return stats.currentBucket;
+  }
+
+  // ── Normal promotion logic (cw === 0, on a correct streak) ──
+
   if (cc < 3) {
     return 'learning';
   }
@@ -63,7 +109,6 @@ export function transitionBucket(stats: WordStats): WordBucket {
       return 'review';
     }
     // If already mastered and has been there a while, transition to review
-    // A word moves to review once it's been mastered and completed at least one mastered-interval review
     if (stats.currentBucket === 'mastered' && correctDays > MASTERED_MIN_DAYS) {
       return 'review';
     }

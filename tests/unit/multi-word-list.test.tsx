@@ -45,6 +45,7 @@ function makeStat(wordId: string, bucket: WordStats['currentBucket']): WordStats
     timesStruggledRight: 0,
     timesEasyRight: 3,
     consecutiveCorrect: 3,
+    consecutiveWrong: 0,
     currentBucket: bucket,
     nextReviewDate: new Date(),
     difficultyScore: 0.5,

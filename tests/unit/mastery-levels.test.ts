@@ -143,11 +143,23 @@ describe('practice mode drives words from familiar to mastered', () => {
     expect(bucket).toBe('mastered');
   });
 
-  it('getting a word wrong drops it back to learning regardless of previous level', () => {
+  it('a word holds its bucket during 1-2 wrong grace period', () => {
     const stats = createWordStats('w1', 'p1', {
       currentBucket: 'familiar',
       timesAsked: 5,
-      consecutiveCorrect: 0, // just got one wrong
+      consecutiveCorrect: 4,
+      consecutiveWrong: 1,
+    });
+    const bucket = transitionBucket(stats);
+    expect(bucket).toBe('familiar');
+  });
+
+  it('3 consecutive wrong answers drops a word down one level', () => {
+    const stats = createWordStats('w1', 'p1', {
+      currentBucket: 'familiar',
+      timesAsked: 8,
+      consecutiveCorrect: 4,
+      consecutiveWrong: 3,
     });
     const bucket = transitionBucket(stats);
     expect(bucket).toBe('learning');

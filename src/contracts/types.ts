@@ -66,6 +66,7 @@ export interface WordStats {
   timesStruggledRight: number;
   timesEasyRight: number;
   consecutiveCorrect: number;
+  consecutiveWrong: number;
   currentBucket: WordBucket;
   nextReviewDate: Date;
   difficultyScore: number;  // 0.0-1.0
