@@ -20,6 +20,8 @@ import {
   sortWordsForLearning,
   findNextWord,
 } from '../../core/learning';
+import { generateMemoryAids } from '../../core/memory-aids';
+import { MemoryAidDisplay } from './memory-aid-display';
 import { wordListRepo } from '../../data/repositories/word-list-repo';
 import { wordRepo } from '../../data/repositories/word-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
@@ -324,6 +326,20 @@ export function LearningScreen({
     return { stage, successes, inputMode, display, hiddenCount };
   }, [currentWord, currentProgress?.stage, currentProgress?.consecutiveSuccesses]);
 
+  // Generate memory aids for the current word (memoized per word).
+  // At Stage 0, each of the 3 reps shows a different aid:
+  //   Rep 1 (successes=0): Phonetic breakdown — "Sound It Out"
+  //   Rep 2 (successes=1): Pattern spotlight — "Pattern Spotter"
+  //   Rep 3 (successes=2): Memory tricks — "Memory Tricks"
+  const memoryAids = useMemo(() => {
+    if (!currentWord) return null;
+    return generateMemoryAids(currentWord.text);
+  }, [currentWord]);
+
+  const currentMemoryAid = wordDisplay?.stage === 0 && memoryAids && !testOutMode
+    ? memoryAids[wordDisplay.successes] ?? null
+    : null;
+
   // Loading state
   if (loading) {
     return (
@@ -474,6 +490,11 @@ export function LearningScreen({
               ))}
             </p>
           </div>
+        )}
+
+        {/* Memory aid — shown at Stage 0, different aid each rep */}
+        {currentMemoryAid && (
+          <MemoryAidDisplay aid={currentMemoryAid} />
         )}
 
         {/* Audio only indicator for stage 3 or test-out */}

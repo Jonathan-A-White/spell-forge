@@ -319,6 +319,56 @@ export interface CoinTransaction {
   createdAt: Date;
 }
 
+// ─── Memory Aids ─────────────────────────────────────────────
+
+export type MemoryAidType = 'phonetic' | 'pattern' | 'mnemonic';
+
+export interface PhoneticAid {
+  type: 'phonetic';
+  /** Syllable chunks with optional pronunciation */
+  chunks: PhoneticChunk[];
+  /** Plain summary like "say it: beau·ti·ful" */
+  summary: string;
+}
+
+export interface PhoneticChunk {
+  text: string;        // the syllable grapheme, e.g. "beau"
+  pronunciation: string; // IPA or friendly pronunciation, e.g. "/bjuː/"
+}
+
+export interface PatternAid {
+  type: 'pattern';
+  /** Segments of the word, some highlighted as known patterns */
+  segments: PatternSegment[];
+  /** Teaching tips about the highlighted patterns */
+  tips: PatternTip[];
+}
+
+export interface PatternSegment {
+  text: string;
+  patternId: string | null; // null = no pattern, plain text
+  colorIndex: number;       // 0 for plain, 1-4 for pattern colors
+}
+
+export interface PatternTip {
+  pattern: string;   // e.g. "igh"
+  hint: string;      // e.g. '"igh" says long i'
+  examples: string[]; // e.g. ['light', 'night', 'sight']
+}
+
+export interface MnemonicAid {
+  type: 'mnemonic';
+  /** Short memorable trick or phrase */
+  tricks: MnemonicTrick[];
+}
+
+export interface MnemonicTrick {
+  label: string;   // e.g. "Words inside" or "Remember"
+  content: string; // e.g. "to·GET·HER" or "Big Elephants Can..."
+}
+
+export type MemoryAid = PhoneticAid | PatternAid | MnemonicAid;
+
 // ─── Import/Export ────────────────────────────────────────────
 
 export interface ExportPayload {
