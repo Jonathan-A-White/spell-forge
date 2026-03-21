@@ -69,7 +69,7 @@ export function ReadinessIndicator({
               {wordsReady} of {target} words needed{effectiveGoal < 100 ? ` (${effectiveGoal}% goal)` : ''}
             </p>
             <p className="text-center text-xs text-sf-faint mt-0.5">
-              A word is ready when it reaches Familiar or Mastered
+              A word is ready when it reaches Mastered
             </p>
           </>
         );

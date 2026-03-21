@@ -108,7 +108,7 @@ describe('ProgressView multi-list readiness', () => {
     expect(screen.getByText('0 of 5 words needed')).toBeTruthy();
   });
 
-  it('counts mastered/familiar words as ready across multiple lists', () => {
+  it('counts only mastered words as ready across multiple lists', () => {
     const listA = makeList({ id: 'list-a', name: 'Text' });
     const listB = makeList({ id: 'list-b', name: 'Unit 3' });
     const words = [
@@ -131,7 +131,7 @@ describe('ProgressView multi-list readiness', () => {
       />,
     );
 
-    expect(screen.getByText('2 of 4 words needed')).toBeTruthy();
+    expect(screen.getByText('1 of 4 words needed')).toBeTruthy();
   });
 
   it('does not count words from inactive/archived lists', () => {

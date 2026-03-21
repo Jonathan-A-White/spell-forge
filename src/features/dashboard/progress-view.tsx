@@ -79,7 +79,7 @@ export function ProgressView({
     : [];
   const activeListReady = activeListWords.filter((w) => {
     const cat = getWordCategory(w.id, statsMap, learningMap);
-    return cat === 'mastered' || cat === 'familiar';
+    return cat === 'mastered';
   }).length;
   const readinessTarget = activeListWords.length > 0
     ? Math.ceil(activeListWords.length * (gradeGoal ?? 100) / 100)
