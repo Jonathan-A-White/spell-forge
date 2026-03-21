@@ -23,13 +23,14 @@ const AID_ICONS: Record<MemoryAid['type'], string> = {
   mnemonic: '\uD83D\uDCA1', // light bulb
 };
 
-/** Pattern highlight colors — maps colorIndex (1-4) to Tailwind classes */
+/** Pattern highlight colors — maps colorIndex (1-4) to Tailwind classes.
+ *  Uses theme-aware colors so highlights remain readable in dark mode. */
 const PATTERN_COLORS = [
   '', // 0 = no pattern (plain)
-  'bg-blue-100 text-blue-800 border-blue-300',
-  'bg-amber-100 text-amber-800 border-amber-300',
-  'bg-green-100 text-green-800 border-green-300',
-  'bg-purple-100 text-purple-800 border-purple-300',
+  'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-700',
+  'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700',
+  'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-200 dark:border-green-700',
+  'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/50 dark:text-purple-200 dark:border-purple-700',
 ];
 
 export function MemoryAidDisplay({ aid }: MemoryAidDisplayProps) {
@@ -37,7 +38,7 @@ export function MemoryAidDisplay({ aid }: MemoryAidDisplayProps) {
     <div className="w-full max-w-md mx-auto bg-sf-surface border border-sf-border rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-lg" aria-hidden="true">{AID_ICONS[aid.type]}</span>
-        <h3 className="text-sm font-semibold text-sf-heading">{AID_LABELS[aid.type]}</h3>
+        <h3 className="text-base font-semibold text-sf-heading">{AID_LABELS[aid.type]}</h3>
       </div>
 
       {aid.type === 'phonetic' && <PhoneticContent aid={aid} />}
@@ -51,20 +52,20 @@ export function MemoryAidDisplay({ aid }: MemoryAidDisplayProps) {
 
 function PhoneticContent({ aid }: { aid: PhoneticAid }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {/* Syllable chunks */}
-      <div className="flex flex-wrap items-center justify-center gap-1">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {aid.chunks.map((chunk, i) => (
-          <div key={i} className="flex flex-col items-center">
-            <span className="text-xl font-bold text-sf-heading bg-blue-50 border border-blue-200 rounded-lg px-3 py-1">
+          <div key={i} className="flex flex-col items-center gap-1">
+            <span className="text-xl font-bold text-blue-800 dark:text-blue-100 bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-700 rounded-lg px-3 py-1.5">
               {chunk.text}
             </span>
-            <span className="text-xs text-sf-muted mt-0.5">{chunk.pronunciation}</span>
+            <span className="text-sm text-sf-secondary">{chunk.pronunciation}</span>
           </div>
         ))}
       </div>
       {/* Summary */}
-      <p className="text-center text-sm text-sf-muted italic">{aid.summary}</p>
+      <p className="text-center text-base text-sf-secondary italic">{aid.summary}</p>
     </div>
   );
 }
@@ -102,7 +103,7 @@ function PatternContent({ aid }: { aid: PatternAid }) {
               </span>
               <span className="text-sf-muted"> — {tip.hint}</span>
               {tip.examples.length > 0 && (
-                <span className="text-sf-muted text-xs block ml-4">
+                <span className="text-sf-muted text-sm block ml-4">
                   Also in: {tip.examples.join(', ')}
                 </span>
               )}

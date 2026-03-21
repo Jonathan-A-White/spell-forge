@@ -111,7 +111,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showU
   }, [containerWidth, tapTargetSize, targetLetters.length, selected.length, showUndo]);
 
   const buttonSize = `${slotSize}px`;
-  const fontSize = `${Math.max(12, slotSize * 0.45)}px`;
+  const fontSize = `${Math.max(14, slotSize * 0.5)}px`;
 
   // Bank button size: also responsive but uses tapTargetSize as max
   const bankButtonSize = useMemo(() => {
@@ -123,18 +123,18 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showU
   }, [containerWidth, tapTargetSize, availableLetters.length]);
 
   const bankSize = `${bankButtonSize}px`;
-  const bankFontSize = `${Math.max(14, bankButtonSize * 0.45)}px`;
+  const bankFontSize = `${Math.max(16, bankButtonSize * 0.5)}px`;
 
   return (
     <div ref={containerRef} className="flex flex-col items-center gap-6 w-full">
       {/* Scaffolding hints */}
       {scaffolding && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center max-w-md md:max-w-3xl lg:max-w-5xl">
+        <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 text-center max-w-md md:max-w-3xl lg:max-w-5xl">
           <div className="flex justify-center gap-2 mb-2">
             {scaffolding.chunks.map((chunk, i) => (
               <span
                 key={i}
-                className="bg-blue-100 px-3 py-1 rounded-md font-bold text-blue-800"
+                className="bg-blue-100 dark:bg-blue-800/50 px-3 py-1.5 rounded-md font-bold text-blue-800 dark:text-blue-100"
                 style={{ fontSize }}
               >
                 {chunk}
@@ -142,7 +142,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showU
             ))}
           </div>
           {scaffolding.hints.map((hint, i) => (
-            <p key={i} className="text-blue-700 text-sm mt-1">
+            <p key={i} className="text-blue-700 dark:text-blue-200 text-sm mt-1">
               {hint}
             </p>
           ))}
@@ -152,7 +152,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showU
       {/* Word building area */}
       <div
         className={`flex gap-2 min-h-[80px] items-center justify-center p-4 rounded-xl border-2 transition-colors w-full ${
-          wrongFlash ? 'border-red-400 bg-red-50' : 'border-sf-border-strong bg-sf-bg'
+          wrongFlash ? 'border-red-400 bg-red-50 dark:bg-red-900/30' : 'border-sf-border-strong bg-sf-bg'
         }`}
       >
         {targetLetters.map((_, i) => (

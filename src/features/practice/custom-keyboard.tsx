@@ -33,8 +33,8 @@ export function CustomKeyboard({
   submitDisabled = false,
   tapTargetSize = 44,
 }: CustomKeyboardProps) {
-  const keySize = Math.max(32, tapTargetSize * 0.75);
-  const fontSize = `${Math.max(14, keySize * 0.45)}px`;
+  const keySize = Math.max(36, tapTargetSize * 0.8);
+  const fontSize = `${Math.max(16, keySize * 0.5)}px`;
 
   return (
     <div className="flex flex-col items-center gap-1.5 w-full select-none" role="group" aria-label="Keyboard">
@@ -115,7 +115,7 @@ export function SpellingField({
   ariaLabel = 'Type the spelling word',
   displayClassName,
 }: SpellingFieldProps) {
-  const fontSize = fontSizeProp ?? `${Math.max(18, tapTargetSize * 0.5)}px`;
+  const fontSize = fontSizeProp ?? `${Math.max(20, tapTargetSize * 0.55)}px`;
   const cursorRef = useRef<HTMLSpanElement>(null);
 
   // Blink cursor animation
