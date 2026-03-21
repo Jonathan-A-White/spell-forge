@@ -1,4 +1,5 @@
 import type { CompletedCreature } from '../../contracts/types.ts';
+import { themeProgressRepo } from '../../data/repositories/theme-progress-repo.ts';
 
 const CREATURE_ADJECTIVES = [
   'Sparky', 'Fuzzy', 'Gloopy', 'Chompy', 'Slimy',
@@ -41,6 +42,11 @@ function addCreature(profileId: string, themeId: string, totalBlocksUsed: number
   existing.push(creature);
   collectionStore.set(profileId, existing);
 
+  // Persist to IndexedDB (fire-and-forget)
+  themeProgressRepo.saveCreature(creature).catch(() => {
+    // Silently ignore — in-memory state is still correct
+  });
+
   return creature;
 }
 
@@ -60,6 +66,17 @@ function resetAll(): void {
   collectionStore.clear();
 }
 
+/**
+ * Load persisted creatures from IndexedDB into the in-memory store.
+ * Call this when selecting / switching profiles.
+ */
+async function hydrateProfile(profileId: string): Promise<void> {
+  const creatures = await themeProgressRepo.getCreatures(profileId);
+  if (creatures.length > 0) {
+    collectionStore.set(profileId, creatures);
+  }
+}
+
 export const monsterCollection = {
   addCreature,
   getCollection,
@@ -67,4 +84,5 @@ export const monsterCollection = {
   resetCollection,
   resetAll,
   generateCreatureName,
+  hydrateProfile,
 } as const;

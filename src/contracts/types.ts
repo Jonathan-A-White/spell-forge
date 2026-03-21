@@ -242,6 +242,14 @@ export interface CompletedCreature {
   totalBlocksUsed: number;
 }
 
+export interface ThemeProgress {
+  id: string;              // `${profileId}:${themeId}`
+  profileId: string;
+  themeId: string;
+  totalProgress: number;
+  updatedAt: Date;
+}
+
 // ─── Dashboard ────────────────────────────────────────────────
 
 export type ReadinessLevel = 'keep-forging' | 'getting-warmer' | 'almost-there' | 'ready';

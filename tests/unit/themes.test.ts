@@ -5,6 +5,8 @@ import { monsterLabTheme } from '../../src/themes/monster-lab/theme.ts';
 import { starTrailTheme } from '../../src/themes/star-trail/theme.ts';
 import { rewardTracker } from '../../src/features/rewards/reward-tracker.ts';
 import { monsterCollection } from '../../src/features/rewards/monster-collection.ts';
+import { themeProgressRepo } from '../../src/data/repositories/theme-progress-repo.ts';
+import { db } from '../../src/data/db.ts';
 import type { AppEvent, Theme } from '../../src/contracts/types.ts';
 
 // ─── Theme Loading ───────────────────────────────────────────
@@ -619,5 +621,90 @@ describe('RewardTracker Collection Integration', () => {
     expect(status.current).toBe('Egg Found');
     expect(status.next).toBe('Egg Warming');
     expect(status.progressToNext).toBe(UNITS);
+  });
+});
+
+// ─── Theme Progress Persistence ──────────────────────────────
+
+describe('Theme Progress Persistence', () => {
+  beforeEach(async () => {
+    rewardTracker.resetAll();
+    monsterCollection.resetAll();
+    await db.themeProgress.clear();
+    await db.completedCreatures.clear();
+  });
+
+  it('persists progress to IndexedDB when setProgress is called', async () => {
+    rewardTracker.setProgress('p1', 'monster-lab', 25);
+
+    // Allow fire-and-forget DB write to complete
+    await new Promise((r) => setTimeout(r, 50));
+
+    const saved = await themeProgressRepo.getProgress('p1', 'monster-lab');
+    expect(saved).toBe(25);
+  });
+
+  it('hydrates progress from IndexedDB into in-memory store', async () => {
+    // Write directly to DB (simulating a previous session)
+    await themeProgressRepo.saveProgress('p1', 'monster-lab', 30);
+
+    // Reset in-memory state
+    rewardTracker.resetAll();
+    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(0);
+
+    // Hydrate
+    await rewardTracker.hydrateProfile('p1');
+    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(30);
+  });
+
+  it('persists completed creatures to IndexedDB', async () => {
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+
+    // Allow fire-and-forget DB write to complete
+    await new Promise((r) => setTimeout(r, 50));
+
+    const saved = await themeProgressRepo.getCreatures('p1');
+    expect(saved).toHaveLength(1);
+    expect(saved[0].themeId).toBe('monster-lab');
+    expect(saved[0].totalBlocksUsed).toBe(50);
+  });
+
+  it('hydrates completed creatures from IndexedDB', async () => {
+    // Add creature and let it persist
+    const creature = monsterCollection.addCreature('p1', 'monster-lab', 50);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Reset in-memory state
+    monsterCollection.resetAll();
+    expect(monsterCollection.getCollectionCount('p1')).toBe(0);
+
+    // Hydrate
+    await monsterCollection.hydrateProfile('p1');
+    expect(monsterCollection.getCollectionCount('p1')).toBe(1);
+    expect(monsterCollection.getCollection('p1')[0].id).toBe(creature.id);
+  });
+
+  it('survives a full reset-and-hydrate cycle (simulating page refresh)', async () => {
+    // Build up progress
+    const correctEvent: AppEvent = {
+      type: 'word:attempted',
+      payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
+    };
+    rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
+    rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
+
+    // Let DB writes settle
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Simulate page refresh
+    rewardTracker.resetAll();
+    monsterCollection.resetAll();
+
+    // Hydrate from DB
+    await rewardTracker.hydrateProfile('p1');
+    await monsterCollection.hydrateProfile('p1');
+
+    // Progress should be restored (monster-lab gives 2 units per correct = 4 total)
+    expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(4);
   });
 });
