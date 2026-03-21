@@ -464,11 +464,11 @@ export function LearningScreen({
       {/* Stage indicator */}
       <div className="text-center mb-2">
         {testOutMode ? (
-          <span className="text-xs text-sf-primary bg-sf-surface border border-sf-primary rounded-full px-3 py-1 font-medium">
+          <span className="text-sm text-sf-primary bg-sf-surface border border-sf-primary rounded-full px-4 py-1.5 font-medium">
             Test Out — Spell the word to learn it
           </span>
         ) : (
-          <span className="text-xs text-sf-muted bg-sf-surface border border-sf-border rounded-full px-3 py-1">
+          <span className="text-sm text-sf-secondary bg-sf-surface border border-sf-border rounded-full px-4 py-1.5">
             Stage {wordDisplay.stage + 1}: {stageLabels[wordDisplay.stage]} — Rep {wordDisplay.successes + 1}/3
           </span>
         )}
