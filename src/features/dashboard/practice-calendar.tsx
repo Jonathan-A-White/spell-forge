@@ -81,7 +81,28 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
     return { practiceDays, totalSessions, totalWords, totalCorrect };
   }, [sessionsByDate, viewDate]);
 
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  // Determine the earliest month that has any session data
+  const earliestSessionMonth = useMemo(() => {
+    let earliest: Date | null = null;
+    for (const session of sessions) {
+      const date = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt);
+      if (isNaN(date.getTime())) continue;
+      if (!earliest || date < earliest) earliest = date;
+    }
+    return earliest;
+  }, [sessions]);
+
+  const canGoPrev = (() => {
+    if (!earliestSessionMonth) return false;
+    const earliestYear = earliestSessionMonth.getFullYear();
+    const earliestMonth = earliestSessionMonth.getMonth();
+    // Can go back if viewing a month after the earliest data month
+    return year > earliestYear || (year === earliestYear && month > earliestMonth);
+  })();
+
+  const prevMonth = () => {
+    if (canGoPrev) setViewDate(new Date(year, month - 1, 1));
+  };
   const nextMonth = () => {
     if (!isCurrentMonth) setViewDate(new Date(year, month + 1, 1));
   };
@@ -136,8 +157,14 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
         <div className="flex items-center justify-between mt-4 mb-3">
           <button
             onClick={prevMonth}
-            className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+            disabled={!canGoPrev}
+            className={`p-2 rounded-lg transition-all ${
+              canGoPrev
+                ? 'text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover'
+                : 'text-sf-muted/30 cursor-not-allowed'
+            }`}
             aria-label="Previous month"
+            title={!canGoPrev ? 'No practice data before this month' : undefined}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
               <path d="M15 18l-6-6 6-6" />
@@ -153,6 +180,7 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
                 : 'text-sf-muted/30 cursor-not-allowed'
             }`}
             aria-label="Next month"
+            title={!canGoNext ? 'Already viewing the current month' : undefined}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
               <path d="M9 18l6-6-6-6" />
