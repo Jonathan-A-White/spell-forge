@@ -19,8 +19,11 @@ export function generatePatternAid(word: string): PatternAid {
   const lower = word.toLowerCase().trim();
   const analysis = analyzeWord(lower);
 
-  const segments = buildSegments(lower, analysis.phonemes, analysis.patterns);
-  const tips = buildTips(analysis.patterns);
+  // Limit to 3 unique patterns so highlights and tips stay in sync
+  const limitedPatterns = limitUniquePatterns(analysis.patterns, 3);
+
+  const segments = buildSegments(lower, analysis.phonemes, limitedPatterns);
+  const tips = buildTips(limitedPatterns);
 
   return {
     type: 'pattern',
@@ -126,5 +129,24 @@ function buildTips(detectedPatterns: DetectedPattern[]): PatternTip[] {
     });
   }
 
-  return tips.slice(0, 3); // Max 3 tips to avoid clutter
+  return tips;
+}
+
+/**
+ * Keep only patterns whose grapheme is among the first `max` unique graphemes.
+ * This ensures highlights and tips stay in sync (no color without a tip).
+ */
+function limitUniquePatterns(patterns: DetectedPattern[], max: number): DetectedPattern[] {
+  const seen = new Set<string>();
+  const allowedGraphemes = new Set<string>();
+
+  for (const dp of patterns) {
+    if (!seen.has(dp.grapheme)) {
+      if (seen.size >= max) break;
+      seen.add(dp.grapheme);
+      allowedGraphemes.add(dp.grapheme);
+    }
+  }
+
+  return patterns.filter(dp => allowedGraphemes.has(dp.grapheme));
 }
