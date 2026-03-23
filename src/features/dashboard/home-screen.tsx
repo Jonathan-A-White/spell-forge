@@ -1,7 +1,7 @@
 // src/features/dashboard/home-screen.tsx — Main hub screen with compact single-screen layout
 
 import type { Profile, WordList, Word, WordStats, WordLearningProgress, StreakData, CoinBalance } from '../../contracts/types';
-import { canPlayFree, getWordsDueCount } from '../../core/spaced-rep';
+import { canPlayFree, getWordsDueCount, getWordsDueIds } from '../../core/spaced-rep';
 import { countMasteredWords, computeProgressPercent } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
 import { monsterCollection } from '../rewards';
@@ -28,7 +28,7 @@ interface HomeScreenProps {
   coinBalance: CoinBalance | null;
   learningProgress: WordLearningProgress[];
   gradeGoal?: number;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history' | 'practice-calendar') => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history' | 'practice-calendar', wordFilter?: Set<string>) => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -121,7 +121,10 @@ export function HomeScreen({
               </button>
               {wordsDue > 0 && (
                 <button
-                  onClick={() => onNavigate('practice')}
+                  onClick={() => {
+                    const dueIds = getWordsDueIds(activeStats);
+                    onNavigate('practice', dueIds.length > 0 ? new Set(dueIds) : undefined);
+                  }}
                   className="flex items-center gap-1.5 bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
                 >
                   <span>{wordsDue}</span>
