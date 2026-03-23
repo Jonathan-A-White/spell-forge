@@ -8,7 +8,8 @@ const COMMON_PREFIXES = [
 ];
 
 const COMMON_SUFFIXES = [
-  'tious', 'cious', 'tion', 'sion', 'ness', 'ment', 'able', 'ible', 'ful', 'less',
+  'tious', 'cious', 'tient', 'cient', 'ience',
+  'tion', 'sion', 'ness', 'ment', 'able', 'ible', 'ful', 'less',
   'ious', 'ous', 'ing', 'ture', 'ly', 'ed', 'er', 'est', 'al', 'en',
 ];
 

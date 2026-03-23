@@ -212,6 +212,14 @@ function detectDirectPatterns(
     const posKey = `${grapheme}@${idx}`;
     if (matchedGraphemePositions.has(posKey)) continue;
 
+    // "ie" vowel-team patterns should not match when followed by "n"
+    // (e.g., "ancient", "resilient", "obedient") — the "ie" in "-ient"/"-ience"
+    // does not function as a standard vowel team.
+    if (grapheme === 'ie' && pattern.category === 'vowel-team') {
+      const after = idx + 2;
+      if (after < word.length && word[after] === 'n') continue;
+    }
+
     // For short vowels, check if the vowel position is already covered
     // by a vowel team or other higher-priority pattern
     if (pattern.category === 'short-vowel') {
