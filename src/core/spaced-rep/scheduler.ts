@@ -108,6 +108,10 @@ export function updateWordStats(stats: WordStats, result: TechniqueResult): Word
   if (consecutiveWrong >= DEMOTION_THRESHOLD) {
     intermediate.consecutiveWrong = 0;
     intermediate.consecutiveCorrect = bucketMinCorrect(newBucket);
+    // Maintain invariant: longestCorrectStreak >= consecutiveCorrect
+    if (intermediate.consecutiveCorrect > intermediate.longestCorrectStreak) {
+      intermediate.longestCorrectStreak = intermediate.consecutiveCorrect;
+    }
   }
 
   // Recompute difficulty
