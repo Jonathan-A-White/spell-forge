@@ -1137,7 +1137,7 @@ function App() {
           coinBalance={coinBalance}
           learningProgress={learningProgress}
           gradeGoal={activeProfile?.gradeGoal}
-          onNavigate={(target) => setView(target)}
+          onNavigate={(target, wordFilter) => { if (wordFilter) setPracticeWordFilter(wordFilter); setView(target); }}
           onSwitchProfile={() => setView('profile-select')}
           hasMultipleProfiles={profiles.length > 1}
         />
