@@ -1,6 +1,6 @@
 // src/core/spaced-rep/coin-service.ts — Coin economy: earn coins by milestones and mastery, spend to play games
 
-import type { CoinBalance, WordStats } from '../../contracts/types';
+import type { CoinBalance, CoinTransactionReason, WordStats } from '../../contracts/types';
 import { coinRepo } from '../../data/repositories/coin-repo';
 import { coinTransactionRepo } from '../../data/repositories/coin-transaction-repo';
 
@@ -106,6 +106,48 @@ export async function spendCoinForGame(profileId: string): Promise<CoinBalance |
  */
 export async function getCoinBalance(profileId: string): Promise<CoinBalance> {
   return coinRepo.getOrCreate(profileId);
+}
+
+/**
+ * Check if a milestone coin has already been awarded for this profile.
+ */
+export async function hasMilestoneBeenAwarded(profileId: string, reason: CoinTransactionReason): Promise<boolean> {
+  return coinTransactionRepo.hasMilestoneBeenAwarded(profileId, reason);
+}
+
+/**
+ * Award any milestone coins that are earned but not yet recorded.
+ * Call this on profile load to retroactively award coins for milestones
+ * that were reached before the coin system existed or between sessions.
+ * Returns the updated balance if any coins were awarded, or the current balance.
+ */
+export async function awardPendingMilestones(
+  profileId: string,
+  activeStats: WordStats[],
+  activeWordCount: number,
+): Promise<{ balance: CoinBalance; awarded: CoinTransactionReason[] }> {
+  let balance = await coinRepo.getOrCreate(profileId);
+  const awarded: CoinTransactionReason[] = [];
+
+  if (activeWordCount > 0 && allWordsAtLeastBucket(activeStats, activeWordCount, 'learning')) {
+    const alreadyAwarded = await coinTransactionRepo.hasMilestoneBeenAwarded(profileId, 'all-learning');
+    if (!alreadyAwarded) {
+      balance = await coinRepo.addCoins(profileId, COINS_PER_MILESTONE);
+      await coinTransactionRepo.create(profileId, COINS_PER_MILESTONE, 'all-learning', 'All words reached Learning stage');
+      awarded.push('all-learning');
+    }
+  }
+
+  if (activeWordCount > 0 && allWordsAtLeastBucket(activeStats, activeWordCount, 'familiar')) {
+    const alreadyAwarded = await coinTransactionRepo.hasMilestoneBeenAwarded(profileId, 'all-familiar');
+    if (!alreadyAwarded) {
+      balance = await coinRepo.addCoins(profileId, COINS_PER_MILESTONE);
+      await coinTransactionRepo.create(profileId, COINS_PER_MILESTONE, 'all-familiar', 'All words reached Familiar stage');
+      awarded.push('all-familiar');
+    }
+  }
+
+  return { balance, awarded };
 }
 
 /**

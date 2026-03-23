@@ -1,6 +1,6 @@
 // src/App.tsx — Root component: routing, state management, event bus wiring
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { APP_VERSION } from './version';
 import { useBackButton } from './hooks/use-back-button';
 import type {
@@ -24,7 +24,7 @@ import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
 import { learningProgressRepo } from './data/repositories/learning-progress-repo';
-import { earnCoinForMastery, earnCoinForAllLearning, earnCoinForAllFamiliar, spendCoinForGame, canPlayFree, getCoinBalance, allWordsAtLeastBucket } from './core/spaced-rep';
+import { earnCoinForMastery, spendCoinForGame, canPlayFree, getCoinBalance, awardPendingMilestones } from './core/spaced-rep';
 import { applySettings, mergeSetting, validateSettings } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
@@ -99,9 +99,6 @@ function App() {
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
   const [practiceWordFilter, setPracticeWordFilter] = useState<Set<string> | null>(null);
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
-  // Track whether all-learning / all-familiar milestone coins have been awarded this session
-  const allLearningAwarded = useRef(false);
-  const allFamiliarAwarded = useRef(false);
 
   const audioBusy = useAudioBusy(audioManager);
   const [ttsDebugEnabled, toggleTtsDebug] = useTtsDebug();
@@ -133,20 +130,17 @@ function App() {
     const safeProfile = { ...profile, settings: safeSettings };
     setActiveProfile(safeProfile);
     activeProfileForBus = safeProfile;
-    allLearningAwarded.current = false;
-    allFamiliarAwarded.current = false;
     applySettings(safeSettings);
     themeEngine.applyThemePalette(profile.themeId ?? 'dragon-forge');
     localStorage.setItem('sf-last-profile', profile.id);
 
     try {
-      const [words, stats, lists, streak, lp, coins] = await Promise.all([
+      const [words, stats, lists, streak, lp] = await Promise.all([
         wordRepo.getByProfileId(profile.id),
         statsRepo.getByProfileId(profile.id),
         wordListRepo.getByProfileId(profile.id),
         streakRepo.get(profile.id),
         learningProgressRepo.getByProfileId(profile.id),
-        getCoinBalance(profile.id),
       ]);
 
       // Restore theme progress (creature growth, milestones) from IndexedDB
@@ -160,7 +154,18 @@ function App() {
       setWordLists(lists);
       setStreakData(streak);
       setLearningProgress(lp);
-      setCoinBalance(coins);
+
+      // Award any milestone coins that were earned but never recorded
+      const activeLists = lists.filter((l) => l.active && !l.archived);
+      const activeListIds = new Set(activeLists.map((l) => l.id));
+      const activeWords = words.filter((w) => activeListIds.has(w.listId));
+      const activeWordIds = new Set(activeWords.map((w) => w.id));
+      const activeStats = stats.filter((s) => activeWordIds.has(s.wordId));
+      const { balance: updatedCoins, awarded } = await awardPendingMilestones(profile.id, activeStats, activeWords.length);
+      setCoinBalance(updatedCoins);
+      for (const reason of awarded) {
+        eventBus.emit({ type: 'coins:earned', payload: { profileId: profile.id, amount: 1, reason } });
+      }
     } catch {
       // If loading profile data fails, proceed with empty data
     }
@@ -306,23 +311,15 @@ function App() {
       const wordIds = new Set(wordsInActiveLists.map((w) => w.id));
       const statsForActive = updatedStats.filter((s) => wordIds.has(s.wordId));
 
-      if (!allLearningAwarded.current && allWordsAtLeastBucket(statsForActive, wordsInActiveLists.length, 'learning')) {
-        allLearningAwarded.current = true;
-        const newBalance = await earnCoinForAllLearning(activeProfile.id);
-        setCoinBalance(newBalance);
-        eventBus.emit({
-          type: 'coins:earned',
-          payload: { profileId: activeProfile.id, amount: 1, reason: 'all-learning' },
-        });
-      }
-      if (!allFamiliarAwarded.current && allWordsAtLeastBucket(statsForActive, wordsInActiveLists.length, 'familiar')) {
-        allFamiliarAwarded.current = true;
-        const newBalance = await earnCoinForAllFamiliar(activeProfile.id);
-        setCoinBalance(newBalance);
-        eventBus.emit({
-          type: 'coins:earned',
-          payload: { profileId: activeProfile.id, amount: 1, reason: 'all-familiar' },
-        });
+      // Award milestone coins with persistent dedup (checks DB, not session refs)
+      const { balance: milestoneBalance, awarded } = await awardPendingMilestones(
+        activeProfile.id, statsForActive, wordsInActiveLists.length,
+      );
+      if (awarded.length > 0) {
+        setCoinBalance(milestoneBalance);
+        for (const reason of awarded) {
+          eventBus.emit({ type: 'coins:earned', payload: { profileId: activeProfile.id, amount: 1, reason } });
+        }
       }
     },
     [activeProfile, allStats, allWords, wordLists],

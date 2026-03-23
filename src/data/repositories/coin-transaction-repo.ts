@@ -23,11 +23,20 @@ async function create(
 }
 
 async function getByProfileId(profileId: string): Promise<CoinTransaction[]> {
-  return db.coinTransactions
+  const txns = await db.coinTransactions
     .where('profileId')
     .equals(profileId)
-    .reverse()
     .sortBy('createdAt');
+  return txns.reverse();
+}
+
+async function hasMilestoneBeenAwarded(profileId: string, reason: string): Promise<boolean> {
+  const match = await db.coinTransactions
+    .where('profileId')
+    .equals(profileId)
+    .and((txn) => txn.reason === reason)
+    .first();
+  return match !== undefined;
 }
 
 async function deleteForProfile(profileId: string): Promise<void> {
@@ -37,5 +46,6 @@ async function deleteForProfile(profileId: string): Promise<void> {
 export const coinTransactionRepo = {
   create,
   getByProfileId,
+  hasMilestoneBeenAwarded,
   deleteForProfile,
 } as const;
