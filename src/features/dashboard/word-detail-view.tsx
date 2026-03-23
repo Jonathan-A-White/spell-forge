@@ -124,9 +124,9 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
       ? `${timesCorrect}/${stats.timesAsked} (${((timesCorrect / stats.timesAsked) * 100).toFixed(0)}%)`
       : '\u2014';
 
-  // Streaks
+  // Streaks — ensure best streak is never less than current streak
   const currentStreak = stats?.consecutiveCorrect ?? 0;
-  const longestStreak = stats?.longestCorrectStreak ?? 0;
+  const longestStreak = Math.max(stats?.longestCorrectStreak ?? 0, currentStreak);
 
   // Average response time
   const avgTime =
