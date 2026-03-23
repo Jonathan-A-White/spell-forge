@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
+import { computeProgressPercent } from '../../core/mastery';
 import { QrShare } from './qr-share';
 
 interface WordListsViewProps {
@@ -130,10 +131,9 @@ export function WordListsView({
             <div className="space-y-2">
               {activeLists.map((list) => {
                 const words = allWords.filter((w) => w.listId === list.id);
-                const mastered = words.filter((w) => {
-                  return getWordCategory(w.id, statsMap, learningMap) === 'mastered';
-                }).length;
-                const pct = words.length > 0 ? Math.round((mastered / words.length) * 100) : 0;
+                const listStats = allStats.filter((s) => words.some((w) => w.id === s.wordId));
+                const listLp = learningProgress.filter((lp) => words.some((w) => w.id === lp.wordId));
+                const pct = computeProgressPercent(words, listStats, listLp);
 
                 return (
                   <div

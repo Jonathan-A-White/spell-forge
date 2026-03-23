@@ -828,9 +828,12 @@ function App() {
 
   const activeList = activeLists[0] ?? null;
   const [mountTime] = useState(Date.now);
+  const todayStart = new Date(mountTime);
+  todayStart.setHours(0, 0, 0, 0);
   const nearestTestDate = activeLists
     .map((l) => l.testDate)
     .filter((d): d is Date => d instanceof Date)
+    .filter((d) => d.getTime() >= todayStart.getTime()) // exclude past test dates
     .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   const daysUntilTest = nearestTestDate
     ? Math.max(0, Math.ceil((nearestTestDate.getTime() - mountTime) / 86400000))
@@ -990,6 +993,7 @@ function App() {
               setSelectedWordId(wordId);
               setView('word-detail');
             }}
+            onLearnNewWords={() => setView('learning')}
             onAddWords={() => setView('list-editor')}
             onBack={goBack}
           />
