@@ -57,6 +57,11 @@ export function HomeScreen({
   // number shown here equals the pool the session draws from.
   const encounteredWordIds = new Set(learningProgress.map((lp) => lp.wordId));
   const practiceReady = activeWords.filter((w) => encounteredWordIds.has(w.id)).length;
+  // Count words still needing learning (not yet mastered in learning mode)
+  const masteredInLearning = new Set(
+    learningProgress.filter((lp) => lp.mastered).map((lp) => lp.wordId),
+  );
+  const wordsToLearn = activeWords.filter((w) => !masteredInLearning.has(w.id)).length;
   const streak = streakData?.currentStreak ?? 0;
   const wordsDue = getWordsDueCount(activeStats);
   const coins = coinBalance?.coins ?? 0;
@@ -221,7 +226,7 @@ export function HomeScreen({
             />
             <NavCard
               title="Learn"
-              subtitle={`${activeWords.length - practiceReady} new word${activeWords.length - practiceReady !== 1 ? 's' : ''}`}
+              subtitle={`${wordsToLearn} new word${wordsToLearn !== 1 ? 's' : ''}`}
               icon={<LearnIcon />}
               onClick={() => onNavigate('learning')}
               accent="from-teal-500/20 to-cyan-500/10"
