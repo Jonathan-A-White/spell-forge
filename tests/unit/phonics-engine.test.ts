@@ -443,6 +443,63 @@ describe('precious', () => {
   });
 });
 
+// ─── "ie" vowel team should not match before "n" ────────────────
+describe('ie before n (not a vowel team)', () => {
+  it('"ancient" detects -cient suffix, not ie vowel team', () => {
+    const ids = patternIds('ancient');
+    expect(ids).toContain('sx-cient');
+    expect(ids).not.toContain('vt-ie-long');
+    expect(ids).not.toContain('vt-ie-ee');
+  });
+
+  it('"patient" detects -tient suffix, not ie vowel team', () => {
+    const ids = patternIds('patient');
+    expect(ids).toContain('sx-tient');
+    expect(ids).not.toContain('vt-ie-long');
+    expect(ids).not.toContain('vt-ie-ee');
+  });
+
+  it('"efficient" detects -cient suffix, not ie vowel team', () => {
+    const ids = patternIds('efficient');
+    expect(ids).toContain('sx-cient');
+    expect(ids).not.toContain('vt-ie-long');
+  });
+
+  it('"experience" detects -ience suffix, not ie vowel team', () => {
+    const ids = patternIds('experience');
+    expect(ids).toContain('sx-ience');
+    expect(ids).not.toContain('vt-ie-long');
+  });
+
+  it('"resilient" does not detect ie vowel team', () => {
+    const ids = patternIds('resilient');
+    expect(ids).not.toContain('vt-ie-long');
+    expect(ids).not.toContain('vt-ie-ee');
+  });
+
+  it('"obedient" does not detect ie vowel team', () => {
+    const ids = patternIds('obedient');
+    expect(ids).not.toContain('vt-ie-long');
+    expect(ids).not.toContain('vt-ie-ee');
+  });
+
+  it('"pie" still detects ie vowel team (ie at word end)', () => {
+    const ids = patternIds('pie');
+    expect(ids).toContain('vt-ie-long');
+  });
+
+  it('"field" still detects ie vowel team (ie before l)', () => {
+    const ids = patternIds('field');
+    const hasIe = ids.some(id => id === 'vt-ie-long' || id === 'vt-ie-ee');
+    expect(hasIe).toBe(true);
+  });
+
+  it('"society" still detects ie vowel team (ie not before n)', () => {
+    const ids = patternIds('society');
+    expect(ids).toContain('vt-ie-long');
+  });
+});
+
 // ─── Additional word analyses ───────────────────────────────────
 describe('additional word analyses', () => {
   it('"phone" detects the ph consonant digraph', () => {
