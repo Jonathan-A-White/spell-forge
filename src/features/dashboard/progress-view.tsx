@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { StreakData, WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
-import { getWordsDueCount } from '../../core/spaced-rep';
+import { getWordsDueIds } from '../../core/spaced-rep';
 import { computeProgressPercent, getWordCategory } from '../../core/mastery';
 import { ReadinessIndicator } from './readiness-indicator';
 import { rewardTracker, monsterCollection } from '../rewards';
@@ -22,6 +22,7 @@ interface ProgressViewProps {
   gradeGoal?: number;
   onStartPractice: () => void;
   onPracticeWords: (wordIds: string[]) => void;
+  onLearnNewWords: () => void;
   onSelectWord?: (wordId: string) => void;
   onAddWords: () => void;
   onBack: () => void;
@@ -39,6 +40,7 @@ export function ProgressView({
   gradeGoal,
   onStartPractice,
   onPracticeWords,
+  onLearnNewWords,
   onSelectWord,
   onAddWords,
   onBack,
@@ -143,25 +145,30 @@ export function ProgressView({
       )}
 
       {/* Stat Circles */}
-      {allWords.length > 0 && (
-        <div className="flex justify-center gap-6 mb-4">
-          <StatCircle
-            value={`${computeProgressPercent(allWords, allStats, learningProgress)}%`}
-            label="Progress"
-            color="bg-purple-500"
-          />
-          <StatCircle
-            value={String(newWords)}
-            label="New Words"
-            color="bg-green-500"
-          />
-          <StatCircle
-            value={String(getWordsDueCount(allStats))}
-            label="Words Due"
-            color="bg-blue-500"
-          />
-        </div>
-      )}
+      {allWords.length > 0 && (() => {
+        const dueWordIds = getWordsDueIds(allStats);
+        return (
+          <div className="flex justify-center gap-6 mb-4">
+            <StatCircle
+              value={`${computeProgressPercent(allWords, allStats, learningProgress)}%`}
+              label="Progress"
+              color="bg-purple-500"
+            />
+            <StatCircle
+              value={String(newWords)}
+              label="New Words"
+              color="bg-green-500"
+              onClick={newWords > 0 ? onLearnNewWords : undefined}
+            />
+            <StatCircle
+              value={String(dueWordIds.length)}
+              label="Words Due"
+              color="bg-blue-500"
+              onClick={dueWordIds.length > 0 ? () => onPracticeWords(dueWordIds) : undefined}
+            />
+          </div>
+        );
+      })()}
 
       {/* Theme Milestone */}
       {allWords.length > 0 && (
@@ -379,14 +386,20 @@ function HealthBar({
   );
 }
 
-function StatCircle({ value, label, color }: { value: string; label: string; color: string }) {
+function StatCircle({ value, label, color, onClick }: { value: string; label: string; color: string; onClick?: () => void }) {
+  const clickable = !!onClick;
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className={`w-20 h-20 rounded-full ${color} flex items-center justify-center shadow-lg`}>
+    <button
+      className={`flex flex-col items-center gap-1.5 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+      onClick={onClick}
+      disabled={!clickable}
+      aria-label={`${label}: ${value}${clickable ? '. Tap to start.' : ''}`}
+    >
+      <div className={`w-20 h-20 rounded-full ${color} flex items-center justify-center shadow-lg ${clickable ? 'ring-2 ring-white/30 hover:ring-white/60 transition-all' : ''}`}>
         <span className="text-white text-xl font-bold">{value}</span>
       </div>
       <span className="text-sm text-sf-muted font-medium">{label}</span>
-    </div>
+    </button>
   );
 }
 

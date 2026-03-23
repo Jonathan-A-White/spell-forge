@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
+import { computeProgressPercent } from '../../core/mastery';
 import { QrShare } from './qr-share';
 
 interface WordListDetailProps {
@@ -67,11 +68,7 @@ export function WordListDetail({
     setNewWordText('');
   };
 
-  const mastered = words.filter((w) => {
-    const cat = getWordCategory(w.id, statsMap, learningMap);
-    return cat === 'mastered';
-  }).length;
-  const pct = words.length > 0 ? Math.round((mastered / words.length) * 100) : 0;
+  const pct = computeProgressPercent(words, stats, learningProgress);
 
   return (
     <div className="min-h-screen bg-sf-bg">

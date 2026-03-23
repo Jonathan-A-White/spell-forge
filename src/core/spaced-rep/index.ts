@@ -9,6 +9,7 @@ export {
   earnCoinForAllFamiliar,
   canPlayFree,
   getWordsDueCount,
+  getWordsDueIds,
   spendCoinForGame,
   getCoinBalance,
   allWordsAtLeastBucket,

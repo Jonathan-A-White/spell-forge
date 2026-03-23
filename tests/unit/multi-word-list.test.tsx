@@ -62,6 +62,7 @@ const defaultProps = {
   daysUntilTest: 7,
   onStartPractice: vi.fn(),
   onPracticeWords: vi.fn(),
+  onLearnNewWords: vi.fn(),
   onAddWords: vi.fn(),
   onBack: vi.fn(),
 };
