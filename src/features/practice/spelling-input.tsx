@@ -7,7 +7,7 @@ import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface SpellingInputProps {
   word: string;
-  onComplete: (correct: boolean, responseTimeMs: number, mistakes: number) => void;
+  onComplete: (correct: boolean, responseTimeMs: number, mistakes: number, userInput?: string) => void;
   scaffolding?: { chunks: string[]; hints: string[] } | null;
   tapTargetSize: number;
 }
@@ -48,6 +48,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
     } else {
       // Wrong — show comparison, then require retypes
       hapticError();
+      setAttempt(trimmed); // preserve the user's attempt for recording
       setPhase('comparison');
     }
   }, [attempt, targetWord, startTime, onComplete]);
@@ -66,14 +67,14 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
       // Done retyping — move on (counted as incorrect since initial attempt was wrong)
       hapticSuccess();
       const responseTimeMs = Date.now() - startTime;
-      onComplete(true, responseTimeMs, 1);
+      onComplete(true, responseTimeMs, 1, attempt);
     } else {
       hapticSuccess();
       setRetypeCount(newCount);
       setRetypeValue('');
       setWordVisible(true);
     }
-  }, [retypeValue, targetWord, retypeCount, startTime, onComplete]);
+  }, [retypeValue, targetWord, retypeCount, startTime, onComplete, attempt]);
 
   const handleStartRetype = useCallback(() => {
     setPhase('retype');

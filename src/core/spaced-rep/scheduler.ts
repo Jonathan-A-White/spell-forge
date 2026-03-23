@@ -79,6 +79,12 @@ export function updateWordStats(stats: WordStats, result: TechniqueResult): Word
     }
   }
 
+  // Track longest correct streak
+  const longestCorrectStreak = Math.max(
+    stats.longestCorrectStreak ?? 0,
+    consecutiveCorrect,
+  );
+
   // Build intermediate stats for bucket transition and difficulty calculation
   const intermediate: WordStats = {
     ...stats,
@@ -89,6 +95,7 @@ export function updateWordStats(stats: WordStats, result: TechniqueResult): Word
     timesEasyRight,
     consecutiveCorrect,
     consecutiveWrong,
+    longestCorrectStreak,
     techniqueHistory: updatedHistory,
   };
 

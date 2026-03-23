@@ -71,6 +71,7 @@ describe('createSession — mastered word filtering', () => {
       timesEasyRight: 0,
       consecutiveCorrect: 0,
       consecutiveWrong: 0,
+      longestCorrectStreak: 0,
       currentBucket: 'new' as const,
       nextReviewDate: new Date(),
       difficultyScore: 0.5,

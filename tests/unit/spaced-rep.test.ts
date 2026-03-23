@@ -463,6 +463,82 @@ describe('updateWordStats', () => {
   });
 });
 
+// ─── Longest Correct Streak Tracking ─────────────────────────
+
+describe('Longest Correct Streak', () => {
+  it('should initialize longestCorrectStreak to 0', () => {
+    const stats = createWordStats('word-knight', 'profile-paul');
+    expect(stats.longestCorrectStreak).toBe(0);
+  });
+
+  it('should update longestCorrectStreak as consecutive correct grows', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = updateWordStats(stats, makeResult({ correct: true }));
+    expect(stats.longestCorrectStreak).toBe(1);
+
+    stats = updateWordStats(stats, makeResult({ correct: true }));
+    expect(stats.longestCorrectStreak).toBe(2);
+
+    stats = updateWordStats(stats, makeResult({ correct: true }));
+    expect(stats.longestCorrectStreak).toBe(3);
+  });
+
+  it('should preserve longestCorrectStreak after wrong answers', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = applyCorrectResults(stats, 5, 1);
+    expect(stats.longestCorrectStreak).toBe(5);
+
+    // Wrong answer resets consecutiveCorrect but longestCorrectStreak stays
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.consecutiveCorrect).toBe(5); // grace period holds
+    expect(stats.longestCorrectStreak).toBe(5);
+
+    // 3 wrongs trigger demotion, cc resets
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.consecutiveCorrect).toBe(3); // set to bucket minimum
+    expect(stats.longestCorrectStreak).toBe(5); // preserved
+  });
+
+  it('should update longestCorrectStreak when new streak exceeds old', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = applyCorrectResults(stats, 3, 1);
+    expect(stats.longestCorrectStreak).toBe(3);
+
+    // Demotion resets cc
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    stats = updateWordStats(stats, makeResult({ correct: false }));
+    expect(stats.longestCorrectStreak).toBe(3); // preserved
+
+    // Build a longer streak
+    stats = applyCorrectResults(stats, 5, 10);
+    expect(stats.longestCorrectStreak).toBe(5);
+  });
+});
+
+// ─── User Input Tracking ─────────────────────────────────────
+
+describe('User Input Tracking', () => {
+  it('should preserve userInput in technique history', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = updateWordStats(stats, makeResult({
+      correct: false,
+      userInput: 'nite',
+    }));
+
+    expect(stats.techniqueHistory).toHaveLength(1);
+    expect(stats.techniqueHistory[0].userInput).toBe('nite');
+  });
+
+  it('should not include userInput when not provided', () => {
+    let stats = createWordStats('word-knight', 'profile-paul');
+    stats = updateWordStats(stats, makeResult({ correct: true }));
+
+    expect(stats.techniqueHistory[0].userInput).toBeUndefined();
+  });
+});
+
 // ─── Word Selection ──────────────────────────────────────────
 
 describe('selectSessionWords', () => {

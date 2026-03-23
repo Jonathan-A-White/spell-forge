@@ -246,7 +246,7 @@ export function PracticeScreen({
   }, [session, profile.id]);
 
   const handleWordComplete = useCallback(
-    (correct: boolean, responseTimeMs: number, mistakes: number) => {
+    (correct: boolean, responseTimeMs: number, mistakes: number, userInput?: string) => {
       if (!session || !session.currentWord) return;
 
       const struggled = responseTimeMs > 15000 || mistakes > 0;
@@ -262,6 +262,7 @@ export function PracticeScreen({
         { maxMinutes: profile.settings.sessionMaxMinutes, adaptive: profile.settings.sessionAdaptive },
         currentWordStats,
         mistakes,
+        userInput,
       );
 
       if (updatedStats) {

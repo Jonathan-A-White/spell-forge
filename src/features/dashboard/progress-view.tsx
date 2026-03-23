@@ -74,6 +74,15 @@ export function ProgressView({
   const learning = categoryWords.learning.length;
   const newWords = categoryWords.new.length;
 
+  // Difficult words: high difficulty score OR high error rate
+  const TROUBLE_THRESHOLD = 0.7;
+  const difficultWords = allWords.filter((w) => {
+    const st = statsMap.get(w.id);
+    if (!st || st.timesAsked === 0) return false;
+    return st.difficultyScore > TROUBLE_THRESHOLD
+      || (st.timesAsked >= 3 && st.timesWrong / st.timesAsked > 0.5);
+  });
+
   // Active lists readiness — aggregate words across all active lists
   const activeListIds = new Set(activeLists.map((l) => l.id));
   const activeListWords = activeListIds.size > 0
@@ -298,6 +307,44 @@ export function ProgressView({
           )}
         </div>
       </div>
+
+      {/* Difficult Words */}
+      {difficultWords.length > 0 && (
+        <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-red-500/30 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-sf-heading">Difficult Words</h3>
+            <span className="text-sm font-medium text-red-400">{difficultWords.length}</span>
+          </div>
+          <p className="text-sf-muted text-sm mb-3">
+            Words you&apos;ve struggled with the most. Drill these to improve!
+          </p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {difficultWords.slice(0, 12).map((w) => {
+              const st = statsMap.get(w.id);
+              const pct = st && st.timesAsked > 0
+                ? Math.round(((st.timesAsked - st.timesWrong) / st.timesAsked) * 100)
+                : 0;
+              return (
+                <button
+                  key={w.id}
+                  onClick={() => onSelectWord?.(w.id)}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-red-400 bg-sf-surface border border-red-500/30 rounded-lg px-3 py-1.5 hover:bg-sf-surface-hover cursor-pointer transition-colors"
+                  aria-label={`View details for ${w.text}`}
+                >
+                  {w.text}
+                  <span className="text-xs text-sf-muted">{pct}%</span>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => onPracticeWords(difficultWords.map((w) => w.id))}
+            className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium py-2.5 px-4 rounded-lg text-sm transition-colors"
+          >
+            Drill Difficult Words ({difficultWords.length})
+          </button>
+        </div>
+      )}
 
       {/* Empty state — guide user to add words first */}
       {allWords.length === 0 && (
