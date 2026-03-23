@@ -67,6 +67,7 @@ export interface WordStats {
   timesEasyRight: number;
   consecutiveCorrect: number;
   consecutiveWrong: number;
+  longestCorrectStreak: number;
   currentBucket: WordBucket;
   nextReviewDate: Date;
   difficultyScore: number;  // 0.0-1.0
@@ -83,6 +84,7 @@ export interface TechniqueResult {
   struggled: boolean;
   scaffoldingUsed: boolean;
   mistakeCount?: number;
+  userInput?: string;  // what the user actually typed (captured on incorrect attempts)
 }
 
 export interface SessionLog {

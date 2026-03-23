@@ -102,6 +102,7 @@ export function recordAttempt(
   config: Partial<SessionConfig> = {},
   currentWordStats?: WordStats | null,
   mistakeCount: number = 0,
+  userInput?: string,
 ): { state: SessionState; updatedStats: WordStats | null; result: TechniqueResult } {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
@@ -113,6 +114,7 @@ export function recordAttempt(
     struggled,
     scaffoldingUsed,
     mistakeCount,
+    ...(userInput !== undefined ? { userInput } : {}),
   };
 
   const newResults = [...state.results, result];

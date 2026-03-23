@@ -97,6 +97,7 @@ export function createWordStats(wordId: string, profileId: string, overrides?: P
     timesEasyRight: 0,
     consecutiveCorrect: 0,
     consecutiveWrong: 0,
+    longestCorrectStreak: 0,
     currentBucket: 'new',
     nextReviewDate: new Date(),
     difficultyScore: 0.5,

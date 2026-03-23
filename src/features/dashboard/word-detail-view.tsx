@@ -117,11 +117,16 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
       .map((t) => new Date(t.timestamp).toDateString()),
   ).size;
 
-  // Accuracy
-  const accuracy =
+  // Batting average: correct / total attempts
+  const timesCorrect = stats ? stats.timesAsked - stats.timesWrong : 0;
+  const battingAvg =
     stats && stats.timesAsked > 0
-      ? `${(((stats.timesAsked - stats.timesWrong) / stats.timesAsked) * 100).toFixed(0)}%`
+      ? `${timesCorrect}/${stats.timesAsked} (${((timesCorrect / stats.timesAsked) * 100).toFixed(0)}%)`
       : '\u2014';
+
+  // Streaks
+  const currentStreak = stats?.consecutiveCorrect ?? 0;
+  const longestStreak = stats?.longestCorrectStreak ?? 0;
 
   // Average response time
   const avgTime =
@@ -135,16 +140,24 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
   // Difficulty label
   const difficulty = stats ? getDifficultyLabel(stats.difficultyScore) : '\u2014';
 
-  // Days until next review
-  const daysUntilReview =
-    stats?.nextReviewDate
-      ? Math.max(
-          0,
-          Math.ceil(
-            (new Date(stats.nextReviewDate).getTime() - now) / (1000 * 60 * 60 * 24),
-          ),
-        )
-      : null;
+  // Time until next review (human-friendly)
+  const reviewDueMs = stats?.nextReviewDate
+    ? new Date(stats.nextReviewDate).getTime() - now
+    : null;
+  const daysUntilReview = reviewDueMs !== null
+    ? Math.max(0, Math.ceil(reviewDueMs / (1000 * 60 * 60 * 24)))
+    : null;
+
+  function formatTimeUntilDue(): string {
+    if (reviewDueMs === null) return '\u2014';
+    if (reviewDueMs <= 0) return 'Now';
+    const minutes = Math.ceil(reviewDueMs / (1000 * 60));
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.ceil(reviewDueMs / (1000 * 60 * 60));
+    if (hours < 24) return `${hours}h`;
+    const days = Math.ceil(reviewDueMs / (1000 * 60 * 60 * 24));
+    return `${days}d`;
+  }
 
   // History entries sorted most recent first
   const history = [...(stats?.techniqueHistory ?? [])].sort(
@@ -243,8 +256,10 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
 
       {/* Stats Summary */}
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <StatCard label="Accuracy" value={accuracy} />
-        <StatCard label="Attempts" value={stats ? String(stats.timesAsked) : '0'} />
+        <StatCard label="Batting Avg" value={battingAvg} />
+        <StatCard label="Due In" value={formatTimeUntilDue()} />
+        <StatCard label="Current Streak" value={`${currentStreak}`} />
+        <StatCard label="Best Streak" value={`${longestStreak}`} />
         <StatCard label="Avg Time" value={avgTime} />
         <StatCard label="Difficulty" value={difficulty} />
       </div>
@@ -283,6 +298,11 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
                     {formatResponseTime(entry.responseTimeMs)}
                   </span>
                 </div>
+                {!entry.correct && entry.userInput && (
+                  <p className="text-xs text-red-400 mt-1 ml-6">
+                    Typed: &ldquo;{entry.userInput}&rdquo;
+                  </p>
+                )}
                 <p className="text-xs text-sf-faint mt-1 ml-6">
                   {formatDate(entry.timestamp)}
                 </p>

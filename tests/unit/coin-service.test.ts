@@ -24,6 +24,7 @@ function makeStats(overrides?: Partial<WordStats>): WordStats {
     timesEasyRight: 4,
     consecutiveCorrect: 3,
     consecutiveWrong: 0,
+    longestCorrectStreak: 3,
     currentBucket: 'learning',
     nextReviewDate: new Date('2026-03-06'),
     difficultyScore: 0.3,
