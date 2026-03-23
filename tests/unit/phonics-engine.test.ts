@@ -344,8 +344,8 @@ describe('result structure', () => {
 // ─── Pattern database ───────────────────────────────────────────
 describe('pattern database', () => {
   it('has approximately 200 patterns', () => {
-    expect(patterns.length).toBeGreaterThanOrEqual(195);
-    expect(patterns.length).toBeLessThanOrEqual(210);
+    expect(patterns.length).toBeGreaterThanOrEqual(198);
+    expect(patterns.length).toBeLessThanOrEqual(213);
   });
 
   it('covers all 11 pattern categories', () => {
@@ -393,6 +393,53 @@ describe('syllabifier', () => {
   it('words with common prefixes are split at the prefix boundary', () => {
     const syl = splitSyllables('unhappy');
     expect(syl[0]).toBe('un');
+  });
+});
+
+// ─── "conscientious" → sci + tious patterns ─────────────────────
+describe('conscientious', () => {
+  it('detects the -tious suffix', () => {
+    const ids = patternIds('conscientious');
+    expect(ids).toContain('sx-tious');
+  });
+
+  it('detects the sci irregular pattern (sh sound)', () => {
+    const ids = patternIds('conscientious');
+    expect(ids).toContain('ir-sci-sh');
+  });
+
+  it('does not incorrectly match sc as /sk/ blend', () => {
+    const ids = patternIds('conscientious');
+    expect(ids).not.toContain('cb-sc');
+  });
+
+  it('splits into 3 syllables: con · scien · tious', () => {
+    const result = analyzeWord('conscientious');
+    expect(result.syllables).toEqual(['con', 'scien', 'tious']);
+  });
+
+  it('phonemes include /ʃ/ for sci and /ʃəs/ for tious', () => {
+    const result = analyzeWord('conscientious');
+    const sciPhoneme = result.phonemes.find(p => p.grapheme === 'sci');
+    expect(sciPhoneme).toBeDefined();
+    expect(sciPhoneme!.phoneme).toBe('/ʃ/');
+
+    const tiousPhoneme = result.phonemes.find(p => p.grapheme === 'tious');
+    expect(tiousPhoneme).toBeDefined();
+    expect(tiousPhoneme!.phoneme).toBe('/ʃəs/');
+  });
+});
+
+// ─── "precious" → cious suffix ──────────────────────────────────
+describe('precious', () => {
+  it('detects the -cious suffix', () => {
+    const ids = patternIds('precious');
+    expect(ids).toContain('sx-cious');
+  });
+
+  it('does not match -ious suffix instead of -cious', () => {
+    const ids = patternIds('precious');
+    expect(ids).not.toContain('sx-ous-ious');
   });
 });
 
