@@ -13,4 +13,6 @@ export {
   spendCoinForGame,
   getCoinBalance,
   allWordsAtLeastBucket,
+  hasMilestoneBeenAwarded,
+  awardPendingMilestones,
 } from './coin-service';
