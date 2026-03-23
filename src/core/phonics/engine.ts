@@ -158,6 +158,15 @@ function detectPositionalPatterns(
       // Only allow one match per grapheme for positional patterns
       if (matchedGrapheme === grapheme) continue;
 
+      // Skip if positions are already covered by a longer pattern
+      const start = position === 'suffix' ? word.length - grapheme.length : 0;
+      const end = position === 'suffix' ? word.length : grapheme.length;
+      let anyCovered = false;
+      for (let j = start; j < end; j++) {
+        if (covered[j]) { anyCovered = true; break; }
+      }
+      if (anyCovered) continue;
+
       detected.push({
         id: pattern.id,
         category: pattern.category,
