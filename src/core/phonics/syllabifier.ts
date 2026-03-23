@@ -8,8 +8,8 @@ const COMMON_PREFIXES = [
 ];
 
 const COMMON_SUFFIXES = [
-  'tion', 'sion', 'ness', 'ment', 'able', 'ible', 'ful', 'less', 'ous',
-  'ious', 'ing', 'ture', 'ly', 'ed', 'er', 'est', 'al', 'en',
+  'tious', 'cious', 'tion', 'sion', 'ness', 'ment', 'able', 'ible', 'ful', 'less',
+  'ious', 'ous', 'ing', 'ture', 'ly', 'ed', 'er', 'est', 'al', 'en',
 ];
 
 // Consonant clusters that should not be split (valid onsets)
@@ -143,12 +143,12 @@ function syllabifyCore(word: string, hasSilentE: boolean): string[] {
         const consonants = word.slice(consStart, consEnd);
         let splitAt = 1; // default: first consonant stays with current syllable
 
-        // Try to find a valid onset for the next syllable
+        // Try to find the longest valid onset for the next syllable
+        // (Maximal Onset Principle: prefer "sc" over "c" as onset)
         for (let k = consonants.length - 1; k >= 1; k--) {
           const potentialOnset = consonants.slice(k);
           if (canBeOnset(potentialOnset)) {
             splitAt = k;
-            break;
           }
         }
 
