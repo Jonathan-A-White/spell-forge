@@ -113,8 +113,8 @@ describe('SpellingInput', () => {
     typeOnKeyboard('cat');
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
 
-    // Should complete with mistakes=1 (was incorrect initially) and userInput="kat"
-    expect(onComplete).toHaveBeenCalledWith(true, expect.any(Number), 1, 'kat');
+    // Should complete with correct=false (was incorrect initially), mistakes=1, and userInput="kat"
+    expect(onComplete).toHaveBeenCalledWith(false, expect.any(Number), 1, 'kat');
   });
 
   it('should submit on Enter key via physical keyboard', () => {
