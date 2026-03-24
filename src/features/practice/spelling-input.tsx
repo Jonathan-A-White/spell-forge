@@ -67,7 +67,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
       // Done retyping — move on (counted as incorrect since initial attempt was wrong)
       hapticSuccess();
       const responseTimeMs = Date.now() - startTime;
-      onComplete(true, responseTimeMs, 1, attempt);
+      onComplete(false, responseTimeMs, 1, attempt);
     } else {
       hapticSuccess();
       setRetypeCount(newCount);

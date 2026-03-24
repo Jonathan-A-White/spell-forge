@@ -129,17 +129,24 @@ export function recordAttempt(
   // A word counts as "correct" for accuracy only if completed without mistakes
   const perfectAttempt = correct && mistakeCount === 0;
 
+  // A corrected attempt is one where the user got it wrong initially but
+  // completed the correction flow (retype). These still advance the word.
+  const corrected = !correct && mistakeCount > 0;
+
   if (correct) {
     newWordsAttempted++;
     if (perfectAttempt) {
       newWordsCorrect++;
     }
+  } else if (corrected) {
+    // User completed correction flow — count as attempted but not correct
+    newWordsAttempted++;
   } else if (newAttemptCount >= 3) {
     // After 3 failed attempts, mark as wrong and move on
     newWordsAttempted++;
   }
 
-  const shouldAdvance = correct || newAttemptCount >= 3;
+  const shouldAdvance = correct || corrected || newAttemptCount >= 3;
 
   // Check adaptive signals
   let shouldWrapUp = false;
