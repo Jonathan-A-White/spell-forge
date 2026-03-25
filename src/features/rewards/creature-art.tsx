@@ -23,7 +23,13 @@ interface CreatureArtProps {
   size?: number;
 }
 
-export function CreatureArt({ themeId, appearance, size = 80 }: CreatureArtProps) {
+const DEFAULT_APPEARANCE: CreatureAppearance = {
+  bodyShape: 0, primaryColor: 0, accentColor: 0, eyes: 0, mouth: 0, extra: 0,
+};
+
+export function CreatureArt({ themeId, appearance: rawAppearance, size = 80 }: CreatureArtProps) {
+  // Guard against missing/partial appearance from legacy DB records
+  const appearance = rawAppearance ? { ...DEFAULT_APPEARANCE, ...rawAppearance } : DEFAULT_APPEARANCE;
   switch (themeId) {
     case 'dragon-forge':
       return <DragonArt appearance={appearance} size={size} />;

@@ -178,10 +178,56 @@ function resetAll(): void {
   collectionStore.clear();
 }
 
+/**
+ * Migrate a creature loaded from DB that may lack new fields (level, rarity, appearance).
+ * Old creatures stored before the card-collection update won't have these.
+ */
+function migrateCreature(raw: Record<string, unknown>): CompletedCreature {
+  const creature = raw as unknown as CompletedCreature;
+  return {
+    ...creature,
+    level: creature.level ?? (1 + (Math.abs(hashString(creature.id)) % 5)),
+    rarity: creature.rarity ?? assignLegacyRarity(creature.id),
+    appearance: creature.appearance ?? generateAppearanceFromSeed(creature.id),
+    packId: creature.packId ?? undefined,
+  };
+}
+
+/** Deterministic hash for stable migration (same creature always gets same traits). */
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
+function assignLegacyRarity(id: string): CreatureRarity {
+  const h = Math.abs(hashString(id)) % 100;
+  if (h < 45) return 'common';
+  if (h < 73) return 'uncommon';
+  if (h < 89) return 'rare';
+  if (h < 97) return 'epic';
+  return 'legendary';
+}
+
+function generateAppearanceFromSeed(id: string): CreatureAppearance {
+  const h = Math.abs(hashString(id));
+  return {
+    bodyShape: h % 5,
+    primaryColor: (h >> 3) % 6,
+    accentColor: (h >> 6) % 6,
+    eyes: (h >> 9) % 5,
+    mouth: (h >> 12) % 4,
+    extra: (h >> 15) % 5,
+  };
+}
+
 async function hydrateProfile(profileId: string): Promise<void> {
-  const creatures = await themeProgressRepo.getCreatures(profileId);
-  if (creatures.length > 0) {
-    collectionStore.set(profileId, creatures);
+  const rawCreatures = await themeProgressRepo.getCreatures(profileId);
+  if (rawCreatures.length > 0) {
+    const migrated = rawCreatures.map((c) => migrateCreature(c as unknown as Record<string, unknown>));
+    collectionStore.set(profileId, migrated);
   }
 }
 
