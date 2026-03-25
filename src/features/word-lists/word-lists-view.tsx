@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
 import { computeProgressPercent } from '../../core/mastery';
 import { QrShare } from './qr-share';
+import { PdfExportDialog } from './pdf-export-dialog';
 
 interface WordListsViewProps {
   wordLists: WordList[];
@@ -43,6 +44,7 @@ export function WordListsView({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [shareListId, setShareListId] = useState<string | null>(null);
+  const [pdfExportListId, setPdfExportListId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const closeMenu = useCallback(() => setOpenMenuId(null), []);
@@ -181,6 +183,13 @@ export function WordListsView({
                                 Share QR
                               </button>
                               <button
+                                onClick={() => { closeMenu(); setPdfExportListId(list.id); }}
+                                className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
+                                data-testid={`pdf-export-${list.id}`}
+                              >
+                                Print PDF
+                              </button>
+                              <button
                                 onClick={() => { closeMenu(); onEditList(list); }}
                                 className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
                                 data-testid={`edit-list-${list.id}`}
@@ -313,6 +322,20 @@ export function WordListsView({
             words={shareWords.map((w) => w.text)}
             testDate={shareList.testDate}
             onClose={() => setShareListId(null)}
+          />
+        );
+      })()}
+
+      {/* PDF Export dialog */}
+      {pdfExportListId && (() => {
+        const exportList = wordLists.find((l) => l.id === pdfExportListId);
+        const exportWords = allWords.filter((w) => w.listId === pdfExportListId);
+        if (!exportList || exportWords.length === 0) return null;
+        return (
+          <PdfExportDialog
+            listName={exportList.name}
+            words={exportWords.map((w) => w.text)}
+            onClose={() => setPdfExportListId(null)}
           />
         );
       })()}
