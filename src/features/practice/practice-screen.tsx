@@ -48,7 +48,8 @@ function buildWordResults(state: SessionState): WordResult[] {
     if (wordIdx >= state.words.length) break;
     attemptCount++;
 
-    const shouldAdvance = result.correct || attemptCount >= 3;
+    const corrected = !result.correct && (result.mistakeCount ?? 0) > 0;
+    const shouldAdvance = result.correct || corrected || attemptCount >= 3;
     if (shouldAdvance) {
       const perfect = result.correct && (result.mistakeCount ?? 0) === 0;
       wordResults.push({ word: state.words[wordIdx], result, perfect });
