@@ -19,7 +19,6 @@ import {
   type SessionState,
   type SessionConfig,
 } from './session-controller';
-import { analyzeWord } from '../../core/phonics';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 
@@ -438,21 +437,7 @@ export function PracticeScreen({
           key={session.currentWord.id}
           word={session.currentWord.text}
           onComplete={handleWordComplete}
-          scaffolding={
-            session.scaffoldingActive
-              ? (() => {
-                  const analysis = analyzeWord(session.currentWord!.text);
-                  return {
-                    chunks: analysis.syllables.length > 0
-                      ? analysis.syllables
-                      : session.currentWord!.syllables.length > 0
-                        ? session.currentWord!.syllables
-                        : [session.currentWord!.text],
-                    hints: analysis.scaffoldingHints,
-                  };
-                })()
-              : null
-          }
+          scaffolding={null}
           tapTargetSize={profile.settings.tapTargetSize}
         />
       </div>
