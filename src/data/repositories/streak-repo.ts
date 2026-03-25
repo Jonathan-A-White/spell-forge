@@ -39,6 +39,22 @@ function daysBetween(a: Date, b: Date): number {
   return Math.floor((utcB - utcA) / msPerDay);
 }
 
+/** Count weekdays (Mon–Fri) strictly between two dates, exclusive of both endpoints. */
+function weekdaysMissedBetween(a: Date, b: Date): number {
+  let count = 0;
+  const current = new Date(Date.UTC(a.getFullYear(), a.getMonth(), a.getDate()));
+  current.setUTCDate(current.getUTCDate() + 1);
+  const endISO = toISODate(b);
+  while (toISODate(current) < endISO) {
+    const day = current.getUTCDay(); // 0=Sun, 6=Sat
+    if (day !== 0 && day !== 6) {
+      count++;
+    }
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return count;
+}
+
 export const streakRepo = {
   async get(profileId: string): Promise<StreakData | null> {
     const streak = await db.streaks.get(profileId);
@@ -77,14 +93,11 @@ export const streakRepo = {
 
       if (gap <= 0) {
         // Same day — no streak change, just update weekly
-      } else if (gap === 1) {
-        // Consecutive day
-        streak.currentStreak += 1;
-      } else if (gap === 2) {
-        // Missed 1 day — "at risk" but streak preserved, increment for today
+      } else if (weekdaysMissedBetween(lastDate, sessionDate) === 0) {
+        // No weekdays missed — weekends don't break streaks
         streak.currentStreak += 1;
       } else {
-        // Missed 2+ consecutive days — reset
+        // Missed at least one weekday — reset
         streak.currentStreak = 1;
       }
     } else {
