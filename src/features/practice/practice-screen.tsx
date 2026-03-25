@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { SpellingInput } from './spelling-input';
+import { SuccessFlash } from './success-flash';
 import { SessionSummary } from './session-summary';
 import type {
   Word,
@@ -139,6 +140,8 @@ export function PracticeScreen({
   const [wordResults, setWordResults] = useState<WordResult[]>([]);
   const [resumePrompt, setResumePrompt] = useState<SessionState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const pendingComplete = useRef<{ correct: boolean; responseTimeMs: number; mistakes: number; userInput?: string } | null>(null);
 
   // Stable ref for onSpeak so callback identity changes don't re-trigger speech
   const onSpeakRef = useRef(onSpeak);
@@ -245,7 +248,7 @@ export function PracticeScreen({
     }
   }, [session, profile.id]);
 
-  const handleWordComplete = useCallback(
+  const advanceSession = useCallback(
     (correct: boolean, responseTimeMs: number, mistakes: number, userInput?: string) => {
       if (!session || !session.currentWord) return;
 
@@ -281,6 +284,31 @@ export function PracticeScreen({
       }
     },
     [session, profile, allStats, onSessionEnd, onStatsUpdate],
+  );
+
+  const handleSuccessFlashDone = useCallback(() => {
+    setShowSuccess(false);
+    if (pendingComplete.current) {
+      const { correct, responseTimeMs, mistakes, userInput } = pendingComplete.current;
+      pendingComplete.current = null;
+      advanceSession(correct, responseTimeMs, mistakes, userInput);
+    }
+  }, [advanceSession]);
+
+  const handleWordComplete = useCallback(
+    (correct: boolean, responseTimeMs: number, mistakes: number, userInput?: string) => {
+      if (!session || !session.currentWord) return;
+
+      if (correct && mistakes === 0) {
+        // Correct on first try — show success animation before advancing
+        pendingComplete.current = { correct, responseTimeMs, mistakes, userInput };
+        setShowSuccess(true);
+      } else {
+        // Incorrect or corrected — advance immediately (comparison flow already provided feedback)
+        advanceSession(correct, responseTimeMs, mistakes, userInput);
+      }
+    },
+    [session, advanceSession],
   );
 
   const handleQuit = useCallback(() => {
@@ -394,6 +422,8 @@ export function PracticeScreen({
 
   return (
     <div className="min-h-screen bg-sf-bg p-4 flex flex-col">
+      {showSuccess && <SuccessFlash onDone={handleSuccessFlashDone} />}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button
