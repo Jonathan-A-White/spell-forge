@@ -51,6 +51,21 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
     allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) < 3).map((s) => s.wordId),
   );
 
+  // Check if all non-mastered words are blocked by the distinct-days requirement
+  // (i.e., they have 5+ consecutive correct but < 3 distinct days, and already practiced today)
+  const todayStr = new Date().toDateString();
+  const masteryBlockedByDays = activeWordCount > 0 && notYetMasteredIds.size > 0 && (() => {
+    const notMasteredStats = allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) < 3);
+    return notMasteredStats.every((s) => {
+      if (s.consecutiveCorrect < 5) return false; // still needs more consecutive correct
+      const correctDays = new Set(
+        s.techniqueHistory.filter((t) => t.correct).map((t) => new Date(t.timestamp).toDateString()),
+      );
+      // Already practiced today and needs more distinct days
+      return correctDays.has(todayStr) && correctDays.size < 3;
+    });
+  })();
+
   return (
     <div className="min-h-screen bg-sf-bg">
       {/* Header */}
@@ -134,8 +149,8 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               progress={activeWordCount > 0 ? atLeastMasteredCount : 0}
               total={activeWordCount}
               progressColor="bg-yellow-400"
-              actionLabel={activeWordCount === 0 ? 'Add Words' : 'Do it'}
-              onAction={activeWordCount === 0 ? onAddWords : () => onNavigate('practice', notYetMasteredIds.size > 0 ? notYetMasteredIds : undefined)}
+              actionLabel={activeWordCount === 0 ? 'Add Words' : masteryBlockedByDays ? 'Come back tomorrow' : 'Do it'}
+              onAction={activeWordCount === 0 ? onAddWords : masteryBlockedByDays ? undefined : () => onNavigate('practice', notYetMasteredIds.size > 0 ? notYetMasteredIds : undefined)}
             />
           </div>
         </div>
@@ -226,6 +241,10 @@ function EarnRule({ icon, title, description, reward, color, achieved, progress,
               >
                 {actionLabel}
               </button>
+            ) : actionLabel ? (
+              <span className="inline-block mt-1.5 px-3 py-1 text-xs font-medium rounded-full bg-sf-surface-hover text-sf-muted">
+                {actionLabel}
+              </span>
             ) : null}
           </>
         )}
