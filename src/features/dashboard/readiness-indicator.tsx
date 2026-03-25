@@ -1,4 +1,4 @@
-// src/features/dashboard/readiness-indicator.tsx — Test readiness gauge
+// src/features/dashboard/readiness-indicator.tsx — Test readiness thermometer
 
 import type { ReadinessLevel } from '../../contracts/types';
 
@@ -11,12 +11,30 @@ interface ReadinessIndicatorProps {
   gradeGoal?: number;
 }
 
-function getReadinessLevel(pct: number): { level: ReadinessLevel; label: string; color: string } {
-  if (pct >= 90) return { level: 'ready', label: 'Ready to crush it!', color: 'text-green-700' };
-  if (pct >= 75) return { level: 'almost-there', label: 'Almost there!', color: 'text-blue-700' };
-  if (pct >= 50) return { level: 'getting-warmer', label: 'Getting warmer!', color: 'text-yellow-700' };
-  return { level: 'keep-forging', label: 'Keep forging!', color: 'text-orange-700' };
+interface ReadinessInfo {
+  level: ReadinessLevel;
+  label: string;
+  color: string;
+  barColor: string;
+  emoji: string;
 }
+
+function getReadinessLevel(pct: number): ReadinessInfo {
+  if (pct >= 90)
+    return { level: 'ready', label: 'Ready to crush it!', color: 'text-green-400', barColor: 'bg-green-500', emoji: '\u{1F525}' };
+  if (pct >= 75)
+    return { level: 'almost-there', label: 'Almost there!', color: 'text-yellow-400', barColor: 'bg-yellow-500', emoji: '\u{2600}\u{FE0F}' };
+  if (pct >= 50)
+    return { level: 'getting-warmer', label: 'Getting warmer!', color: 'text-orange-400', barColor: 'bg-orange-500', emoji: '\u{1F321}\u{FE0F}' };
+  return { level: 'keep-forging', label: 'Keep forging!', color: 'text-blue-400', barColor: 'bg-blue-500', emoji: '\u{2744}\u{FE0F}' };
+}
+
+const milestones = [
+  { pct: 25, emoji: '\u{2744}\u{FE0F}' },
+  { pct: 50, emoji: '\u{1F321}\u{FE0F}' },
+  { pct: 75, emoji: '\u{2600}\u{FE0F}' },
+  { pct: 100, emoji: '\u{1F525}' },
+];
 
 export function ReadinessIndicator({
   percentage,
@@ -26,8 +44,7 @@ export function ReadinessIndicator({
   wordsReady,
   gradeGoal,
 }: ReadinessIndicatorProps) {
-  const { label, color } = getReadinessLevel(percentage);
-  const gaugeRotation = (percentage / 100) * 180 - 90; // -90 to 90 degrees
+  const { label, color, barColor, emoji } = getReadinessLevel(percentage);
 
   return (
     <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border mb-4">
@@ -42,34 +59,48 @@ export function ReadinessIndicator({
         </p>
       )}
 
-      {/* Gauge visualization */}
-      <div className="flex justify-center mb-3">
-        <div className="relative w-32 h-16 overflow-hidden">
-          <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full border-8 border-sf-track" />
-          <div
-            className="absolute bottom-0 left-0 w-32 h-32 rounded-full border-8 border-sf-track-fill"
-            style={{
-              clipPath: `polygon(50% 50%, 50% 0%, ${50 + percentage * 0.5}% 0%)`,
-            }}
-          />
-          <div
-            className="absolute bottom-0 left-1/2 w-1 h-14 bg-sf-secondary rounded-full origin-bottom"
-            style={{ transform: `translateX(-50%) rotate(${gaugeRotation}deg)` }}
-          />
+      {/* Thermometer bar */}
+      <div className="mb-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-2xl" role="img" aria-label="progress">{emoji}</span>
+          <p className={`text-lg font-bold ${color}`}>{label}</p>
+        </div>
+
+        <div className="relative">
+          {/* Track */}
+          <div className="w-full h-4 bg-sf-track rounded-full overflow-hidden">
+            <div
+              className={`h-full ${barColor} rounded-full transition-all duration-500 ease-out`}
+              style={{ width: `${Math.max(percentage, 2)}%` }}
+            />
+          </div>
+
+          {/* Milestone markers */}
+          <div className="flex justify-between mt-1 px-0.5">
+            {milestones.map((m) => (
+              <span
+                key={m.pct}
+                className={`text-xs transition-opacity ${percentage >= m.pct ? 'opacity-100' : 'opacity-30'}`}
+                role="img"
+                aria-label={`${m.pct}% milestone`}
+              >
+                {m.emoji}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
-      <p className={`text-center text-lg font-bold ${color}`}>{label}</p>
       {(() => {
         const effectiveGoal = gradeGoal ?? 100;
         const target = Math.ceil(wordsTotal * effectiveGoal / 100);
         return (
           <>
-            <p className="text-center text-sm text-sf-muted mt-1">
-              {wordsReady} of {target} words needed{effectiveGoal < 100 ? ` (${effectiveGoal}% goal)` : ''}
+            <p className="text-center text-sm text-sf-muted">
+              {wordsReady} of {target} words ready{effectiveGoal < 100 ? ` (${effectiveGoal}% goal)` : ''}
             </p>
             <p className="text-center text-xs text-sf-faint mt-0.5">
-              A word is ready when it reaches Mastered
+              Master each word through practice to fill the bar
             </p>
           </>
         );
