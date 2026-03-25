@@ -19,7 +19,6 @@ import {
   type SessionState,
   type SessionConfig,
 } from './session-controller';
-import { analyzeWord } from '../../core/phonics';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 
