@@ -1,7 +1,9 @@
-// src/features/practice/custom-keyboard.tsx — On-screen QWERTY keyboard to prevent native keyboard autocomplete hints
+// src/features/practice/custom-keyboard.tsx — On-screen keyboard with multilingual support.
+// Renders language-specific layouts from the language registry. Falls back to English QWERTY.
 
 import { useCallback, useRef, useEffect } from 'react';
 import { hapticTap } from '../../core/haptics';
+import { getLanguageConfig } from '../../i18n/language-registry.ts';
 
 interface CustomKeyboardProps {
   onKey: (key: string) => void;
@@ -11,6 +13,8 @@ interface CustomKeyboardProps {
   submitLabel?: string;
   submitDisabled?: boolean;
   tapTargetSize?: number;
+  /** Language code for keyboard layout (defaults to 'en'). */
+  language?: string;
 }
 
 /** Prevent mousedown from stealing focus away from the display field */
@@ -18,11 +22,19 @@ function preventFocusLoss(e: React.MouseEvent) {
   e.preventDefault();
 }
 
-const ROWS = [
+const DEFAULT_ROWS = [
   ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
   ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
   ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
 ];
+
+function getKeyboardLayout(language: string): { rows: string[][]; accentRow?: string[] } {
+  const config = getLanguageConfig(language);
+  return {
+    rows: config.keyboardRows ?? DEFAULT_ROWS,
+    accentRow: config.accentRow,
+  };
+}
 
 export function CustomKeyboard({
   onKey,
@@ -32,13 +44,35 @@ export function CustomKeyboard({
   submitLabel = 'Check',
   submitDisabled = false,
   tapTargetSize = 44,
+  language = 'en',
 }: CustomKeyboardProps) {
   const keySize = Math.max(36, tapTargetSize * 0.8);
   const fontSize = `${Math.max(16, keySize * 0.5)}px`;
+  const layout = getKeyboardLayout(language);
 
   return (
     <div className="flex flex-col items-center gap-1.5 w-full select-none" role="group" aria-label="Keyboard">
-      {ROWS.map((row, rowIndex) => (
+      {/* Accent row (if the language has one) */}
+      {layout.accentRow && (
+        <div className="flex gap-1 justify-center w-full">
+          {layout.accentRow.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onMouseDown={preventFocusLoss}
+              onClick={() => { if (!disabled) { hapticTap(); onKey(key); } }}
+              disabled={disabled}
+              className="flex-1 max-w-[14%] rounded-lg bg-amber-50 border border-amber-300 font-bold text-sf-heading active:bg-sf-primary active:text-sf-primary-text transition-colors disabled:opacity-40"
+              style={{ minHeight: `${keySize}px`, fontSize }}
+              aria-label={key}
+            >
+              {key}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {layout.rows.map((row, rowIndex) => (
         <div key={rowIndex} className="flex gap-1 justify-center w-full">
           {row.map((key) => (
             <button
@@ -54,7 +88,7 @@ export function CustomKeyboard({
               {key}
             </button>
           ))}
-          {rowIndex === 2 && (
+          {rowIndex === layout.rows.length - 1 && (
             <button
               type="button"
               onMouseDown={preventFocusLoss}
@@ -99,6 +133,8 @@ interface SpellingFieldProps {
   ariaLabel?: string;
   /** Extra class for the display div (e.g. error flash styling) */
   displayClassName?: string;
+  /** Language code for keyboard layout and input filtering. */
+  language?: string;
 }
 
 export function SpellingField({
@@ -114,6 +150,7 @@ export function SpellingField({
   className = '',
   ariaLabel = 'Type the spelling word',
   displayClassName,
+  language = 'en',
 }: SpellingFieldProps) {
   const fontSize = fontSizeProp ?? `${Math.max(20, tapTargetSize * 0.55)}px`;
   const cursorRef = useRef<HTMLSpanElement>(null);
@@ -143,12 +180,23 @@ export function SpellingField({
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         onChange(value.slice(0, -1));
-      } else if (e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
-        e.preventDefault();
-        onChange(value + e.key.toLowerCase());
+      } else if (e.key.length === 1) {
+        const lower = e.key.toLowerCase();
+        // Build allowed character set inside the callback to avoid dependency issues
+        const config = getLanguageConfig(language);
+        const allowedChars = new Set([
+          ...config.alphabet.split(''),
+          ...config.extraCharacters,
+          ...(config.accentRow ?? []),
+          ...(config.keyboardRows?.flat() ?? []),
+        ]);
+        if (allowedChars.has(lower)) {
+          e.preventDefault();
+          onChange(value + lower);
+        }
       }
     },
-    [disabled, value, onChange, onSubmit],
+    [disabled, value, onChange, onSubmit, language],
   );
 
   const handleKey = useCallback(
@@ -200,6 +248,7 @@ export function SpellingField({
         submitLabel={submitLabel}
         submitDisabled={effectiveSubmitDisabled}
         tapTargetSize={tapTargetSize}
+        language={language}
       />
     </div>
   );

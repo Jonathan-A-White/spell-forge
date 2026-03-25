@@ -1,21 +1,23 @@
-// src/features/word-lists/list-editor.tsx — Word list CRUD UI
+// src/features/word-lists/list-editor.tsx — Word list CRUD UI with multilingual support
 
 import { useState, useCallback, useRef } from 'react';
 import type { WordList } from '../../contracts/types';
 import type { OcrManager } from '../../ocr';
 import { filterImportWords } from '../../ocr';
+import { getAllLanguages, getLanguageConfig, DEFAULT_LANGUAGE } from '../../i18n/language-registry.ts';
 
 interface ListEditorProps {
   list?: WordList | null;
   existingWords: string[];
   ocrManager?: OcrManager | null;
   importFilterPhrases?: string[];
-  onSave: (name: string, words: string[], testDate: Date | null, source?: WordList['source']) => void;
+  onSave: (name: string, words: string[], testDate: Date | null, source?: WordList['source'], language?: string) => void;
   onCancel: () => void;
 }
 
 export function ListEditor({ list, existingWords, ocrManager, importFilterPhrases, onSave, onCancel }: ListEditorProps) {
   const [name, setName] = useState(list?.name ?? '');
+  const [language, setLanguage] = useState<string>(list?.language ?? DEFAULT_LANGUAGE);
   const [wordsText, setWordsText] = useState(existingWords.join('\n'));
   const [testDate, setTestDate] = useState(
     list?.testDate ? formatDate(list.testDate) : '',
@@ -24,6 +26,9 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
   const [ocrStatus, setOcrStatus] = useState<'idle' | 'processing' | 'error'>('idle');
   const [ocrError, setOcrError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const langConfig = getLanguageConfig(language);
+  const ocrAvailable = ocrManager && langConfig.hasOCR;
 
   const handleSave = useCallback(() => {
     const words = wordsText
@@ -34,8 +39,8 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
     if (name.trim() === '' || words.length === 0) return;
 
     const source = usedCamera ? 'camera' as const : undefined;
-    onSave(name.trim(), words, testDate ? new Date(testDate) : null, source);
-  }, [name, wordsText, testDate, usedCamera, onSave]);
+    onSave(name.trim(), words, testDate ? new Date(testDate) : null, source, language);
+  }, [name, wordsText, testDate, usedCamera, language, onSave]);
 
   const handlePhotoSelected = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,6 +90,8 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
     .split(/[\n,]+/)
     .filter((w) => w.trim().length > 0).length;
 
+  const allLanguages = getAllLanguages();
+
   return (
     <div className="min-h-screen bg-sf-bg p-4 max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -117,6 +124,49 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
           />
         </div>
 
+        {/* Language selector */}
+        <div>
+          <label className="block text-sm font-medium text-sf-secondary mb-1">
+            Language
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {allLanguages.map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => setLanguage(lang.code)}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  language === lang.code
+                    ? 'bg-sf-primary text-sf-primary-text border-sf-primary'
+                    : 'bg-sf-surface text-sf-heading border-sf-border hover:border-sf-primary'
+                }`}
+              >
+                {lang.displayName}
+                {lang.code !== 'en' && (
+                  <span className="ml-1 text-xs opacity-70">({lang.nativeName})</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Language feature notes */}
+          {language !== 'en' && (
+            <div className="mt-2 text-xs text-sf-muted space-y-0.5">
+              {langConfig.hasPhonics ? (
+                <p className="text-green-600">Phonics patterns available for {langConfig.displayName}.</p>
+              ) : (
+                <p>Note: Phonics patterns not yet available for {langConfig.displayName}. Words can still be practiced.</p>
+              )}
+              {!langConfig.hasOCR && (
+                <p>Note: Camera import not yet available for {langConfig.displayName}.</p>
+              )}
+              {langConfig.strictAccents && (
+                <p>Accents are required for correct spelling (e.g., caf&eacute; not cafe).</p>
+              )}
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-sf-secondary mb-1">
             Test Date (optional)
@@ -134,21 +184,31 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
             <label className="block text-sm font-medium text-sf-secondary">
               Words (one per line or comma-separated)
             </label>
+            {/* Camera import button — greyed out when OCR not available for this language */}
             {ocrManager && (
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={ocrStatus === 'processing'}
-                className="inline-flex items-center gap-1.5 text-sm text-sf-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => ocrAvailable && fileInputRef.current?.click()}
+                disabled={ocrStatus === 'processing' || !ocrAvailable}
+                className={`inline-flex items-center gap-1.5 text-sm disabled:cursor-not-allowed ${
+                  ocrAvailable
+                    ? 'text-sf-primary hover:underline disabled:opacity-50'
+                    : 'text-sf-muted opacity-40'
+                }`}
+                title={ocrAvailable ? 'Import words from a photo' : `Camera import not available for ${langConfig.displayName}`}
                 data-testid="camera-import-btn"
               >
                 <CameraIcon />
-                {ocrStatus === 'processing' ? 'Reading...' : 'Import from camera'}
+                {ocrStatus === 'processing'
+                  ? 'Reading...'
+                  : ocrAvailable
+                    ? 'Import from camera'
+                    : 'Camera (not available)'}
               </button>
             )}
           </div>
 
-          {ocrManager && ocrStatus === 'idle' && (
+          {ocrAvailable && ocrStatus === 'idle' && (
             <p className="text-xs text-sf-muted mb-2">
               Tip: Turn the word list sideways so words read bottom to top, then snap a photo with your phone upright.
             </p>
@@ -164,7 +224,9 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
             value={wordsText}
             onChange={(e) => setWordsText(e.target.value)}
             rows={10}
-            placeholder="knight&#10;bridge&#10;light&#10;because"
+            placeholder={language === 'es'
+              ? "casa\nmonta\u00f1a\nfamilia\ncaf\u00e9"
+              : "knight\nbridge\nlight\nbecause"}
             className="w-full border border-sf-input-border rounded-lg px-4 py-3 text-sf-heading bg-sf-input-bg focus:outline-none focus:ring-2 focus:ring-sf-primary font-mono"
           />
           <p className="text-sm text-sf-muted mt-1">{wordCount} words</p>

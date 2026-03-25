@@ -15,11 +15,11 @@ interface CatchResult {
   letterIndex: number; // which position in the word was being sought
 }
 
-/** Generate distractor letters that look plausible alongside the target word */
-export function generateDistractors(word: string, count: number): string[] {
+/** Generate distractor letters that look plausible alongside the target word.
+ *  Accepts an optional alphabet string for language-specific letter pools. */
+export function generateDistractors(word: string, count: number, alphabet?: string): string[] {
   const wordLetters = new Set(word.toLowerCase().split(''));
-  // Common letters weighted toward ones kids confuse
-  const pool = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  const pool = (alphabet ?? 'abcdefghijklmnopqrstuvwxyz').split('');
   const distractors: string[] = [];
 
   // Include some letters from the word itself (to make it tricky)

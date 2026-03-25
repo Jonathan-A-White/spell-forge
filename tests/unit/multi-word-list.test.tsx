@@ -10,6 +10,7 @@ function makeList(overrides: Partial<WordList> = {}): WordList {
     id: 'list-1',
     profileId: 'profile-1',
     name: 'Week 1',
+    language: 'en',
     testDate: new Date('2026-03-14'),
     createdAt: new Date('2026-03-07'),
     source: 'manual',

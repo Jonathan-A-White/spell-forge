@@ -1,5 +1,8 @@
 // src/audio/speech.ts — TTS for Chrome PWA on Android.  Uses only the Web
 // Speech API with robust retry logic (exponential backoff, voice fallback).
+// Supports multiple languages via the language-aware voice selection system.
+
+import { getLanguageConfig } from '../i18n/language-registry.ts';
 
 const TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 5;
@@ -15,45 +18,55 @@ function dbg(msg: string, data?: Record<string, unknown>): void {
 
 // ─── Voice selection ────────────────────────────────────────
 
-// Cache: null = not yet resolved, empty array = no English voices found.
-let cachedEnglishVoices: SpeechSynthesisVoice[] | null = null;
+// Cache: keyed by language code. null = not yet resolved, empty array = no voices found.
+const voiceCache = new Map<string, SpeechSynthesisVoice[]>();
 
 /**
- * Return all English voices ranked by preference.
- * Order: en_US > en_GB > en_AU > en_IN > any en_*.
+ * Return all voices for a language ranked by preference.
+ * Uses the voicePreferences from the language config to rank.
  */
-function getEnglishVoices(): SpeechSynthesisVoice[] {
-  if (cachedEnglishVoices !== null) return cachedEnglishVoices;
+function getVoicesForLanguage(languageCode: string): SpeechSynthesisVoice[] {
+  if (voiceCache.has(languageCode)) return voiceCache.get(languageCode)!;
 
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    cachedEnglishVoices = [];
-    return cachedEnglishVoices;
+    voiceCache.set(languageCode, []);
+    return [];
   }
 
-  const voices = window.speechSynthesis.getVoices();
-  const english = voices.filter((v) => /^en[-_]/i.test(v.lang));
+  const config = getLanguageConfig(languageCode);
+  const allVoices = window.speechSynthesis.getVoices();
 
-  const rank = (v: SpeechSynthesisVoice): number => {
-    const lang = v.lang.replace('_', '-').toLowerCase();
-    if (lang.startsWith('en-us')) return 0;
-    if (lang.startsWith('en-gb')) return 1;
-    if (lang.startsWith('en-au')) return 2;
-    return 3;
-  };
+  // Match voices by language prefix (e.g., 'es' matches 'es-ES', 'es-MX')
+  const langPrefix = config.code;
+  const matched = allVoices.filter((v) => {
+    const vLang = v.lang.replace('_', '-').toLowerCase();
+    return vLang.startsWith(langPrefix);
+  });
 
-  english.sort((a, b) => rank(a) - rank(b));
-  cachedEnglishVoices = english;
+  // Rank by voicePreferences order
+  const prefs = config.voicePreferences.map((p) => p.toLowerCase());
+  matched.sort((a, b) => {
+    const aLang = a.lang.replace('_', '-').toLowerCase();
+    const bLang = b.lang.replace('_', '-').toLowerCase();
+    const aRank = prefs.findIndex((p) => aLang.startsWith(p));
+    const bRank = prefs.findIndex((p) => bLang.startsWith(p));
+    const aScore = aRank >= 0 ? aRank : 999;
+    const bScore = bRank >= 0 ? bRank : 999;
+    return aScore - bScore;
+  });
 
-  if (english.length > 0) {
-    dbg('English voices found', {
-      count: english.length,
-      voices: english.map((v) => ({ name: v.name, lang: v.lang })),
+  voiceCache.set(languageCode, matched);
+
+  if (matched.length > 0) {
+    dbg(`Voices found for ${languageCode}`, {
+      count: matched.length,
+      voices: matched.map((v) => ({ name: v.name, lang: v.lang })),
     });
   } else {
-    dbg('No English voices found — will rely on lang attribute');
+    dbg(`No voices found for ${languageCode} — will rely on lang attribute`);
   }
 
-  return cachedEnglishVoices;
+  return matched;
 }
 
 function logVoices(): void {
@@ -76,9 +89,8 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => {
     dbg('voiceschanged fired');
     logVoices();
-    // Re-resolve voices when the list changes (voices load async on Android).
-    cachedEnglishVoices = null;
-    getEnglishVoices();
+    // Clear all cached voices when the list changes (voices load async on Android).
+    voiceCache.clear();
   };
   // Also try eagerly — voices may already be available.
   logVoices();
@@ -168,38 +180,36 @@ function trySpeak(
 }
 
 /**
- * Build a list of strategies to try.  Each one varies the voice and/or lang
- * attribute to work around different failure modes:
+ * Build a list of strategies to try for a given language.
  *
- *   1-3. English voices (en_US, en_GB, en_AU) with lang='en-US'
- *   4.   Device default voice with lang='en-US' — some engines can speak any
+ *   1-3. Language-specific voices with correct lang tag
+ *   4.   Device default voice with lang tag — some engines can speak any
  *        language with any voice; the default voice may have a working synth
- *        pipeline even when English-specific ones are broken.
+ *        pipeline even when language-specific ones are broken.
  *   5.   Bare-minimum utterance — no voice, no lang.  Lets the engine pick
- *        everything itself.  Works around Chrome bugs where setting lang
- *        triggers a broken code path.
+ *        everything itself.
  */
-function buildStrategies(): SpeakStrategy[] {
-  const englishVoices = getEnglishVoices();
+function buildStrategies(languageCode: string = 'en'): SpeakStrategy[] {
+  const config = getLanguageConfig(languageCode);
+  const langVoices = getVoicesForLanguage(languageCode);
   const strategies: SpeakStrategy[] = [];
+  const bcp47 = config.bcp47;
 
-  // English voices with lang='en-US' (up to 3).
-  for (const v of englishVoices.slice(0, 3)) {
-    strategies.push({ voice: v, lang: 'en-US', label: `${v.name} + lang=en-US` });
+  // Language-specific voices with lang tag (up to 3).
+  for (const v of langVoices.slice(0, 3)) {
+    strategies.push({ voice: v, lang: bcp47, label: `${v.name} + lang=${bcp47}` });
   }
 
-  // Device default voice with lang='en-US'.  On Android, the default voice
-  // (e.g. Assamese) may still be able to synthesise English text — the lang
-  // attribute tells the engine what language the text is in.
+  // Device default voice with lang tag.
   const allVoices = typeof window !== 'undefined' && 'speechSynthesis' in window
     ? window.speechSynthesis.getVoices()
     : [];
   const defaultVoice = allVoices.find((v) => v.default) ?? allVoices[0] ?? null;
-  if (defaultVoice && !englishVoices.includes(defaultVoice)) {
+  if (defaultVoice && !langVoices.includes(defaultVoice)) {
     strategies.push({
       voice: defaultVoice,
-      lang: 'en-US',
-      label: `default voice (${defaultVoice.name}) + lang=en-US`,
+      lang: bcp47,
+      label: `default voice (${defaultVoice.name}) + lang=${bcp47}`,
     });
   }
 
@@ -214,7 +224,7 @@ function buildStrategies(): SpeakStrategy[] {
  *
  * On total failure a short cooldown prevents hammering a broken engine.
  */
-async function ttsSpeak(text: string, rate: number): Promise<boolean> {
+async function ttsSpeak(text: string, rate: number, languageCode: string = 'en'): Promise<boolean> {
   // Respect cooldown after repeated failures.
   if (Date.now() < cooldownUntil) {
     dbg('ttsSpeak() skipped — cooling down', {
@@ -223,7 +233,7 @@ async function ttsSpeak(text: string, rate: number): Promise<boolean> {
     return false;
   }
 
-  const strategies = buildStrategies();
+  const strategies = buildStrategies(languageCode);
   const attempts = Math.min(strategies.length, MAX_ATTEMPTS);
 
   for (let i = 0; i < attempts; i++) {
@@ -318,32 +328,54 @@ export function warmUp(): Promise<void> {
   });
 }
 
-// ─── Public API ─────────────────────────────────────────────
+// ─── Voice availability check ────────────────────────────────
 
-/** Say a word out loud. */
-export async function sayWord(word: string): Promise<void> {
-  dbg(`sayWord("${word}")`);
-  await ttsSpeak(word, 1);
+/**
+ * Check if TTS voices are available for a specific language.
+ * Returns true if at least one voice matches, or if speechSynthesis is available
+ * (since the engine may still speak the language via the lang attribute).
+ */
+export function hasVoicesForLanguage(languageCode: string): boolean {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
+  const voices = getVoicesForLanguage(languageCode);
+  return voices.length > 0;
 }
 
-/** Say a word slowly (0.6× speed). */
-export async function sayWordSlowly(word: string): Promise<void> {
-  dbg(`sayWordSlowly("${word}")`);
-  await ttsSpeak(word, 0.6);
+/**
+ * Get a human-readable status for TTS availability for a language.
+ */
+export function getTtsStatus(languageCode: string): 'available' | 'no-voices' | 'unavailable' {
+  if (!isTtsAvailable()) return 'unavailable';
+  if (hasVoicesForLanguage(languageCode)) return 'available';
+  return 'no-voices';
+}
+
+// ─── Public API ─────────────────────────────────────────────
+
+/** Say a word out loud. Optionally specify language for correct pronunciation. */
+export async function sayWord(word: string, language: string = 'en'): Promise<void> {
+  dbg(`sayWord("${word}", lang=${language})`);
+  await ttsSpeak(word, 1, language);
+}
+
+/** Say a word slowly (0.6x speed). */
+export async function sayWordSlowly(word: string, language: string = 'en'): Promise<void> {
+  dbg(`sayWordSlowly("${word}", lang=${language})`);
+  await ttsSpeak(word, 0.6, language);
 }
 
 /** Spell a word letter-by-letter (single utterance, commas create pauses). */
-export async function spellWord(word: string): Promise<void> {
-  dbg(`spellWord("${word}")`);
+export async function spellWord(word: string, language: string = 'en'): Promise<void> {
+  dbg(`spellWord("${word}", lang=${language})`);
   const spelled = word.split('').join(', ');
-  await ttsSpeak(spelled, 1);
+  await ttsSpeak(spelled, 1, language);
 }
 
 /** Say the word, pause, then spell it (single utterance). */
-export async function sayThenSpell(word: string): Promise<void> {
-  dbg(`sayThenSpell("${word}")`);
+export async function sayThenSpell(word: string, language: string = 'en'): Promise<void> {
+  dbg(`sayThenSpell("${word}", lang=${language})`);
   const spelled = word.split('').join(', ');
-  await ttsSpeak(`${word},,,, ${spelled}`, 1);
+  await ttsSpeak(`${word},,,, ${spelled}`, 1, language);
 }
 
 /** True when the browser supports speech synthesis. */

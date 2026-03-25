@@ -372,12 +372,12 @@ function App() {
   }, [view, refreshListData]);
 
   const handleSaveList = useCallback(
-    async (name: string, words: string[], testDate: Date | null) => {
+    async (name: string, words: string[], testDate: Date | null, _source?: string, language?: string) => {
       if (!activeProfile) return;
 
       if (editingList) {
-        // Update existing list metadata
-        await wordListRepo.update(editingList.id, { name, testDate });
+        // Update existing list metadata (include language if provided)
+        await wordListRepo.update(editingList.id, { name, testDate, ...(language ? { language } : {}) });
 
         // Diff words: remove deleted, add new, keep existing
         const existingWords = await wordRepo.getByListId(editingList.id);
@@ -433,6 +433,7 @@ function App() {
         const list = await wordListRepo.create({
           profileId: activeProfile.id,
           name,
+          language: language ?? 'en',
           testDate,
           createdAt: new Date(),
           source: 'manual',
@@ -498,6 +499,7 @@ function App() {
       const list = await wordListRepo.create({
         profileId: activeProfile.id,
         name: payload.n,
+        language: 'en',
         testDate,
         createdAt: new Date(),
         source: 'import',

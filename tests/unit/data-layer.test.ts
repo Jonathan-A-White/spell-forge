@@ -53,6 +53,7 @@ function makeWordListData(profileId: string, overrides: Partial<Omit<WordList, '
   return {
     profileId,
     name: 'Week 1 Words',
+    language: 'en',
     testDate: new Date('2026-02-01'),
     createdAt: new Date('2026-01-15'),
     source: 'manual' as const,
@@ -801,6 +802,7 @@ describe('import/export', () => {
         id: 'imported-list-id',
         profileId,
         name: 'Imported List',
+        language: 'en',
         testDate: null,
         createdAt: new Date('2026-01-25'),
         source: 'import',
