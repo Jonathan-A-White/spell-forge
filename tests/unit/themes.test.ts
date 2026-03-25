@@ -495,13 +495,19 @@ describe('Monster Collection', () => {
     expect(monsterCollection.getCollectionCount('p1')).toBe(0);
   });
 
-  it('adds a creature to the collection', () => {
+  it('adds a creature to the collection with all required fields', () => {
     const creature = monsterCollection.addCreature('p1', 'monster-lab', 50);
     expect(creature.profileId).toBe('p1');
     expect(creature.themeId).toBe('monster-lab');
     expect(creature.totalBlocksUsed).toBe(50);
     expect(creature.name).toBeTruthy();
     expect(creature.id).toMatch(/^creature-/);
+    expect(creature.level).toBeGreaterThanOrEqual(1);
+    expect(creature.level).toBeLessThanOrEqual(5);
+    expect(['common', 'uncommon', 'rare', 'epic', 'legendary']).toContain(creature.rarity);
+    expect(creature.appearance).toBeDefined();
+    expect(creature.appearance.bodyShape).toBeGreaterThanOrEqual(0);
+    expect(creature.appearance.primaryColor).toBeGreaterThanOrEqual(0);
 
     expect(monsterCollection.getCollectionCount('p1')).toBe(1);
     expect(monsterCollection.getCollection('p1')).toHaveLength(1);
@@ -550,6 +556,78 @@ describe('Monster Collection', () => {
   });
 });
 
+// ─── Pack Opening ───────────────────────────────────────────
+
+describe('Pack Opening', () => {
+  beforeEach(() => {
+    monsterCollection.resetAll();
+  });
+
+  it('opens a pack of exactly 3 creatures', () => {
+    const pack = monsterCollection.openPack('p1', 'monster-lab', 50);
+    expect(pack).toHaveLength(3);
+    expect(monsterCollection.getCollectionCount('p1')).toBe(3);
+  });
+
+  it('all creatures in a pack share the same packId', () => {
+    const pack = monsterCollection.openPack('p1', 'dragon-forge', 50);
+    const packId = pack[0].packId;
+    expect(packId).toBeTruthy();
+    expect(pack[1].packId).toBe(packId);
+    expect(pack[2].packId).toBe(packId);
+  });
+
+  it('creatures in a pack have the correct theme and profile', () => {
+    const pack = monsterCollection.openPack('p1', 'star-trail', 50);
+    for (const creature of pack) {
+      expect(creature.themeId).toBe('star-trail');
+      expect(creature.profileId).toBe('p1');
+    }
+  });
+
+  it('each creature has valid level, rarity, and appearance', () => {
+    const pack = monsterCollection.openPack('p1', 'monster-lab', 50);
+    for (const creature of pack) {
+      expect(creature.level).toBeGreaterThanOrEqual(1);
+      expect(creature.level).toBeLessThanOrEqual(5);
+      expect(['common', 'uncommon', 'rare', 'epic', 'legendary']).toContain(creature.rarity);
+      expect(creature.appearance.bodyShape).toBeGreaterThanOrEqual(0);
+      expect(creature.appearance.bodyShape).toBeLessThan(5);
+      expect(creature.appearance.eyes).toBeGreaterThanOrEqual(0);
+      expect(creature.appearance.eyes).toBeLessThan(5);
+    }
+  });
+
+  it('guarantees at least one uncommon+ card per pack', () => {
+    // Run multiple times for statistical confidence
+    for (let i = 0; i < 20; i++) {
+      monsterCollection.resetAll();
+      const pack = monsterCollection.openPack('p1', 'monster-lab', 50);
+      const hasGood = pack.some((c) => c.rarity !== 'common');
+      expect(hasGood).toBe(true);
+    }
+  });
+
+  it('accumulates pack creatures with existing collection', () => {
+    monsterCollection.addCreature('p1', 'monster-lab', 50);
+    monsterCollection.openPack('p1', 'monster-lab', 50);
+    expect(monsterCollection.getCollectionCount('p1')).toBe(4);
+  });
+
+  it('works for all theme types', () => {
+    const themes = ['dragon-forge', 'monster-lab', 'star-trail'];
+    for (const themeId of themes) {
+      monsterCollection.resetAll();
+      const pack = monsterCollection.openPack('p1', themeId, 50);
+      expect(pack).toHaveLength(3);
+      for (const creature of pack) {
+        expect(creature.themeId).toBe(themeId);
+        expect(creature.name).toBeTruthy();
+      }
+    }
+  });
+});
+
 // ─── RewardTracker + Collection Integration ──────────────────
 
 describe('RewardTracker Collection Integration', () => {
@@ -560,7 +638,7 @@ describe('RewardTracker Collection Integration', () => {
     monsterCollection.resetAll();
   });
 
-  it('archives creature and resets progress on completion', () => {
+  it('opens a pack and resets progress on completion', () => {
     const maxProgress = themeEngine.getMaxProgress('monster-lab');
     // monster-lab progressPerCorrect=2, so set to maxProgress-2 to reach exactly maxProgress
     rewardTracker.setProgress('p1', 'monster-lab', maxProgress - 2);
@@ -572,12 +650,14 @@ describe('RewardTracker Collection Integration', () => {
 
     const reward = rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
     expect(reward.creatureCompleted).toBe(true);
+    expect(reward.packEarned).toBeDefined();
+    expect(reward.packEarned).toHaveLength(3);
 
     // Progress should be reset to 0 for the next creature
     expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(0);
 
-    // Creature should be in the collection
-    expect(monsterCollection.getCollectionCount('p1')).toBe(1);
+    // 3 creatures should be in the collection (pack of 3)
+    expect(monsterCollection.getCollectionCount('p1')).toBe(3);
     const creatures = monsterCollection.getCollection('p1');
     expect(creatures[0].themeId).toBe('monster-lab');
     expect(creatures[0].totalBlocksUsed).toBe(maxProgress);
@@ -592,7 +672,7 @@ describe('RewardTracker Collection Integration', () => {
       payload: { wordId: 'w1', correct: true, technique: 'flashcard', responseTimeMs: 2000, struggled: false },
     };
 
-    // Complete first creature
+    // Complete first pack
     rewardTracker.processEvent('p1', 'monster-lab', correctEvent);
     expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(0);
 
@@ -602,8 +682,8 @@ describe('RewardTracker Collection Integration', () => {
     expect(reward2.creatureCompleted).toBe(false);
     expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(2);
 
-    // First creature still in collection
-    expect(monsterCollection.getCollectionCount('p1')).toBe(1);
+    // First pack still in collection
+    expect(monsterCollection.getCollectionCount('p1')).toBe(3);
   });
 
   it('milestone resets to Egg Found after creature completion', () => {
@@ -706,5 +786,19 @@ describe('Theme Progress Persistence', () => {
 
     // Progress should be restored (monster-lab gives 2 units per correct = 4 total)
     expect(rewardTracker.getProgress('p1', 'monster-lab')).toBe(4);
+  });
+
+  it('persists pack creatures to IndexedDB', async () => {
+    monsterCollection.openPack('p1', 'dragon-forge', 50);
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const saved = await themeProgressRepo.getCreatures('p1');
+    expect(saved).toHaveLength(3);
+    for (const creature of saved) {
+      expect(creature.themeId).toBe('dragon-forge');
+      expect(creature.level).toBeGreaterThanOrEqual(1);
+      expect(creature.rarity).toBeTruthy();
+    }
   });
 });

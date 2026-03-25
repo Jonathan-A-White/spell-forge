@@ -238,6 +238,19 @@ export interface RewardEvent {
   milestoneReached: string | null;
   totalProgress: number;
   creatureCompleted: boolean;
+  /** When a creature is completed, the pack of 3 creatures earned. */
+  packEarned?: CompletedCreature[];
+}
+
+export type CreatureRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface CreatureAppearance {
+  bodyShape: number;    // 0-4 index into theme body shapes
+  primaryColor: number; // 0-5 index into theme color palette
+  accentColor: number;  // 0-5 index into theme accent palette
+  eyes: number;         // 0-4 eye style
+  mouth: number;        // 0-3 mouth style
+  extra: number;        // 0-4 theme-specific extra (horns, wings, sparkles)
 }
 
 export interface CompletedCreature {
@@ -247,6 +260,10 @@ export interface CompletedCreature {
   name: string;
   completedAt: Date;
   totalBlocksUsed: number;
+  level: number;              // 1-5
+  rarity: CreatureRarity;
+  appearance: CreatureAppearance;
+  packId?: string;            // groups creatures from same pack opening
 }
 
 export interface ThemeProgress {

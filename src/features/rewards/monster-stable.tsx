@@ -1,7 +1,8 @@
-// src/features/rewards/monster-stable.tsx — Full Monster Stable / Collection view
+// src/features/rewards/monster-stable.tsx — Full Collection view for all themes
 
 import type { Profile, CompletedCreature } from '../../contracts/types';
 import { themeEngine } from '../../themes';
+import { CreatureArt, RarityBadge, LevelStars } from './creature-art';
 
 interface MonsterStableProps {
   profile: Profile;
@@ -26,14 +27,24 @@ function getThemeIcon(themeId: string): string {
 }
 
 function getCollectionName(themeId: string): string {
-  return COLLECTION_NAMES[themeId] ?? 'Monster Stable';
+  return COLLECTION_NAMES[themeId] ?? 'Collection';
 }
 
+const RARITY_SORT_ORDER: Record<string, number> = {
+  legendary: 0,
+  epic: 1,
+  rare: 2,
+  uncommon: 3,
+  common: 4,
+};
+
 export function MonsterStable({ profile, collection, onBack }: MonsterStableProps) {
-  // Sort newest first
-  const sorted = [...collection].sort(
-    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
-  );
+  // Sort by rarity (best first), then newest
+  const sorted = [...collection].sort((a, b) => {
+    const rarityDiff = (RARITY_SORT_ORDER[a.rarity] ?? 5) - (RARITY_SORT_ORDER[b.rarity] ?? 5);
+    if (rarityDiff !== 0) return rarityDiff;
+    return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+  });
 
   // Group by theme
   const byTheme = new Map<string, CompletedCreature[]>();
@@ -46,6 +57,9 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
   const activeTheme = themeEngine.getTheme(profile.themeId);
   const vfx = activeTheme.visualEffects;
   const collectionName = getCollectionName(profile.themeId);
+
+  // Stats
+  const rarityCount = (r: string) => collection.filter((c) => c.rarity === r).length;
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -67,7 +81,7 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
             <div>
               <h1 className="text-xl font-bold text-sf-heading">{collectionName}</h1>
               <p className="text-sm text-sf-muted">
-                {collection.length} creature{collection.length !== 1 ? 's' : ''} collected
+                {collection.length} card{collection.length !== 1 ? 's' : ''} collected
               </p>
             </div>
           </div>
@@ -75,6 +89,22 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
       </div>
 
       <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto px-4 py-6">
+        {/* Collection stats */}
+        {collection.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-5">
+            {(['legendary', 'epic', 'rare', 'uncommon', 'common'] as const).map((r) => {
+              const count = rarityCount(r);
+              if (count === 0) return null;
+              return (
+                <div key={r} className="flex items-center gap-1.5 bg-sf-surface border border-sf-border rounded-lg px-2.5 py-1.5">
+                  <RarityBadge rarity={r} />
+                  <span className="text-xs text-sf-muted font-medium">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Empty state */}
         {collection.length === 0 && (
           <div className="text-center py-16">
@@ -84,9 +114,9 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
             >
               {getThemeIcon(profile.themeId)}
             </div>
-            <h2 className="text-lg font-bold text-sf-heading mb-2">No creatures yet!</h2>
+            <h2 className="text-lg font-bold text-sf-heading mb-2">No cards yet!</h2>
             <p className="text-sf-muted text-sm max-w-xs mx-auto">
-              Keep practicing to fill up your creature's progress bar. Once it's complete, your creature will be added here!
+              Keep practicing to fill up your progress bar. When it's complete, you'll open a pack of 3 cards!
             </p>
           </div>
         )}
@@ -103,7 +133,7 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {creatures.map((creature) => (
-                  <CreatureCard key={creature.id} creature={creature} themeId={themeId} />
+                  <CreatureCard key={creature.id} creature={creature} />
                 ))}
               </div>
             </div>
@@ -114,9 +144,25 @@ export function MonsterStable({ profile, collection, onBack }: MonsterStableProp
   );
 }
 
-function CreatureCard({ creature, themeId }: { creature: CompletedCreature; themeId: string }) {
-  const theme = themeEngine.getTheme(themeId);
-  const vfx = theme.visualEffects;
+const RARITY_GLOW: Record<string, string> = {
+  common: 'rgba(107, 114, 128, 0.2)',
+  uncommon: 'rgba(5, 150, 105, 0.25)',
+  rare: 'rgba(37, 99, 235, 0.3)',
+  epic: 'rgba(124, 58, 237, 0.35)',
+  legendary: 'rgba(217, 119, 6, 0.4)',
+};
+
+const RARITY_BORDER: Record<string, string> = {
+  common: 'rgba(107, 114, 128, 0.3)',
+  uncommon: 'rgba(5, 150, 105, 0.4)',
+  rare: 'rgba(37, 99, 235, 0.5)',
+  epic: 'rgba(124, 58, 237, 0.5)',
+  legendary: 'rgba(217, 119, 6, 0.6)',
+};
+
+function CreatureCard({ creature }: { creature: CompletedCreature }) {
+  const glow = RARITY_GLOW[creature.rarity] ?? RARITY_GLOW.common;
+  const border = RARITY_BORDER[creature.rarity] ?? RARITY_BORDER.common;
   const completedDate = new Date(creature.completedAt).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -124,25 +170,31 @@ function CreatureCard({ creature, themeId }: { creature: CompletedCreature; them
 
   return (
     <div
-      className="bg-sf-surface border border-sf-border rounded-xl p-4 hover:border-sf-primary/50 transition-colors"
-      style={{ boxShadow: `0 0 10px ${vfx.shadowColor}` }}
+      className="bg-sf-surface rounded-xl p-3 hover:scale-[1.02] transition-transform"
+      style={{
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: border,
+        boxShadow: `0 0 10px ${glow}`,
+      }}
     >
-      <div className="text-center">
-        <div
-          className="text-3xl mb-2"
-          style={{ filter: `drop-shadow(0 0 6px ${vfx.glowColor})` }}
-        >
-          {getThemeIcon(themeId)}
+      <div className="flex flex-col items-center gap-1.5">
+        {/* Creature art */}
+        <CreatureArt themeId={creature.themeId} appearance={creature.appearance} size={72} />
+
+        {/* Name */}
+        <p className="font-bold text-sf-heading text-sm text-center truncate w-full">
+          {creature.name}
+        </p>
+
+        {/* Rarity + Level */}
+        <div className="flex items-center gap-2">
+          <RarityBadge rarity={creature.rarity} />
         </div>
-        <p className="font-bold text-sf-heading text-sm truncate">{creature.name}</p>
-        <p className="text-[10px] text-sf-primary mt-1">{theme.name}</p>
-        <div className="flex items-center justify-center gap-1.5 mt-2">
-          <span className="text-[10px] text-sf-faint">{completedDate}</span>
-          <span className="text-sf-faint">·</span>
-          <span className="text-[10px] text-sf-faint">
-            {creature.totalBlocksUsed} {theme.rewardMechanic.unitName}
-          </span>
-        </div>
+        <LevelStars level={creature.level} />
+
+        {/* Date */}
+        <span className="text-[10px] text-sf-faint">{completedDate}</span>
       </div>
     </div>
   );

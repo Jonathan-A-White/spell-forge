@@ -33,11 +33,12 @@ function processEvent(profileId: string, themeId: string, event: AppEvent): Rewa
   const reward = themeEngine.calculateReward(event, themeId, currentProgress);
   setProgress(profileId, themeId, reward.totalProgress);
 
-  // When a creature is completed, archive it and reset progress for the next one
+  // When a creature is completed, open a pack of 3 and reset progress
   if (reward.creatureCompleted) {
     const maxProgress = themeEngine.getMaxProgress(themeId);
-    monsterCollection.addCreature(profileId, themeId, maxProgress);
+    const pack = monsterCollection.openPack(profileId, themeId, maxProgress);
     setProgress(profileId, themeId, 0);
+    reward.packEarned = pack;
   }
 
   return reward;
