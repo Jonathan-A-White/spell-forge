@@ -1046,7 +1046,6 @@ function App() {
           <ProgressView
             profileId={activeProfile.id}
             themeId={activeProfile.themeId}
-            streakData={streakData}
             allWords={activeWords}
             allStats={activeStats}
             learningProgress={learningProgress}
