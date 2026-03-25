@@ -1,6 +1,7 @@
 // src/features/word-lists/pdf-generator.ts — Generate printable handwriting practice PDFs
 
 import { jsPDF } from 'jspdf';
+import { patrickHandBase64 } from './patrick-hand-font';
 
 export type PdfMode = 'full' | 'trace-only' | 'write-only';
 export type PdfFontSize = 'small' | 'medium' | 'large';
@@ -29,50 +30,30 @@ const PAGE = {
   colGap: 24,
 };
 
+const HANDWRITING_FONT = 'PatrickHand';
+
+/** Register the handwriting font with a jsPDF document. */
+function registerFont(doc: jsPDF): void {
+  const callVFS = doc.addFileToVFS as (filename: string, data: string) => typeof doc;
+  callVFS.call(doc, 'PatrickHand-Regular.ttf', patrickHandBase64);
+  doc.addFont('PatrickHand-Regular.ttf', HANDWRITING_FONT, 'normal');
+}
+
+/** Set the handwriting font, falling back to courier if unavailable. */
+function setHandwritingFont(doc: jsPDF): void {
+  try {
+    doc.setFont(HANDWRITING_FONT, 'normal');
+  } catch {
+    doc.setFont('courier', 'normal');
+  }
+}
+
 /**
  * Generate a printable handwriting practice PDF for a word list.
  * Returns a blob URL suitable for download or preview.
  */
 export function generateWordListPdf(options: PdfOptions): string {
-  const { mode, fontSize, listName, words } = options;
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-
-  const fs = FONT_SIZES[fontSize];
-  const { width: pageW, height: pageH, margin, colGap } = PAGE;
-  const colWidth = (pageW - 2 * margin - colGap) / 2;
-
-  // Height of one guide-line section (one row where a child writes)
-  const sectionHeight = fs * 1.6;
-  // Number of sections per word depends on mode
-  const sectionsPerWord = mode === 'full' ? 3 : 2;
-  // Total height per word block (sections + spacing between words)
-  const wordBlockHeight = sectionHeight * sectionsPerWord + 10;
-
-  let pageNum = 0;
-  let wordIdx = 0;
-
-  while (wordIdx < words.length) {
-    if (pageNum > 0) doc.addPage();
-
-    const headerY = drawHeader(doc, listName, margin, pageW, pageNum === 0);
-    const startY = headerY + 12;
-    const usableHeight = pageH - margin - startY;
-    const wordsPerCol = Math.floor(usableHeight / wordBlockHeight);
-
-    for (let col = 0; col < 2 && wordIdx < words.length; col++) {
-      const colX = margin + col * (colWidth + colGap);
-      let y = startY;
-
-      for (let row = 0; row < wordsPerCol && wordIdx < words.length; row++) {
-        drawWordBlock(doc, words[wordIdx], wordIdx + 1, colX, y, colWidth, fs, sectionHeight, mode);
-        y += wordBlockHeight;
-        wordIdx++;
-      }
-    }
-
-    pageNum++;
-  }
-
+  const doc = buildPdfDoc(options);
   return doc.output('bloburl').toString();
 }
 
@@ -89,6 +70,9 @@ export function downloadWordListPdf(options: PdfOptions): void {
 function buildPdfDoc(options: PdfOptions): jsPDF {
   const { mode, fontSize, listName, words } = options;
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+
+  // Register handwriting font
+  registerFont(doc);
 
   const fs = FONT_SIZES[fontSize];
   const { width: pageW, height: pageH, margin, colGap } = PAGE;
@@ -135,23 +119,23 @@ function drawHeader(doc: jsPDF, listName: string, margin: number, pageW: number,
   let y = margin;
 
   if (isFirstPage) {
-    // Title
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
+    // Title in handwriting font
+    doc.setFontSize(20);
+    setHandwritingFont(doc);
     doc.setTextColor(30);
-    doc.text(listName, margin, y + 12);
+    doc.text(listName, margin, y + 14);
 
     // Name line
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
+    setHandwritingFont(doc);
     doc.setTextColor(100);
-    doc.text('Name:', pageW - margin - 180, y + 4);
+    doc.text('Name:', pageW - margin - 180, y + 6);
     doc.setDrawColor(150);
     doc.setLineWidth(0.5);
     doc.setLineDashPattern([], 0);
-    doc.line(pageW - margin - 150, y + 6, pageW - margin, y + 6);
+    doc.line(pageW - margin - 145, y + 8, pageW - margin, y + 8);
 
-    y += 26;
+    y += 28;
     // Separator line
     doc.setDrawColor(200);
     doc.setLineWidth(0.5);
@@ -193,9 +177,9 @@ function drawWordBlock(
   const lineX2 = x + colWidth;
   const textBaseline = 0.62; // vertical position ratio within section
 
-  // --- Model line: solid dark word with guide lines ---
+  // --- Model line: solid dark word in handwriting font with guide lines ---
   doc.setFontSize(fs);
-  doc.setFont('courier', 'normal');
+  setHandwritingFont(doc);
   doc.setTextColor(40);
   doc.text(word, textX, y + sectionHeight * textBaseline);
   drawGuideLines(doc, lineX1, y, lineX2, sectionHeight);
@@ -248,12 +232,12 @@ function drawGuideLines(doc: jsPDF, x1: number, y: number, x2: number, height: n
  * Draw tracing text — dashed letter outlines that children trace over.
  *
  * Uses PDF text rendering mode 1 (stroke) combined with a dash pattern
- * to produce dotted/dashed letter outlines. Falls back to light gray
- * filled text if stroke rendering is unavailable.
+ * to produce dotted/dashed letter outlines in the handwriting font.
+ * Falls back to light gray filled text if stroke rendering is unavailable.
  */
 function drawTracingText(doc: jsPDF, text: string, x: number, y: number, fontSize: number): void {
   doc.setFontSize(fontSize);
-  doc.setFont('courier', 'normal');
+  setHandwritingFont(doc);
 
   // Access internal write for raw PDF commands (not in TS types)
   const pdfWrite = (doc.internal as unknown as Record<string, (cmd: string) => void>).write;
