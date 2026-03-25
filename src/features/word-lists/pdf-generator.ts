@@ -165,29 +165,28 @@ function drawWordBlock(
   sectionHeight: number,
   mode: PdfMode,
 ): void {
-  // Word number
+  // Word number — vertically centered at the baseline
   const numWidth = fs * 1.0;
   doc.setFontSize(fs * 0.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(160);
-  doc.text(`${num}.`, x + 2, y + sectionHeight * 0.62);
+  doc.text(`${num}.`, x + 2, y + sectionHeight * BASELINE);
 
   const textX = x + numWidth;
   const lineX1 = textX - 4;
   const lineX2 = x + colWidth;
-  const textBaseline = 0.62; // vertical position ratio within section
 
   // --- Model line: solid dark word in handwriting font with guide lines ---
   doc.setFontSize(fs);
   setHandwritingFont(doc);
   doc.setTextColor(40);
-  doc.text(word, textX, y + sectionHeight * textBaseline);
+  doc.text(word, textX, y + sectionHeight * BASELINE);
   drawGuideLines(doc, lineX1, y, lineX2, sectionHeight);
   y += sectionHeight;
 
-  // --- Trace line: dashed outline letters with guide lines ---
+  // --- Trace line: light gray letters to trace over ---
   if (mode === 'full' || mode === 'trace-only') {
-    drawTracingText(doc, word, textX, y + sectionHeight * textBaseline, fs);
+    drawTracingText(doc, word, textX, y + sectionHeight * BASELINE, fs);
     drawGuideLines(doc, lineX1, y, lineX2, sectionHeight);
     y += sectionHeight;
   }
@@ -199,72 +198,66 @@ function drawWordBlock(
 }
 
 /**
- * Draw three guide lines that mimic primary writing paper:
- * - Top line (light solid)
- * - Midline (dashed)
- * - Baseline (solid, slightly heavier)
+ * Guide line vertical positions within a section, as ratios of sectionHeight.
+ *
+ * Modeled after standard primary/elementary writing paper:
+ *   ─── Ascender line   (top)        — where l, t, h, k, b, d reach
+ *   --- x-height line   (midline)    — where a, c, e, o, s top out
+ *   ─── Baseline                     — where all letters sit
+ *   ─── Descender line  (bottom)     — where g, y, p, q, j drop to
+ */
+const ASCENDER = 0.12;
+const MIDLINE = 0.42;
+const BASELINE = 0.72;
+const DESCENDER = 0.92;
+
+/**
+ * Draw four guide lines that mimic primary writing paper:
+ * - Ascender line (top, solid)
+ * - x-height / midline (dashed)
+ * - Baseline (solid, heavier)
+ * - Descender line (bottom, light)
  */
 function drawGuideLines(doc: jsPDF, x1: number, y: number, x2: number, height: number): void {
-  const topY = y + height * 0.15;
-  const midY = y + height * 0.42;
-  const baseY = y + height * 0.72;
+  const ascY = y + height * ASCENDER;
+  const midY = y + height * MIDLINE;
+  const baseY = y + height * BASELINE;
+  const descY = y + height * DESCENDER;
 
-  // Top line
-  doc.setDrawColor(190);
+  // Ascender line (top)
+  doc.setDrawColor(180);
   doc.setLineWidth(0.4);
   doc.setLineDashPattern([], 0);
-  doc.line(x1, topY, x2, topY);
+  doc.line(x1, ascY, x2, ascY);
 
-  // Midline (dashed)
-  doc.setDrawColor(210);
+  // Midline / x-height (dashed)
+  doc.setDrawColor(200);
   doc.setLineWidth(0.3);
   doc.setLineDashPattern([3, 3], 0);
   doc.line(x1, midY, x2, midY);
 
-  // Baseline (solid, darker)
-  doc.setDrawColor(140);
-  doc.setLineWidth(0.6);
+  // Baseline (solid, darker, heavier)
+  doc.setDrawColor(120);
+  doc.setLineWidth(0.7);
   doc.setLineDashPattern([], 0);
   doc.line(x1, baseY, x2, baseY);
+
+  // Descender line (bottom, light)
+  doc.setDrawColor(180);
+  doc.setLineWidth(0.4);
+  doc.setLineDashPattern([], 0);
+  doc.line(x1, descY, x2, descY);
 }
 
 /**
- * Draw tracing text — dashed letter outlines that children trace over.
+ * Draw tracing text — light gray filled letters that children trace over.
  *
- * Uses PDF text rendering mode 1 (stroke) combined with a dash pattern
- * to produce dotted/dashed letter outlines in the handwriting font.
- * Falls back to light gray filled text if stroke rendering is unavailable.
+ * Uses a light gray color so the letter shapes are clearly visible but
+ * subtle enough that pencil marks on top are easy to see.
  */
 function drawTracingText(doc: jsPDF, text: string, x: number, y: number, fontSize: number): void {
   doc.setFontSize(fontSize);
   setHandwritingFont(doc);
-
-  // Access internal write for raw PDF commands (not in TS types)
-  const pdfWrite = (doc.internal as unknown as Record<string, (cmd: string) => void>).write;
-
-  if (typeof pdfWrite === 'function') {
-    // Use PDF text rendering mode 1 (stroke) with dash pattern
-    // for traditional dotted/dashed letter outlines
-    try {
-      pdfWrite.call(doc.internal, 'q');             // save graphics state
-      pdfWrite.call(doc.internal, '[1.5 2] 0 d');   // dash pattern
-      pdfWrite.call(doc.internal, '0.5 w');          // thin stroke width
-      pdfWrite.call(doc.internal, '0.65 0.65 0.65 RG'); // light gray stroke
-      pdfWrite.call(doc.internal, '1 1 1 rg');       // white fill
-
-      // jsPDF text() supports renderingMode in v2.5+
-      const textOptions: Parameters<typeof doc.text>[3] = {};
-      (textOptions as Record<string, unknown>)['renderingMode'] = 'stroke';
-      doc.text(text, x, y, textOptions);
-
-      pdfWrite.call(doc.internal, 'Q');             // restore graphics state
-      return;
-    } catch {
-      // Fall through to gray text fallback
-    }
-  }
-
-  // Fallback: light gray filled text (still traceable)
   doc.setTextColor(200, 200, 200);
   doc.text(text, x, y);
   doc.setTextColor(40);
