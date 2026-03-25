@@ -13,6 +13,7 @@ import type {
   CoinTransaction,
   ThemeProgress,
   CompletedCreature,
+  TestResult,
 } from '../contracts/types';
 
 class SpellForgeDB extends Dexie {
@@ -29,6 +30,7 @@ class SpellForgeDB extends Dexie {
   coinTransactions!: Table<CoinTransaction, string>;
   themeProgress!: Table<ThemeProgress, string>;
   completedCreatures!: Table<CompletedCreature, string>;
+  testResults!: Table<TestResult, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -107,6 +109,23 @@ class SpellForgeDB extends Dexie {
       coinTransactions: 'id, profileId, [profileId+createdAt], reason',
       themeProgress: 'id, profileId, [profileId+themeId]',
       completedCreatures: 'id, profileId, [profileId+themeId]',
+    });
+
+    this.version(7).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
     });
   }
 }

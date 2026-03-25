@@ -1,5 +1,5 @@
 import { db } from './db';
-import { profileRepo, wordListRepo, wordRepo, statsRepo, sessionRepo, streakRepo, activityProgressRepo, learningProgressRepo, coinRepo } from './repositories';
+import { profileRepo, wordListRepo, wordRepo, statsRepo, sessionRepo, streakRepo, activityProgressRepo, learningProgressRepo, coinRepo, testResultRepo } from './repositories';
 import type { ExportPayload, ImportStrategy, ImportResult } from '../contracts/types';
 
 const EXPORT_VERSION = '1.0.0';
@@ -45,6 +45,7 @@ export async function exportProfile(profileId: string): Promise<ExportPayload> {
   const activityProgress = await activityProgressRepo.getAllForProfile(profileId);
   const learningProgress = await learningProgressRepo.getByProfileId(profileId);
   const coinBalance = await coinRepo.get(profileId) ?? null;
+  const testResults = await testResultRepo.getByProfileId(profileId);
 
   return {
     version: EXPORT_VERSION,
@@ -58,6 +59,7 @@ export async function exportProfile(profileId: string): Promise<ExportPayload> {
     activityProgress,
     learningProgress,
     coinBalance,
+    testResults,
   };
 }
 
@@ -74,7 +76,7 @@ export async function importProfile(
 async function importReplace(payload: ExportPayload): Promise<ImportResult> {
   const profileId = payload.profile.id;
 
-  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks, db.activityProgress, db.learningProgress, db.coinBalances], async () => {
+  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks, db.activityProgress, db.learningProgress, db.coinBalances, db.testResults], async () => {
     // Clear all existing data for this profile
     await db.wordStats.where('profileId').equals(profileId).delete();
     await db.words.where('profileId').equals(profileId).delete();
@@ -84,6 +86,7 @@ async function importReplace(payload: ExportPayload): Promise<ImportResult> {
     await db.activityProgress.where('profileId').equals(profileId).delete();
     await db.learningProgress.where('profileId').equals(profileId).delete();
     await db.coinBalances.delete(profileId);
+    await db.testResults.where('profileId').equals(profileId).delete();
     await db.profiles.delete(profileId);
 
     // Insert all imported data
@@ -96,6 +99,8 @@ async function importReplace(payload: ExportPayload): Promise<ImportResult> {
     if (payload.activityProgress.length) await db.activityProgress.bulkAdd(payload.activityProgress);
     if (payload.learningProgress.length) await db.learningProgress.bulkAdd(payload.learningProgress);
     if (payload.coinBalance) await db.coinBalances.put(payload.coinBalance);
+    const testResults = payload.testResults ?? [];
+    if (testResults.length) await db.testResults.bulkAdd(testResults);
   });
 
   return {
@@ -115,7 +120,7 @@ async function importMerge(payload: ExportPayload): Promise<ImportResult> {
   let wordsPreserved = 0;
   let listsAdded = 0;
 
-  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks, db.activityProgress, db.learningProgress, db.coinBalances], async () => {
+  await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks, db.activityProgress, db.learningProgress, db.coinBalances, db.testResults], async () => {
     // Profile: import wins
     const existingProfile = await db.profiles.get(profileId);
     if (existingProfile) {
@@ -193,6 +198,17 @@ async function importMerge(payload: ExportPayload): Promise<ImportResult> {
     // Coin balance: import wins
     if (payload.coinBalance) {
       await db.coinBalances.put(payload.coinBalance);
+    }
+
+    // Test results: import wins on conflict, add new
+    const testResults = payload.testResults ?? [];
+    for (const tr of testResults) {
+      const existing = await db.testResults.get(tr.id);
+      if (existing) {
+        await db.testResults.put(tr);
+      } else {
+        await db.testResults.add(tr);
+      }
     }
   });
 
