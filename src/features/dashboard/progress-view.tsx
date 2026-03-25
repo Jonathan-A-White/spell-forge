@@ -1,7 +1,7 @@
 // src/features/dashboard/progress-view.tsx — Progress dashboard
 
 import { useState } from 'react';
-import type { StreakData, WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
+import type { WordStats, WordList, Word, WordLearningProgress } from '../../contracts/types';
 import { getWordsDueIds } from '../../core/spaced-rep';
 import { computeProgressPercent, getWordCategory } from '../../core/mastery';
 import { ReadinessIndicator } from './readiness-indicator';
@@ -13,7 +13,6 @@ type HealthCategory = 'mastered' | 'familiar' | 'learning' | 'new';
 interface ProgressViewProps {
   profileId: string;
   themeId: string;
-  streakData: StreakData | null;
   allWords: Word[];
   allStats: WordStats[];
   learningProgress: WordLearningProgress[];
@@ -31,7 +30,6 @@ interface ProgressViewProps {
 export function ProgressView({
   profileId,
   themeId,
-  streakData,
   allWords,
   allStats,
   learningProgress,
@@ -121,37 +119,6 @@ export function ProgressView({
         </button>
         <h1 className="text-xl font-bold text-sf-heading">Progress</h1>
       </div>
-
-      {/* Streak */}
-      {streakData && (
-        <div className="bg-sf-surface rounded-xl p-4 shadow-sm border border-sf-border mb-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-2xl font-bold text-sf-secondary">{streakData.currentStreak}</p>
-              <p className="text-sm text-sf-muted">Day Streak</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-sf-faint">Best: {streakData.longestStreak}</p>
-            </div>
-          </div>
-          {/* Weekly dots */}
-          <div className="flex gap-2 mt-3 justify-center">
-            {streakData.weeklyProgress.map((day) => (
-              <div
-                key={day.date}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                  day.completed
-                    ? 'bg-green-500 text-white'
-                    : 'bg-sf-track text-sf-faint'
-                }`}
-                title={day.date}
-              >
-                {new Date(day.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'narrow' })}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Stat Circles */}
       {allWords.length > 0 && (() => {
