@@ -607,6 +607,22 @@ describe('streakRepo', () => {
     expect(streak.longestStreak).toBe(4);
   });
 
+  it('get resets streak to 0 when weekdays missed since last session', async () => {
+    // Record session on Monday 2026-01-19
+    await streakRepo.recordSession(profileId, new Date('2026-01-19'), 5);
+    // Read on Wednesday 2026-01-21 — Tuesday was missed (weekday)
+    const streak = await streakRepo.get(profileId, new Date('2026-01-21'));
+    expect(streak!.currentStreak).toBe(0);
+  });
+
+  it('get preserves streak when only weekends passed since last session', async () => {
+    // Record session on Friday 2026-01-16
+    await streakRepo.recordSession(profileId, new Date('2026-01-16'), 5);
+    // Read on Monday 2026-01-19 — only Sat/Sun in between
+    const streak = await streakRepo.get(profileId, new Date('2026-01-19'));
+    expect(streak!.currentStreak).toBe(1);
+  });
+
   it('delete removes streak data', async () => {
     await streakRepo.initialize(profileId);
     await streakRepo.delete(profileId);

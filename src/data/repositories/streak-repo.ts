@@ -56,9 +56,22 @@ function weekdaysMissedBetween(a: Date, b: Date): number {
 }
 
 export const streakRepo = {
-  async get(profileId: string): Promise<StreakData | null> {
+  async get(profileId: string, now: Date = new Date()): Promise<StreakData | null> {
     const streak = await db.streaks.get(profileId);
-    return streak ?? null;
+    if (!streak) return null;
+
+    // Validate stored streak against current date — if weekdays have been
+    // missed since the last session, the streak is broken.
+    if (streak.currentStreak > 0 && streak.lastSessionDate) {
+      const lastDate = new Date(streak.lastSessionDate);
+      const gap = daysBetween(lastDate, now);
+      if (gap > 0 && weekdaysMissedBetween(lastDate, now) > 0) {
+        streak.currentStreak = 0;
+        await db.streaks.put(streak);
+      }
+    }
+
+    return streak;
   },
 
   async initialize(profileId: string): Promise<StreakData> {
