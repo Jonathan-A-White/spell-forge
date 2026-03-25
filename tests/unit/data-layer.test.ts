@@ -547,17 +547,24 @@ describe('streakRepo', () => {
     expect(streak.currentStreak).toBe(1);
   });
 
-  it('missing 1 day preserves streak (at risk)', async () => {
-    await streakRepo.recordSession(profileId, new Date('2026-01-20'), 5);
-    // Skip Jan 21
-    const streak = await streakRepo.recordSession(profileId, new Date('2026-01-22'), 3);
-    expect(streak.currentStreak).toBe(2); // preserved and incremented
+  it('weekend days do not break streak (Fri to Mon)', async () => {
+    // 2026-01-16 is Friday, 2026-01-19 is Monday
+    await streakRepo.recordSession(profileId, new Date('2026-01-16'), 5);
+    const streak = await streakRepo.recordSession(profileId, new Date('2026-01-19'), 3);
+    expect(streak.currentStreak).toBe(2); // weekend skipped, streak continues
   });
 
-  it('missing 2 consecutive days resets streak', async () => {
+  it('missing a weekday breaks streak', async () => {
+    // 2026-01-19 is Monday, skip Tuesday, 2026-01-21 is Wednesday
+    await streakRepo.recordSession(profileId, new Date('2026-01-19'), 5);
+    const streak = await streakRepo.recordSession(profileId, new Date('2026-01-21'), 3);
+    expect(streak.currentStreak).toBe(1); // Tuesday missed — reset
+  });
+
+  it('missing multiple days including weekdays resets streak', async () => {
     await streakRepo.recordSession(profileId, new Date('2026-01-20'), 5);
     await streakRepo.recordSession(profileId, new Date('2026-01-21'), 3);
-    // Skip Jan 22, 23
+    // Skip Jan 22 (Thu), 23 (Fri)
     const streak = await streakRepo.recordSession(profileId, new Date('2026-01-24'), 4);
     expect(streak.currentStreak).toBe(1); // reset
     expect(streak.longestStreak).toBe(2); // preserved from earlier
