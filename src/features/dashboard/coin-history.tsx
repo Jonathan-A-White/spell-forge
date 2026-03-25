@@ -51,20 +51,22 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
     allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) < 3).map((s) => s.wordId),
   );
 
-  // Check if all non-mastered words are blocked by the distinct-days requirement
-  // (i.e., they have 5+ consecutive correct but < 3 distinct days, and already practiced today)
+  // Filter out words blocked by the distinct-days requirement (practice today won't help)
   const todayStr = new Date().toDateString();
-  const masteryBlockedByDays = activeWordCount > 0 && notYetMasteredIds.size > 0 && (() => {
-    const notMasteredStats = allStats.filter((s) => (bucketLevel[s.currentBucket] ?? 0) < 3);
-    return notMasteredStats.every((s) => {
-      if (s.consecutiveCorrect < 5) return false; // still needs more consecutive correct
+  const practiceableMasteryIds = new Set(
+    allStats.filter((s) => {
+      if ((bucketLevel[s.currentBucket] ?? 0) >= 3) return false; // already mastered
+      if (s.consecutiveCorrect < 5) return true; // still needs more consecutive correct — practice helps
       const correctDays = new Set(
         s.techniqueHistory.filter((t) => t.correct).map((t) => new Date(t.timestamp).toDateString()),
       );
-      // Already practiced today and needs more distinct days
-      return correctDays.has(todayStr) && correctDays.size < 3;
-    });
-  })();
+      // Blocked by days: has 5+ correct, practiced today, but not enough distinct days
+      return !(correctDays.has(todayStr) && correctDays.size < 3);
+    }).map((s) => s.wordId),
+  );
+
+  // All non-mastered words are blocked — nothing productive to practice for mastery today
+  const masteryBlockedByDays = activeWordCount > 0 && notYetMasteredIds.size > 0 && practiceableMasteryIds.size === 0;
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -150,7 +152,7 @@ export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount,
               total={activeWordCount}
               progressColor="bg-yellow-400"
               actionLabel={activeWordCount === 0 ? 'Add Words' : masteryBlockedByDays ? 'Come back tomorrow' : 'Do it'}
-              onAction={activeWordCount === 0 ? onAddWords : masteryBlockedByDays ? undefined : () => onNavigate('practice', notYetMasteredIds.size > 0 ? notYetMasteredIds : undefined)}
+              onAction={activeWordCount === 0 ? onAddWords : masteryBlockedByDays ? undefined : () => onNavigate('practice', practiceableMasteryIds.size > 0 ? practiceableMasteryIds : undefined)}
             />
           </div>
         </div>
