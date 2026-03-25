@@ -745,6 +745,7 @@ export function PracticeGames({
             tapTargetSize={profile.settings.tapTargetSize}
             savedState={relayRaceSaved}
             onProgress={handleRelayRaceProgress}
+            themeId={profile.themeId}
           />
         )}
 
