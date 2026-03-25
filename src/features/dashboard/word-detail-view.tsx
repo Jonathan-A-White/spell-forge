@@ -111,11 +111,18 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
   const badge = getBucketBadge(bucket);
 
   // Distinct correct days
-  const distinctDays = new Set(
+  const correctDaySet = new Set(
     (stats?.techniqueHistory ?? [])
       .filter((t) => t.correct)
       .map((t) => new Date(t.timestamp).toDateString()),
-  ).size;
+  );
+  const distinctDays = correctDaySet.size;
+
+  // Check if word needs more distinct days and user already practiced today
+  const needsMoreDays = bucket === 'familiar'
+    && (stats?.consecutiveCorrect ?? 0) >= MASTERED_CONSECUTIVE
+    && distinctDays < MASTERED_MIN_DAYS
+    && correctDaySet.has(new Date().toDateString());
 
   // Batting average: correct / total attempts
   const timesCorrect = stats ? stats.timesAsked - stats.timesWrong : 0;
@@ -232,6 +239,11 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
               current={distinctDays}
               target={MASTERED_MIN_DAYS}
             />
+            {needsMoreDays && (
+              <p className="text-sm text-sf-muted mt-1">
+                You&apos;re on track! Come back tomorrow to build another day.
+              </p>
+            )}
           </div>
         )}
         {(bucket === 'mastered' || bucket === 'review') && (
