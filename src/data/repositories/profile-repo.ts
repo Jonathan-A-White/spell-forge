@@ -51,12 +51,13 @@ export const profileRepo = {
 
   /** Permanently delete a profile and all its data. */
   async delete(id: string): Promise<void> {
-    await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks], async () => {
+    await db.transaction('rw', [db.profiles, db.wordLists, db.words, db.wordStats, db.sessionLogs, db.streaks, db.testResults], async () => {
       await db.wordStats.where('profileId').equals(id).delete();
       await db.words.where('profileId').equals(id).delete();
       await db.wordLists.where('profileId').equals(id).delete();
       await db.sessionLogs.where('profileId').equals(id).delete();
       await db.streaks.where('profileId').equals(id).delete();
+      await db.testResults.where('profileId').equals(id).delete();
       await db.profiles.delete(id);
     });
   },

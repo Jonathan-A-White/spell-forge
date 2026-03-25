@@ -1,7 +1,7 @@
 // src/features/word-lists/word-lists-view.tsx — Per-profile word list overview
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
+import type { WordList, Word, WordStats, WordLearningProgress, TestResult } from '../../contracts/types';
 import { computeProgressPercent } from '../../core/mastery';
 import { QrShare } from './qr-share';
 import { PdfExportDialog } from './pdf-export-dialog';
@@ -11,6 +11,7 @@ interface WordListsViewProps {
   allWords: Word[];
   allStats: WordStats[];
   learningProgress: WordLearningProgress[];
+  testResults: TestResult[];
   onAddList: () => void;
   onViewList?: (list: WordList) => void;
   onEditList: (list: WordList) => void;
@@ -19,6 +20,9 @@ interface WordListsViewProps {
   onUnarchiveList?: (listId: string) => void;
   onImportFromCamera?: () => void;
   onImportFromQr?: () => void;
+  onRecordTestResults?: (list: WordList) => void;
+  onViewTestResult?: (testResult: TestResult) => void;
+  onViewTestHistory?: () => void;
   onBack: () => void;
 }
 
@@ -27,6 +31,7 @@ export function WordListsView({
   allWords,
   allStats,
   learningProgress,
+  testResults,
   onAddList,
   onViewList,
   onEditList,
@@ -35,10 +40,14 @@ export function WordListsView({
   onUnarchiveList,
   onImportFromCamera,
   onImportFromQr,
+  onRecordTestResults,
+  onViewTestResult,
+  onViewTestHistory,
   onBack,
 }: WordListsViewProps) {
   const statsMap = new Map(allStats.map((s) => [s.wordId, s]));
   const learningMap = new Map(learningProgress.map((lp) => [lp.wordId, lp]));
+  const testResultMap = new Map(testResults.map((tr) => [tr.wordListId, tr]));
   const activeLists = wordLists.filter((l) => !l.archived);
   const archivedLists = wordLists.filter((l) => l.archived);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -77,6 +86,17 @@ export function WordListsView({
             <h1 className="text-xl font-bold text-sf-heading">Word Lists</h1>
           </div>
           <div className="flex items-center gap-2">
+            {onViewTestHistory && testResults.length > 0 && (
+              <button
+                onClick={onViewTestHistory}
+                className="p-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover transition-all"
+                aria-label="Test history"
+                title="Test History"
+                data-testid="test-history-btn"
+              >
+                <ChartIcon />
+              </button>
+            )}
             {onImportFromQr && (
               <button
                 onClick={onImportFromQr}
@@ -157,13 +177,29 @@ export function WordListsView({
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          pct >= 90 ? 'bg-green-500/20 text-green-700' :
-                          pct >= 50 ? 'bg-yellow-500/20 text-yellow-700' :
-                          'bg-sf-track text-sf-muted'
-                        }`}>
-                          {pct}%
-                        </span>
+                        {(() => {
+                          const tr = testResultMap.get(list.id);
+                          if (tr) {
+                            return (
+                              <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                tr.finalPercent >= 90 ? 'bg-green-500/20 text-green-700' :
+                                tr.finalPercent >= 70 ? 'bg-yellow-500/20 text-yellow-700' :
+                                'bg-red-500/20 text-red-700'
+                              }`} title={`Test score: ${tr.finalPercent}%`}>
+                                {tr.finalPercent}%
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                              pct >= 90 ? 'bg-green-500/20 text-green-700' :
+                              pct >= 50 ? 'bg-yellow-500/20 text-yellow-700' :
+                              'bg-sf-track text-sf-muted'
+                            }`}>
+                              {pct}%
+                            </span>
+                          );
+                        })()}
                         <div className="relative" ref={openMenuId === list.id ? menuRef : undefined}>
                           <button
                             onClick={() => setOpenMenuId(openMenuId === list.id ? null : list.id)}
@@ -189,6 +225,34 @@ export function WordListsView({
                               >
                                 Print PDF
                               </button>
+                              {(() => {
+                                const existingResult = testResultMap.get(list.id);
+                                const canRecord = onRecordTestResults && !existingResult && list.testDate &&
+                                  new Date(list.testDate).setHours(0,0,0,0) <= new Date().setHours(0,0,0,0);
+                                if (canRecord) {
+                                  return (
+                                    <button
+                                      onClick={() => { closeMenu(); onRecordTestResults(list); }}
+                                      className="w-full text-left px-3 py-2 text-sm text-green-600 font-medium hover:bg-sf-surface-hover transition-colors"
+                                      data-testid={`record-results-${list.id}`}
+                                    >
+                                      Record Test Results
+                                    </button>
+                                  );
+                                }
+                                if (existingResult && onViewTestResult) {
+                                  return (
+                                    <button
+                                      onClick={() => { closeMenu(); onViewTestResult(existingResult); }}
+                                      className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
+                                      data-testid={`view-results-${list.id}`}
+                                    >
+                                      View Test Results
+                                    </button>
+                                  );
+                                }
+                                return null;
+                              })()}
                               <button
                                 onClick={() => { closeMenu(); onEditList(list); }}
                                 className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
@@ -270,6 +334,11 @@ export function WordListsView({
                         <p className="font-bold text-sf-heading">{list.name}</p>
                         <p className="text-xs text-sf-muted mt-0.5">
                           {words.length} word{words.length !== 1 ? 's' : ''} · Archived
+                          {(() => {
+                            const tr = testResultMap.get(list.id);
+                            if (tr) return <> · Test: {tr.finalPercent}%</>;
+                            return null;
+                          })()}
                         </p>
                       </div>
                       <div className="relative" ref={openMenuId === list.id ? menuRef : undefined}>
@@ -283,6 +352,21 @@ export function WordListsView({
                         </button>
                         {openMenuId === list.id && (
                           <div className="absolute right-0 top-full mt-1 w-36 bg-sf-surface border border-sf-border rounded-lg shadow-lg z-10 py-1" data-testid={`list-dropdown-${list.id}`}>
+                            {(() => {
+                              const tr = testResultMap.get(list.id);
+                              if (tr && onViewTestResult) {
+                                return (
+                                  <button
+                                    onClick={() => { closeMenu(); onViewTestResult(tr); }}
+                                    className="w-full text-left px-3 py-2 text-sm text-sf-heading hover:bg-sf-surface-hover transition-colors"
+                                    data-testid={`view-results-${list.id}`}
+                                  >
+                                    View Test Results
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })()}
                             {onUnarchiveList && (
                               <button
                                 onClick={() => { closeMenu(); onUnarchiveList(list.id); }}
@@ -450,6 +534,16 @@ function MoreIcon() {
       <circle cx="12" cy="5" r="1.5" />
       <circle cx="12" cy="12" r="1.5" />
       <circle cx="12" cy="19" r="1.5" />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M18 20V10" />
+      <path d="M12 20V4" />
+      <path d="M6 20v-6" />
     </svg>
   );
 }

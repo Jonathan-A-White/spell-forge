@@ -372,6 +372,26 @@ export interface MnemonicTrick {
 
 export type MemoryAid = PhoneticAid | PatternAid | MnemonicAid;
 
+// ─── Test Results ────────────────────────────────────────────
+
+export interface TestResult {
+  id: string;
+  wordListId: string;
+  profileId: string;
+  testDate: Date;
+  recordedAt: Date;
+  wordResults: TestWordResult[];
+  calculatedPercent: number;   // auto-calculated from wordResults
+  overridePercent: number | null; // teacher-assigned grade override
+  finalPercent: number;        // overridePercent ?? calculatedPercent
+}
+
+export interface TestWordResult {
+  wordId: string;
+  word: string;       // snapshot of word text at test time
+  correct: boolean;
+}
+
 // ─── Import/Export ────────────────────────────────────────────
 
 export interface ExportPayload {
@@ -386,6 +406,7 @@ export interface ExportPayload {
   activityProgress: ActivityProgress[];
   learningProgress: WordLearningProgress[];
   coinBalance: CoinBalance | null;
+  testResults: TestResult[];
 }
 
 export type ImportStrategy = 'merge' | 'replace';
@@ -413,7 +434,8 @@ export type AppEvent =
   | { type: 'coins:spent'; payload: { profileId: string; amount: number; reason: CoinTransactionReason } }
   | { type: 'profile:archived'; payload: { profileId: string } }
   | { type: 'profile:restored'; payload: { profileId: string } }
-  | { type: 'profile:deleted'; payload: { profileId: string } };
+  | { type: 'profile:deleted'; payload: { profileId: string } }
+  | { type: 'test:recorded'; payload: { testResult: TestResult; wordListId: string } };
 
 export interface EventBus {
   emit(event: AppEvent): void;

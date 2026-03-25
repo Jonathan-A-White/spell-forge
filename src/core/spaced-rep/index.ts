@@ -3,6 +3,7 @@
 export { updateWordStats, calculateNextReview } from './scheduler';
 export { transitionBucket, demoteOneLevel, DEMOTION_THRESHOLD } from './buckets';
 export { computeDifficulty } from './difficulty';
+export { computeTestDemotion } from './test-demotion';
 export {
   earnCoinForMastery,
   earnCoinForAllLearning,

@@ -8,3 +8,4 @@ export { activityProgressRepo } from './activity-progress-repo';
 export { learningProgressRepo } from './learning-progress-repo';
 export { coinRepo } from './coin-repo';
 export { themeProgressRepo } from './theme-progress-repo';
+export { testResultRepo } from './test-result-repo';

@@ -14,6 +14,8 @@ import type {
   AccessibilitySettings,
   ImportStrategy,
   CoinBalance,
+  TestResult,
+  TestWordResult,
 } from './contracts/types';
 import { createEventBus } from './contracts/events';
 import { db, openDatabase } from './data/db';
@@ -24,7 +26,8 @@ import { statsRepo } from './data/repositories/stats-repo';
 import { sessionRepo } from './data/repositories/session-repo';
 import { streakRepo } from './data/repositories/streak-repo';
 import { learningProgressRepo } from './data/repositories/learning-progress-repo';
-import { earnCoinForMastery, spendCoinForGame, canPlayFree, getCoinBalance, awardPendingMilestones } from './core/spaced-rep';
+import { testResultRepo } from './data/repositories/test-result-repo';
+import { earnCoinForMastery, spendCoinForGame, canPlayFree, getCoinBalance, awardPendingMilestones, computeTestDemotion } from './core/spaced-rep';
 import { applySettings, mergeSetting, validateSettings } from './accessibility/settings';
 import { ProfileSelector } from './features/profiles/profile-selector';
 import { FirstRun } from './features/onboarding/first-run';
@@ -39,6 +42,10 @@ import { ListEditor } from './features/word-lists/list-editor';
 import { WordListsView } from './features/word-lists/word-lists-view';
 import { WordListDetail } from './features/word-lists/word-list-detail';
 import { QrImport } from './features/word-lists/qr-import';
+import { RecordTestResults } from './features/word-lists/record-test-results';
+import { TestHistory } from './features/word-lists/test-history';
+import { TestResultDetail } from './features/word-lists/test-result-detail';
+import { TroubleWords } from './features/word-lists/trouble-words';
 import type { QrWordListPayload } from './features/word-lists/qr-codec';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
@@ -57,7 +64,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar' | 'record-test-results' | 'test-history' | 'test-result-detail' | 'trouble-words';
 
 const eventBus = createEventBus();
 
@@ -97,6 +104,8 @@ function App() {
   const [editingList, setEditingList] = useState<WordList | null>(null);
   const [viewingList, setViewingList] = useState<WordList | null>(null);
   const [coinBalance, setCoinBalance] = useState<CoinBalance | null>(null);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [viewingTestResult, setViewingTestResult] = useState<TestResult | null>(null);
   const [practiceWordFilter, setPracticeWordFilter] = useState<Set<string> | null>(null);
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
 
@@ -135,12 +144,13 @@ function App() {
     localStorage.setItem('sf-last-profile', profile.id);
 
     try {
-      const [words, stats, lists, streak, lp] = await Promise.all([
+      const [words, stats, lists, streak, lp, tr] = await Promise.all([
         wordRepo.getByProfileId(profile.id),
         statsRepo.getByProfileId(profile.id),
         wordListRepo.getByProfileId(profile.id),
         streakRepo.get(profile.id),
         learningProgressRepo.getByProfileId(profile.id),
+        testResultRepo.getByProfileId(profile.id),
       ]);
 
       // Restore theme progress (creature growth, milestones) from IndexedDB
@@ -154,6 +164,7 @@ function App() {
       setWordLists(lists);
       setStreakData(streak);
       setLearningProgress(lp);
+      setTestResults(tr);
 
       // Award any milestone coins that were earned but never recorded
       const activeLists = lists.filter((l) => l.active && !l.archived);
@@ -327,18 +338,20 @@ function App() {
 
   const refreshListData = useCallback(async () => {
     if (!activeProfile) return;
-    const [updatedWords, updatedStats, updatedLists, updatedLp, updatedCoins] = await Promise.all([
+    const [updatedWords, updatedStats, updatedLists, updatedLp, updatedCoins, updatedTr] = await Promise.all([
       wordRepo.getByProfileId(activeProfile.id),
       statsRepo.getByProfileId(activeProfile.id),
       wordListRepo.getByProfileId(activeProfile.id),
       learningProgressRepo.getByProfileId(activeProfile.id),
       getCoinBalance(activeProfile.id),
+      testResultRepo.getByProfileId(activeProfile.id),
     ]);
     setAllWords(updatedWords);
     setAllStats(updatedStats);
     setWordLists(updatedLists);
     setLearningProgress(updatedLp);
     setCoinBalance(updatedCoins);
+    setTestResults(updatedTr);
   }, [activeProfile]);
 
   // Navigate back through browser history instead of hardcoding destinations.
@@ -352,6 +365,8 @@ function App() {
       setEditingList(null);
     } else if (view === 'word-list-detail') {
       setViewingList(null);
+    } else if (view === 'test-result-detail') {
+      setViewingTestResult(null);
     }
     window.history.back();
   }, [view, refreshListData]);
@@ -545,6 +560,58 @@ function App() {
       await refreshListData();
     },
     [refreshListData],
+  );
+
+  const handleSaveTestResults = useCallback(
+    async (wordResults: TestWordResult[], overridePercent: number | null) => {
+      if (!activeProfile || !viewingList) return;
+      const correctCount = wordResults.filter((w) => w.correct).length;
+      const calculatedPercent = wordResults.length > 0
+        ? Math.round((correctCount / wordResults.length) * 100)
+        : 0;
+      const finalPercent = overridePercent ?? calculatedPercent;
+
+      const testResult = await testResultRepo.create({
+        wordListId: viewingList.id,
+        profileId: activeProfile.id,
+        testDate: viewingList.testDate ?? new Date(),
+        recordedAt: new Date(),
+        wordResults,
+        calculatedPercent,
+        overridePercent,
+        finalPercent,
+      });
+
+      // Demote words that were wrong on the test
+      const wrongWordIds = wordResults.filter((w) => !w.correct).map((w) => w.wordId);
+      for (const wordId of wrongWordIds) {
+        const stats = allStats.find((s) => s.wordId === wordId);
+        if (stats) {
+          const demotion = computeTestDemotion(stats);
+          if (demotion) {
+            await statsRepo.update(stats.id, demotion);
+          }
+        }
+      }
+
+      eventBus.emit({ type: 'test:recorded', payload: { testResult, wordListId: viewingList.id } });
+      await refreshListData();
+
+      // Prompt to archive if past test date
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const testDateNorm = viewingList.testDate ? new Date(viewingList.testDate) : null;
+      if (testDateNorm) testDateNorm.setHours(0, 0, 0, 0);
+      if (testDateNorm && testDateNorm.getTime() < now.getTime()) {
+        // Archive the list automatically after recording results past test date
+        await wordListRepo.archive(viewingList.id);
+        await refreshListData();
+      }
+
+      setViewingTestResult(testResult);
+      setView('test-result-detail');
+    },
+    [activeProfile, viewingList, allStats, refreshListData],
   );
 
   const handleUpdateWord = useCallback(
@@ -1055,11 +1122,14 @@ function App() {
           words={allWords.filter((w) => w.listId === viewingList.id)}
           stats={allStats.filter((s) => allWords.some((w) => w.listId === viewingList.id && w.id === s.wordId))}
           learningProgress={learningProgress.filter((lp) => lp.wordListId === viewingList.id)}
+          testResult={testResults.find((tr) => tr.wordListId === viewingList.id) ?? null}
           onUpdateWord={handleUpdateWord}
           onDeleteWord={handleDeleteWord}
           onAddWord={handleAddWordToList}
           onBack={goBack}
           onEditList={(list) => { setEditingList(list); setView('list-editor'); }}
+          onRecordTestResults={(list) => { setViewingList(list); setView('record-test-results'); }}
+          onViewTestResult={(tr) => { setViewingTestResult(tr); setView('test-result-detail'); }}
         />
       );
 
@@ -1071,6 +1141,7 @@ function App() {
           allWords={allWords}
           allStats={allStats}
           learningProgress={learningProgress}
+          testResults={testResults}
           onAddList={() => { setEditingList(null); setView('list-editor'); }}
           onViewList={(list) => { setViewingList(list); setView('word-list-detail'); }}
           onEditList={(list) => { setEditingList(list); setView('list-editor'); }}
@@ -1079,6 +1150,77 @@ function App() {
           onUnarchiveList={handleUnarchiveList}
           onImportFromCamera={() => { setEditingList(null); setView('list-editor'); }}
           onImportFromQr={() => setView('qr-import')}
+          onRecordTestResults={(list) => { setViewingList(list); setView('record-test-results'); }}
+          onViewTestResult={(tr) => { setViewingTestResult(tr); setView('test-result-detail'); }}
+          onViewTestHistory={() => setView('test-history')}
+          onBack={goBack}
+        />
+      );
+
+    case 'record-test-results':
+      if (!activeProfile || !viewingList) return null;
+      return (
+        <RecordTestResults
+          list={viewingList}
+          words={allWords.filter((w) => w.listId === viewingList.id)}
+          onSave={handleSaveTestResults}
+          onCancel={goBack}
+        />
+      );
+
+    case 'test-history':
+      if (!activeProfile) return null;
+      return (
+        <TestHistory
+          testResults={testResults}
+          wordLists={wordLists}
+          onViewDetail={(tr) => { setViewingTestResult(tr); setView('test-result-detail'); }}
+          onViewTroubleWords={() => setView('trouble-words')}
+          onBack={goBack}
+        />
+      );
+
+    case 'test-result-detail':
+      if (!activeProfile || !viewingTestResult) return null;
+      return (
+        <TestResultDetail
+          testResult={viewingTestResult}
+          list={wordLists.find((l) => l.id === viewingTestResult.wordListId) ?? null}
+          onPracticeMissed={(wordIds) => {
+            setPracticeWordFilter(new Set(wordIds));
+            setView('practice');
+          }}
+          onBack={goBack}
+        />
+      );
+
+    case 'trouble-words':
+      if (!activeProfile) return null;
+      return (
+        <TroubleWords
+          troubleWords={(() => {
+            const missedMap = new Map<string, { word: string; wordId: string; count: number; dates: Date[] }>();
+            for (const result of testResults) {
+              for (const wr of result.wordResults) {
+                if (!wr.correct) {
+                  const existing = missedMap.get(wr.wordId);
+                  if (existing) {
+                    existing.count++;
+                    existing.dates.push(result.testDate);
+                  } else {
+                    missedMap.set(wr.wordId, { word: wr.word, wordId: wr.wordId, count: 1, dates: [result.testDate] });
+                  }
+                }
+              }
+            }
+            return Array.from(missedMap.values())
+              .map(({ word, wordId, count, dates }) => ({ word, wordId, missedCount: count, testDates: dates }))
+              .sort((a, b) => b.missedCount - a.missedCount);
+          })()}
+          onPracticeWords={(wordIds) => {
+            setPracticeWordFilter(new Set(wordIds));
+            setView('practice');
+          }}
           onBack={goBack}
         />
       );

@@ -1,7 +1,7 @@
 // src/features/word-lists/word-list-detail.tsx — Detail view for a word list with inline word editing
 
 import { useState } from 'react';
-import type { WordList, Word, WordStats, WordLearningProgress } from '../../contracts/types';
+import type { WordList, Word, WordStats, WordLearningProgress, TestResult } from '../../contracts/types';
 import { computeProgressPercent } from '../../core/mastery';
 import { QrShare } from './qr-share';
 
@@ -10,11 +10,14 @@ interface WordListDetailProps {
   words: Word[];
   stats: WordStats[];
   learningProgress: WordLearningProgress[];
+  testResult: TestResult | null;
   onUpdateWord: (wordId: string, newText: string) => void;
   onDeleteWord: (wordId: string) => void;
   onAddWord: (text: string) => void;
   onBack: () => void;
   onEditList: (list: WordList) => void;
+  onRecordTestResults?: (list: WordList) => void;
+  onViewTestResult?: (testResult: TestResult) => void;
 }
 
 export function WordListDetail({
@@ -22,11 +25,14 @@ export function WordListDetail({
   words,
   stats,
   learningProgress,
+  testResult,
   onUpdateWord,
   onDeleteWord,
   onAddWord,
   onBack,
   onEditList,
+  onRecordTestResults,
+  onViewTestResult,
 }: WordListDetailProps) {
   const statsMap = new Map(stats.map((s) => [s.wordId, s]));
   const learningMap = new Map(learningProgress.map((lp) => [lp.wordId, lp]));
@@ -124,6 +130,41 @@ export function WordListDetail({
             style={{ width: `${pct}%` }}
           />
         </div>
+
+        {/* Test result action */}
+        {(() => {
+          if (testResult && onViewTestResult) {
+            return (
+              <button
+                onClick={() => onViewTestResult(testResult)}
+                className={`w-full py-2.5 rounded-lg text-sm font-bold transition-colors ${
+                  testResult.finalPercent >= 90
+                    ? 'bg-green-500/10 text-green-700 hover:bg-green-500/20'
+                    : testResult.finalPercent >= 70
+                    ? 'bg-yellow-500/10 text-yellow-700 hover:bg-yellow-500/20'
+                    : 'bg-red-500/10 text-red-700 hover:bg-red-500/20'
+                }`}
+                data-testid="view-test-result-btn"
+              >
+                Test Score: {testResult.finalPercent}% — View Details
+              </button>
+            );
+          }
+          const canRecord = onRecordTestResults && !testResult && list.testDate &&
+            new Date(list.testDate).setHours(0,0,0,0) <= new Date().setHours(0,0,0,0);
+          if (canRecord) {
+            return (
+              <button
+                onClick={() => onRecordTestResults(list)}
+                className="w-full py-2.5 rounded-lg bg-sf-primary/10 text-sf-primary text-sm font-bold hover:bg-sf-primary/20 transition-colors"
+                data-testid="record-test-results-btn"
+              >
+                Record Test Results
+              </button>
+            );
+          }
+          return null;
+        })()}
 
         {/* Add word input */}
         <div className="flex gap-2">
