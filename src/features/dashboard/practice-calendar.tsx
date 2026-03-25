@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { SessionLog, StreakData } from '../../contracts/types';
 import { sessionRepo } from '../../data/repositories/session-repo';
+import { DayDetailView } from './day-detail-view';
 
 interface PracticeCalendarProps {
   profileId: string;
@@ -14,6 +15,7 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
   const [sessions, setSessions] = useState<SessionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewDate, setViewDate] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   useEffect(() => {
     sessionRepo.getByProfileId(profileId).then((logs) => {
@@ -109,6 +111,19 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
 
   const monthLabel = firstDay.toLocaleString('default', { month: 'long', year: 'numeric' });
   const canGoNext = !isCurrentMonth;
+
+  // Show day detail view when a day is selected
+  if (selectedDay) {
+    const daySessions = sessionsByDate.get(selectedDay) ?? [];
+    return (
+      <DayDetailView
+        profileId={profileId}
+        dateKey={selectedDay}
+        sessions={daySessions}
+        onBack={() => setSelectedDay(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -219,15 +234,19 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
                 const sessionCount = daySessions?.length ?? 0;
 
                 return (
-                  <div
+                  <button
                     key={day}
+                    type="button"
+                    disabled={!practiced || isFuture}
+                    onClick={() => practiced && !isFuture ? setSelectedDay(key) : undefined}
                     className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs relative transition-colors ${
                       isFuture
-                        ? 'text-sf-muted/30'
+                        ? 'text-sf-muted/30 cursor-default'
                         : practiced
-                          ? 'bg-orange-500/20 text-orange-400 font-bold'
-                          : 'text-sf-muted'
+                          ? 'bg-orange-500/20 text-orange-400 font-bold cursor-pointer hover:bg-orange-500/30 active:bg-orange-500/40'
+                          : 'text-sf-muted cursor-default'
                     } ${isToday ? 'ring-2 ring-sf-primary ring-offset-1 ring-offset-sf-surface' : ''}`}
+                    aria-label={practiced ? `View details for ${monthLabel.split(' ')[0]} ${day}` : undefined}
                   >
                     <span>{day}</span>
                     {practiced && !isFuture && (
@@ -237,7 +256,7 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
                         ))}
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
