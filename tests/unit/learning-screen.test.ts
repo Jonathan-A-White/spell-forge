@@ -83,6 +83,7 @@ describe('createSession — mastered word filtering', () => {
     id: 'list-1',
     profileId,
     name: 'Test List',
+    language: 'en',
     testDate: null,
     createdAt: new Date('2026-03-01'),
     source: 'manual',

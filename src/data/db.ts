@@ -127,6 +127,31 @@ class SpellForgeDB extends Dexie {
       completedCreatures: 'id, profileId, [profileId+themeId]',
       testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
     });
+
+    // v8: Add language field to wordLists (defaults to 'en' for existing lists)
+    this.version(8).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived], language',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+    }).upgrade((tx) => {
+      // Backfill existing word lists with 'en' as default language
+      return tx.table('wordLists').toCollection().modify((list) => {
+        if (!list.language) {
+          list.language = 'en';
+        }
+      });
+    });
   }
 }
 

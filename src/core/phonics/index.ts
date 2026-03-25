@@ -5,3 +5,6 @@ export { generateHint } from './hints.ts';
 export { splitSyllables } from './syllabifier.ts';
 export { patterns, findPatternById } from './patterns.ts';
 export type { PatternEntry } from './patterns.ts';
+
+// Multilingual support
+export { analyzeWordMultilingual, splitSyllablesMultilingual, hasPhonicsEngine } from './multilingual.ts';

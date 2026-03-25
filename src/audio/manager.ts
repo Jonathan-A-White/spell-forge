@@ -6,10 +6,10 @@ import { sayWord, sayWordSlowly, sayThenSpell, spellWord } from './speech.ts';
 const dbg = (msg: string) => console.log(`[AudioMgr] ${msg}`);
 
 export interface AudioManager {
-  sayWord(word: string): Promise<void>;
-  sayWordSlowly(word: string): Promise<void>;
-  spellWord(word: string): Promise<void>;
-  sayThenSpell(word: string): Promise<void>;
+  sayWord(word: string, language?: string): Promise<void>;
+  sayWordSlowly(word: string, language?: string): Promise<void>;
+  spellWord(word: string, language?: string): Promise<void>;
+  sayThenSpell(word: string, language?: string): Promise<void>;
   isBusy(): boolean;
   runExclusive(action: () => Promise<void>): Promise<boolean>;
   onBusyChange(cb: (busy: boolean) => void): () => void;
@@ -48,20 +48,20 @@ export class AudioManagerImpl implements AudioManager {
     return () => this.busyListeners.delete(cb);
   }
 
-  sayWord(word: string): Promise<void> {
-    return sayWord(word);
+  sayWord(word: string, language?: string): Promise<void> {
+    return sayWord(word, language);
   }
 
-  sayWordSlowly(word: string): Promise<void> {
-    return sayWordSlowly(word);
+  sayWordSlowly(word: string, language?: string): Promise<void> {
+    return sayWordSlowly(word, language);
   }
 
-  spellWord(word: string): Promise<void> {
-    return spellWord(word);
+  spellWord(word: string, language?: string): Promise<void> {
+    return spellWord(word, language);
   }
 
-  sayThenSpell(word: string): Promise<void> {
-    return sayThenSpell(word);
+  sayThenSpell(word: string, language?: string): Promise<void> {
+    return sayThenSpell(word, language);
   }
 
   private notifyBusy(): void {

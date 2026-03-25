@@ -49,6 +49,7 @@ function makeWordListData(profileId: string, overrides: Partial<Omit<WordList, '
   return {
     profileId,
     name: 'Week 1 Words',
+    language: 'en',
     testDate: new Date('2026-02-01'),
     createdAt: new Date('2026-01-15'),
     source: 'manual' as const,

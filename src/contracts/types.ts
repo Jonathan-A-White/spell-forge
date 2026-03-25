@@ -36,6 +36,7 @@ export interface WordList {
   id: string;
   profileId: string;
   name: string;
+  language: string;  // BCP-47 language code ('en', 'es', etc.) — defaults to 'en'
   testDate: Date | null;
   createdAt: Date;
   source: 'camera' | 'manual' | 'import';
@@ -142,7 +143,10 @@ export type PatternCategory =
   | 'short-vowel' | 'long-vowel-silent-e' | 'vowel-team'
   | 'r-controlled' | 'consonant-digraph' | 'consonant-blend'
   | 'silent-letter' | 'double-consonant' | 'suffix' | 'prefix'
-  | 'irregular';
+  | 'irregular'
+  // Spanish-specific categories
+  | 'es-vowel' | 'es-accent' | 'es-digraph' | 'es-silent-letter'
+  | 'es-special-consonant' | 'es-diphthong' | 'es-syllable-rule';
 
 // ─── Spaced Repetition ────────────────────────────────────────
 
