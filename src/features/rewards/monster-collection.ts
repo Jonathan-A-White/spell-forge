@@ -1,5 +1,7 @@
-import type { CompletedCreature } from '../../contracts/types.ts';
+import type { CompletedCreature, CreatureAppearance, CreatureRarity } from '../../contracts/types.ts';
 import { themeProgressRepo } from '../../data/repositories/theme-progress-repo.ts';
+
+// ─── Name Generation ────────────────────────────────────────
 
 const CREATURE_ADJECTIVES = [
   'Sparky', 'Fuzzy', 'Gloopy', 'Chompy', 'Slimy',
@@ -15,12 +17,49 @@ const CREATURE_NOUNS = [
   'Gloop', 'Zap', 'Crunch', 'Fluff', 'Spark',
 ];
 
-/** In-memory store of completed creatures, keyed by profileId. */
+// ─── Rarity Weights ─────────────────────────────────────────
+
+const RARITY_TABLE: { rarity: CreatureRarity; weight: number }[] = [
+  { rarity: 'common', weight: 45 },
+  { rarity: 'uncommon', weight: 28 },
+  { rarity: 'rare', weight: 16 },
+  { rarity: 'epic', weight: 8 },
+  { rarity: 'legendary', weight: 3 },
+];
+
+// ─── Level Weights ──────────────────────────────────────────
+
+const LEVEL_TABLE = [
+  { level: 1, weight: 35 },
+  { level: 2, weight: 28 },
+  { level: 3, weight: 20 },
+  { level: 4, weight: 12 },
+  { level: 5, weight: 5 },
+];
+
+// ─── In-Memory Store ────────────────────────────────────────
+
 const collectionStore: Map<string, CompletedCreature[]> = new Map();
 
+// ─── Random Helpers ─────────────────────────────────────────
+
+function pickWeighted<T>(table: { weight: number }[] & T[]): T {
+  const total = table.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = Math.random() * total;
+  for (const entry of table) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry;
+  }
+  return table[table.length - 1];
+}
+
+function randomInt(max: number): number {
+  return Math.floor(Math.random() * max);
+}
+
 function generateCreatureName(): string {
-  const adj = CREATURE_ADJECTIVES[Math.floor(Math.random() * CREATURE_ADJECTIVES.length)];
-  const noun = CREATURE_NOUNS[Math.floor(Math.random() * CREATURE_NOUNS.length)];
+  const adj = CREATURE_ADJECTIVES[randomInt(CREATURE_ADJECTIVES.length)];
+  const noun = CREATURE_NOUNS[randomInt(CREATURE_NOUNS.length)];
   return `${adj} ${noun}`;
 }
 
@@ -28,6 +67,35 @@ function generateId(): string {
   return `creature-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function generatePackId(): string {
+  return `pack-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function generateAppearance(): CreatureAppearance {
+  return {
+    bodyShape: randomInt(5),
+    primaryColor: randomInt(6),
+    accentColor: randomInt(6),
+    eyes: randomInt(5),
+    mouth: randomInt(4),
+    extra: randomInt(5),
+  };
+}
+
+function generateRarity(): CreatureRarity {
+  return pickWeighted(RARITY_TABLE).rarity;
+}
+
+function generateLevel(): number {
+  return pickWeighted(LEVEL_TABLE).level;
+}
+
+// ─── Core API ───────────────────────────────────────────────
+
+/**
+ * Create a single creature with random traits.
+ * Used internally and for backward compatibility.
+ */
 function addCreature(profileId: string, themeId: string, totalBlocksUsed: number): CompletedCreature {
   const creature: CompletedCreature = {
     id: generateId(),
@@ -36,18 +104,62 @@ function addCreature(profileId: string, themeId: string, totalBlocksUsed: number
     name: generateCreatureName(),
     completedAt: new Date(),
     totalBlocksUsed,
+    level: generateLevel(),
+    rarity: generateRarity(),
+    appearance: generateAppearance(),
   };
 
   const existing = collectionStore.get(profileId) ?? [];
   existing.push(creature);
   collectionStore.set(profileId, existing);
 
-  // Persist to IndexedDB (fire-and-forget)
   themeProgressRepo.saveCreature(creature).catch(() => {
     // Silently ignore — in-memory state is still correct
   });
 
   return creature;
+}
+
+/**
+ * Open a pack of 3 creatures at once.
+ * Guaranteed: at least one uncommon+ in every pack.
+ */
+function openPack(profileId: string, themeId: string, totalBlocksUsed: number): CompletedCreature[] {
+  const packId = generatePackId();
+  const pack: CompletedCreature[] = [];
+
+  for (let i = 0; i < 3; i++) {
+    const creature: CompletedCreature = {
+      id: generateId(),
+      profileId,
+      themeId,
+      name: generateCreatureName(),
+      completedAt: new Date(),
+      totalBlocksUsed,
+      level: generateLevel(),
+      rarity: generateRarity(),
+      appearance: generateAppearance(),
+      packId,
+    };
+    pack.push(creature);
+  }
+
+  // Guarantee at least one uncommon+ card
+  const hasGood = pack.some((c) => c.rarity !== 'common');
+  if (!hasGood) {
+    pack[2] = { ...pack[2], rarity: 'uncommon' };
+  }
+
+  const existing = collectionStore.get(profileId) ?? [];
+  for (const creature of pack) {
+    existing.push(creature);
+    themeProgressRepo.saveCreature(creature).catch(() => {
+      // Silently ignore
+    });
+  }
+  collectionStore.set(profileId, existing);
+
+  return pack;
 }
 
 function getCollection(profileId: string): CompletedCreature[] {
@@ -66,10 +178,6 @@ function resetAll(): void {
   collectionStore.clear();
 }
 
-/**
- * Load persisted creatures from IndexedDB into the in-memory store.
- * Call this when selecting / switching profiles.
- */
 async function hydrateProfile(profileId: string): Promise<void> {
   const creatures = await themeProgressRepo.getCreatures(profileId);
   if (creatures.length > 0) {
@@ -79,6 +187,7 @@ async function hydrateProfile(profileId: string): Promise<void> {
 
 export const monsterCollection = {
   addCreature,
+  openPack,
   getCollection,
   getCollectionCount,
   resetCollection,
