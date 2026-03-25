@@ -102,6 +102,31 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* ─── Success flash animation ─────────────────────────────────── */
+
+@keyframes success-flash {
+  0% { opacity: 0; transform: scale(0.5); }
+  20% { opacity: 1; transform: scale(1.1); }
+  40% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+@keyframes success-check {
+  0% { stroke-dashoffset: 30; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-success-flash {
+  animation: success-flash 1s ease-out forwards;
+}
+
+.animate-success-check {
+  stroke-dasharray: 30;
+  animation: success-check 0.4s ease-out 0.15s forwards;
+  stroke-dashoffset: 30;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
