@@ -20,6 +20,12 @@ const DEFAULT_MAINTENANCE_RATIO = 0.1;
 const TROUBLE_THRESHOLD = 0.7;
 
 /**
+ * Mastery thresholds (mirrored from buckets.ts to avoid circular deps).
+ */
+const MASTERED_CONSECUTIVE = 5;
+const MASTERED_MIN_DAYS = 3;
+
+/**
  * Select words for a practice session.
  *
  * @param activeList - The current active word list (or null if none)
@@ -237,6 +243,31 @@ function computeRatios(daysUntilTest: number | null): {
 }
 
 /**
+ * Check if a word is blocked from mastery progress today.
+ * A word is blocked when it has enough consecutive correct answers (5+)
+ * but hasn't reached the required distinct days (3), and the user has
+ * already practiced it correctly today — so more practice today won't help.
+ */
+function isBlockedByDays(stats: WordStats | undefined): boolean {
+  if (!stats) return false;
+  if (stats.currentBucket === 'mastered' || stats.currentBucket === 'review') return false;
+  if (stats.consecutiveCorrect < MASTERED_CONSECUTIVE) return false;
+
+  const todayStr = new Date().toDateString();
+  const correctDays = new Set<string>();
+  let practicedToday = false;
+  for (const r of stats.techniqueHistory) {
+    if (r.correct) {
+      const dayStr = new Date(r.timestamp).toDateString();
+      correctDays.add(dayStr);
+      if (dayStr === todayStr) practicedToday = true;
+    }
+  }
+
+  return practicedToday && correctDays.size < MASTERED_MIN_DAYS;
+}
+
+/**
  * Sort words by review priority (higher priority first).
  * Priority considers: bucket (new/learning > familiar > mastered > review),
  * difficulty score, and whether review is overdue.
@@ -261,6 +292,11 @@ function sortByPriority(words: Word[], statsMap: Map<string, WordStats>): Word[]
 
     const statsA = sa!;
     const statsB = sb!;
+
+    // Words blocked by days requirement go last — practice today won't help
+    const aBlocked = isBlockedByDays(statsA) ? 1 : 0;
+    const bBlocked = isBlockedByDays(statsB) ? 1 : 0;
+    if (aBlocked !== bBlocked) return aBlocked - bBlocked;
 
     // Trouble words first
     const aTrouble = statsA.difficultyScore > TROUBLE_THRESHOLD ? 1 : 0;
