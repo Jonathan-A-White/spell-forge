@@ -42,15 +42,16 @@ function daysBetween(a: Date, b: Date): number {
 /** Count weekdays (Mon–Fri) strictly between two dates, exclusive of both endpoints. */
 function weekdaysMissedBetween(a: Date, b: Date): number {
   let count = 0;
-  const current = new Date(Date.UTC(a.getFullYear(), a.getMonth(), a.getDate()));
-  current.setUTCDate(current.getUTCDate() + 1);
+  // Use local-time consistently to avoid UTC/local mismatch across timezones
+  const current = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  current.setDate(current.getDate() + 1);
   const endISO = toISODate(b);
   while (toISODate(current) < endISO) {
-    const day = current.getUTCDay(); // 0=Sun, 6=Sat
+    const day = current.getDay(); // 0=Sun, 6=Sat (local)
     if (day !== 0 && day !== 6) {
       count++;
     }
-    current.setUTCDate(current.getUTCDate() + 1);
+    current.setDate(current.getDate() + 1);
   }
   return count;
 }

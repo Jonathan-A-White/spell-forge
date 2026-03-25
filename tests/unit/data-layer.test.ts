@@ -561,6 +561,28 @@ describe('streakRepo', () => {
     expect(streak.currentStreak).toBe(1); // Tuesday missed — reset
   });
 
+  it('Sat to Mon transition does not break streak (only Sunday between)', async () => {
+    // 2026-03-21 is Saturday, 2026-03-23 is Monday
+    await streakRepo.recordSession(profileId, new Date(2026, 2, 20), 5); // Fri
+    await streakRepo.recordSession(profileId, new Date(2026, 2, 21), 5); // Sat
+    const streak = await streakRepo.recordSession(profileId, new Date(2026, 2, 23), 5); // Mon
+    expect(streak.currentStreak).toBe(3); // weekend skipped, streak continues
+  });
+
+  it('streak resets when weekday gap exists after weekend practice (Mar 18-25 scenario)', async () => {
+    // March 2026: 18=Wed, 19=Thu, 20=Fri, 21=Sat, 22=Sun(skip), 23=Mon, 24=Tue(MISSED), 25=Wed
+    await streakRepo.recordSession(profileId, new Date(2026, 2, 18), 5);
+    await streakRepo.recordSession(profileId, new Date(2026, 2, 19), 5);
+    await streakRepo.recordSession(profileId, new Date(2026, 2, 20), 5);
+    await streakRepo.recordSession(profileId, new Date(2026, 2, 21), 5);
+    // Skip Sunday 22
+    await streakRepo.recordSession(profileId, new Date(2026, 2, 23), 5);
+    // Skip Tuesday 24 — this is a weekday gap!
+    const streak = await streakRepo.recordSession(profileId, new Date(2026, 2, 25), 5);
+    expect(streak.currentStreak).toBe(1); // Tuesday missed — reset
+    expect(streak.longestStreak).toBe(5); // 18-23 (Wed through Mon, skipping weekend)
+  });
+
   it('missing multiple days including weekdays resets streak', async () => {
     await streakRepo.recordSession(profileId, new Date('2026-01-20'), 5);
     await streakRepo.recordSession(profileId, new Date('2026-01-21'), 3);
