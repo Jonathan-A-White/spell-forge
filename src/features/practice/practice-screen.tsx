@@ -438,21 +438,7 @@ export function PracticeScreen({
           key={session.currentWord.id}
           word={session.currentWord.text}
           onComplete={handleWordComplete}
-          scaffolding={
-            session.scaffoldingActive
-              ? (() => {
-                  const analysis = analyzeWord(session.currentWord!.text);
-                  return {
-                    chunks: analysis.syllables.length > 0
-                      ? analysis.syllables
-                      : session.currentWord!.syllables.length > 0
-                        ? session.currentWord!.syllables
-                        : [session.currentWord!.text],
-                    hints: analysis.scaffoldingHints,
-                  };
-                })()
-              : null
-          }
+          scaffolding={null}
           tapTargetSize={profile.settings.tapTargetSize}
         />
       </div>
