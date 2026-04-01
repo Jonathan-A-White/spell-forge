@@ -7,11 +7,12 @@ import { decodeQrPayload, type QrWordListPayload } from './qr-codec';
 interface QrImportProps {
   onImport: (payload: QrWordListPayload) => void;
   onCancel: () => void;
+  existingListNames?: string[];
 }
 
 type ScanStatus = 'scanning' | 'preview' | 'error' | 'no-camera';
 
-export function QrImport({ onImport, onCancel }: QrImportProps) {
+export function QrImport({ onImport, onCancel, existingListNames = [] }: QrImportProps) {
   const [status, setStatus] = useState<ScanStatus>('scanning');
   const [payload, setPayload] = useState<QrWordListPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -159,43 +160,56 @@ export function QrImport({ onImport, onCancel }: QrImportProps) {
         </div>
       )}
 
-      {status === 'preview' && payload && (
-        <div className="space-y-4">
-          <div className="bg-sf-surface rounded-xl border border-sf-border p-4">
-            <p className="font-bold text-sf-heading text-lg mb-1">{payload.n}</p>
-            <p className="text-sm text-sf-muted mb-3">
-              {payload.w.length} word{payload.w.length !== 1 ? 's' : ''}
-              {payload.t && <> · Test: {payload.t}</>}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {payload.w.map((word) => (
-                <span
-                  key={word}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-sf-primary/10 text-sf-heading"
-                >
-                  {word}
-                </span>
-              ))}
+      {status === 'preview' && payload && (() => {
+        const isDuplicate = existingListNames.some(
+          (n) => n.trim().toLowerCase() === payload.n.trim().toLowerCase(),
+        );
+        return (
+          <div className="space-y-4">
+            <div className="bg-sf-surface rounded-xl border border-sf-border p-4">
+              <p className="font-bold text-sf-heading text-lg mb-1">{payload.n}</p>
+              <p className="text-sm text-sf-muted mb-3">
+                {payload.w.length} word{payload.w.length !== 1 ? 's' : ''}
+                {payload.t && <> · Test: {payload.t}</>}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {payload.w.map((word) => (
+                  <span
+                    key={word}
+                    className="px-3 py-1.5 rounded-full text-sm font-medium bg-sf-primary/10 text-sf-heading"
+                  >
+                    {word}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {isDuplicate && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3" data-testid="qr-duplicate-warning">
+                <p className="text-sm text-yellow-700 font-medium">
+                  A list named &ldquo;{payload.n}&rdquo; already exists. Importing will use the existing list.
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 mt-4">
+              <button
+                onClick={() => onImport(payload)}
+                className="bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-8 rounded-xl transition-colors shadow-md"
+                data-testid="qr-import-confirm"
+              >
+                {isDuplicate ? 'Use Existing List' : `Import ${payload.w.length} Word${payload.w.length !== 1 ? 's' : ''}`}
+              </button>
+              <button
+                onClick={() => { stopScanner(); onCancel(); }}
+                className="text-sf-muted hover:text-sf-secondary py-2 text-sm"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-
-          <div className="flex flex-col gap-3 mt-4">
-            <button
-              onClick={() => onImport(payload)}
-              className="bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-8 rounded-xl transition-colors shadow-md"
-              data-testid="qr-import-confirm"
-            >
-              Import {payload.w.length} Word{payload.w.length !== 1 ? 's' : ''}
-            </button>
-            <button
-              onClick={() => { stopScanner(); onCancel(); }}
-              className="text-sf-muted hover:text-sf-secondary py-2 text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
