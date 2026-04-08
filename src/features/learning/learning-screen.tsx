@@ -1,6 +1,6 @@
 // src/features/learning/learning-screen.tsx — Main learning mode screen
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { LetterBank } from '../practice/letter-bank';
 import { KeyboardInput } from './keyboard-input';
 import { sayAndSpell, sayWordOnly } from './audio-helpers';
@@ -95,6 +95,43 @@ function deserializeState(data: Record<string, unknown>): LearningSessionState {
     totalWords: raw.totalWords as number,
     masteredCount: raw.masteredCount as number,
   };
+}
+
+/** Labels for each memory aid type, shown on the collapsible toggle button */
+const HINT_LABELS: Record<string, string> = {
+  phonetic: 'Sound It Out',
+  pattern: 'Pattern Spotter',
+  mnemonic: 'Memory Tricks',
+};
+
+/** Collapsible wrapper for memory aid hints — collapsed by default to save vertical space on mobile */
+function CollapsibleHints({ label, children }: { label: string; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="w-full max-w-md mx-auto">
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="w-full flex items-center justify-between bg-sf-surface border border-sf-border rounded-xl px-4 py-2 text-sm font-medium text-sf-heading transition-colors hover:bg-sf-surface-hover"
+        aria-expanded={expanded}
+        aria-label={expanded ? `Hide ${label}` : `Show ${label}`}
+      >
+        <span>{label}</span>
+        <span
+          className="text-sf-muted transition-transform duration-200"
+          style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          aria-hidden="true"
+        >
+          &#9660;
+        </span>
+      </button>
+      {expanded && (
+        <div className="mt-2">
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function LearningScreen({
@@ -438,9 +475,9 @@ export function LearningScreen({
   const stageLabels = ['Full Word', '⅓ Hidden', '⅔ Hidden', 'Audio Only'];
 
   return (
-    <div className="min-h-screen bg-sf-bg p-4 flex flex-col">
+    <div className="h-[100dvh] bg-sf-bg p-4 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={onBack}
           className="text-sf-muted hover:text-sf-secondary font-medium"
@@ -454,7 +491,7 @@ export function LearningScreen({
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-sf-track rounded-full h-2 mb-6">
+      <div className="w-full bg-sf-track rounded-full h-2 mb-3">
         <div
           className="bg-sf-track-fill h-2 rounded-full transition-all duration-300"
           style={{ width: `${completionPercent}%` }}
@@ -475,7 +512,7 @@ export function LearningScreen({
       </div>
 
       {/* Current word content */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8">
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
         {/* Word display — hidden entirely during test-out */}
         {!testOutMode && wordDisplay.hiddenCount < sessionState.currentWord.text.length && (
           <div className="text-center">
@@ -492,9 +529,11 @@ export function LearningScreen({
           </div>
         )}
 
-        {/* Memory aid — shown at Stage 0, different aid each rep */}
+        {/* Memory aid — shown at Stage 0, different aid each rep; collapsible to save space */}
         {currentMemoryAid && (
-          <MemoryAidDisplay aid={currentMemoryAid} />
+          <CollapsibleHints label={HINT_LABELS[currentMemoryAid.type]}>
+            <MemoryAidDisplay aid={currentMemoryAid} />
+          </CollapsibleHints>
         )}
 
         {/* Audio only indicator for stage 3 or test-out */}
