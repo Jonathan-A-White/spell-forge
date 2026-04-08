@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { shuffle } from '../../core/shuffle';
 import { SpellingField } from './custom-keyboard';
-import { UnscrambleDragDrop } from './unscramble-drag-drop';
 import { hapticSuccess, hapticError } from '../../core/haptics';
 
 interface SpellingQuizProps {
@@ -358,35 +357,24 @@ export function SpellingQuiz({ words, onComplete, onSpeak, audioBusy, tapTargetS
         <p className="text-sf-text font-medium mb-4">{currentQuestion.prompt}</p>
 
         {currentQuestion.type === 'unscramble' && (
-          <UnscrambleDragDrop
-            scrambledLetters={currentQuestion.scrambled!}
-            wordLength={currentQuestion.word.length}
-            onSubmit={showFeedback
-              ? () => handleNext()
-              : (answer) => {
-              setInputValue(answer);
-              // Trigger submit with the drag-drop answer
-              const correct = answer.toLowerCase() === currentQuestion.word.toLowerCase();
-              if (correct) hapticSuccess();
-              else hapticError();
-              setLastCorrect(correct);
-              setShowFeedback(true);
-              setAnswers((prev) => [
-                ...prev,
-                {
-                  word: currentQuestion.word,
-                  userAnswer: answer,
-                  correct,
-                  questionType: currentQuestion.type,
-                },
-              ]);
-            }}
-            disabled={showFeedback}
-            tapTargetSize={tapTargetSize}
-            submitLabel={showFeedback
-              ? (currentIndex + 1 < questions.length ? 'Next Question' : 'See Results')
-              : 'Submit'}
-          />
+          <>
+            <p className="text-lg font-mono tracking-widest text-sf-muted mb-2">
+              {currentQuestion.scrambled}
+            </p>
+            <SpellingField
+              value={inputValue}
+              onChange={setInputValue}
+              onSubmit={showFeedback ? handleNext : handleSubmit}
+              disabled={showFeedback}
+              placeholder="Type your answer..."
+              tapTargetSize={tapTargetSize}
+              submitLabel={showFeedback
+                ? (currentIndex + 1 < questions.length ? 'Next Question' : 'See Results')
+                : 'Submit'}
+              submitDisabled={!showFeedback && !inputValue.trim()}
+              ariaLabel="Type the unscrambled word"
+            />
+          </>
         )}
 
         {currentQuestion.type === 'multiple-choice' && currentQuestion.options && (

@@ -1,7 +1,6 @@
 // src/features/learning/learning-screen.tsx — Main learning mode screen
 
 import { useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import { LetterBank } from '../practice/letter-bank';
 import { KeyboardInput } from './keyboard-input';
 import { sayAndSpell, sayWordOnly } from './audio-helpers';
 import type {
@@ -557,31 +556,13 @@ export function LearningScreen({
           Hear it
         </button>
 
-        {/* Input component — test-out always uses keyboard */}
-        {testOutMode ? (
-          <KeyboardInput
-            key={`testout-${sessionState.currentWord.id}-${displayKey}`}
-            word={sessionState.currentWord.text}
-            onComplete={handleWordComplete}
-            tapTargetSize={profile.settings.tapTargetSize}
-          />
-        ) : wordDisplay.inputMode === 'scrambled' ? (
-          <LetterBank
-            key={`${sessionState.currentWord.id}-${displayKey}`}
-            word={sessionState.currentWord.text}
-            onComplete={handleWordComplete}
-            scaffolding={null}
-            tapTargetSize={profile.settings.tapTargetSize}
-            showUndo={false}
-          />
-        ) : (
-          <KeyboardInput
-            key={`${sessionState.currentWord.id}-${displayKey}`}
-            word={sessionState.currentWord.text}
-            onComplete={handleWordComplete}
-            tapTargetSize={profile.settings.tapTargetSize}
-          />
-        )}
+        {/* Input component — always uses QWERTY keyboard */}
+        <KeyboardInput
+          key={`${testOutMode ? 'testout-' : ''}${sessionState.currentWord.id}-${displayKey}`}
+          word={sessionState.currentWord.text}
+          onComplete={handleWordComplete}
+          tapTargetSize={profile.settings.tapTargetSize}
+        />
 
         {/* Test Out / Cancel button */}
         {testOutMode ? (
