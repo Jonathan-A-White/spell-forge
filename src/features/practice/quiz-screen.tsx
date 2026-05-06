@@ -78,16 +78,22 @@ export function QuizScreen({
       if (cancelled) return;
       if (saved) {
         const state = saved.state as unknown as QuizScreenSavedState;
-        if (state.quiz && state.quiz.currentIndex < state.quiz.questions.length) {
+        // Words referenced by saved questions must still exist in the active set.
+        const validTexts = new Set(allWords.map((w) => w.text));
+        const wordsStillValid =
+          !!state.quiz && state.quiz.questions.every((q) => validTexts.has(q.word));
+        if (state.quiz && state.quiz.currentIndex < state.quiz.questions.length && wordsStillValid) {
           setResumePrompt(state);
           return;
         }
+        // Stale or unusable — clear it
+        await activityProgressRepo.clear(profile.id, 'quiz' as ActivityType);
       }
       setStarted(true);
     }
     checkSaved();
     return () => { cancelled = true; };
-  }, [profile.id]);
+  }, [profile.id, allWords]);
 
   const handleContinueSaved = useCallback(() => {
     if (!resumePrompt) return;
