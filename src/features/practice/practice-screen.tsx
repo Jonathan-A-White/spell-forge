@@ -158,8 +158,16 @@ export function PracticeScreen({
 
       if (saved) {
         const restored = deserializeSession(saved.state);
-        // Only offer resume if session isn't already complete
-        if (!restored.isComplete && restored.currentWord) {
+        // Discard the saved session if any of its words are no longer in the
+        // current active set (e.g. their list was archived or words deleted).
+        // allWords is already filtered upstream to non-archived lists, so a
+        // missing id means the word is stale.
+        const validIds = new Set(allWords.map((w) => w.id));
+        const wordsStillValid =
+          restored.words.every((w) => validIds.has(w.id)) &&
+          (!restored.currentWord || validIds.has(restored.currentWord.id));
+        // Only offer resume if session isn't already complete and words are still valid
+        if (!restored.isComplete && restored.currentWord && wordsStillValid) {
           setResumePrompt(restored);
           setLoading(false);
           return;

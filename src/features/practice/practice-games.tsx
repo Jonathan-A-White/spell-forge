@@ -149,17 +149,36 @@ export function PracticeGames({
 
       if (saved) {
         const state = saved.state as unknown as GameSavedState;
-        const hasValidProgress =
+        // Words referenced by saved progress must still exist in the active set
+        // (lists may have been archived or words deleted since the save).
+        const validTexts = new Set(allWords.map((w) => w.text));
+        const wordsStillValid =
+          (activityType === 'word-search' && state.wordSearch)
+            ? state.wordSearch.placed.every((p) => validTexts.has(p.word))
+          : (activityType === 'relay-race' && state.relayRace)
+            ? state.relayRace.words.every((w) => validTexts.has(w))
+          : (activityType === 'spell-catcher' && state.spellCatcher)
+            ? state.spellCatcher.words.every((w) => validTexts.has(w))
+          : (activityType === 'word-volcano' && state.wordVolcano)
+            ? state.wordVolcano.words.every((w) => validTexts.has(w))
+          : (activityType === 'letter-invasion' && state.letterInvasion)
+            ? state.letterInvasion.words.every((w) => validTexts.has(w))
+          : false;
+
+        const hasValidProgress = wordsStillValid && (
           (activityType === 'word-search' && state.mode === 'word-search' && state.wordSearch) ||
           (activityType === 'relay-race' && state.mode === 'relay-race' && state.relayRace && state.relayRace.currentIndex < state.relayRace.words.length) ||
           (activityType === 'spell-catcher' && state.mode === 'spell-catcher' && state.spellCatcher && state.spellCatcher.currentWordIndex < state.spellCatcher.words.length) ||
           (activityType === 'word-volcano' && state.mode === 'word-volcano' && state.wordVolcano && state.wordVolcano.currentWordIndex < state.wordVolcano.words.length) ||
-          (activityType === 'letter-invasion' && state.mode === 'letter-invasion' && state.letterInvasion && state.letterInvasion.currentWaveIndex < state.letterInvasion.words.length);
+          (activityType === 'letter-invasion' && state.mode === 'letter-invasion' && state.letterInvasion && state.letterInvasion.currentWaveIndex < state.letterInvasion.words.length)
+        );
 
         if (hasValidProgress) {
           setResumePrompt(state);
           return;
         }
+        // Stale or unusable — clear so the next start isn't charged-but-resumable
+        await activityProgressRepo.clear(profile.id, activityType);
       }
 
       // No saved progress — go directly to the game
@@ -169,7 +188,7 @@ export function PracticeGames({
 
     checkSavedForGame();
     return () => { cancelled = true; };
-  }, [pendingGameMode, profile.id]);
+  }, [pendingGameMode, profile.id, allWords]);
 
   const handleContinueSaved = useCallback(() => {
     if (!resumePrompt) return;
