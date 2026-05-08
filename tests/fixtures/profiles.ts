@@ -13,6 +13,7 @@ export const defaultSettings: AccessibilitySettings = {
   sessionAdaptive: true,
   dailyGoalMinutes: 5,
   tapTargetSize: 56,
+  learningStrategy: 'wave',
 };
 
 export const paulProfile: Profile = {

@@ -12,6 +12,7 @@ import type {
   SessionLog,
   StreakData,
   AccessibilitySettings,
+  LearningStrategy,
   ImportStrategy,
   CoinBalance,
   TestResult,
@@ -682,6 +683,18 @@ function App() {
     [activeProfile],
   );
 
+  const handleLearningStrategyChange = useCallback(
+    async (strategy: LearningStrategy) => {
+      if (!activeProfile) return;
+      const newSettings = mergeSetting(activeProfile.settings, 'learningStrategy', strategy);
+      const updated = { ...activeProfile, settings: newSettings };
+      await profileRepo.update(updated.id, { settings: newSettings });
+      setActiveProfile(updated);
+      eventBus.emit({ type: 'settings:changed', payload: { profileId: updated.id, settings: { learningStrategy: strategy } } });
+    },
+    [activeProfile],
+  );
+
   const handlePresetApply = useCallback(
     async (preset: NamedPreset) => {
       if (!activeProfile) return;
@@ -1100,6 +1113,7 @@ function App() {
             await profileRepo.update(updated.id, { gradeGoal: goal });
             setActiveProfile(updated);
           }}
+          onLearningStrategyChange={handleLearningStrategyChange}
           onExportProfile={handleExportProfile}
           onImportProfile={handleImportProfile}
           onShare={() => setView('share')}

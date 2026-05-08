@@ -1,7 +1,7 @@
 // src/features/settings/settings-panel.tsx — Full settings screen with theme toggle and accessibility presets
 
 import { useRef } from 'react';
-import type { AccessibilitySettings } from '../../contracts/types';
+import type { AccessibilitySettings, LearningStrategy } from '../../contracts/types';
 import { PRESETS, type NamedPreset } from '../../accessibility/presets';
 import { ImportFilterSettings } from './import-filter-settings';
 
@@ -15,6 +15,7 @@ interface SettingsPanelProps {
   onContrastModeChange: (mode: ContrastMode) => void;
   onPresetApply: (preset: NamedPreset) => void;
   onGradeGoalChange?: (goal: number) => void;
+  onLearningStrategyChange?: (strategy: LearningStrategy) => void;
   onExportProfile?: () => void;
   onImportProfile?: (file: File) => void;
   onShare?: () => void;
@@ -25,6 +26,13 @@ interface SettingsPanelProps {
   onToggleDebugMode?: () => void;
   onBack: () => void;
 }
+
+const learningStrategyOptions: { value: LearningStrategy; label: string; description: string }[] = [
+  { value: 'wave', label: 'Wave', description: 'Easy → medium → hard → medium → easy. Ends on a confidence note.' },
+  { value: 'easy-to-hard', label: 'Easy to Hard', description: 'Shortest words first, longest last' },
+  { value: 'hard-to-easy', label: 'Hard to Easy', description: 'Longest words first, shortest last' },
+  { value: 'random', label: 'Random', description: 'Fresh shuffle each time you start learning' },
+];
 
 const gradeGoalOptions: { value: number; label: string; description: string }[] = [
   { value: 80, label: '80%', description: 'A solid foundation' },
@@ -46,6 +54,7 @@ export function SettingsPanel({
   onContrastModeChange,
   onPresetApply,
   onGradeGoalChange,
+  onLearningStrategyChange,
   onExportProfile,
   onImportProfile,
   onShare,
@@ -186,6 +195,56 @@ export function SettingsPanel({
                         : 'bg-sf-track text-sf-muted'
                     }`}>
                       {option.label}
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className={`font-bold text-sm ${
+                        isSelected ? 'text-sf-heading' : 'text-sf-text'
+                      }`}>
+                        {option.label}
+                      </p>
+                      <p className="text-xs text-sf-muted">{option.description}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="text-sf-primary">
+                        <CheckIcon />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Learning Order */}
+        {onLearningStrategyChange && (
+          <section>
+            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-1">
+              Learning Order
+            </h2>
+            <p className="text-xs text-sf-muted mb-3">
+              Order in which new words appear in learning mode. Practice, quiz, and games are always randomized.
+            </p>
+            <div className="space-y-2">
+              {learningStrategyOptions.map((option) => {
+                const isSelected = settings.learningStrategy === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => onLearningStrategyChange(option.value)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                      isSelected
+                        ? 'border-sf-primary bg-sf-surface shadow-md'
+                        : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      isSelected
+                        ? 'bg-sf-primary text-sf-primary-text'
+                        : 'bg-sf-track text-sf-muted'
+                    }`}>
+                      <LearningStrategyIcon strategy={option.value} />
                     </div>
                     <div className="text-left flex-1">
                       <p className={`font-bold text-sm ${
@@ -505,6 +564,39 @@ function TerminalIcon() {
       <line x1="12" y1="19" x2="20" y2="19" />
     </svg>
   );
+}
+
+function LearningStrategyIcon({ strategy }: { strategy: LearningStrategy }) {
+  switch (strategy) {
+    case 'wave':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <path d="M2 16 Q6 16 8 12 Q10 4 12 4 Q14 4 16 12 Q18 16 22 16" />
+        </svg>
+      );
+    case 'easy-to-hard':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <line x1="3" y1="20" x2="21" y2="4" />
+        </svg>
+      );
+    case 'hard-to-easy':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <line x1="3" y1="4" x2="21" y2="20" />
+        </svg>
+      );
+    case 'random':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <polyline points="16 3 21 3 21 8" />
+          <line x1="4" y1="20" x2="21" y2="3" />
+          <polyline points="21 16 21 21 16 21" />
+          <line x1="15" y1="15" x2="21" y2="21" />
+          <line x1="4" y1="4" x2="9" y2="9" />
+        </svg>
+      );
+  }
 }
 
 function ShareSettingsIcon() {

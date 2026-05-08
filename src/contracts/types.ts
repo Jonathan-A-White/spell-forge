@@ -17,6 +17,16 @@ export interface Profile {
   gradeGoal?: number; // target % of words at familiar+ for readiness (80, 90, or 100; default 100)
 }
 
+/**
+ * Order in which words are presented while learning new words.
+ * Word length is the difficulty proxy (no stats exist yet at learning time).
+ * - 'wave': easy → medium → hard → medium → easy (saves the shortest words for the end)
+ * - 'easy-to-hard': shortest → longest
+ * - 'hard-to-easy': longest → shortest
+ * - 'random': fresh shuffle each visit
+ */
+export type LearningStrategy = 'wave' | 'easy-to-hard' | 'hard-to-easy' | 'random';
+
 export interface AccessibilitySettings {
   fontSize: number;          // 16-48, default 24
   fontWeight: 'normal' | 'bold' | 'extra-bold';
@@ -30,6 +40,7 @@ export interface AccessibilitySettings {
   sessionAdaptive: boolean;
   dailyGoalMinutes: number;
   tapTargetSize: number;     // 48-72px
+  learningStrategy: LearningStrategy;
 }
 
 export interface WordList {
