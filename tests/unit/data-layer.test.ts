@@ -36,6 +36,7 @@ const defaultSettings: AccessibilitySettings = {
   sessionAdaptive: true,
   dailyGoalMinutes: 10,
   tapTargetSize: 48,
+  learningStrategy: 'wave',
 };
 
 function makeProfileData(overrides: Partial<Omit<Profile, 'id'>> = {}): Omit<Profile, 'id'> {

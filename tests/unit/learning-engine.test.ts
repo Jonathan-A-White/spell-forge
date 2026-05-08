@@ -380,7 +380,7 @@ describe('createInitialProgress', () => {
 // ─── Word Sorting ─────────────────────────────────────────────
 
 describe('sortWordsForLearning', () => {
-  it('sorts words shortest to longest', () => {
+  it('defaults to easy-to-hard (shortest first)', () => {
     const words = [
       makeWord('1', 'beautiful'),
       makeWord('2', 'cat'),
@@ -407,28 +407,79 @@ describe('sortWordsForLearning', () => {
     sortWordsForLearning(words);
     expect(words).toEqual(original);
   });
+
+  it('hard-to-easy reverses the order (longest first)', () => {
+    const words = [
+      makeWord('1', 'beautiful'),
+      makeWord('2', 'cat'),
+      makeWord('3', 'go'),
+    ];
+    const sorted = sortWordsForLearning(words, 'hard-to-easy');
+    expect(sorted.map((w) => w.text)).toEqual(['beautiful', 'cat', 'go']);
+  });
+
+  it('random returns the same set of words', () => {
+    const words = ['a', 'bb', 'ccc', 'dddd', 'eeeee'].map((t, i) => makeWord(`w${i}`, t));
+    const sorted = sortWordsForLearning(words, 'random');
+    expect(sorted).toHaveLength(words.length);
+    expect(new Set(sorted.map((w) => w.id))).toEqual(new Set(words.map((w) => w.id)));
+  });
+
+  it('wave starts in the easy zone, peaks in the middle, ends on the shortest word', () => {
+    // 9 words: lengths 1..9
+    const words = Array.from({ length: 9 }, (_, i) =>
+      makeWord(`w${i}`, 'x'.repeat(i + 1)),
+    );
+    const sorted = sortWordsForLearning(words, 'wave');
+    const lengths = sorted.map((w) => w.text.length);
+
+    // Should contain every input word exactly once
+    expect(new Set(sorted.map((w) => w.id))).toEqual(new Set(words.map((w) => w.id)));
+
+    // First word is in the easy third (length ≤ 3 for lengths 1..9)
+    expect(lengths[0]).toBeLessThanOrEqual(3);
+
+    // Session ends on the absolute shortest word (the "saved for end" easy)
+    expect(lengths[lengths.length - 1]).toBe(1);
+
+    // The hardest words cluster in the middle, not at the ends
+    const max = Math.max(...lengths);
+    const maxIdx = lengths.indexOf(max);
+    expect(maxIdx).toBeGreaterThan(0);
+    expect(maxIdx).toBeLessThan(lengths.length - 1);
+  });
+
+  it('wave handles tiny lists without crashing', () => {
+    expect(sortWordsForLearning([], 'wave')).toEqual([]);
+    const one = [makeWord('1', 'a')];
+    expect(sortWordsForLearning(one, 'wave').map((w) => w.text)).toEqual(['a']);
+    const two = [makeWord('1', 'longer'), makeWord('2', 'a')];
+    // For 2 words, wave returns ascending (no meaningful wave shape possible)
+    expect(sortWordsForLearning(two, 'wave').map((w) => w.text)).toEqual(['a', 'longer']);
+  });
 });
 
 // ─── Find Next Word ───────────────────────────────────────────
 
 describe('findNextWord', () => {
+  // Pre-sorted (callers are expected to sort with sortWordsForLearning before calling).
   const words = [
-    makeWord('w1', 'beautiful'),
-    makeWord('w2', 'cat'),
     makeWord('w3', 'go'),
+    makeWord('w2', 'cat'),
+    makeWord('w1', 'beautiful'),
   ];
 
-  it('returns shortest non-mastered word', () => {
+  it('returns the first non-mastered word in the given order', () => {
     const progressMap = new Map<string, WordLearningProgress>();
     const next = findNextWord(words, progressMap);
-    expect(next?.id).toBe('w3'); // "go" is shortest
+    expect(next?.id).toBe('w3'); // "go" is first in sorted order
   });
 
   it('skips mastered words', () => {
     const progressMap = new Map<string, WordLearningProgress>();
     progressMap.set('w3', makeProgress({ wordId: 'w3', mastered: true }));
     const next = findNextWord(words, progressMap);
-    expect(next?.id).toBe('w2'); // "cat" is next shortest
+    expect(next?.id).toBe('w2'); // "cat" is next in order
   });
 
   it('returns null when all words mastered', () => {
@@ -440,11 +491,19 @@ describe('findNextWord', () => {
     expect(next).toBeNull();
   });
 
-  it('returns in-progress word (not yet mastered) over unstarted longer word', () => {
+  it('returns in-progress word (not yet mastered) over unstarted later word', () => {
     const progressMap = new Map<string, WordLearningProgress>();
     progressMap.set('w3', makeProgress({ wordId: 'w3', stage: 2, mastered: false }));
     const next = findNextWord(words, progressMap);
     expect(next?.id).toBe('w3'); // still "go" — it's not mastered yet
+  });
+
+  it('respects caller-provided strategy order (e.g. hard-to-easy)', () => {
+    const raw = [makeWord('w1', 'beautiful'), makeWord('w2', 'cat'), makeWord('w3', 'go')];
+    const ordered = sortWordsForLearning(raw, 'hard-to-easy');
+    const progressMap = new Map<string, WordLearningProgress>();
+    const next = findNextWord(ordered, progressMap);
+    expect(next?.id).toBe('w1'); // "beautiful" is first under hard-to-easy
   });
 });
 

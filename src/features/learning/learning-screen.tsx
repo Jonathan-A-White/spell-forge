@@ -7,6 +7,7 @@ import type {
   Word,
   Profile,
   WordLearningProgress,
+  LearningStrategy,
 } from '../../contracts/types';
 import type { AudioManager } from '../../audio/manager';
 import { useAudioBusy } from '../../audio/use-audio-busy';
@@ -183,7 +184,7 @@ export function LearningScreen({
       }
 
       // Load fresh data
-      const freshState = await loadFreshState(profile.id);
+      const freshState = await loadFreshState(profile.id, profile.settings.learningStrategy);
       if (cancelled) return;
 
       setSessionState(freshState);
@@ -238,13 +239,13 @@ export function LearningScreen({
 
   const handleStartFresh = useCallback(async () => {
     await activityProgressRepo.clear(profile.id, 'learning');
-    const freshState = await loadFreshState(profile.id);
+    const freshState = await loadFreshState(profile.id, profile.settings.learningStrategy);
     setSessionState(freshState);
     setResumePrompt(null);
     if (!freshState.currentWord) {
       setIsComplete(true);
     }
-  }, [profile.id]);
+  }, [profile.id, profile.settings.learningStrategy]);
 
   const handleTestOut = useCallback(() => {
     setTestOutMode(true);
@@ -588,7 +589,10 @@ export function LearningScreen({
 
 // ─── Data Loading ───────────────────────────────────────────
 
-async function loadFreshState(profileId: string): Promise<LearningSessionState> {
+async function loadFreshState(
+  profileId: string,
+  strategy: LearningStrategy,
+): Promise<LearningSessionState> {
   // Fetch all active word lists
   const activeLists = await wordListRepo.getActive(profileId);
 
@@ -598,8 +602,8 @@ async function loadFreshState(profileId: string): Promise<LearningSessionState> 
   );
   const allWords = wordArrays.flat();
 
-  // Sort shortest-to-longest
-  const sortedWords = sortWordsForLearning(allWords);
+  // Order according to the profile's learning strategy
+  const sortedWords = sortWordsForLearning(allWords, strategy);
 
   // Load all learning progress, filtered to active words only
   const progressList = await learningProgressRepo.getByProfileId(profileId);

@@ -4,6 +4,7 @@ import type {
   WordLearningProgress,
   LearningStage,
   LearningInputMode,
+  LearningStrategy,
 } from '../../contracts/types';
 
 /** The final stage where no word is shown (audio only, keyboard input). */
@@ -211,24 +212,93 @@ export function createInitialProgress(
 // ─── List Ordering ───────────────────────────────────────────
 
 /**
- * Sort words shortest-to-longest for learning order within a list.
- * Stable sort: words of equal length keep their original order.
+ * Sort words for learning order according to the chosen strategy.
+ * Word length is the difficulty proxy (no stats exist yet at learning time).
+ *
+ * Strategies:
+ * - 'easy-to-hard' (default): shortest → longest
+ * - 'hard-to-easy': longest → shortest
+ * - 'wave': symmetric easy → medium → hard → medium → easy. The very last
+ *   word is the absolute shortest, so the session ends on a confidence note.
+ * - 'random': fresh shuffle each call (Fisher–Yates).
+ *
+ * All strategies return a new array; the input is never mutated. Sorts within
+ * a strategy are stable for equal-length words.
  */
-export function sortWordsForLearning<T extends { text: string }>(words: T[]): T[] {
-  return [...words].sort((a, b) => a.text.length - b.text.length);
+export function sortWordsForLearning<T extends { text: string }>(
+  words: T[],
+  strategy: LearningStrategy = 'easy-to-hard',
+): T[] {
+  const ascending = [...words].sort((a, b) => a.text.length - b.text.length);
+
+  switch (strategy) {
+    case 'easy-to-hard':
+      return ascending;
+    case 'hard-to-easy':
+      return ascending.reverse();
+    case 'random':
+      return shuffle(ascending);
+    case 'wave':
+      return waveOrder(ascending);
+  }
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 /**
- * Find the next word to learn in a list.
- * Returns the first non-mastered word in length-sorted order,
- * or null if all words are mastered.
+ * Symmetric wave: split a length-ascending list into easy/medium/hard thirds,
+ * then split easy and medium in half. The "easier half" of each is reserved
+ * for the back of the session so the user finishes with confidence-builders.
+ * Emits: easyStart → medStart → hard → medEnd.reverse() → easyEnd.reverse()
+ * where easyStart holds the longer-of-easy words and easyEnd the shortest.
+ */
+function waveOrder<T>(ascending: T[]): T[] {
+  const n = ascending.length;
+  if (n <= 2) return ascending;
+
+  const easyEnd = Math.floor(n / 3);
+  const medEnd = Math.floor((2 * n) / 3);
+  const easy = ascending.slice(0, easyEnd);
+  const medium = ascending.slice(easyEnd, medEnd);
+  const hard = ascending.slice(medEnd);
+
+  // Floor split so odd-sized groups put more weight at the start;
+  // the absolute shortest word ends up in the back chunk.
+  const easySplit = Math.floor(easy.length / 2);
+  const easyEndChunk = easy.slice(0, easySplit);   // shortest words → end of session
+  const easyStartChunk = easy.slice(easySplit);    // longer-of-easy → start
+
+  const medSplit = Math.floor(medium.length / 2);
+  const medEndChunk = medium.slice(0, medSplit);
+  const medStartChunk = medium.slice(medSplit);
+
+  return [
+    ...easyStartChunk,
+    ...medStartChunk,
+    ...hard,
+    ...medEndChunk.slice().reverse(),
+    ...easyEndChunk.slice().reverse(),
+  ];
+}
+
+/**
+ * Find the next word to learn — the first non-mastered word in the given order.
+ * Callers should pass a list already ordered by `sortWordsForLearning`; this
+ * function does not re-sort (re-sorting would reshuffle on every call for the
+ * 'random' strategy and undermine the wave shape).
  */
 export function findNextWord<T extends { id: string; text: string }>(
   words: T[],
   progressMap: Map<string, WordLearningProgress>,
 ): T | null {
-  const sorted = sortWordsForLearning(words);
-  for (const word of sorted) {
+  for (const word of words) {
     const progress = progressMap.get(word.id);
     if (!progress || !progress.mastered) {
       return word;
