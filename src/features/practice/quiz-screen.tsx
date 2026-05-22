@@ -1,6 +1,6 @@
 // src/features/practice/quiz-screen.tsx — Standalone spelling quiz screen (not a game)
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Profile, WordList, Word, SessionLog, ActivityType } from '../../contracts/types';
 import { SpellingQuiz, type QuizResults, type QuizSavedState } from './spelling-quiz';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
@@ -70,7 +70,15 @@ export function QuizScreen({
     return mastered.map((w) => w.text).slice(0, 12);
   }, [activeList, allWords, masteredWordIds]);
 
-  // Check for saved progress on mount
+  // Latest words, read inside the resume check below. App passes a freshly
+  // filtered `allWords` array on every render, so depending on it directly
+  // would re-run the check and re-show the resume prompt mid-quiz.
+  const allWordsRef = useRef(allWords);
+  useEffect(() => {
+    allWordsRef.current = allWords;
+  }, [allWords]);
+
+  // Check for saved progress once when the screen opens.
   useEffect(() => {
     let cancelled = false;
     async function checkSaved() {
@@ -79,7 +87,7 @@ export function QuizScreen({
       if (saved) {
         const state = saved.state as unknown as QuizScreenSavedState;
         // Words referenced by saved questions must still exist in the active set.
-        const validTexts = new Set(allWords.map((w) => w.text));
+        const validTexts = new Set(allWordsRef.current.map((w) => w.text));
         const wordsStillValid =
           !!state.quiz && state.quiz.questions.every((q) => validTexts.has(q.word));
         if (state.quiz && state.quiz.currentIndex < state.quiz.questions.length && wordsStillValid) {
@@ -93,7 +101,7 @@ export function QuizScreen({
     }
     checkSaved();
     return () => { cancelled = true; };
-  }, [profile.id, allWords]);
+  }, [profile.id]);
 
   const handleContinueSaved = useCallback(() => {
     if (!resumePrompt) return;
