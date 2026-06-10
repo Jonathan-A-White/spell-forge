@@ -20,7 +20,7 @@ import {
   sortWordsForLearning,
   findNextWord,
 } from '../../core/learning';
-import { generateMemoryAids } from '../../core/memory-aids';
+import { generateMemoryAids, findTrickyPart } from '../../core/memory-aids';
 import { MemoryAidDisplay } from './memory-aid-display';
 import { wordListRepo } from '../../data/repositories/word-list-repo';
 import { wordRepo } from '../../data/repositories/word-repo';
@@ -104,9 +104,27 @@ const HINT_LABELS: Record<string, string> = {
   mnemonic: 'Memory Tricks',
 };
 
-/** Collapsible wrapper for memory aid hints — collapsed by default to save vertical space on mobile */
-function CollapsibleHints({ label, children }: { label: string; children: ReactNode }) {
-  const [expanded, setExpanded] = useState(false);
+/** Icons for each memory aid type, shown next to the toggle label */
+const HINT_ICONS: Record<string, string> = {
+  phonetic: '🔊', // speaker
+  pattern: '🔍', // magnifying glass
+  mnemonic: '💡', // light bulb
+};
+
+/** Collapsible wrapper for memory aid hints. Auto-expanded the first time a
+ *  word is shown (kids rarely tap a closed hint), collapsible afterwards. */
+function CollapsibleHints({
+  label,
+  icon,
+  defaultExpanded = false,
+  children,
+}: {
+  label: string;
+  icon?: string;
+  defaultExpanded?: boolean;
+  children: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -116,7 +134,10 @@ function CollapsibleHints({ label, children }: { label: string; children: ReactN
         aria-expanded={expanded}
         aria-label={expanded ? `Hide ${label}` : `Show ${label}`}
       >
-        <span>{label}</span>
+        <span>
+          {icon && <span className="mr-1.5" aria-hidden="true">{icon}</span>}
+          {label}
+        </span>
         <span
           className="text-sf-muted transition-transform duration-200"
           style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
@@ -345,6 +366,11 @@ export function LearningScreen({
     }
   }, [sessionState, audioManager, testOutMode]);
 
+  // Speak a single syllable chunk (tap-to-hear in "Sound It Out")
+  const handleSpeakChunk = useCallback((text: string) => {
+    sayWordOnly(audioManager, text);
+  }, [audioManager]);
+
   // Derive current word display state — memoized so random blank positions
   // stay stable across re-renders (e.g. when audio busy state changes).
   const currentWord = sessionState?.currentWord ?? null;
@@ -376,6 +402,13 @@ export function LearningScreen({
   const currentMemoryAid = wordDisplay?.stage === 0 && memoryAids && !testOutMode
     ? memoryAids[wordDisplay.successes] ?? null
     : null;
+
+  // The chunk of the word that doesn't sound the way it's written —
+  // spotlighted in the word display while the full word is visible.
+  const trickyPart = useMemo(
+    () => (currentWord ? findTrickyPart(currentWord.text) : null),
+    [currentWord],
+  );
 
   // Loading state
   if (loading) {
@@ -511,8 +544,12 @@ export function LearningScreen({
         )}
       </div>
 
-      {/* Current word content */}
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
+      {/* Current word content. The outer div scrolls when content is taller
+          than the screen; the inner div's auto margins center it when it's
+          shorter. (justify-center on an overflowing flex column pushes
+          content past the top edge, over the header.) */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+        <div className="m-auto w-full flex flex-col items-center gap-4 py-2">
         {/* Word display — hidden entirely during test-out */}
         {!testOutMode && wordDisplay.hiddenCount < sessionState.currentWord.text.length && (
           <div className="text-center">
@@ -520,19 +557,50 @@ export function LearningScreen({
               {wordDisplay.display.display.split('').map((char: string, i: number) => (
                 <span
                   key={i}
-                  className={char === '_' ? 'text-sf-muted' : 'text-sf-heading'}
+                  className={
+                    char === '_'
+                      ? 'text-sf-muted'
+                      : wordDisplay.stage === 0 &&
+                          trickyPart !== null &&
+                          i >= trickyPart.start &&
+                          i < trickyPart.start + trickyPart.length
+                        ? 'text-amber-600 dark:text-amber-400 underline decoration-2 underline-offset-4'
+                        : 'text-sf-heading'
+                  }
                 >
                   {char === '_' ? '\u2009_\u2009' : char}
                 </span>
               ))}
             </p>
+            {/* Tricky-part spotlight — why the highlighted chunk is spelled that way */}
+            {wordDisplay.stage === 0 && trickyPart && (
+              <p className="text-sm text-sf-secondary mt-2 max-w-md mx-auto">
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  Tricky part:
+                </span>{' '}
+                {trickyPart.hint}
+                {trickyPart.examples.length > 0 && (
+                  <span className="text-sf-muted"> Also in: {trickyPart.examples.join(', ')}</span>
+                )}
+              </p>
+            )}
           </div>
         )}
 
-        {/* Memory aid — shown at Stage 0, different aid each rep; collapsible to save space */}
+        {/* Memory aid — shown at Stage 0, different aid each rep. Auto-expanded
+            on the first rep of a new word, collapsible after. */}
         {currentMemoryAid && (
-          <CollapsibleHints label={HINT_LABELS[currentMemoryAid.type]}>
-            <MemoryAidDisplay aid={currentMemoryAid} />
+          <CollapsibleHints
+            key={`${sessionState.currentWord.id}-${wordDisplay.successes}`}
+            label={HINT_LABELS[currentMemoryAid.type]}
+            icon={HINT_ICONS[currentMemoryAid.type]}
+            defaultExpanded={wordDisplay.successes === 0}
+          >
+            <MemoryAidDisplay
+              aid={currentMemoryAid}
+              onSpeakChunk={handleSpeakChunk}
+              audioBusy={audioBusy}
+            />
           </CollapsibleHints>
         )}
 
@@ -582,6 +650,7 @@ export function LearningScreen({
             I already know this word
           </button>
         )}
+        </div>
       </div>
     </div>
   );

@@ -24,6 +24,45 @@ const MIN_HIDDEN_WORD_LENGTH = 2;
 // Only show hidden words that are at least this fraction of the parent word
 const MIN_LENGTH_RATIO = 0.2;
 
+// ─── Silly story mnemonics for common tricky words ───────────
+// Short, visual mini-stories an 8-year-old can picture. Only for words
+// that don't already have an entry in KNOWN_MNEMONICS below.
+
+const STORY_MNEMONICS: Record<string, string> = {
+  pursue: 'A cat goes PURRR when it chases you — PUR-sue means chase!',
+  tongue: 'Your TONGUE tripped and landed on U-E at the end!',
+  stomach: 'After too much candy your stomach says "ACH!" — stom-ACH',
+  busy: 'The BUS is always busY picking everyone up',
+  build: 'U and I BUILD a fort together — bUIld',
+  guess: 'In GUESS the U hides behind the G — you\'d never guess it\'s there!',
+  juice: 'JUICE is for U and I — j-U-I-ce',
+  school: 'At SCHool the H sneaks in line between C and OOL',
+  sugar: 'Sugar is so sweet it whispers "SHH" — Sugar starts with S but says "sh"',
+  minute: 'A MINUTE is tiny — it ends in a cUTE little UTE',
+  once: 'ONCE upon a time, ONE put on a CE cape — ONce',
+  laugh: 'LAUGH ends in GH that giggles like an F — ha ha!',
+  young: 'YOUNG has YOU inside — YOU are young!',
+  early: 'You hEAR with your EAR EARly in the morning — EARly',
+  heart: 'Your HEART has an EAR inside — listen to your hEARt',
+  whole: 'The silent W swallowed the WHOLE hole',
+  hour: 'The H in HOUR is silent — it slept through OUR hour',
+  two: 'TWO has a W — TWins are TWO, TWenty needs TWO hands',
+  four: 'FOUR has OUR inside — this number is OURs!',
+  says: 'SAYS is just SAY + S, even though it sounds like "sez"',
+  done: 'When you DO something, it\'s DOne — DO + NE',
+  gone: 'GOne means it GOt up and left — GO + NE',
+  some: 'SO ME wants SOME — SO + ME',
+  come: 'COme to ME — COME ends with ME',
+  love: 'LOVE ends in E — no English word ends in a lonely V',
+  have: 'HAVE ends in E — the V never stands at the end alone',
+  give: 'GIVE ends in E — the V always brings its friend E',
+  pretty: 'PRETTY has two T\'s sitting up straight to look pretty',
+  always: 'ALWAYS = AL + WAYS — all ways, every time',
+  almost: 'ALmost lost an L — AL + MOST has just one L',
+  until: 'UNTIL has one L — it lost the other one along the way',
+  favorite: 'My FAVORite does me a FAVOR — FAVOR + ITE',
+};
+
 // ─── Well-known mnemonic phrases for common tricky words ─────
 
 const KNOWN_MNEMONICS: Record<string, string> = {
@@ -89,7 +128,16 @@ export function generateMnemonicAid(word: string): MnemonicAid {
   const lower = word.toLowerCase().trim();
   const tricks: MnemonicTrick[] = [];
 
-  // 1. Check for a known mnemonic first
+  // 0. Silly story first — the most memorable hook for young learners
+  const story = STORY_MNEMONICS[lower];
+  if (story) {
+    tricks.push({
+      label: 'Story',
+      content: story,
+    });
+  }
+
+  // 1. Check for a known mnemonic
   const knownMnemonic = KNOWN_MNEMONICS[lower];
   if (knownMnemonic) {
     tricks.push({
@@ -134,7 +182,7 @@ export function generateMnemonicAid(word: string): MnemonicAid {
     tricks.push(silentLetterTrick);
   }
 
-  // Limit to 3 best tricks (known mnemonic always first if present)
+  // Limit to 3 best tricks (story/known mnemonic always first if present)
   return {
     type: 'mnemonic',
     tricks: tricks.slice(0, 3),

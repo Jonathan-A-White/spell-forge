@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateMemoryAids } from '../../src/core/memory-aids';
+import { generateMemoryAids, findTrickyPart } from '../../src/core/memory-aids';
 import { generatePhoneticAid } from '../../src/core/memory-aids/phonetic-aid';
 import { generatePatternAid } from '../../src/core/memory-aids/pattern-aid';
 import { generateMnemonicAid } from '../../src/core/memory-aids/mnemonic-aid';
@@ -60,6 +60,67 @@ describe('generatePhoneticAid', () => {
     const aid = generatePhoneticAid('cat');
     expect(aid.chunks.length).toBeGreaterThanOrEqual(1);
     expect(aid.chunks[0].text).toBe('cat');
+  });
+
+  it('produces kid-friendly respellings instead of raw IPA', () => {
+    const aid = generatePhoneticAid('pursue');
+    const pronunciations = aid.chunks.map(c => c.pronunciation);
+    // "pur" sounds out as p-er, "sue" as s-oo
+    expect(pronunciations).toContain('p-er');
+    expect(pronunciations).toContain('s-oo');
+  });
+
+  it('never emits raw IPA slashes in pronunciations', () => {
+    for (const word of ['pursue', 'night', 'beautiful', 'together', 'important', 'knight']) {
+      const aid = generatePhoneticAid(word);
+      for (const chunk of aid.chunks) {
+        expect(chunk.pronunciation).not.toContain('/');
+        expect(chunk.pronunciation).toBeTruthy();
+      }
+    }
+  });
+
+  it('drops silent letters from the respelling', () => {
+    const aid = generatePhoneticAid('night');
+    // "igh" says long i ("eye"); the gh contributes no sound part
+    expect(aid.chunks[0].pronunciation).toBe('n-eye-t');
+  });
+});
+
+// ─── Tricky Part ──────────────────────────────────────────────
+
+describe('findTrickyPart', () => {
+  it('finds the "ue" vowel team in pursue', () => {
+    const tricky = findTrickyPart('pursue');
+    expect(tricky).not.toBeNull();
+    expect(tricky!.grapheme).toBe('ue');
+    expect(tricky!.start).toBe(4);
+    expect(tricky!.length).toBe(2);
+    expect(tricky!.hint).toBeTruthy();
+  });
+
+  it('excludes the word itself from examples', () => {
+    const tricky = findTrickyPart('blue');
+    expect(tricky).not.toBeNull();
+    expect(tricky!.examples).not.toContain('blue');
+  });
+
+  it('prioritizes irregular chunks first', () => {
+    const tricky = findTrickyPart('knight');
+    expect(tricky).not.toBeNull();
+    expect(tricky!.grapheme).toBe('ight');
+    expect(tricky!.start).toBe(2);
+  });
+
+  it('finds silent-letter chunks', () => {
+    const tricky = findTrickyPart('lamb');
+    expect(tricky).not.toBeNull();
+    expect(tricky!.grapheme).toBe('mb');
+    expect(tricky!.start).toBe(2);
+  });
+
+  it('returns null for words spelled the way they sound', () => {
+    expect(findTrickyPart('cat')).toBeNull();
   });
 });
 
@@ -162,6 +223,18 @@ describe('generateMnemonicAid', () => {
     // Should not crash, may have few or no tricks
     expect(aid.type).toBe('mnemonic');
     expect(aid.tricks).toBeDefined();
+  });
+
+  it('provides a story mnemonic for curated words', () => {
+    const aid = generateMnemonicAid('pursue');
+    const storyTrick = aid.tricks.find(t => t.label === 'Story');
+    expect(storyTrick).toBeTruthy();
+    expect(storyTrick!.content).toContain('PUR');
+  });
+
+  it('story mnemonic comes first when present', () => {
+    const aid = generateMnemonicAid('tongue');
+    expect(aid.tricks[0].label).toBe('Story');
   });
 
   it('known mnemonic for "believe" mentions LIE', () => {
