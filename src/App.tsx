@@ -355,6 +355,18 @@ function App() {
     setTestResults(updatedTr);
   }, [activeProfile]);
 
+  // Refresh data when the app regains focus (e.g. switching back from another
+  // tab or resuming a PWA) so that changes made elsewhere are visible.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refreshListData();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refreshListData]);
+
   // Navigate back through browser history instead of hardcoding destinations.
   // Performs cleanup for the current view before navigating.
   const goBack = useCallback(() => {
@@ -495,6 +507,22 @@ function App() {
   const handleQrImport = useCallback(
     async (payload: QrWordListPayload) => {
       if (!activeProfile) return;
+
+      // Check for an existing list with the same name to prevent duplicates
+      const existingLists = await wordListRepo.getByProfileId(activeProfile.id);
+      const duplicate = existingLists.find(
+        (l) => !l.archived && l.name.trim().toLowerCase() === payload.n.trim().toLowerCase(),
+      );
+
+      if (duplicate) {
+        // List already exists — just make sure it's active and navigate to it
+        if (!duplicate.active) {
+          await wordListRepo.update(duplicate.id, { active: true });
+        }
+        await refreshListData();
+        setView('word-lists');
+        return;
+      }
 
       const testDate = payload.t ? new Date(payload.t) : null;
       const list = await wordListRepo.create({
@@ -1246,6 +1274,7 @@ function App() {
         <QrImport
           onImport={handleQrImport}
           onCancel={goBack}
+          existingListNames={wordLists.filter((l) => !l.archived).map((l) => l.name)}
         />
       );
 
