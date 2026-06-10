@@ -4,8 +4,8 @@ import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
-import { canvasImageOps, flattenWithBackground, isLikelyGarbage, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
-import type { ImageOps, OcrWorker } from '../../src/ocr/preprocess.ts';
+import { canvasImageOps, filterLowConfidenceWords, flattenWithBackground, isLikelyGarbage, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
+import type { ImageOps, OcrBlockInfo, OcrWorker } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
 
 // ─── Word Cleaning ───────────────────────────────────────────
@@ -423,6 +423,55 @@ describe('scoreRecognizedText', () => {
       'sparkle challenge words rectangle triangle condition high frequency',
     );
     expect(clean.score).toBeGreaterThan(noise.score);
+  });
+});
+
+// ─── filterLowConfidenceWords ───────────────────────────────
+
+describe('filterLowConfidenceWords', () => {
+  const blocksFor = (words: Array<[string, number]>): OcrBlockInfo[] => [
+    {
+      paragraphs: [
+        { lines: [{ words: words.map(([text, confidence]) => ({ text, confidence })) }] },
+      ],
+    },
+  ];
+
+  it('drops low-confidence stray tokens', () => {
+    const blocks = blocksFor([['turtle', 91], ['faia', 12], ['erna', 8]]);
+    expect(filterLowConfidenceWords('turtle faia erna', blocks)).toBe('turtle');
+  });
+
+  it('keeps long dictionary words regardless of confidence', () => {
+    // Real list words on hard photos can come back very low ("purple" at 18)
+    const blocks = blocksFor([['purple', 18], ['tension', 57]]);
+    expect(filterLowConfidenceWords('purple tension', blocks)).toBe('purple tension');
+  });
+
+  it('keeps confident non-dictionary words (pseudoword lists)', () => {
+    const blocks = blocksFor([['wuggle', 85], ['blarn', 78]]);
+    expect(filterLowConfidenceWords('wuggle blarn', blocks)).toBe('wuggle blarn');
+  });
+
+  it('fails open when a token cannot be matched to a block word', () => {
+    // Tokenization differences: blocks may join what text splits
+    const blocks = blocksFor([['challengewords', 86]]);
+    expect(filterLowConfidenceWords('challenge words', blocks)).toBe('challenge words');
+  });
+
+  it('fails open without blocks output', () => {
+    expect(filterLowConfidenceWords('turtle faia', null)).toBe('turtle faia');
+    expect(filterLowConfidenceWords('turtle faia', [])).toBe('turtle faia');
+  });
+
+  it('drops short low-confidence dictionary words from texture noise', () => {
+    const blocks = blocksFor([['i', 27], ['his', 31], ['action', 95]]);
+    expect(filterLowConfidenceWords('i his action', blocks)).toBe('action');
+  });
+
+  it('matches tokens case- and punctuation-insensitively', () => {
+    const blocks = blocksFor([['Turtle,', 91], ['xqzt.', 5]]);
+    expect(filterLowConfidenceWords('Turtle, xqzt.', blocks)).toBe('Turtle,');
   });
 });
 

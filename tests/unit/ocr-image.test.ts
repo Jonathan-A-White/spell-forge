@@ -327,6 +327,11 @@ describe('OCR real-photo regression suite', () => {
       for (const expected of visible) {
         expect(words, `missing "${expected}"`).toContain(expected);
       }
+
+      // Per-word confidence filtering must hold texture strays near zero
+      const known = new Set([...visible, 'challenge', 'words']);
+      const strays = words.filter((w) => !known.has(w));
+      expect(strays.length, `too much garbage: ${strays.join(' ')}`).toBeLessThanOrEqual(3);
     },
     300_000,
   );
