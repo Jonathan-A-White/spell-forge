@@ -19,7 +19,8 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelected = useCallback(async (file: File) => {
     setStatus('processing');
@@ -92,9 +93,12 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
     setOcrResult(null);
     setSelectedWords(new Set());
     setErrorMessage('');
-    // Reset file input so the same file can be re-selected
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    // Reset file inputs so the same file can be re-selected
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
+    }
+    if (galleryInputRef.current) {
+      galleryInputRef.current.value = '';
     }
   }, []);
 
@@ -132,21 +136,35 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
 
           <div className="flex flex-col gap-3">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => cameraInputRef.current?.click()}
               className="bg-sf-primary hover:bg-sf-primary-hover text-sf-primary-text font-bold py-3 px-8 rounded-xl transition-colors shadow-md"
             >
               Take Photo
             </button>
+            <button
+              onClick={() => galleryInputRef.current?.click()}
+              className="bg-sf-surface border border-sf-border hover:border-sf-primary text-sf-heading font-bold py-3 px-8 rounded-xl transition-colors"
+            >
+              Choose Existing Photo
+            </button>
           </div>
 
           <input
-            ref={fileInputRef}
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
             onChange={handleInputChange}
             className="hidden"
             data-testid="camera-file-input"
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleInputChange}
+            className="hidden"
+            data-testid="gallery-file-input"
           />
         </div>
       )}

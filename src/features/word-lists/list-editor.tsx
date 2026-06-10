@@ -202,7 +202,7 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
                 {ocrStatus === 'processing'
                   ? 'Reading...'
                   : ocrAvailable
-                    ? 'Import from camera'
+                    ? 'Import from photo'
                     : 'Camera (not available)'}
               </button>
             )}
@@ -231,11 +231,12 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
           />
           <p className="text-sm text-sf-muted mt-1">{wordCount} words</p>
 
+          {/* No `capture` attribute: the OS picker offers both camera and
+              existing photos, so users can re-import a saved photo. */}
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handlePhotoSelected}
             className="hidden"
             data-testid="camera-file-input"
