@@ -9,19 +9,10 @@ import type {
 
 interface MemoryAidDisplayProps {
   aid: MemoryAid;
+  /** Speak a syllable chunk aloud (enables tap-to-hear on phonetic chunks) */
+  onSpeakChunk?: (text: string) => void;
+  audioBusy?: boolean;
 }
-
-const AID_LABELS: Record<MemoryAid['type'], string> = {
-  phonetic: 'Sound It Out',
-  pattern: 'Pattern Spotter',
-  mnemonic: 'Memory Tricks',
-};
-
-const AID_ICONS: Record<MemoryAid['type'], string> = {
-  phonetic: '\uD83D\uDD0A', // speaker
-  pattern: '\uD83D\uDD0D', // magnifying glass
-  mnemonic: '\uD83D\uDCA1', // light bulb
-};
 
 /** Pattern highlight colors — maps colorIndex (1-4) to Tailwind classes.
  *  Uses theme-aware colors so highlights remain readable in dark mode. */
@@ -33,15 +24,12 @@ const PATTERN_COLORS = [
   'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/50 dark:text-purple-200 dark:border-purple-700',
 ];
 
-export function MemoryAidDisplay({ aid }: MemoryAidDisplayProps) {
+export function MemoryAidDisplay({ aid, onSpeakChunk, audioBusy }: MemoryAidDisplayProps) {
   return (
     <div className="w-full max-w-md mx-auto bg-sf-surface border border-sf-border rounded-xl p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="text-lg" aria-hidden="true">{AID_ICONS[aid.type]}</span>
-        <h3 className="text-base font-semibold text-sf-heading">{AID_LABELS[aid.type]}</h3>
-      </div>
-
-      {aid.type === 'phonetic' && <PhoneticContent aid={aid} />}
+      {aid.type === 'phonetic' && (
+        <PhoneticContent aid={aid} onSpeakChunk={onSpeakChunk} audioBusy={audioBusy} />
+      )}
       {aid.type === 'pattern' && <PatternContent aid={aid} />}
       {aid.type === 'mnemonic' && <MnemonicContent aid={aid} />}
     </div>
@@ -50,20 +38,45 @@ export function MemoryAidDisplay({ aid }: MemoryAidDisplayProps) {
 
 // ─── Phonetic Aid ────────────────────────────────────────────
 
-function PhoneticContent({ aid }: { aid: PhoneticAid }) {
+function PhoneticContent({
+  aid,
+  onSpeakChunk,
+  audioBusy,
+}: {
+  aid: PhoneticAid;
+  onSpeakChunk?: (text: string) => void;
+  audioBusy?: boolean;
+}) {
   return (
     <div className="space-y-3">
-      {/* Syllable chunks */}
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      {/* Syllable chunks — tap one to hear it */}
+      <div className="flex flex-wrap items-start justify-center gap-3">
         {aid.chunks.map((chunk, i) => (
           <div key={i} className="flex flex-col items-center gap-1">
-            <span className="text-xl font-bold text-blue-800 dark:text-blue-100 bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-700 rounded-lg px-3 py-1.5">
+            <button
+              onClick={() => onSpeakChunk?.(chunk.text)}
+              disabled={!onSpeakChunk || audioBusy}
+              className={`text-xl font-bold text-blue-800 dark:text-blue-100 bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-700 rounded-lg px-3 py-1.5 transition-colors ${
+                onSpeakChunk && !audioBusy
+                  ? 'hover:bg-blue-100 dark:hover:bg-blue-800/50 active:scale-95'
+                  : ''
+              } ${audioBusy ? 'opacity-50' : ''}`}
+              aria-label={`Hear "${chunk.text}"`}
+            >
               {chunk.text}
+              {onSpeakChunk && (
+                <span className="text-sm ml-1.5" aria-hidden="true">&#128266;</span>
+              )}
+            </button>
+            <span className="text-sm text-sf-secondary">
+              says &ldquo;{chunk.pronunciation}&rdquo;
             </span>
-            <span className="text-sm text-sf-secondary">{chunk.pronunciation}</span>
           </div>
         ))}
       </div>
+      {onSpeakChunk && (
+        <p className="text-center text-xs text-sf-muted">Tap a part to hear it</p>
+      )}
       {/* Summary */}
       <p className="text-center text-base text-sf-secondary italic">{aid.summary}</p>
     </div>

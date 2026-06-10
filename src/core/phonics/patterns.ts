@@ -63,6 +63,7 @@ export const patterns: PatternEntry[] = [
   { id: 'vt-ie-long', category: 'vowel-team', grapheme: 'ie', phoneme: '/aɪ/', examples: ['pie', 'tie', 'lie', 'die'], hint: '"ie" at the end says long "i".' },
   { id: 'vt-ie-ee', category: 'vowel-team', grapheme: 'ie', phoneme: '/iː/', examples: ['field', 'chief', 'thief', 'belief'], hint: '"ie" can also say long "e".' },
   { id: 'vt-ew', category: 'vowel-team', grapheme: 'ew', phoneme: '/uː/', examples: ['new', 'flew', 'grew', 'blew'], hint: '"ew" says "oo".' },
+  { id: 'vt-ue', category: 'vowel-team', grapheme: 'ue', phoneme: '/uː/', examples: ['blue', 'glue', 'true', 'clue'], hint: '"ue" says "oo" — like blue and glue.' },
   { id: 'vt-aw', category: 'vowel-team', grapheme: 'aw', phoneme: '/ɔː/', examples: ['saw', 'draw', 'claw', 'straw'], hint: '"aw" makes the "aw" sound.' },
   { id: 'vt-au', category: 'vowel-team', grapheme: 'au', phoneme: '/ɔː/', examples: ['sauce', 'cause', 'fault', 'haunt'], hint: '"au" makes the "aw" sound.' },
   { id: 'vt-ey', category: 'vowel-team', grapheme: 'ey', phoneme: '/iː/', examples: ['key', 'monkey', 'honey', 'valley'], hint: '"ey" can say long "e".' },

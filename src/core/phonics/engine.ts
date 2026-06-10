@@ -220,6 +220,12 @@ function detectDirectPatterns(
       if (after < word.length && word[after] === 'n') continue;
     }
 
+    // "ue" vowel team should not match after "q" or "g" (e.g., "queen",
+    // "guess") — there the "u" belongs to the consonant, not a vowel team.
+    if (grapheme === 'ue' && pattern.category === 'vowel-team') {
+      if (idx > 0 && (word[idx - 1] === 'q' || word[idx - 1] === 'g')) continue;
+    }
+
     // For short vowels, check if the vowel position is already covered
     // by a vowel team or other higher-priority pattern
     if (pattern.category === 'short-vowel') {
