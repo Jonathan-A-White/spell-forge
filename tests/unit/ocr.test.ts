@@ -4,7 +4,7 @@ import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
-import { canvasImageOps, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
+import { canvasImageOps, flattenWithBackground, isLikelyGarbage, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
 import type { ImageOps, OcrWorker } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
 
@@ -398,6 +398,79 @@ describe('scoreRecognizedText', () => {
   });
 });
 
+// ─── isLikelyGarbage ────────────────────────────────────────
+
+describe('isLikelyGarbage', () => {
+  it('flags empty results', () => {
+    expect(isLikelyGarbage(scoreRecognizedText(''))).toBe(true);
+  });
+
+  it('flags letter-run fragments from blurry photos', () => {
+    // Actual output observed from a dim, blurry word-list photo
+    expect(isLikelyGarbage(scoreRecognizedText('a fat fis alia erg wri serge ing'))).toBe(true);
+  });
+
+  it('accepts a real word list', () => {
+    expect(
+      isLikelyGarbage(scoreRecognizedText('action fraction motion addition vision tension')),
+    ).toBe(false);
+  });
+
+  it('accepts a list with some unusual words as long as most are real', () => {
+    expect(
+      isLikelyGarbage(scoreRecognizedText('badge edge judge wuggle blagic')),
+    ).toBe(false);
+  });
+});
+
+// ─── flattenWithBackground ──────────────────────────────────
+
+describe('flattenWithBackground', () => {
+  function rgba(...pixels: Array<[number, number, number]>): Uint8ClampedArray {
+    const out = new Uint8ClampedArray(pixels.length * 4);
+    pixels.forEach(([r, g, b], i) => {
+      out[i * 4] = r;
+      out[i * 4 + 1] = g;
+      out[i * 4 + 2] = b;
+      out[i * 4 + 3] = 255;
+    });
+    return out;
+  }
+
+  it('lifts dim paper to the target level and keeps text dark', () => {
+    // Dim photo: paper at 120, text at 60; background estimate ≈ paper
+    const image = rgba([120, 120, 120], [60, 60, 60]);
+    const background = rgba([120, 120, 120], [120, 120, 120]);
+
+    flattenWithBackground(image, background);
+
+    expect(image[0]).toBe(230); // paper → target level
+    expect(image[4]).toBe(115); // text stays proportionally dark
+  });
+
+  it('evens out a brightness gradient across the image', () => {
+    // Same paper photographed bright on the left, dim on the right
+    const image = rgba([200, 200, 200], [100, 100, 100]);
+    const background = rgba([200, 200, 200], [100, 100, 100]);
+
+    flattenWithBackground(image, background);
+
+    expect(image[0]).toBe(230);
+    expect(image[4]).toBe(230);
+  });
+
+  it('writes grayscale output and preserves alpha', () => {
+    const image = rgba([90, 120, 150]);
+    const background = rgba([130, 130, 130]);
+
+    flattenWithBackground(image, background);
+
+    expect(image[0]).toBe(image[1]);
+    expect(image[1]).toBe(image[2]);
+    expect(image[3]).toBe(255);
+  });
+});
+
 // ─── LocalOcrProvider ────────────────────────────────────────
 
 describe('LocalOcrProvider', () => {
@@ -419,7 +492,7 @@ describe('LocalOcrProvider', () => {
 
   it('returns cleaned words from recognizer', async () => {
     const recognizer: RecognizerFn = async () => ({
-      text: '  Hello  WORLD  hello ',
+      text: '  Hello  WORLD  hello apple ',
       confidence: 0.95,
     });
     const provider = new LocalOcrProvider(recognizer);
@@ -427,8 +500,22 @@ describe('LocalOcrProvider', () => {
 
     expect(result.source).toBe('local');
     expect(result.confidence).toBe(0.95);
-    expect(result.words).toEqual(['hello', 'world']);
-    expect(result.rawText).toBe('Hello WORLD hello');
+    expect(result.words).toEqual(['hello', 'world', 'apple']);
+    expect(result.rawText).toBe('Hello WORLD hello apple');
+  });
+
+  it('throws OcrUnreadableError when output is noise rather than words', async () => {
+    const recognizer: RecognizerFn = async () => ({
+      // Stray letter-run fragments typical of a blurry/dim photo — these
+      // pass the plausibility filters but are not English words
+      text: 'a fat fis alia erg wri serge ing',
+      confidence: 0.45,
+    });
+    const provider = new LocalOcrProvider(recognizer);
+
+    await expect(provider.extractWords(new Blob())).rejects.toThrow(
+      /couldn't read the words/i,
+    );
   });
 
   it('applies spell-check correction to OCR output', async () => {
@@ -521,7 +608,7 @@ function makeLocalProvider(opts?: {
   confidence?: number;
   shouldThrow?: boolean;
 }): LocalOcrProvider {
-  const { available = true, text = 'hello world', confidence = 0.9, shouldThrow = false } = opts ?? {};
+  const { available = true, text = 'hello world apple', confidence = 0.9, shouldThrow = false } = opts ?? {};
 
   if (!available) {
     return new LocalOcrProvider(); // no recognizer → unavailable
@@ -561,14 +648,14 @@ function makeRemoteProvider(opts?: {
 
 describe('OcrManager', () => {
   it('tries local first and returns result', async () => {
-    const local = makeLocalProvider({ text: 'apple banana', confidence: 0.92 });
+    const local = makeLocalProvider({ text: 'apple banana orange', confidence: 0.92 });
     const remote = new RemoteOcrProvider(); // no endpoint — unavailable
 
     const manager = new OcrManagerImpl(local, remote);
     const result = await manager.extractWords(new Blob());
 
     expect(result.source).toBe('local');
-    expect(result.words).toEqual(['apple', 'banana']);
+    expect(result.words).toEqual(['apple', 'banana', 'orange']);
   });
 
   it('falls back to remote when local is unavailable', async () => {
@@ -654,17 +741,17 @@ describe('OcrManager', () => {
     expect(result.words).toEqual(['badge', 'edge', 'judge']);
   });
 
-  it('throws when local has low confidence with no words and remote is unavailable', async () => {
+  it('surfaces the unreadable-photo message when output is noise and remote is unavailable', async () => {
     const local = makeLocalProvider({ text: '  ', confidence: 0.1 });
     const remote = new RemoteOcrProvider(); // not configured
 
     const manager = new OcrManagerImpl(local, remote, { confidenceThreshold: 0.5 });
 
-    await expect(manager.extractWords(new Blob())).rejects.toThrow('All OCR providers failed');
+    await expect(manager.extractWords(new Blob())).rejects.toThrow(/couldn't read the words/i);
   });
 
   it('returns local result when confidence equals threshold', async () => {
-    const local = makeLocalProvider({ text: 'exact threshold', confidence: 0.5 });
+    const local = makeLocalProvider({ text: 'badge edge judge', confidence: 0.5 });
     const remote = new RemoteOcrProvider();
 
     const manager = new OcrManagerImpl(local, remote, { confidenceThreshold: 0.5 });
@@ -744,8 +831,9 @@ describe('canvasImageOps.normalize', () => {
     expect(fillRectCalls).toHaveLength(1);
     expect(fillRectCalls[0]).toEqual([0, 0, 200, 100]);
 
-    // drawImage uses 9-arg form: (bitmap, sx, sy, sw, sh, dx, dy, dw, dh)
-    expect(drawImageCalls).toHaveLength(1);
+    // First drawImage call places the bitmap with 9-arg form:
+    // (bitmap, sx, sy, sw, sh, dx, dy, dw, dh). Later calls belong to the
+    // illumination-flattening background estimate.
     expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 200, 100, 0, 0, 200, 100]);
 
     // Bitmap should be cleaned up
@@ -764,7 +852,6 @@ describe('canvasImageOps.normalize', () => {
     expect(canvasHeight).toBe(1350);
 
     // drawImage should scale from full source to downscaled destination
-    expect(drawImageCalls).toHaveLength(1);
     expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 4000, 3000, 0, 0, 1800, 1350]);
 
     expect(fakeBitmap.close).toHaveBeenCalled();

@@ -21,10 +21,11 @@ export interface OcrWorker {
  */
 export interface ImageOps {
   /**
-   * Decode the image, apply EXIF orientation, downscale to a sane size and
-   * re-encode without metadata. Returns null when unavailable/failed.
+   * Decode the image, apply EXIF orientation, downscale to maxDimension,
+   * flatten uneven illumination and re-encode without metadata. Returns null
+   * when unavailable/failed.
    */
-  normalize(image: Blob): Promise<Blob | null>;
+  normalize(image: Blob, maxDimension?: number): Promise<Blob | null>;
   /**
    * Rotate the image by quarterTurns × 90° clockwise, swapping canvas
    * dimensions so no pixels are cropped. Returns null when unavailable/failed.
@@ -54,6 +55,25 @@ const QUARTER_TURN_RADIANS = [0, Math.PI / 2, Math.PI, -Math.PI / 2] as const;
  * resolution on a word list, and large bitmaps risk mobile memory issues.
  */
 const MAX_DIMENSION = 1800;
+
+/**
+ * Retry dimension used when the first pass yields garbage. Blurry photos
+ * (dim-light handheld shots) often become readable when downscaled further:
+ * shrinking re-sharpens soft strokes relative to letter size.
+ */
+const RETRY_DIMENSION = 1200;
+
+/**
+ * Target paper brightness (0-255) after illumination flattening.
+ */
+const FLATTEN_PAPER_LEVEL = 230;
+
+/**
+ * Factor by which the image is shrunk to estimate the background for
+ * illumination flattening (downscale-then-upscale acts as a cheap blur whose
+ * radius scales with the image).
+ */
+const BACKGROUND_SHRINK_FACTOR = 24;
 
 /**
  * Minimum valid output blob size in bytes. A valid JPEG/PNG of a photo will
@@ -121,6 +141,42 @@ function isEarlyExit(s: OrientationScore): boolean {
 }
 
 /**
+ * Heuristic for "this OCR result is unusable noise, not a word list".
+ * Dim/blurry photos produce stray letter-run tokens that pass the
+ * plausibility filters ("fis", "alia", "erg") but are not English words.
+ * Tesseract's own confidence cannot be used for this: it reports up to 95
+ * on pure noise.
+ */
+export function isLikelyGarbage(score: OrientationScore): boolean {
+  if (score.plausibleWords === 0) return true;
+  if (score.dictWords < 3) return true;
+  return score.dictWords / score.plausibleWords < 0.35;
+}
+
+/**
+ * Divide an RGBA image by a blurred-background RGBA estimate of the same
+ * size, writing a flattened grayscale result in place. This removes uneven
+ * lighting (vignettes, shadows, dim rooms) that defeats Tesseract's global
+ * binarization on real phone photos.
+ *
+ * Shared by the browser canvas implementation and the Node test
+ * implementation so both paths run identical math.
+ */
+export function flattenWithBackground(
+  image: Uint8ClampedArray,
+  background: Uint8ClampedArray,
+): void {
+  for (let i = 0; i < image.length; i += 4) {
+    const gray = (image[i] + image[i + 1] + image[i + 2]) / 3;
+    const bg = (background[i] + background[i + 1] + background[i + 2]) / 3;
+    const v = Math.min(255, Math.round((gray / Math.max(bg, 1)) * FLATTEN_PAPER_LEVEL));
+    image[i] = v;
+    image[i + 1] = v;
+    image[i + 2] = v;
+  }
+}
+
+/**
  * Browser implementation of ImageOps using createImageBitmap + OffscreenCanvas.
  *
  * createImageBitmap applies EXIF orientation during decode (the default
@@ -130,7 +186,7 @@ function isEarlyExit(s: OrientationScore): boolean {
  * photos otherwise reach Tesseract sideways with no warning.
  */
 export const canvasImageOps: ImageOps = {
-  async normalize(image: Blob): Promise<Blob | null> {
+  async normalize(image: Blob, maxDimension: number = MAX_DIMENSION): Promise<Blob | null> {
     if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
       return null;
     }
@@ -140,8 +196,8 @@ export const canvasImageOps: ImageOps = {
         let drawWidth = bitmap.width;
         let drawHeight = bitmap.height;
         const maxSide = Math.max(drawWidth, drawHeight);
-        if (maxSide > MAX_DIMENSION) {
-          const scale = MAX_DIMENSION / maxSide;
+        if (maxSide > maxDimension) {
+          const scale = maxDimension / maxSide;
           drawWidth = Math.round(drawWidth * scale);
           drawHeight = Math.round(drawHeight * scale);
         }
@@ -155,6 +211,30 @@ export const canvasImageOps: ImageOps = {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, drawWidth, drawHeight);
+
+        // Flatten uneven lighting: estimate the background by shrinking the
+        // image and scaling it back up (a cheap, portable blur), then divide.
+        // Best-effort — if any canvas op fails, the unflattened image is used.
+        try {
+          const bgW = Math.max(1, Math.round(drawWidth / BACKGROUND_SHRINK_FACTOR));
+          const bgH = Math.max(1, Math.round(drawHeight / BACKGROUND_SHRINK_FACTOR));
+          const small = new OffscreenCanvas(bgW, bgH);
+          const smallCtx = small.getContext('2d');
+          const bgCanvas = new OffscreenCanvas(drawWidth, drawHeight);
+          const bgCtx = bgCanvas.getContext('2d');
+          if (smallCtx && bgCtx) {
+            smallCtx.drawImage(canvas, 0, 0, bgW, bgH);
+            bgCtx.imageSmoothingEnabled = true;
+            bgCtx.drawImage(small, 0, 0, drawWidth, drawHeight);
+
+            const imageData = ctx.getImageData(0, 0, drawWidth, drawHeight);
+            const bgData = bgCtx.getImageData(0, 0, drawWidth, drawHeight);
+            flattenWithBackground(imageData.data, bgData.data);
+            ctx.putImageData(imageData, 0, 0);
+          }
+        } catch {
+          // keep the unflattened image
+        }
 
         const result = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
         if (result.size < MIN_BLOB_SIZE) return null;
@@ -282,6 +362,22 @@ export async function recognizeWithOrientationDetection(
   // keep whichever scores best.
   if (best.confidence < DESKEW_CONFIDENCE_THRESHOLD && best.image instanceof Blob) {
     best = await trySmallRotations(worker, best, imageOps);
+  }
+
+  // Low-resolution retry: blurry photos (dim handheld shots) often become
+  // readable when downscaled further, because shrinking re-sharpens soft
+  // strokes relative to letter size.
+  if (isLikelyGarbage(best.score) && image instanceof Blob) {
+    const smaller = await imageOps.normalize(image, RETRY_DIMENSION);
+    if (smaller) {
+      let retryBest = await tryAllOrientations(worker, smaller, imageOps, true);
+      if (retryBest.confidence < DESKEW_CONFIDENCE_THRESHOLD && retryBest.image instanceof Blob) {
+        retryBest = await trySmallRotations(worker, retryBest, imageOps);
+      }
+      if (retryBest.score.score > best.score.score) {
+        best = retryBest;
+      }
+    }
   }
 
   return { text: best.text, confidence: best.confidence / 100 };
