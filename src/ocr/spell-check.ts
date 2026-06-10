@@ -30,6 +30,8 @@ const CHAR_SUBSTITUTIONS: ReadonlyArray<[string, string]> = [
   ['i', '1'],
   ['e', 'c'],
   ['c', 'e'],
+  ['o', 'c'],   // frequenoy → frequency
+  ['c', 'o'],
   ['h', 'b'],
   ['b', 'h'],
   ['n', 'r'],

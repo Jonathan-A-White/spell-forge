@@ -187,6 +187,10 @@ describe('correctOcrWords', () => {
     expect(correctOcrWords(['ractangle'])).toEqual(['rectangle']);
   });
 
+  it('corrects o→c substitution (frequenoy → frequency)', () => {
+    expect(correctOcrWords(['frequenoy'])).toEqual(['frequency']);
+  });
+
   it('corrects g→a plus a→e double misread (gngla → angle)', () => {
     // Rounded print fonts on worksheets: 'a' misread as 'g', 'e' as 'a'
     expect(correctOcrWords(['gngla'])).toEqual(['angle']);
@@ -798,16 +802,14 @@ describe('canvasImageOps.normalize', () => {
     // Output blob must exceed MIN_BLOB_SIZE (1024 bytes) to pass validation
     const outputBlob = new Blob([new Uint8Array(2048)], { type: 'image/png' });
 
-    let canvasWidth = 0;
-    let canvasHeight = 0;
+    const canvasSizes: string[] = [];
     class MockOffscreenCanvas {
       width: number;
       height: number;
       constructor(w: number, h: number) {
         this.width = w;
         this.height = h;
-        canvasWidth = w;
-        canvasHeight = h;
+        canvasSizes.push(`${w}x${h}`);
       }
       getContext() { return fakeCtx; }
       convertToBlob() { return Promise.resolve(outputBlob); }
@@ -821,47 +823,48 @@ describe('canvasImageOps.normalize', () => {
     const blob = new Blob(['test'], { type: 'image/png' });
     try {
       const result = await canvasImageOps.normalize(blob);
-      return { result, blob, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasWidth, canvasHeight };
+      return { result, blob, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasSizes };
     } finally {
       vi.unstubAllGlobals();
     }
   }
 
   it('re-encodes a small image at original size without any border', async () => {
-    const { result, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasWidth, canvasHeight } =
+    const { result, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasSizes } =
       await runWithMockCanvas(200, 100);
 
     expect(result).toBe(outputBlob);
 
     // No downscaling and — critically — no padding: a solid white border
-    // makes Tesseract's page segmentation discard the photo as a picture
-    expect(canvasWidth).toBe(200);
-    expect(canvasHeight).toBe(100);
-    expect(fillRectCalls).toHaveLength(1);
+    // makes Tesseract's page segmentation discard the photo as a picture.
+    // The main canvas keeps the original size; later canvases belong to the
+    // illumination-flattening background estimate.
+    expect(canvasSizes[0]).toBe('200x100');
     expect(fillRectCalls[0]).toEqual([0, 0, 200, 100]);
 
     // First drawImage call places the bitmap with 9-arg form:
-    // (bitmap, sx, sy, sw, sh, dx, dy, dw, dh). Later calls belong to the
-    // illumination-flattening background estimate.
+    // (bitmap, sx, sy, sw, sh, dx, dy, dw, dh)
     expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 200, 100, 0, 0, 200, 100]);
 
     // Bitmap should be cleaned up
     expect(fakeBitmap.close).toHaveBeenCalled();
   });
 
-  it('downscales large images', async () => {
+  it('downscales large images with progressive halving', async () => {
     // Simulate a 4000x3000 phone photo (exceeds MAX_DIMENSION of 1800)
-    const { result, outputBlob, fakeBitmap, drawImageCalls, canvasWidth, canvasHeight } =
+    const { result, outputBlob, fakeBitmap, drawImageCalls, canvasSizes } =
       await runWithMockCanvas(4000, 3000);
 
     expect(result).toBe(outputBlob);
 
-    // Scale factor = 1800/4000 = 0.45 → 1800 x 1350, no border
-    expect(canvasWidth).toBe(1800);
-    expect(canvasHeight).toBe(1350);
+    // Scale factor = 1800/4000 = 0.45. A single large-ratio drawImage
+    // aliases (canvas 2d has no mipmaps), so the image is halved to
+    // 2000x1500 first, then drawn to the final 1800x1350 — no border.
+    expect(canvasSizes[0]).toBe('2000x1500');
+    expect(canvasSizes[1]).toBe('1800x1350');
 
-    // drawImage should scale from full source to downscaled destination
-    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 4000, 3000, 0, 0, 1800, 1350]);
+    // First draw consumes the full-resolution bitmap
+    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 4000, 3000, 0, 0, 2000, 1500]);
 
     expect(fakeBitmap.close).toHaveBeenCalled();
   });
