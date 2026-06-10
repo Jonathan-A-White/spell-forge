@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
+  createSession,
   recordAttempt,
   endSession,
   type SessionState,
 } from '../../src/features/practice/session-controller';
-import type { Word } from '../../src/contracts/types';
+import { interleaveByPattern } from '../../src/core/word-selection';
+import type { PatternCategory, Word, WordList } from '../../src/contracts/types';
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -41,6 +43,29 @@ function makeSessionWithWords(words: Word[]): SessionState {
     requeueCounts: {},
     scaffoldWordIds: [],
   };
+}
+
+function makePatternWord(
+  id: string,
+  text: string,
+  patternId: string,
+  category: PatternCategory = 'vowel-team',
+): Word {
+  return {
+    ...makeWord(id, text),
+    patterns: [{ id: patternId, category, grapheme: 'ai', hint: 'test hint' }],
+  };
+}
+
+/** Count adjacent pairs sharing the same dominant pattern family. */
+function adjacentSameFamily(words: Word[]): number {
+  let count = 0;
+  for (let i = 1; i < words.length; i++) {
+    const prev = words[i - 1].patterns[0]?.id ?? 'no-pattern';
+    const curr = words[i].patterns[0]?.id ?? 'no-pattern';
+    if (prev === curr) count++;
+  }
+  return count;
 }
 
 // ─── Accuracy with mistakes ──────────────────────────────────
@@ -247,6 +272,140 @@ describe('recordAttempt re-queue (successive relearning)', () => {
 
     expect(session.words.map((w) => w.id)).toEqual(['w1', 'w2', 'w1']);
     expect(session.isComplete).toBe(false);
+  });
+});
+
+// ─── Pattern-aware interleaving ──────────────────────────────
+
+describe('interleaveByPattern', () => {
+  it('should never place same-family words adjacent with balanced families', () => {
+    const words = [
+      makePatternWord('a1', 'rain', 'vt-ai'),
+      makePatternWord('a2', 'mail', 'vt-ai'),
+      makePatternWord('a3', 'paint', 'vt-ai'),
+      makePatternWord('b1', 'cake', 'se-a'),
+      makePatternWord('b2', 'made', 'se-a'),
+      makePatternWord('b3', 'gate', 'se-a'),
+      makePatternWord('c1', 'car', 'rc-ar'),
+      makePatternWord('c2', 'park', 'rc-ar'),
+      makePatternWord('c3', 'star', 'rc-ar'),
+    ];
+
+    // Ordering is random — verify the invariant across many runs
+    for (let run = 0; run < 25; run++) {
+      const result = interleaveByPattern(words);
+      expect(result).toHaveLength(9);
+      expect(result.map((w) => w.id).sort()).toEqual(words.map((w) => w.id).sort());
+      expect(adjacentSameFamily(result)).toBe(0);
+    }
+  });
+
+  it('should alternate two balanced families perfectly', () => {
+    const words = [
+      makePatternWord('a1', 'rain', 'vt-ai'),
+      makePatternWord('a2', 'mail', 'vt-ai'),
+      makePatternWord('a3', 'paint', 'vt-ai'),
+      makePatternWord('b1', 'cake', 'se-a'),
+      makePatternWord('b2', 'made', 'se-a'),
+      makePatternWord('b3', 'gate', 'se-a'),
+    ];
+
+    for (let run = 0; run < 25; run++) {
+      expect(adjacentSameFamily(interleaveByPattern(words))).toBe(0);
+    }
+  });
+
+  it('should return all words when every word shares one pattern family', () => {
+    const words = [
+      makePatternWord('a1', 'rain', 'vt-ai'),
+      makePatternWord('a2', 'mail', 'vt-ai'),
+      makePatternWord('a3', 'paint', 'vt-ai'),
+      makePatternWord('a4', 'train', 'vt-ai'),
+    ];
+
+    const result = interleaveByPattern(words);
+    expect(result.map((w) => w.id).sort()).toEqual(['a1', 'a2', 'a3', 'a4']);
+  });
+
+  it('should treat words without patterns as a single family', () => {
+    const words = [
+      makeWord('n1', 'casa'),
+      makeWord('n2', 'gato'),
+      makeWord('n3', 'perro'),
+      makePatternWord('a1', 'rain', 'vt-ai'),
+      makePatternWord('a2', 'mail', 'vt-ai'),
+      makePatternWord('a3', 'paint', 'vt-ai'),
+    ];
+
+    for (let run = 0; run < 25; run++) {
+      const result = interleaveByPattern(words);
+      expect(result).toHaveLength(6);
+      expect(adjacentSameFamily(result)).toBe(0);
+    }
+  });
+
+  it('should cluster only the unavoidable repeats when one family dominates', () => {
+    const words = [
+      makePatternWord('a1', 'rain', 'vt-ai'),
+      makePatternWord('a2', 'mail', 'vt-ai'),
+      makePatternWord('a3', 'paint', 'vt-ai'),
+      makePatternWord('a4', 'train', 'vt-ai'),
+      makePatternWord('b1', 'cake', 'se-a'),
+    ];
+
+    // 4 vs 1: at best the lone word breaks one adjacency → 2 unavoidable pairs
+    for (let run = 0; run < 25; run++) {
+      const result = interleaveByPattern(words);
+      expect(result).toHaveLength(5);
+      expect(adjacentSameFamily(result)).toBe(2);
+    }
+  });
+});
+
+describe('createSession interleaving', () => {
+  const activeList: WordList = {
+    id: 'list-1',
+    profileId: 'profile-1',
+    name: 'Week 1',
+    language: 'en',
+    testDate: null,
+    createdAt: new Date('2026-03-01'),
+    source: 'manual',
+    active: true,
+    archived: false,
+  };
+
+  it('should order session words so same-family words are not adjacent', () => {
+    const words = [
+      makePatternWord('a1', 'rain', 'vt-ai'),
+      makePatternWord('a2', 'mail', 'vt-ai'),
+      makePatternWord('b1', 'cake', 'se-a'),
+      makePatternWord('b2', 'made', 'se-a'),
+      makePatternWord('c1', 'car', 'rc-ar'),
+      makePatternWord('c2', 'park', 'rc-ar'),
+    ];
+
+    for (let run = 0; run < 25; run++) {
+      const session = createSession('profile-1', activeList, words, [], null, {
+        sessionSize: 6,
+      });
+      expect(session.words).toHaveLength(6);
+      expect(adjacentSameFamily(session.words)).toBe(0);
+    }
+  });
+
+  it('should still include all words when the list has a single pattern family', () => {
+    const words = [
+      makePatternWord('a1', 'rain', 'vt-ai'),
+      makePatternWord('a2', 'mail', 'vt-ai'),
+      makePatternWord('a3', 'paint', 'vt-ai'),
+      makePatternWord('a4', 'train', 'vt-ai'),
+    ];
+
+    const session = createSession('profile-1', activeList, words, [], null, {
+      sessionSize: 4,
+    });
+    expect(session.words.map((w) => w.id).sort()).toEqual(['a1', 'a2', 'a3', 'a4']);
   });
 });
 
