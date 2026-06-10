@@ -38,7 +38,9 @@ export function createTesseractRecognizer(): RecognizerFn {
 
   const recognizer: RecognizerFn = async (image: Blob) => {
     const worker = await getWorker();
-    // Skip padding for now — passing raw image directly to debug OCR failures
+    // Normalization (EXIF, downscale, padding) and rotation happen inside
+    // recognizeWithOrientationDetection via canvas; Tesseract never relies on
+    // its own EXIF parsing or rotateRadians in the browser.
     return recognizeWithOrientationDetection(worker, image);
   };
 

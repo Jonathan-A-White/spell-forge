@@ -8,5 +8,5 @@ export type { OcrManager } from './manager.ts';
 export { cleanWords, normalizeWhitespace, filterImportWords } from './utils.ts';
 export { correctOcrWords } from './spell-check.ts';
 export { createTesseractRecognizer } from './tesseract-recognizer.ts';
-export { addPadding, recognizeWithOrientationDetection } from './preprocess.ts';
-export type { OcrWorker } from './preprocess.ts';
+export { canvasImageOps, recognizeWithOrientationDetection, scoreRecognizedText } from './preprocess.ts';
+export type { OcrWorker, ImageOps, OrientationScore } from './preprocess.ts';

@@ -210,7 +210,7 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
 
           {ocrAvailable && ocrStatus === 'idle' && (
             <p className="text-xs text-sf-muted mb-2">
-              Tip: Turn the word list sideways so words read bottom to top, then snap a photo with your phone upright.
+              Tip: Lay the list flat in good light and fill the frame with the words — any rotation is fine.
             </p>
           )}
 

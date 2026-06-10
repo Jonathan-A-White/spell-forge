@@ -1,6 +1,7 @@
 // src/ocr/preprocess.ts — image preprocessing utilities for OCR
 
 import { cleanWords } from './utils.ts';
+import { WORD_SET } from './word-list.ts';
 
 /**
  * A minimal Tesseract.js worker interface for orientation detection.
@@ -12,155 +13,374 @@ export interface OcrWorker {
 }
 
 /**
- * Candidate rotation angles (in radians) for orientation detection.
- * Covers the four cardinal orientations that cover common photo rotations.
+ * Canvas-style image operations used by the OCR pipeline.
  *
- * Research context: Multi-orientation OCR is a standard technique in document
- * analysis (see Smith 2007, "An Overview of the Tesseract OCR Engine" — §4
- * on page layout analysis). For photographed documents, the four cardinal
- * orientations cover the vast majority of real-world cases.
+ * The browser implementation (canvasImageOps) uses createImageBitmap +
+ * OffscreenCanvas. Tests can inject a Node implementation (e.g. sharp-based)
+ * so the exact same orientation-detection logic is exercised end to end.
  */
-const CANDIDATE_ROTATIONS = [
-  0,                  // upright
-  Math.PI / 2,        // 90° CW
-  Math.PI,            // 180°
-  -Math.PI / 2,       // 90° CCW (equivalently 270° CW)
-];
-
-/**
- * Minimum number of plausible words required to short-circuit orientation search.
- * If a rotation produces at least this many words with high confidence, we can
- * skip trying the remaining rotations.
- */
-const MIN_WORDS_FOR_EARLY_EXIT = 5;
-
-/** Confidence threshold (0-100 Tesseract scale) to short-circuit orientation search. */
-const HIGH_CONFIDENCE_THRESHOLD = 80;
-
-/**
- * Percentage of the smaller image dimension to use as padding on each side.
- * Tesseract needs whitespace around text to reliably detect text boundaries.
- * 5% on each side (10% total) matches the Tesseract best-practices recommendation.
- */
-const PADDING_PERCENT = 0.05;
-
-/**
- * Maximum pixel dimension (width or height) before downscaling.
- * Mobile devices can silently fail when OffscreenCanvas allocates large pixel
- * buffers (e.g. a 4000×3000 photo ≈ 48 MB RGBA). Capping at 2048 px keeps the
- * buffer under ~16 MB while preserving enough detail for Tesseract.
- */
-const MAX_DIMENSION = 2048;
-
-/**
- * Minimum valid output blob size in bytes.
- * A valid PNG or JPEG will always exceed this. If convertToBlob returns
- * something smaller it almost certainly produced a blank/corrupt image.
- */
-const MIN_BLOB_SIZE = 1024;
-
-/**
- * Adds white padding around an image Blob using an OffscreenCanvas.
- * Large images are downscaled first to avoid mobile memory issues.
- * Returns a new Blob with the padded image, or the original if padding
- * cannot be applied (e.g. OffscreenCanvas not available or canvas failure).
- */
-export async function addPadding(image: Blob): Promise<Blob> {
-  if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
-    return image;
-  }
-
-  try {
-    const bitmap = await createImageBitmap(image);
-    try {
-      // Downscale if either dimension exceeds the cap
-      let drawWidth = bitmap.width;
-      let drawHeight = bitmap.height;
-      const maxSide = Math.max(drawWidth, drawHeight);
-      if (maxSide > MAX_DIMENSION) {
-        const scale = MAX_DIMENSION / maxSide;
-        drawWidth = Math.round(drawWidth * scale);
-        drawHeight = Math.round(drawHeight * scale);
-      }
-
-      const pad = Math.round(Math.min(drawWidth, drawHeight) * PADDING_PERCENT);
-      const canvas = new OffscreenCanvas(drawWidth + pad * 2, drawHeight + pad * 2);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        return image;
-      }
-
-      // Fill with white, then draw the (possibly downscaled) image offset by padding
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, pad, pad, drawWidth, drawHeight);
-
-      const result = await canvas.convertToBlob({ type: image.type || 'image/png' });
-
-      // Validate: a blank or corrupt blob will be suspiciously small
-      if (result.size < MIN_BLOB_SIZE) {
-        return image;
-      }
-
-      return result;
-    } finally {
-      bitmap.close();
-    }
-  } catch {
-    // Any failure (OOM, SecurityError, etc.) → use the original image
-    return image;
-  }
+export interface ImageOps {
+  /**
+   * Decode the image, apply EXIF orientation, downscale to a sane size and
+   * re-encode without metadata. Returns null when unavailable/failed.
+   */
+  normalize(image: Blob): Promise<Blob | null>;
+  /**
+   * Rotate the image by quarterTurns × 90° clockwise, swapping canvas
+   * dimensions so no pixels are cropped. Returns null when unavailable/failed.
+   */
+  rotate(image: Blob, quarterTurns: 1 | 2 | 3): Promise<Blob | null>;
+  /**
+   * Rotate the image by a small angle (degrees, clockwise) about its center,
+   * keeping the canvas size. Used to deskew tilted handheld photos. Returns
+   * null when unavailable/failed.
+   */
+  rotateSmall(image: Blob, degrees: number): Promise<Blob | null>;
 }
 
 /**
- * Tries multiple orientations on the given image using the provided worker
- * and returns the result that produces the most plausible English words.
+ * Quarter-turn rotations to try, in order. 0 first: with EXIF normalization
+ * most photos are already upright, so the first attempt usually wins and
+ * early-exits.
+ */
+const CANDIDATE_QUARTER_TURNS = [0, 1, 2, 3] as const;
+
+/** rotateRadians equivalents for the Tesseract fallback path (clockwise). */
+const QUARTER_TURN_RADIANS = [0, Math.PI / 2, Math.PI, -Math.PI / 2] as const;
+
+/**
+ * Maximum pixel dimension (width or height) after normalization.
+ * Modern phone photos are ~4000×3000; Tesseract gains nothing from that
+ * resolution on a word list, and large bitmaps risk mobile memory issues.
+ */
+const MAX_DIMENSION = 1800;
+
+/**
+ * Minimum valid output blob size in bytes. A valid JPEG/PNG of a photo will
+ * always exceed this; anything smaller is a blank/corrupt canvas export.
+ */
+const MIN_BLOB_SIZE = 1024;
+
+// NOTE: never add a solid white border around photos here. Tesseract's page
+// segmentation classifies a sharp-edged photo region floating on a uniform
+// white "page" as a picture (not text) and returns empty output at 0.0
+// confidence — this was the root cause of the historical addPadding failures.
+
+/**
+ * Orientation scoring: dictionary words are weighted heavier than merely
+ * plausible tokens. A wrongly-rotated image still produces tokens that pass
+ * the plausibility heuristics, but it produces almost no real English words.
+ */
+const DICTIONARY_WORD_WEIGHT = 3;
+
+/**
+ * Early exit: stop trying further rotations once an orientation yields at
+ * least this many dictionary words AND dictionary words are the majority of
+ * recognized tokens. (Confidence is deliberately not used here — real photos
+ * of colored/textured paper score low confidence even when perfectly read.)
+ */
+const MIN_DICT_WORDS_FOR_EARLY_EXIT = 5;
+
+/**
+ * Tesseract reads tilted text reliably only up to ~3-4° of skew. When the
+ * best cardinal orientation scores below this confidence (0-100), small
+ * corrective rotations are attempted. ±4°/±8° leave at most ~2° of residual
+ * tilt for any handheld skew up to ~10°.
+ */
+const DESKEW_CONFIDENCE_THRESHOLD = 80;
+const DESKEW_ANGLES_DEG = [4, -4, 8, -8];
+
+export interface OrientationScore {
+  score: number;
+  dictWords: number;
+  plausibleWords: number;
+}
+
+/**
+ * Score recognized text for orientation selection.
+ * Exported for tests.
+ */
+export function scoreRecognizedText(text: string): OrientationScore {
+  const words = cleanWords(text);
+  let dictWords = 0;
+  for (const w of words) {
+    if (WORD_SET.has(w)) dictWords++;
+  }
+  return {
+    score: dictWords * DICTIONARY_WORD_WEIGHT + (words.length - dictWords),
+    dictWords,
+    plausibleWords: words.length,
+  };
+}
+
+function isEarlyExit(s: OrientationScore): boolean {
+  return (
+    s.dictWords >= MIN_DICT_WORDS_FOR_EARLY_EXIT &&
+    s.dictWords * 2 >= s.plausibleWords
+  );
+}
+
+/**
+ * Browser implementation of ImageOps using createImageBitmap + OffscreenCanvas.
+ *
+ * createImageBitmap applies EXIF orientation during decode (the default
+ * imageOrientation is "from-image" in all modern browsers), which sidesteps
+ * Tesseract.js's unreliable EXIF sniffing — its regex parser only understands
+ * big-endian EXIF, while many phone cameras write little-endian, so phone
+ * photos otherwise reach Tesseract sideways with no warning.
+ */
+export const canvasImageOps: ImageOps = {
+  async normalize(image: Blob): Promise<Blob | null> {
+    if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
+      return null;
+    }
+    try {
+      const bitmap = await createImageBitmap(image);
+      try {
+        let drawWidth = bitmap.width;
+        let drawHeight = bitmap.height;
+        const maxSide = Math.max(drawWidth, drawHeight);
+        if (maxSide > MAX_DIMENSION) {
+          const scale = MAX_DIMENSION / maxSide;
+          drawWidth = Math.round(drawWidth * scale);
+          drawHeight = Math.round(drawHeight * scale);
+        }
+
+        const canvas = new OffscreenCanvas(drawWidth, drawHeight);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        // White underlay only matters for transparent PNGs; it does not
+        // create a border (see padding note above).
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, drawWidth, drawHeight);
+
+        const result = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+        if (result.size < MIN_BLOB_SIZE) return null;
+        return result;
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      return null;
+    }
+  },
+
+  async rotate(image: Blob, quarterTurns: 1 | 2 | 3): Promise<Blob | null> {
+    if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
+      return null;
+    }
+    try {
+      const bitmap = await createImageBitmap(image);
+      try {
+        const { width: srcW, height: srcH } = bitmap;
+        const swap = quarterTurns % 2 === 1;
+        const dstW = swap ? srcH : srcW;
+        const dstH = swap ? srcW : srcH;
+
+        const canvas = new OffscreenCanvas(dstW, dstH);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        ctx.translate(dstW / 2, dstH / 2);
+        ctx.rotate((quarterTurns * Math.PI) / 2);
+        ctx.drawImage(bitmap, -srcW / 2, -srcH / 2);
+
+        const result = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+        if (result.size < MIN_BLOB_SIZE) return null;
+        return result;
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      return null;
+    }
+  },
+
+  async rotateSmall(image: Blob, degrees: number): Promise<Blob | null> {
+    if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
+      return null;
+    }
+    try {
+      const bitmap = await createImageBitmap(image);
+      try {
+        const { width, height } = bitmap;
+        const canvas = new OffscreenCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        // Mid-gray corner fill: white fill makes Tesseract's page
+        // segmentation discard the photo region (see padding note above).
+        ctx.fillStyle = '#808080';
+        ctx.fillRect(0, 0, width, height);
+        ctx.translate(width / 2, height / 2);
+        ctx.rotate((degrees * Math.PI) / 180);
+        ctx.drawImage(bitmap, -width / 2, -height / 2);
+
+        const result = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+        if (result.size < MIN_BLOB_SIZE) return null;
+        return result;
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      return null;
+    }
+  },
+};
+
+/**
+ * Tries the four cardinal orientations of the given image and returns the
+ * result that produces the most real English words.
  *
  * This is necessary because Tesseract's built-in auto-rotation (deskew) only
  * corrects small angles (~±15°), not the 90°/180°/270° rotations common in
- * phone-captured photos of spelling lists and worksheets.
+ * phone-captured photos of spelling lists and worksheets. Small skew from a
+ * handheld photo is handled by Tesseract itself on top of the cardinal
+ * rotation chosen here.
  *
- * Scoring: the number of plausible words (via cleanWords) is the primary
- * signal; Tesseract confidence is the tiebreaker.  Raw confidence alone is
- * unreliable because Tesseract can report similar or even higher confidence
- * for a wrongly-rotated image (it "recognizes" garbage characters with
- * moderate per-character confidence).  The correct orientation consistently
- * produces more real English words.
+ * Rotation strategy:
+ *  - With ImageOps available (browser, or tests injecting a Node
+ *    implementation): the image is normalized once (EXIF applied, downscaled,
+ *    padded, metadata stripped), then physically rotated per orientation with
+ *    correct dimension swapping. Tesseract always receives an upright-encoded
+ *    image and never consults its own EXIF parsing or rotation.
+ *  - Without ImageOps (plain Node): falls back to Tesseract's rotateRadians.
+ *
+ * Scoring: dictionary-word count is the primary signal (see
+ * scoreRecognizedText) — Tesseract's confidence is only a tiebreaker, since
+ * it can report similar or higher confidence for a wrongly-rotated image by
+ * "recognizing" garbage characters.
+ *
+ * Safety net: if every orientation of the preprocessed image yields nothing,
+ * the original untouched blob is retried once (guards against rare canvas
+ * encode failures producing blank images on specific devices).
  */
 export async function recognizeWithOrientationDetection(
   worker: OcrWorker,
   image: unknown,
+  imageOps: ImageOps = canvasImageOps,
 ): Promise<{ text: string; confidence: number }> {
-  let bestText = '';
-  let bestConfidence = -1;
-  let bestWordCount = -1;
+  const normalized =
+    image instanceof Blob ? await imageOps.normalize(image) : null;
 
-  for (const angle of CANDIDATE_ROTATIONS) {
-    // For 0° (upright), omit rotateRadians entirely so Tesseract uses its
-    // default path — passing rotateRadians: 0 can trigger unnecessary
-    // image-rotation codepaths in some Tesseract.js versions.
-    const opts = angle === 0 ? {} : { rotateRadians: angle };
-    const { data } = await worker.recognize(image, opts);
+  let best = await tryAllOrientations(worker, normalized ?? image, imageOps, normalized !== null);
 
-    const wordCount = cleanWords(data.text).length;
-
-    if (
-      wordCount > bestWordCount ||
-      (wordCount === bestWordCount && data.confidence > bestConfidence)
-    ) {
-      bestConfidence = data.confidence;
-      bestText = data.text;
-      bestWordCount = wordCount;
-    }
-
-    // Early exit: enough real words with high confidence — no need to try more
-    if (wordCount >= MIN_WORDS_FOR_EARLY_EXIT && data.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
-      break;
+  // Safety net: preprocessed image produced nothing usable — retry the raw
+  // input via the Tesseract-side rotation path before giving up.
+  if (best.score.plausibleWords === 0 && normalized !== null) {
+    const rawBest = await tryAllOrientations(worker, image, imageOps, false);
+    if (rawBest.score.score > best.score.score) {
+      return { text: rawBest.text, confidence: rawBest.confidence / 100 };
     }
   }
 
-  return {
-    text: bestText,
-    confidence: bestConfidence / 100,
+  // Deskew sweep: a low-confidence result on the winning cardinal
+  // orientation usually means the photo was taken at a slight tilt, which
+  // Tesseract only tolerates up to ~3-4°. Try small corrective rotations and
+  // keep whichever scores best.
+  if (best.confidence < DESKEW_CONFIDENCE_THRESHOLD && best.image instanceof Blob) {
+    best = await trySmallRotations(worker, best, imageOps);
+  }
+
+  return { text: best.text, confidence: best.confidence / 100 };
+}
+
+interface OrientationResult {
+  text: string;
+  confidence: number;
+  score: OrientationScore;
+  /** The (possibly rotated) image that produced this result. */
+  image: unknown;
+}
+
+async function trySmallRotations(
+  worker: OcrWorker,
+  best: OrientationResult,
+  imageOps: ImageOps,
+): Promise<OrientationResult> {
+  const baseImage = best.image as Blob;
+
+  for (const degrees of DESKEW_ANGLES_DEG) {
+    try {
+      const rotated = await imageOps.rotateSmall(baseImage, degrees);
+      if (!rotated) break; // rotation unavailable — no point trying more angles
+
+      const bytes = new Uint8Array(await rotated.arrayBuffer());
+      const { data } = await worker.recognize(bytes, {});
+      const score = scoreRecognizedText(data.text);
+
+      if (
+        score.score > best.score.score ||
+        (score.score === best.score.score && data.confidence > best.confidence)
+      ) {
+        best = { text: data.text, confidence: data.confidence, score, image: rotated };
+      }
+
+      if (best.confidence >= DESKEW_CONFIDENCE_THRESHOLD && isEarlyExit(best.score)) break;
+    } catch {
+      continue;
+    }
+  }
+
+  return best;
+}
+
+async function tryAllOrientations(
+  worker: OcrWorker,
+  image: unknown,
+  imageOps: ImageOps,
+  useImageRotation: boolean,
+): Promise<OrientationResult> {
+  let best: OrientationResult = {
+    text: '',
+    confidence: 0,
+    score: { score: -1, dictWords: 0, plausibleWords: 0 },
+    image,
   };
+
+  for (const quarterTurns of CANDIDATE_QUARTER_TURNS) {
+    try {
+      let attemptImage = image;
+      let recognizeImage = image;
+      let opts: Record<string, unknown> = {};
+
+      if (quarterTurns !== 0) {
+        let rotated: Blob | null = null;
+        if (useImageRotation && image instanceof Blob) {
+          rotated = await imageOps.rotate(image, quarterTurns);
+        }
+        if (rotated) {
+          attemptImage = rotated;
+          recognizeImage = rotated;
+        } else {
+          opts = { rotateRadians: QUARTER_TURN_RADIANS[quarterTurns] };
+        }
+      }
+
+      // Tesseract.js's Blob handling differs between its browser and Node
+      // loaders (Node silently mangles Blobs) — raw bytes work in both.
+      if (recognizeImage instanceof Blob) {
+        recognizeImage = new Uint8Array(await recognizeImage.arrayBuffer());
+      }
+
+      const { data } = await worker.recognize(recognizeImage, opts);
+      const score = scoreRecognizedText(data.text);
+
+      if (
+        score.score > best.score.score ||
+        (score.score === best.score.score && data.confidence > best.confidence)
+      ) {
+        best = { text: data.text, confidence: data.confidence, score, image: attemptImage };
+      }
+
+      if (isEarlyExit(score)) break;
+    } catch {
+      // Individual rotation attempt failed — keep trying the others.
+      continue;
+    }
+  }
+
+  return best;
 }
