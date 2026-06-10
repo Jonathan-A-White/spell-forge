@@ -3,14 +3,30 @@
 import { cleanWords } from './utils.ts';
 import { WORD_SET } from './word-list.ts';
 
+/** Minimal word/block shapes from Tesseract.js `blocks` output. */
+export interface OcrWordInfo {
+  text: string;
+  confidence: number;
+}
+export interface OcrBlockInfo {
+  paragraphs: Array<{ lines: Array<{ words: OcrWordInfo[] }> }>;
+}
+
 /**
  * A minimal Tesseract.js worker interface for orientation detection.
  */
 export interface OcrWorker {
-  recognize(image: unknown, opts?: Record<string, unknown>): Promise<{
-    data: { text: string; confidence: number };
+  recognize(
+    image: unknown,
+    opts?: Record<string, unknown>,
+    output?: Record<string, unknown>,
+  ): Promise<{
+    data: { text: string; confidence: number; blocks?: OcrBlockInfo[] | null };
   }>;
 }
+
+/** Output options for recognize: word-level confidences via blocks. */
+const RECOGNIZE_OUTPUT = { blocks: true, text: true } as const;
 
 /**
  * Canvas-style image operations used by the OCR pipeline.
@@ -177,6 +193,59 @@ export function isLikelyGarbage(score: OrientationScore): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * Minimum per-word Tesseract confidence for tokens that are not long
+ * dictionary words. Textured backgrounds (wood grain, graph paper) produce
+ * stray tokens almost entirely below this; real printed words score well
+ * above it. Long dictionary words bypass the floor because genuine list
+ * words on hard photos can come back at very low confidence (a real
+ * "purple" has been observed at 18) while texture noise virtually never
+ * forms them.
+ */
+const WORD_CONFIDENCE_FLOOR = 60;
+
+function normalizeToken(token: string): string {
+  return token.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+/**
+ * Drop low-confidence stray tokens from recognized text using Tesseract's
+ * per-word confidences. Fail-open: tokens that can't be matched to a block
+ * word (tokenization differences, missing blocks output) are kept.
+ * Exported for tests.
+ */
+export function filterLowConfidenceWords(
+  text: string,
+  blocks: OcrBlockInfo[] | null | undefined,
+): string {
+  if (!blocks || blocks.length === 0) return text;
+
+  const confidenceByToken = new Map<string, number>();
+  for (const block of blocks) {
+    for (const paragraph of block.paragraphs) {
+      for (const line of paragraph.lines) {
+        for (const word of line.words) {
+          const token = normalizeToken(word.text);
+          if (token.length === 0) continue;
+          const previous = confidenceByToken.get(token);
+          if (previous === undefined || word.confidence > previous) {
+            confidenceByToken.set(token, word.confidence);
+          }
+        }
+      }
+    }
+  }
+
+  const kept = text.split(/\s+/).filter((raw) => {
+    const token = normalizeToken(raw);
+    if (token.length === 0) return false;
+    if (token.length >= LONG_WORD_MIN_LENGTH && WORD_SET.has(token)) return true;
+    const confidence = confidenceByToken.get(token);
+    return confidence === undefined || confidence >= WORD_CONFIDENCE_FLOOR;
+  });
+  return kept.join(' ');
 }
 
 /**
@@ -412,7 +481,10 @@ export async function recognizeWithOrientationDetection(
   if (best.score.plausibleWords === 0 && normalized !== null) {
     const rawBest = await tryAllOrientations(worker, image, imageOps, false);
     if (rawBest.score.score > best.score.score) {
-      return { text: rawBest.text, confidence: rawBest.confidence / 100 };
+      return {
+        text: filterLowConfidenceWords(rawBest.text, rawBest.blocks),
+        confidence: rawBest.confidence / 100,
+      };
     }
   }
 
@@ -440,13 +512,17 @@ export async function recognizeWithOrientationDetection(
     }
   }
 
-  return { text: best.text, confidence: best.confidence / 100 };
+  return {
+    text: filterLowConfidenceWords(best.text, best.blocks),
+    confidence: best.confidence / 100,
+  };
 }
 
 interface OrientationResult {
   text: string;
   confidence: number;
   score: OrientationScore;
+  blocks: OcrBlockInfo[] | null;
   /** The (possibly rotated) image that produced this result. */
   image: unknown;
 }
@@ -464,14 +540,20 @@ async function trySmallRotations(
       if (!rotated) break; // rotation unavailable — no point trying more angles
 
       const bytes = new Uint8Array(await rotated.arrayBuffer());
-      const { data } = await worker.recognize(bytes, {});
+      const { data } = await worker.recognize(bytes, {}, RECOGNIZE_OUTPUT);
       const score = scoreRecognizedText(data.text);
 
       if (
         score.score > best.score.score ||
         (score.score === best.score.score && data.confidence > best.confidence)
       ) {
-        best = { text: data.text, confidence: data.confidence, score, image: rotated };
+        best = {
+          text: data.text,
+          confidence: data.confidence,
+          score,
+          blocks: data.blocks ?? null,
+          image: rotated,
+        };
       }
 
       if (best.confidence >= DESKEW_CONFIDENCE_THRESHOLD && isEarlyExit(best.score)) break;
@@ -493,6 +575,7 @@ async function tryAllOrientations(
     text: '',
     confidence: 0,
     score: { score: -1, dictWords: 0, longDictWords: 0, plausibleWords: 0 },
+    blocks: null,
     image,
   };
 
@@ -521,14 +604,20 @@ async function tryAllOrientations(
         recognizeImage = new Uint8Array(await recognizeImage.arrayBuffer());
       }
 
-      const { data } = await worker.recognize(recognizeImage, opts);
+      const { data } = await worker.recognize(recognizeImage, opts, RECOGNIZE_OUTPUT);
       const score = scoreRecognizedText(data.text);
 
       if (
         score.score > best.score.score ||
         (score.score === best.score.score && data.confidence > best.confidence)
       ) {
-        best = { text: data.text, confidence: data.confidence, score, image: attemptImage };
+        best = {
+          text: data.text,
+          confidence: data.confidence,
+          score,
+          blocks: data.blocks ?? null,
+          image: attemptImage,
+        };
       }
 
       if (isEarlyExit(score)) break;
