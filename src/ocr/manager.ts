@@ -1,7 +1,7 @@
 // src/ocr/manager.ts — OcrManager: tries local first, falls back to remote
 
 import type { OcrResult } from '../contracts/types.ts';
-import { LocalOcrProvider } from './local.ts';
+import { LocalOcrProvider, OcrUnreadableError } from './local.ts';
 import { RemoteOcrProvider } from './remote.ts';
 import { createTesseractRecognizer } from './tesseract-recognizer.ts';
 
@@ -34,6 +34,7 @@ export class OcrManagerImpl implements OcrManager {
   async extractWords(image: Blob): Promise<OcrResult> {
     const errors: string[] = [];
     let lowConfidenceResult: OcrResult | null = null;
+    let unreadableError: OcrUnreadableError | null = null;
 
     // Try local first
     if (this.local.isAvailable()) {
@@ -46,6 +47,9 @@ export class OcrManagerImpl implements OcrManager {
         lowConfidenceResult = result;
         errors.push(`Local OCR confidence too low (${result.confidence.toFixed(2)})`);
       } catch (err) {
+        if (err instanceof OcrUnreadableError) {
+          unreadableError = err;
+        }
         errors.push(`Local OCR failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
@@ -67,6 +71,12 @@ export class OcrManagerImpl implements OcrManager {
     // rather than failing entirely — the user can review and edit
     if (lowConfidenceResult && lowConfidenceResult.words.length > 0) {
       return lowConfidenceResult;
+    }
+
+    // The photo was processed but produced only noise — surface the
+    // user-actionable message rather than a provider error dump.
+    if (unreadableError) {
+      throw unreadableError;
     }
 
     throw new Error(
