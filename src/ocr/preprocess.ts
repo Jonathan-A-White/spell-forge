@@ -177,6 +177,48 @@ export function flattenWithBackground(
 }
 
 /**
+ * Draw `source` scaled down to (dstW, dstH) using progressive halving.
+ * A single drawImage with a large shrink ratio samples only a few source
+ * pixels per destination pixel (canvas 2d has no mipmapping), which aliases
+ * textured photos badly and degrades both recognition and the background
+ * estimate. Halving repeatedly approximates proper area averaging.
+ */
+function drawScaled(
+  source: ImageBitmap | OffscreenCanvas,
+  srcW: number,
+  srcH: number,
+  dstW: number,
+  dstH: number,
+): OffscreenCanvas | null {
+  let current: ImageBitmap | OffscreenCanvas = source;
+  let curW = srcW;
+  let curH = srcH;
+
+  while (curW / 2 >= dstW && curH / 2 >= dstH) {
+    const nextW = Math.max(dstW, Math.round(curW / 2));
+    const nextH = Math.max(dstH, Math.round(curH / 2));
+    const next = new OffscreenCanvas(nextW, nextH);
+    const ctx = next.getContext('2d');
+    if (!ctx) return null;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(current, 0, 0, curW, curH, 0, 0, nextW, nextH);
+    current = next;
+    curW = nextW;
+    curH = nextH;
+  }
+
+  const out = new OffscreenCanvas(dstW, dstH);
+  const ctx = out.getContext('2d');
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = true;
+  // White underlay so transparent PNGs flatten correctly under JPEG encode
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, dstW, dstH);
+  ctx.drawImage(current, 0, 0, curW, curH, 0, 0, dstW, dstH);
+  return out;
+}
+
+/**
  * Browser implementation of ImageOps using createImageBitmap + OffscreenCanvas.
  *
  * createImageBitmap applies EXIF orientation during decode (the default
@@ -202,15 +244,10 @@ export const canvasImageOps: ImageOps = {
           drawHeight = Math.round(drawHeight * scale);
         }
 
-        const canvas = new OffscreenCanvas(drawWidth, drawHeight);
+        const canvas = drawScaled(bitmap, bitmap.width, bitmap.height, drawWidth, drawHeight);
+        if (!canvas) return null;
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
-
-        // White underlay only matters for transparent PNGs; it does not
-        // create a border (see padding note above).
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, drawWidth, drawHeight);
 
         // Flatten uneven lighting: estimate the background by shrinking the
         // image and scaling it back up (a cheap, portable blur), then divide.
@@ -218,15 +255,12 @@ export const canvasImageOps: ImageOps = {
         try {
           const bgW = Math.max(1, Math.round(drawWidth / BACKGROUND_SHRINK_FACTOR));
           const bgH = Math.max(1, Math.round(drawHeight / BACKGROUND_SHRINK_FACTOR));
-          const small = new OffscreenCanvas(bgW, bgH);
-          const smallCtx = small.getContext('2d');
-          const bgCanvas = new OffscreenCanvas(drawWidth, drawHeight);
-          const bgCtx = bgCanvas.getContext('2d');
-          if (smallCtx && bgCtx) {
-            smallCtx.drawImage(canvas, 0, 0, bgW, bgH);
-            bgCtx.imageSmoothingEnabled = true;
-            bgCtx.drawImage(small, 0, 0, drawWidth, drawHeight);
-
+          const small = drawScaled(canvas, drawWidth, drawHeight, bgW, bgH);
+          const bgCanvas = small
+            ? drawScaled(small, bgW, bgH, drawWidth, drawHeight)
+            : null;
+          const bgCtx = bgCanvas?.getContext('2d');
+          if (bgCtx && bgCanvas) {
             const imageData = ctx.getImageData(0, 0, drawWidth, drawHeight);
             const bgData = bgCtx.getImageData(0, 0, drawWidth, drawHeight);
             flattenWithBackground(imageData.data, bgData.data);
