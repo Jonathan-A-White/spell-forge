@@ -87,11 +87,15 @@ const MIN_BLOB_SIZE = 1024;
 // confidence — this was the root cause of the historical addPadding failures.
 
 /**
- * Orientation scoring: dictionary words are weighted heavier than merely
- * plausible tokens. A wrongly-rotated image still produces tokens that pass
- * the plausibility heuristics, but it produces almost no real English words.
+ * Orientation scoring weights. Dictionary words are the signal; length
+ * matters because textured backgrounds (wood grain, graph paper) make
+ * Tesseract hallucinate masses of short real words ("eat", "one", "and")
+ * that can otherwise outvote a clean read of the actual list. Long
+ * dictionary words are almost never hallucinated.
  */
-const DICTIONARY_WORD_WEIGHT = 3;
+const LONG_DICT_WEIGHT = 6;
+const SHORT_DICT_WEIGHT = 2;
+const LONG_WORD_MIN_LENGTH = 4;
 
 /**
  * Early exit: stop trying further rotations once an orientation yields at
@@ -113,6 +117,8 @@ const DESKEW_ANGLES_DEG = [4, -4, 8, -8];
 export interface OrientationScore {
   score: number;
   dictWords: number;
+  /** Dictionary words of LONG_WORD_MIN_LENGTH+ chars — the trustworthy signal. */
+  longDictWords: number;
   plausibleWords: number;
 }
 
@@ -123,12 +129,26 @@ export interface OrientationScore {
 export function scoreRecognizedText(text: string): OrientationScore {
   const words = cleanWords(text);
   let dictWords = 0;
+  let longDictWords = 0;
   for (const w of words) {
-    if (WORD_SET.has(w)) dictWords++;
+    if (WORD_SET.has(w)) {
+      dictWords++;
+      if (w.length >= LONG_WORD_MIN_LENGTH) longDictWords++;
+    }
   }
+  const shortDictWords = dictWords - longDictWords;
+  const nonDictWords = words.length - dictWords;
+  // Non-dictionary tokens contribute only up to the number of long
+  // dictionary words: a real list can contain unusual words, but a wall of
+  // hallucinated texture tokens must never outvote a clean read.
+  const score =
+    longDictWords * LONG_DICT_WEIGHT +
+    shortDictWords * SHORT_DICT_WEIGHT +
+    Math.min(nonDictWords, longDictWords);
   return {
-    score: dictWords * DICTIONARY_WORD_WEIGHT + (words.length - dictWords),
+    score,
     dictWords,
+    longDictWords,
     plausibleWords: words.length,
   };
 }
@@ -150,7 +170,13 @@ function isEarlyExit(s: OrientationScore): boolean {
 export function isLikelyGarbage(score: OrientationScore): boolean {
   if (score.plausibleWords === 0) return true;
   if (score.dictWords < 3) return true;
-  return score.dictWords / score.plausibleWords < 0.35;
+  if (score.dictWords / score.plausibleWords < 0.35) return true;
+  // Texture storms: many tokens but almost no long dictionary words.
+  // (A short sight-word list has few tokens, so it never hits this rule.)
+  if (score.plausibleWords >= 15 && score.longDictWords < score.plausibleWords * 0.2) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -466,7 +492,7 @@ async function tryAllOrientations(
   let best: OrientationResult = {
     text: '',
     confidence: 0,
-    score: { score: -1, dictWords: 0, plausibleWords: 0 },
+    score: { score: -1, dictWords: 0, longDictWords: 0, plausibleWords: 0 },
     image,
   };
 

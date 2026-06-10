@@ -301,4 +301,33 @@ describe('OCR real-photo regression suite', () => {
     },
     300_000,
   );
+
+  it(
+    'extracts all words from a photo of a printed page on a wooden table',
+    async () => {
+      // Photo of a grayscale PRINTOUT of the list lying on wood grain with a
+      // bright paper border: the border skews Tesseract's global threshold,
+      // the print is low-contrast, and the wood/graph texture hallucinates
+      // masses of short dictionary words ("eat", "one", "and") that once
+      // outvoted the clean read via the deskew sweep. Length-aware scoring
+      // must keep the real list on top.
+      const visible = [
+        'action', 'fraction', 'motion', 'addition', 'vision', 'tension',
+        'turtle', 'angle', 'purple', 'sparkle', 'rectangle', 'triangle',
+        'condition', 'high', 'frequency',
+      ];
+      const blob = loadFixtureBlob('real-photo-printed-page.jpg');
+      const { text } = await recognizeWithOrientationDetection(
+        worker,
+        blob,
+        createSharpImageOps(),
+      );
+      const words = correctOcrWords(cleanWords(normalizeWhitespace(text)));
+
+      for (const expected of visible) {
+        expect(words, `missing "${expected}"`).toContain(expected);
+      }
+    },
+    300_000,
+  );
 });

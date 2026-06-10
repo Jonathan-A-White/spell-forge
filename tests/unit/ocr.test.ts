@@ -407,7 +407,22 @@ describe('scoreRecognizedText', () => {
     const s = scoreRecognizedText('badge wuggle');
     expect(s.dictWords).toBe(1);
     expect(s.plausibleWords).toBe(2);
-    expect(s.score).toBe(4); // 3 × 1 dictionary + 1 plausible
+    expect(s.score).toBe(7); // 6 × 1 long dictionary + 1 capped non-dict
+  });
+
+  it('never lets a wall of short hallucinated words outvote a clean list', () => {
+    // Texture noise from wood grain / graph paper: many short real words
+    const noise = scoreRecognizedText(
+      'eat eye her one pan his all fat lot and red out end ill did etc ' +
+      'tin oho gang corn need leaf here bull earn seta atr exd inra rit ' +
+      'die hil hel eit enr fii fil ete rey ree esd tai bal lit dort cata',
+    );
+    // A clean read of an actual spelling list
+    const clean = scoreRecognizedText(
+      'action fraction motion addition vision tension turtle angle purple ' +
+      'sparkle challenge words rectangle triangle condition high frequency',
+    );
+    expect(clean.score).toBeGreaterThan(noise.score);
   });
 });
 
