@@ -38,6 +38,8 @@ function makeSessionWithWords(words: Word[]): SessionState {
     currentWord: words[0] ?? null,
     attemptCount: 0,
     scaffoldingActive: false,
+    requeueCounts: {},
+    scaffoldWordIds: [],
   };
 }
 
@@ -112,20 +114,29 @@ describe('recordAttempt accuracy with mistakes', () => {
 
     // Word 1: perfect (no mistakes)
     ({ state: session } = recordAttempt(session, true, 3000, false, false, {}, null, 0));
-    // Word 2: completed with 2 mistakes
+    // Word 2: completed with 2 mistakes — gets re-queued
     ({ state: session } = recordAttempt(session, true, 5000, true, false, {}, null, 2));
     // Word 3: perfect (no mistakes)
     ({ state: session } = recordAttempt(session, true, 2000, false, false, {}, null, 0));
-    // Word 4: completed with 1 mistake
+    // Word 4: completed with 1 mistake — gets re-queued
     ({ state: session } = recordAttempt(session, true, 4000, true, false, {}, null, 1));
 
-    expect(session.wordsAttempted).toBe(4);
-    expect(session.wordsCorrect).toBe(2);
+    // Both missed words come back for a delayed retrieval
+    expect(session.isComplete).toBe(false);
+    expect(session.words).toHaveLength(6);
+    expect(session.currentWord?.id).toBe('w2');
+
+    // Re-queued words answered perfectly this time
+    ({ state: session } = recordAttempt(session, true, 3000, false, false, {}, null, 0));
+    ({ state: session } = recordAttempt(session, true, 3000, false, false, {}, null, 0));
+
+    expect(session.wordsAttempted).toBe(6);
+    expect(session.wordsCorrect).toBe(4);
     expect(session.isComplete).toBe(true);
 
     const log = endSession(session);
-    expect(log.wordsAttempted).toBe(4);
-    expect(log.wordsCorrect).toBe(2);
+    expect(log.wordsAttempted).toBe(6);
+    expect(log.wordsCorrect).toBe(4);
   });
 
   it('should default mistakeCount to 0 for backward compatibility', () => {
@@ -164,5 +175,114 @@ describe('recordAttempt accuracy with mistakes', () => {
     expect(session.wordsAttempted).toBe(1);
     expect(session.wordsCorrect).toBe(0);
     expect(session.currentIndex).toBe(1);
+  });
+});
+
+// ─── In-session re-queue of missed words ─────────────────────
+
+describe('recordAttempt re-queue (successive relearning)', () => {
+  const sixWords = () => [
+    makeWord('w1', 'cat'),
+    makeWord('w2', 'dog'),
+    makeWord('w3', 'hat'),
+    makeWord('w4', 'sun'),
+    makeWord('w5', 'pig'),
+    makeWord('w6', 'fox'),
+  ];
+
+  it('should re-queue a corrected word a few positions later', () => {
+    let session = makeSessionWithWords(sixWords());
+
+    // Word 1 corrected (wrong initially, completed retype flow)
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, {}, null, 1, 'kat'));
+
+    expect(session.words).toHaveLength(7);
+    // Re-queued at currentIndex + 1 + gap(3) = position 4
+    expect(session.words[4].id).toBe('w1');
+    expect(session.requeueCounts['w1']).toBe(1);
+    expect(session.currentIndex).toBe(1);
+  });
+
+  it('should not re-queue a word answered perfectly', () => {
+    let session = makeSessionWithWords(sixWords());
+
+    ({ state: session } = recordAttempt(session, true, 3000, false, false, {}, null, 0));
+
+    expect(session.words).toHaveLength(6);
+    expect(session.requeueCounts).toEqual({});
+  });
+
+  it('should cap re-queues per word', () => {
+    const w1 = makeWord('w1', 'cat');
+    // Session of just the one word, missed repeatedly
+    let session = makeSessionWithWords([w1]);
+    // Disable adaptive so consecutive-error wrap-up doesn't end the session
+    const cfg = { adaptive: false };
+
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, cfg, null, 1, 'kat'));
+    expect(session.words).toHaveLength(2);
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, cfg, null, 1, 'kat'));
+    expect(session.words).toHaveLength(3);
+    // Third miss: cap reached, no more re-queues — session completes
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, cfg, null, 1, 'kat'));
+    expect(session.words).toHaveLength(3);
+    expect(session.requeueCounts['w1']).toBe(2);
+    expect(session.isComplete).toBe(true);
+  });
+
+  it('should mark missed words for scaffolding on re-presentation', () => {
+    let session = makeSessionWithWords(sixWords());
+
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, {}, null, 1, 'kat'));
+
+    expect(session.scaffoldWordIds).toContain('w1');
+    expect(session.scaffoldWordIds).toHaveLength(1);
+  });
+
+  it('should re-queue at the end when fewer words remain than the gap', () => {
+    const words = [makeWord('w1', 'cat'), makeWord('w2', 'dog')];
+    let session = makeSessionWithWords(words);
+
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, {}, null, 1, 'kat'));
+
+    expect(session.words.map((w) => w.id)).toEqual(['w1', 'w2', 'w1']);
+    expect(session.isComplete).toBe(false);
+  });
+});
+
+// ─── Adaptive scaffolding activation ─────────────────────────
+
+describe('recordAttempt adaptive scaffolding', () => {
+  it('should activate scaffolding when recent error rate is high', () => {
+    const words = [
+      makeWord('w1', 'cat'),
+      makeWord('w2', 'dog'),
+      makeWord('w3', 'hat'),
+    ];
+    let session = makeSessionWithWords(words);
+
+    // Two non-advancing failures, then a success: error rate 2/3 ≥ 0.6
+    // but no trailing consecutive errors → 'more-scaffolding' action
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, {}, null, 0));
+    ({ state: session } = recordAttempt(session, false, 5000, true, false, {}, null, 0));
+    ({ state: session } = recordAttempt(session, true, 4000, false, false, {}, null, 0));
+
+    expect(session.scaffoldingActive).toBe(true);
+  });
+
+  it('should not activate scaffolding when signals are healthy', () => {
+    const words = [
+      makeWord('w1', 'cat'),
+      makeWord('w2', 'dog'),
+      makeWord('w3', 'hat'),
+      makeWord('w4', 'sun'),
+    ];
+    let session = makeSessionWithWords(words);
+
+    ({ state: session } = recordAttempt(session, true, 4000, false, false, {}, null, 0));
+    ({ state: session } = recordAttempt(session, true, 4000, false, false, {}, null, 0));
+    ({ state: session } = recordAttempt(session, true, 4000, false, false, {}, null, 0));
+
+    expect(session.scaffoldingActive).toBe(false);
   });
 });

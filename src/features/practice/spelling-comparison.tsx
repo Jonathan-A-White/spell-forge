@@ -1,11 +1,14 @@
 // src/features/practice/spelling-comparison.tsx — Visual diff between attempt and correct spelling
 
 import { computeLetterDiff } from './letter-diff';
+import { getErrorTargetedHints } from './error-hints';
+import type { DetectedPattern } from '../../contracts/types';
 
 interface SpellingComparisonProps {
   attempt: string;
   correct: string;
   fontSize: string;
+  patterns?: DetectedPattern[];
 }
 
 // Fallback hex colors for browsers that don't support oklch() (Tailwind CSS 4 default).
@@ -23,11 +26,18 @@ const colors = {
   green50: '#f0fdf4',
   red300: '#fca5a5',
   red50: '#fef2f2',
+  blue800: '#1e40af',
+  blue700: '#1d4ed8',
+  blue200: '#bfdbfe',
+  blue50: '#eff6ff',
 };
 
-export function SpellingComparison({ attempt, correct, fontSize }: SpellingComparisonProps) {
+export function SpellingComparison({ attempt, correct, fontSize, patterns }: SpellingComparisonProps) {
   const { attemptDiff, correctDiff } = computeLetterDiff(attempt, correct);
   const isCorrect = attempt.toLowerCase() === correct.toLowerCase();
+  const errorHints = isCorrect
+    ? []
+    : getErrorTargetedHints(attempt, correct, patterns ?? []);
 
   return (
     <div className="w-full space-y-4">
@@ -103,6 +113,32 @@ export function SpellingComparison({ attempt, correct, fontSize }: SpellingCompa
           ))}
         </div>
       </div>
+
+      {/* Phonics hints for the patterns the error touched */}
+      {errorHints.length > 0 && (
+        <div
+          className="rounded-xl border-2 border-blue-200 bg-blue-50 p-3 space-y-1"
+          style={{ borderColor: colors.blue200, backgroundColor: colors.blue50 }}
+        >
+          {errorHints.map((h) => (
+            <p
+              key={h.grapheme}
+              className="text-blue-700 text-sm"
+              style={{ color: colors.blue700 }}
+            >
+              {'\u{1F4A1} '}
+              <span
+                className="font-bold text-blue-800"
+                style={{ color: colors.blue800 }}
+              >
+                {h.grapheme}
+              </span>
+              {': '}
+              {h.hint}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

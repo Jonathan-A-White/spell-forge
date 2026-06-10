@@ -118,6 +118,9 @@ function deserializeSession(data: Record<string, unknown>): SessionState {
     currentWord,
     attemptCount: raw.attemptCount as number,
     scaffoldingActive: raw.scaffoldingActive as boolean,
+    // Fields added after launch — default for sessions saved by older versions
+    requeueCounts: (raw.requeueCounts as Record<string, number>) ?? {},
+    scaffoldWordIds: (raw.scaffoldWordIds as string[]) ?? [],
   };
 }
 
@@ -237,13 +240,15 @@ export function PracticeScreen({
     startFreshSession();
   }, [startFreshSession]);
 
-  // Auto-speak the word when it changes or on first load
+  // Auto-speak the word when it changes or on first load. currentIndex is a
+  // dependency because a re-queued word is the same object at a new position.
   const currentWord = session?.currentWord ?? null;
+  const currentIndex = session?.currentIndex ?? 0;
   useEffect(() => {
     if (currentWord && !sessionLog) {
       onSpeakRef.current?.(currentWord.text);
     }
-  }, [currentWord, sessionLog]);
+  }, [currentWord, currentIndex, sessionLog]);
 
   // Auto-save session progress after each state change
   useEffect(() => {
@@ -264,12 +269,15 @@ export function PracticeScreen({
       const currentWordStats = allStats.find(
         (s) => s.wordId === session.currentWord!.id,
       ) ?? null;
+      const scaffoldingShown =
+        session.scaffoldingActive ||
+        session.scaffoldWordIds.includes(session.currentWord.id);
       const { state: newState, updatedStats } = recordAttempt(
         session,
         correct,
         responseTimeMs,
         struggled,
-        session.scaffoldingActive,
+        scaffoldingShown,
         { maxMinutes: profile.settings.sessionMaxMinutes, adaptive: profile.settings.sessionAdaptive },
         currentWordStats,
         mistakes,
@@ -428,6 +436,20 @@ export function PracticeScreen({
     ? Math.round((session.currentIndex / session.words.length) * 100)
     : 0;
 
+  // Phonics scaffolding for re-presented missed words and adaptive support.
+  // Hints only — syllable chunks would reveal the spelling and turn the
+  // retrieval attempt into copying.
+  const scaffoldingShown =
+    session.scaffoldingActive ||
+    session.scaffoldWordIds.includes(session.currentWord.id);
+  const scaffoldingHints = session.currentWord.patterns
+    .slice(0, 2)
+    .map((p) => p.hint);
+  const scaffolding =
+    scaffoldingShown && scaffoldingHints.length > 0
+      ? { chunks: [], hints: scaffoldingHints }
+      : null;
+
   return (
     <div className="min-h-screen bg-sf-bg p-4 flex flex-col">
       {showSuccess && <SuccessFlash onDone={handleSuccessFlashDone} />}
@@ -473,10 +495,11 @@ export function PracticeScreen({
         </div>
 
         <SpellingInput
-          key={session.currentWord.id}
+          key={`${session.currentWord.id}:${session.currentIndex}`}
           word={session.currentWord.text}
           onComplete={handleWordComplete}
-          scaffolding={null}
+          scaffolding={scaffolding}
+          patterns={session.currentWord.patterns}
           tapTargetSize={profile.settings.tapTargetSize}
         />
       </div>

@@ -27,6 +27,10 @@ export interface SessionState {
   currentWord: Word | null;
   attemptCount: number;
   scaffoldingActive: boolean;
+  /** How many times each word has been re-queued this session (wordId → count) */
+  requeueCounts: Record<string, number>;
+  /** Words that were missed this session — show phonics scaffolding when re-presented */
+  scaffoldWordIds: string[];
 }
 
 export interface SessionConfig {
@@ -42,6 +46,12 @@ const DEFAULT_CONFIG: SessionConfig = {
   adaptive: true,
   historicalToleranceMs: 5 * 60 * 1000, // 5 minutes default
 };
+
+// Successive relearning: a missed word comes back a few words later in the
+// same session for a true delayed retrieval, instead of disappearing until
+// the next session. Capped so one stubborn word can't stall the session.
+const REQUEUE_GAP = 3;
+const MAX_REQUEUES_PER_WORD = 2;
 
 export function createSession(
   profileId: string,
@@ -90,6 +100,8 @@ export function createSession(
     currentWord: shuffled.length > 0 ? shuffled[0] : null,
     attemptCount: 0,
     scaffoldingActive: false,
+    requeueCounts: {},
+    scaffoldWordIds: [],
   };
 }
 
@@ -150,6 +162,7 @@ export function recordAttempt(
 
   // Check adaptive signals
   let shouldWrapUp = false;
+  let adaptiveScaffolding = false;
   if (cfg.adaptive && newResults.length >= 3) {
     const sessionDurationMs = Date.now() - state.startedAt.getTime();
     const signals = analyzeEngagement(
@@ -161,6 +174,11 @@ export function recordAttempt(
     if (action.type === 'wrap-up') {
       shouldWrapUp = true;
     }
+    // The word queue is fixed mid-session, so both struggle signals resolve
+    // to the same support: phonics scaffolding on the upcoming words.
+    if (action.type === 'more-scaffolding' || action.type === 'easier-word') {
+      adaptiveScaffolding = true;
+    }
   }
 
   // Check max time
@@ -169,16 +187,41 @@ export function recordAttempt(
     shouldWrapUp = true;
   }
 
+  // Re-queue missed words for a delayed retrieval later in the session
+  // (successive relearning). Anything short of a perfect attempt counts.
+  let newWords = state.words;
+  let newRequeueCounts = state.requeueCounts;
+  let newScaffoldWordIds = state.scaffoldWordIds;
+  const missedWord = state.currentWord;
+  if (shouldAdvance && !perfectAttempt && !shouldWrapUp && missedWord) {
+    const requeues = state.requeueCounts[missedWord.id] ?? 0;
+    if (requeues < MAX_REQUEUES_PER_WORD) {
+      const insertAt = Math.min(state.currentIndex + 1 + REQUEUE_GAP, state.words.length);
+      newWords = [
+        ...state.words.slice(0, insertAt),
+        missedWord,
+        ...state.words.slice(insertAt),
+      ];
+      newRequeueCounts = { ...state.requeueCounts, [missedWord.id]: requeues + 1 };
+      if (!state.scaffoldWordIds.includes(missedWord.id)) {
+        newScaffoldWordIds = [...state.scaffoldWordIds, missedWord.id];
+      }
+    }
+  }
+
   const nextIndex = shouldAdvance ? state.currentIndex + 1 : state.currentIndex;
-  const isComplete = shouldWrapUp || nextIndex >= state.words.length;
+  const isComplete = shouldWrapUp || nextIndex >= newWords.length;
 
   const newState: SessionState = {
     ...state,
     results: newResults,
     wordsCorrect: newWordsCorrect,
     wordsAttempted: newWordsAttempted,
+    words: newWords,
+    requeueCounts: newRequeueCounts,
+    scaffoldWordIds: newScaffoldWordIds,
     currentIndex: nextIndex,
-    currentWord: isComplete ? null : state.words[nextIndex] ?? null,
+    currentWord: isComplete ? null : newWords[nextIndex] ?? null,
     isComplete,
     endReason: isComplete
       ? shouldWrapUp
@@ -186,7 +229,7 @@ export function recordAttempt(
         : 'completed'
       : null,
     attemptCount: shouldAdvance ? 0 : newAttemptCount,
-    scaffoldingActive: !correct && newAttemptCount >= 1,
+    scaffoldingActive: (!correct && !shouldAdvance) || adaptiveScaffolding,
   };
 
   return { state: newState, updatedStats, result };
