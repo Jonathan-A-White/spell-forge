@@ -4,8 +4,8 @@ import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
-import { addPadding, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
-import type { OcrWorker } from '../../src/ocr/preprocess.ts';
+import { canvasImageOps, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
+import type { ImageOps, OcrWorker } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
 
 // ─── Word Cleaning ───────────────────────────────────────────
@@ -287,6 +287,115 @@ describe('recognizeWithOrientationDetection', () => {
     expect(result.text).toBe('edge badge judge');
     expect(result.confidence).toBeCloseTo(0.80);
   });
+
+  it('prefers real dictionary words over plausible-looking garbage', async () => {
+    const fakeWorker: OcrWorker = {
+      recognize: async (_image, opts) => {
+        const angle = (opts?.rotateRadians as number) ?? 0;
+        if (Math.abs(angle - Math.PI) < 0.01) {
+          // Correct orientation: fewer tokens, but all real words
+          return { data: { text: 'badge edge judge', confidence: 60 } };
+        }
+        // Wrong orientation: more tokens that pass plausibility heuristics
+        // but are not English words (typical sideways-text OCR output)
+        return { data: { text: 'oqe nire bame welo veno', confidence: 75 } };
+      },
+    };
+
+    const result = await recognizeWithOrientationDetection(fakeWorker, 'fake-image');
+
+    expect(result.text).toBe('badge edge judge');
+  });
+
+  it('rotates via ImageOps when available instead of rotateRadians', async () => {
+    const rotateCalls: number[] = [];
+    const fakeOps: ImageOps = {
+      normalize: async () => new Blob(['normalized'], { type: 'image/jpeg' }),
+      rotate: async (_image, quarterTurns) => {
+        rotateCalls.push(quarterTurns);
+        return new Blob([`rotated-${quarterTurns}`], { type: 'image/jpeg' });
+      },
+      rotateSmall: async () => null,
+    };
+    const receivedOpts: Array<Record<string, unknown> | undefined> = [];
+    const fakeWorker: OcrWorker = {
+      recognize: async (_image, opts) => {
+        receivedOpts.push(opts as Record<string, unknown>);
+        if (receivedOpts.length === 3) {
+          // third attempt (180°) is the correct orientation
+          return { data: { text: 'badge edge judge pace mice peace', confidence: 80 } };
+        }
+        return { data: { text: '', confidence: 10 } };
+      },
+    };
+
+    const input = new Blob(['photo'], { type: 'image/jpeg' });
+    const result = await recognizeWithOrientationDetection(fakeWorker, input, fakeOps);
+
+    expect(result.text).toBe('badge edge judge pace mice peace');
+    // Rotations were performed by ImageOps (90°, 180°), and early exit
+    // stopped before 270°
+    expect(rotateCalls).toEqual([1, 2]);
+    // rotateRadians must never be passed when ImageOps rotation succeeds
+    for (const opts of receivedOpts) {
+      expect(opts).toEqual({});
+    }
+  });
+
+  it('retries the raw image when the normalized image yields nothing', async () => {
+    const normalized = new Blob(['blank-normalized'], { type: 'image/jpeg' });
+    const fakeOps: ImageOps = {
+      normalize: async () => normalized,
+      rotate: async () => new Blob(['blank-rotated'], { type: 'image/jpeg' }),
+      rotateSmall: async () => null,
+    };
+    const original = new Blob(['original-photo'], { type: 'image/jpeg' });
+    const originalBytes = new Uint8Array(await original.arrayBuffer());
+
+    const fakeWorker: OcrWorker = {
+      recognize: async (image) => {
+        // Simulate a device where canvas re-encoding produces blank images:
+        // only the untouched original yields text
+        const bytes = image as Uint8Array;
+        const isOriginal =
+          bytes.length === originalBytes.length &&
+          bytes.every((b, i) => b === originalBytes[i]);
+        if (isOriginal) {
+          return { data: { text: 'badge edge judge pace mice', confidence: 70 } };
+        }
+        return { data: { text: '', confidence: 0 } };
+      },
+    };
+
+    const result = await recognizeWithOrientationDetection(fakeWorker, original, fakeOps);
+
+    expect(result.text).toBe('badge edge judge pace mice');
+    expect(result.confidence).toBeCloseTo(0.70);
+  });
+});
+
+// ─── scoreRecognizedText ────────────────────────────────────
+
+describe('scoreRecognizedText', () => {
+  it('weights dictionary words above merely plausible tokens', () => {
+    const dict = scoreRecognizedText('badge edge judge');
+    const garbage = scoreRecognizedText('oqe nire bame welo veno');
+    expect(dict.dictWords).toBe(3);
+    expect(garbage.dictWords).toBe(0);
+    expect(dict.score).toBeGreaterThan(garbage.score);
+  });
+
+  it('returns zero score for empty or noise-only text', () => {
+    expect(scoreRecognizedText('').score).toBe(0);
+    expect(scoreRecognizedText('xq zz !!').score).toBe(0);
+  });
+
+  it('counts plausible non-dictionary words with low weight', () => {
+    const s = scoreRecognizedText('badge wuggle');
+    expect(s.dictWords).toBe(1);
+    expect(s.plausibleWords).toBe(2);
+    expect(s.score).toBe(4); // 3 × 1 dictionary + 1 plausible
+  });
 });
 
 // ─── LocalOcrProvider ────────────────────────────────────────
@@ -566,18 +675,18 @@ describe('OcrManager', () => {
   });
 });
 
-// ─── addPadding ─────────────────────────────────────────────
+// ─── canvasImageOps.normalize ───────────────────────────────
 
-describe('addPadding', () => {
-  it('returns original blob when OffscreenCanvas is unavailable', async () => {
-    // jsdom does not provide OffscreenCanvas, so addPadding gracefully falls back
+describe('canvasImageOps.normalize', () => {
+  it('returns null when OffscreenCanvas is unavailable', async () => {
+    // jsdom does not provide OffscreenCanvas, so normalize gracefully falls back
     const blob = new Blob(['test'], { type: 'image/png' });
-    const result = await addPadding(blob);
-    expect(result).toBe(blob);
+    const result = await canvasImageOps.normalize(blob);
+    expect(result).toBeNull();
   });
 
   /**
-   * Helper: set up OffscreenCanvas + createImageBitmap mocks and run addPadding.
+   * Helper: set up OffscreenCanvas + createImageBitmap mocks and run normalize.
    * Returns the captured draw calls and result for assertions.
    */
   async function runWithMockCanvas(bitmapWidth: number, bitmapHeight: number) {
@@ -615,58 +724,53 @@ describe('addPadding', () => {
 
     const blob = new Blob(['test'], { type: 'image/png' });
     try {
-      const result = await addPadding(blob);
+      const result = await canvasImageOps.normalize(blob);
       return { result, blob, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasWidth, canvasHeight };
     } finally {
       vi.unstubAllGlobals();
     }
   }
 
-  it('pads a small image without downscaling', async () => {
-    const { result, blob, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasWidth, canvasHeight } =
+  it('re-encodes a small image at original size without any border', async () => {
+    const { result, outputBlob, fakeBitmap, drawImageCalls, fillRectCalls, canvasWidth, canvasHeight } =
       await runWithMockCanvas(200, 100);
 
-    // Should return the padded blob, not the original
     expect(result).toBe(outputBlob);
-    expect(result).not.toBe(blob);
 
-    // No downscaling: drawWidth=200, drawHeight=100
-    // Padding = 5% of min(200, 100) = 5
-    // Canvas should be 210 x 110
-    expect(canvasWidth).toBe(210);
-    expect(canvasHeight).toBe(110);
+    // No downscaling and — critically — no padding: a solid white border
+    // makes Tesseract's page segmentation discard the photo as a picture
+    expect(canvasWidth).toBe(200);
+    expect(canvasHeight).toBe(100);
     expect(fillRectCalls).toHaveLength(1);
-    expect(fillRectCalls[0]).toEqual([0, 0, 210, 110]);
+    expect(fillRectCalls[0]).toEqual([0, 0, 200, 100]);
 
     // drawImage uses 9-arg form: (bitmap, sx, sy, sw, sh, dx, dy, dw, dh)
     expect(drawImageCalls).toHaveLength(1);
-    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 200, 100, 5, 5, 200, 100]);
+    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 200, 100, 0, 0, 200, 100]);
 
     // Bitmap should be cleaned up
     expect(fakeBitmap.close).toHaveBeenCalled();
   });
 
-  it('downscales large images before padding', async () => {
-    // Simulate a 4000x3000 phone photo (exceeds MAX_DIMENSION of 2048)
+  it('downscales large images', async () => {
+    // Simulate a 4000x3000 phone photo (exceeds MAX_DIMENSION of 1800)
     const { result, outputBlob, fakeBitmap, drawImageCalls, canvasWidth, canvasHeight } =
       await runWithMockCanvas(4000, 3000);
 
     expect(result).toBe(outputBlob);
 
-    // Scale factor = 2048/4000 = 0.512 → drawWidth=2048, drawHeight=1536
-    // Padding = 5% of min(2048, 1536) = round(76.8) = 77
-    // Canvas = 2048 + 154 x 1536 + 154 = 2202 x 1690
-    expect(canvasWidth).toBe(2202);
-    expect(canvasHeight).toBe(1690);
+    // Scale factor = 1800/4000 = 0.45 → 1800 x 1350, no border
+    expect(canvasWidth).toBe(1800);
+    expect(canvasHeight).toBe(1350);
 
     // drawImage should scale from full source to downscaled destination
     expect(drawImageCalls).toHaveLength(1);
-    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 4000, 3000, 77, 77, 2048, 1536]);
+    expect(drawImageCalls[0]).toEqual([fakeBitmap, 0, 0, 4000, 3000, 0, 0, 1800, 1350]);
 
     expect(fakeBitmap.close).toHaveBeenCalled();
   });
 
-  it('falls back to original when convertToBlob produces a tiny blob', async () => {
+  it('returns null when convertToBlob produces a tiny blob', async () => {
     const fakeCtx = {
       fillStyle: '',
       fillRect: () => {},
@@ -690,23 +794,23 @@ describe('addPadding', () => {
 
     try {
       const original = new Blob(['original'], { type: 'image/png' });
-      const result = await addPadding(original);
-      // Should fall back to original since output was suspiciously small
-      expect(result).toBe(original);
+      const result = await canvasImageOps.normalize(original);
+      // A suspiciously small output blob means a blank/corrupt canvas export
+      expect(result).toBeNull();
       expect(fakeBitmap.close).toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it('falls back to original when createImageBitmap throws (OOM)', async () => {
+  it('returns null when createImageBitmap throws (OOM)', async () => {
     vi.stubGlobal('OffscreenCanvas', class { constructor() {} });
     vi.stubGlobal('createImageBitmap', () => Promise.reject(new Error('OOM')));
 
     try {
       const original = new Blob(['original'], { type: 'image/png' });
-      const result = await addPadding(original);
-      expect(result).toBe(original);
+      const result = await canvasImageOps.normalize(original);
+      expect(result).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }

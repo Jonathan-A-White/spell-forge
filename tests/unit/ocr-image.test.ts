@@ -1,12 +1,14 @@
 // @vitest-environment node
 /// <reference types="node" />
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
 import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
 import { correctOcrWords } from '../../src/ocr/spell-check.ts';
-import { addPadding, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
+import { recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
+import type { ImageOps } from '../../src/ocr/preprocess.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -93,34 +95,136 @@ describe('OCR image integration', () => {
     expect([...words].sort()).toEqual([...EXPECTED_WORDS].sort());
   }, 120_000); // Tesseract can be slow with multiple orientation attempts
 
-  it('produces correct results when addPadding is in the pipeline (unpadded image)', async () => {
-    const imageBuffer = loadFixtureImage();
-    const worker = await createTestWorker();
+});
 
-    // Exercise the same pipeline as tesseract-recognizer.ts:
-    //   image → addPadding → recognizeWithOrientationDetection
-    // In Node.js, addPadding gracefully returns the original (no OffscreenCanvas),
-    // which mirrors the fallback behaviour the fix introduces for mobile failures.
-    const imageBlob = new Blob([new Uint8Array(imageBuffer)], { type: 'image/jpeg' });
-    const padded = await addPadding(imageBlob);
+// ─── Real-photo regression suite ─────────────────────────────────────────────
+//
+// Fixtures are downscaled variants of an actual phone photo of a classroom
+// spelling list (Unit 5, WK 6 — purple paper, graph-paper background, staple,
+// uneven lighting). Camera import historically failed on exactly this kind of
+// photo while passing on the clean synthetic fixture above.
+//
+// Variants cover the rotations and metadata real phones produce:
+//  - upright           pixels upright, no EXIF
+//  - 90cw / 90ccw /180 physically rotated pixels, no EXIF
+//  - skew7             upright but tilted 7° (handheld shot)
+//  - exif6             pixels stored 90° CCW + little-endian EXIF orientation 6,
+//                      exactly what Android cameras emit in portrait mode and
+//                      exactly the case Tesseract.js's own EXIF sniffing misses
 
-    // addPadding should return *something* usable (original or padded)
-    expect(padded.size).toBeGreaterThan(0);
+/** The 15 spelling words on the photographed list. */
+const REAL_PHOTO_WORDS = [
+  'action', 'fraction', 'motion', 'addition', 'vision', 'tension', 'turtle',
+  'angle', 'purple', 'sparkle', 'rectangle', 'triangle', 'condition',
+  'toward', 'against',
+];
 
-    // Feed the (possibly padded) blob through orientation detection
-    // Tesseract.js in Node accepts Blob, Buffer, or path — convert back to Buffer
-    // since Node Blob support in Tesseract varies.
-    const paddedBuffer = Buffer.from(await padded.arrayBuffer());
-    const { text, confidence } = await recognizeWithOrientationDetection(
-      worker,
-      paddedBuffer,
-    );
-    await worker.terminate();
+/** Headers on the list that legitimately OCR into extra words. */
+const REAL_PHOTO_HEADER_WORDS = [
+  'unit', 'challenge', 'words', 'high', 'frequency',
+];
 
-    const rawText = normalizeWhitespace(text);
-    const words = correctOcrWords(cleanWords(rawText));
+/**
+ * Node implementation of ImageOps backed by sharp, mirroring the browser
+ * canvas implementation: normalize applies EXIF + downscales + pads white;
+ * rotate turns by quarters with dimension swap. This lets the integration
+ * tests exercise the exact orientation-detection logic the browser runs.
+ */
+function createSharpImageOps(): ImageOps {
+  const MAX_DIMENSION = 1800;
+  return {
+    async normalize(image: Blob): Promise<Blob | null> {
+      const input = Buffer.from(await image.arrayBuffer());
+      const out = await sharp(input)
+        .rotate() // applies EXIF orientation
+        .resize({
+          width: MAX_DIMENSION,
+          height: MAX_DIMENSION,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .flatten({ background: '#ffffff' })
+        .jpeg({ quality: 92 })
+        .toBuffer();
+      return new Blob([new Uint8Array(out)], { type: 'image/jpeg' });
+    },
+    async rotate(image: Blob, quarterTurns: 1 | 2 | 3): Promise<Blob | null> {
+      const input = Buffer.from(await image.arrayBuffer());
+      const out = await sharp(input)
+        .rotate(quarterTurns * 90)
+        .jpeg({ quality: 92 })
+        .toBuffer();
+      return new Blob([new Uint8Array(out)], { type: 'image/jpeg' });
+    },
+    async rotateSmall(image: Blob, degrees: number): Promise<Blob | null> {
+      // Mirror the canvas implementation: rotate about the center keeping
+      // the original canvas size, with mid-gray corner fill.
+      const input = Buffer.from(await image.arrayBuffer());
+      const { width = 0, height = 0 } = await sharp(input).metadata();
+      const rotated = await sharp(input)
+        .rotate(degrees, { background: '#808080' })
+        .toBuffer();
+      const { width: rw = 0, height: rh = 0 } = await sharp(rotated).metadata();
+      const out = await sharp(rotated)
+        .extract({
+          left: Math.round((rw - width) / 2),
+          top: Math.round((rh - height) / 2),
+          width,
+          height,
+        })
+        .jpeg({ quality: 92 })
+        .toBuffer();
+      return new Blob([new Uint8Array(out)], { type: 'image/jpeg' });
+    },
+  };
+}
 
-    expect(confidence).toBeGreaterThan(0);
-    expect([...words].sort()).toEqual([...EXPECTED_WORDS].sort());
+function loadFixtureBlob(name: string): Blob {
+  const buf = readFileSync(resolve(__dirname, '../fixtures', name));
+  return new Blob([new Uint8Array(buf)], { type: 'image/jpeg' });
+}
+
+describe('OCR real-photo regression suite', () => {
+  let worker: Tesseract.Worker;
+
+  beforeAll(async () => {
+    worker = await createTestWorker();
   }, 120_000);
+
+  afterAll(async () => {
+    await worker.terminate();
+  });
+
+  const variants = [
+    'real-photo-upright.jpg',
+    'real-photo-90cw.jpg',
+    'real-photo-90ccw.jpg',
+    'real-photo-180.jpg',
+    'real-photo-skew7.jpg',
+    'real-photo-exif6.jpg',
+  ];
+
+  it.each(variants)(
+    'extracts all 15 spelling words from %s',
+    async (fixture) => {
+      const blob = loadFixtureBlob(fixture);
+      const { text } = await recognizeWithOrientationDetection(
+        worker,
+        blob,
+        createSharpImageOps(),
+      );
+      const words = correctOcrWords(cleanWords(normalizeWhitespace(text)));
+
+      for (const expected of REAL_PHOTO_WORDS) {
+        expect(words, `missing "${expected}" in ${fixture}`).toContain(expected);
+      }
+
+      // Guard against garbage: everything recognized should be a list word,
+      // a header word, or at worst a couple of stray fragments.
+      const known = new Set([...REAL_PHOTO_WORDS, ...REAL_PHOTO_HEADER_WORDS]);
+      const strays = words.filter((w) => !known.has(w));
+      expect(strays.length, `too much garbage in ${fixture}: ${strays.join(' ')}`).toBeLessThanOrEqual(2);
+    },
+    300_000,
+  );
 });
