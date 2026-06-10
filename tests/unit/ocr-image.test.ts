@@ -270,4 +270,35 @@ describe('OCR real-photo regression suite', () => {
     },
     300_000,
   );
+
+  it(
+    'extracts all visible words from a dim upright gallery photo',
+    async () => {
+      // The exact photo a user imported via "Choose Existing Photo": dim
+      // light, gray-on-gray, upright, full list visible from action to
+      // condition. The pipeline must read every word; a few stray tokens
+      // from paper texture are acceptable (deselectable in the preview).
+      const visible = [
+        'action', 'fraction', 'motion', 'addition', 'vision', 'tension',
+        'turtle', 'angle', 'purple', 'sparkle', 'rectangle', 'triangle',
+        'condition',
+      ];
+      const blob = loadFixtureBlob('real-photo-dim-upright.jpg');
+      const { text } = await recognizeWithOrientationDetection(
+        worker,
+        blob,
+        createSharpImageOps(),
+      );
+      const words = correctOcrWords(cleanWords(normalizeWhitespace(text)));
+
+      for (const expected of visible) {
+        expect(words, `missing "${expected}"`).toContain(expected);
+      }
+
+      const known = new Set([...visible, 'challenge', 'words']);
+      const strays = words.filter((w) => !known.has(w));
+      expect(strays.length, `too much garbage: ${strays.join(' ')}`).toBeLessThanOrEqual(5);
+    },
+    300_000,
+  );
 });
