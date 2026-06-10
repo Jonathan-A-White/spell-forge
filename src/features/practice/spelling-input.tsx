@@ -4,11 +4,13 @@ import { useState, useCallback, useEffect } from 'react';
 import { SpellingComparison } from './spelling-comparison';
 import { SpellingField } from './custom-keyboard';
 import { hapticSuccess, hapticError } from '../../core/haptics';
+import type { DetectedPattern } from '../../contracts/types';
 
 interface SpellingInputProps {
   word: string;
   onComplete: (correct: boolean, responseTimeMs: number, mistakes: number, userInput?: string) => void;
   scaffolding?: { chunks: string[]; hints: string[] } | null;
+  patterns?: DetectedPattern[];
   tapTargetSize: number;
 }
 
@@ -16,7 +18,7 @@ type Phase = 'input' | 'comparison' | 'retype';
 
 const REQUIRED_RETYPES = 2;
 
-export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: SpellingInputProps) {
+export function SpellingInput({ word, onComplete, scaffolding, patterns, tapTargetSize }: SpellingInputProps) {
   const [phase, setPhase] = useState<Phase>('input');
   const [attempt, setAttempt] = useState('');
   const [retypeCount, setRetypeCount] = useState(0);
@@ -89,17 +91,19 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
       <div className="flex flex-col items-center gap-6 w-full max-w-md">
         {scaffolding && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center w-full">
-            <div className="flex justify-center gap-2 mb-2">
-              {scaffolding.chunks.map((chunk, i) => (
-                <span
-                  key={i}
-                  className="bg-blue-100 px-3 py-1 rounded-md font-bold text-blue-800"
-                  style={{ fontSize }}
-                >
-                  {chunk}
-                </span>
-              ))}
-            </div>
+            {scaffolding.chunks.length > 0 && (
+              <div className="flex justify-center gap-2 mb-2">
+                {scaffolding.chunks.map((chunk, i) => (
+                  <span
+                    key={i}
+                    className="bg-blue-100 px-3 py-1 rounded-md font-bold text-blue-800"
+                    style={{ fontSize }}
+                  >
+                    {chunk}
+                  </span>
+                ))}
+              </div>
+            )}
             {scaffolding.hints.map((hint, i) => (
               <p key={i} className="text-blue-700 text-sm mt-1">
                 {hint}
@@ -130,6 +134,7 @@ export function SpellingInput({ word, onComplete, scaffolding, tapTargetSize }: 
           attempt={attempt.trim().toLowerCase()}
           correct={targetWord}
           fontSize={fontSize}
+          patterns={patterns}
         />
 
         <button
