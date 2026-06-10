@@ -6,6 +6,7 @@ import type {
   WordStats,
   SessionWordSelection,
 } from '../../contracts/types';
+import { shuffle } from '../shuffle';
 
 /**
  * Default session mix ratios.
@@ -188,6 +189,64 @@ export function selectSessionWords(
     maintenanceWords: selectedMaintenance,
     totalTarget: sessionSize,
   };
+}
+
+/**
+ * Family key for interleaving: a word's dominant phonics pattern. Words
+ * without patterns (e.g. lists in languages with no phonics engine) all
+ * share a single "no pattern" family.
+ */
+const NO_PATTERN_FAMILY = '__no-pattern__';
+
+function patternFamily(word: Word): string {
+  return word.patterns[0]?.id ?? NO_PATTERN_FAMILY;
+}
+
+/**
+ * Order session words so that consecutive words don't share the same
+ * dominant phonics pattern when avoidable (interleaved practice beats
+ * blocked practice on trained and untrained words — 2025 RCT with third
+ * graders). Falls back to a plain shuffle when every word belongs to one
+ * pattern family. Order is randomized within and across families.
+ */
+export function interleaveByPattern(words: readonly Word[]): Word[] {
+  const shuffled = shuffle(words);
+
+  const families = new Map<string, Word[]>();
+  for (const w of shuffled) {
+    const key = patternFamily(w);
+    const group = families.get(key);
+    if (group) {
+      group.push(w);
+    } else {
+      families.set(key, [w]);
+    }
+  }
+
+  if (families.size <= 1) return shuffled;
+
+  // Greedy interleave: always draw from the largest remaining family other
+  // than the one just used (ties broken randomly). This yields no adjacent
+  // same-family pair whenever the family sizes make that possible; when one
+  // family dominates, the leftover repeats cluster at the unavoidable spots.
+  const groups = [...families.entries()].map(([key, members]) => ({ key, members }));
+  const result: Word[] = [];
+  let lastKey: string | null = null;
+
+  while (result.length < shuffled.length) {
+    let candidates = groups.filter(g => g.members.length > 0 && g.key !== lastKey);
+    if (candidates.length === 0) {
+      // Only the last-used family has words left — adjacency is unavoidable
+      candidates = groups.filter(g => g.members.length > 0);
+    }
+    const maxSize = Math.max(...candidates.map(g => g.members.length));
+    const largest = candidates.filter(g => g.members.length === maxSize);
+    const pick = largest[Math.floor(Math.random() * largest.length)];
+    result.push(pick.members.pop()!);
+    lastKey = pick.key;
+  }
+
+  return result;
 }
 
 /**

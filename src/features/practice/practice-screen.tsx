@@ -20,6 +20,7 @@ import {
   type SessionState,
   type SessionConfig,
 } from './session-controller';
+import { getScaffoldingHints } from './scaffolding-hints';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 
@@ -442,9 +443,7 @@ export function PracticeScreen({
   const scaffoldingShown =
     session.scaffoldingActive ||
     session.scaffoldWordIds.includes(session.currentWord.id);
-  const scaffoldingHints = session.currentWord.patterns
-    .slice(0, 2)
-    .map((p) => p.hint);
+  const scaffoldingHints = getScaffoldingHints(session.currentWord);
   const scaffolding =
     scaffoldingShown && scaffoldingHints.length > 0
       ? { chunks: [], hints: scaffoldingHints }

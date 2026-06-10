@@ -7,10 +7,9 @@ import type {
   SessionLog,
   TechniqueResult,
 } from '../../contracts/types';
-import { selectSessionWords } from '../../core/word-selection/selector';
+import { selectSessionWords, interleaveByPattern } from '../../core/word-selection/selector';
 import { analyzeEngagement, determineAction } from '../../core/adaptive/engine';
 import { updateWordStats } from '../../core/spaced-rep';
-import { shuffle as shuffleArray } from '../../core/shuffle';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface SessionState {
@@ -83,8 +82,10 @@ export function createSession(
     ...selection.maintenanceWords,
   ];
 
-  // Shuffle the words so it's not predictable
-  const shuffled = shuffleArray(sessionWords);
+  // Shuffle with pattern-aware interleaving: avoid back-to-back words from
+  // the same phonics pattern family (interleaved practice). Re-queued missed
+  // words are inserted later by position and may land anywhere.
+  const shuffled = interleaveByPattern(sessionWords);
 
   return {
     sessionId: uuidv4(),
