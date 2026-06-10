@@ -16,6 +16,10 @@ const CHAR_SUBSTITUTIONS: ReadonlyArray<[string, string]> = [
   ['a', 'd'],
   ['a', 'o'],
   ['o', 'a'],
+  ['a', 'e'],   // ractangle → rectangle
+  ['e', 'a'],
+  ['g', 'a'],   // rounded print fonts: single-story 'a' misread as 'g'
+  ['a', 'g'],
   ['l', 'i'],
   ['i', 'l'],
   ['0', 'o'],

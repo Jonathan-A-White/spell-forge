@@ -183,6 +183,15 @@ describe('correctOcrWords', () => {
     expect(correctOcrWords(['prlce'])).toEqual(['price']);
   });
 
+  it('corrects a→e substitution (ractangle → rectangle)', () => {
+    expect(correctOcrWords(['ractangle'])).toEqual(['rectangle']);
+  });
+
+  it('corrects g→a plus a→e double misread (gngla → angle)', () => {
+    // Rounded print fonts on worksheets: 'a' misread as 'g', 'e' as 'a'
+    expect(correctOcrWords(['gngla'])).toEqual(['angle']);
+  });
+
   it('leaves unknown words unchanged when no correction found', () => {
     expect(correctOcrWords(['xyzqwk'])).toEqual(['xyzqwk']);
   });
