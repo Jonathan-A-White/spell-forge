@@ -7,7 +7,12 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { cleanWords, normalizeWhitespace } from '../../src/ocr/utils.ts';
 import { correctOcrWords } from '../../src/ocr/spell-check.ts';
-import { flattenWithBackground, recognizeWithOrientationDetection } from '../../src/ocr/preprocess.ts';
+import {
+  binarizeWithBackground,
+  blockMaxBackground,
+  flattenWithBackground,
+  recognizeWithOrientationDetection,
+} from '../../src/ocr/preprocess.ts';
 import type { ImageOps } from '../../src/ocr/preprocess.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -169,6 +174,30 @@ function createSharpImageOps(): ImageOps {
         .toBuffer();
       return new Blob([new Uint8Array(out)], { type: 'image/jpeg' });
     },
+    async binarizeShadow(image: Blob): Promise<Blob | null> {
+      // Mirror the canvas implementation with the same shared math:
+      // block-max background, smooth upscale, threshold.
+      const input = Buffer.from(await image.arrayBuffer());
+      const { data: img, info } = await sharp(input)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const pixels = new Uint8ClampedArray(img.buffer, img.byteOffset, img.length);
+      const small = blockMaxBackground(pixels, info.width, info.height);
+      const bg = await sharp(Buffer.from(small.data.buffer, small.data.byteOffset, small.data.length), {
+        raw: { width: small.width, height: small.height, channels: 4 },
+      })
+        .resize(info.width, info.height, { fit: 'fill' })
+        .raw()
+        .toBuffer();
+      binarizeWithBackground(pixels, new Uint8ClampedArray(bg.buffer, bg.byteOffset, bg.length));
+      const out = await sharp(img, {
+        raw: { width: info.width, height: info.height, channels: 4 },
+      })
+        .jpeg({ quality: 92 })
+        .toBuffer();
+      return new Blob([new Uint8Array(out)], { type: 'image/jpeg' });
+    },
     async rotateSmall(image: Blob, degrees: number): Promise<Blob | null> {
       // Mirror the canvas implementation: rotate about the center keeping
       // the original canvas size, with mid-gray corner fill.
@@ -298,6 +327,33 @@ describe('OCR real-photo regression suite', () => {
       const known = new Set([...visible, 'challenge', 'words']);
       const strays = words.filter((w) => !known.has(w));
       expect(strays.length, `too much garbage: ${strays.join(' ')}`).toBeLessThanOrEqual(5);
+    },
+    300_000,
+  );
+
+  it(
+    'extracts all words from a photo with a hand shadow across the list',
+    async () => {
+      // Real phone photo of the full list, stored sideways, with a soft
+      // hand/phone shadow running down the middle. Flatten-by-division alone
+      // leaves too little contrast under the shadow — words like "sparkle"
+      // and "rectangle" dropped out and the shadow edge hallucinated tokens
+      // ("nzan") — so this exercises the shadow-binarization second pass.
+      const blob = loadFixtureBlob('real-photo-shadow-90ccw.jpg');
+      const { text } = await recognizeWithOrientationDetection(
+        worker,
+        blob,
+        createSharpImageOps(),
+      );
+      const words = correctOcrWords(cleanWords(normalizeWhitespace(text)));
+
+      for (const expected of REAL_PHOTO_WORDS) {
+        expect(words, `missing "${expected}"`).toContain(expected);
+      }
+
+      const known = new Set([...REAL_PHOTO_WORDS, ...REAL_PHOTO_HEADER_WORDS]);
+      const strays = words.filter((w) => !known.has(w));
+      expect(strays.length, `too much garbage: ${strays.join(' ')}`).toBeLessThanOrEqual(4);
     },
     300_000,
   );

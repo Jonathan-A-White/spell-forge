@@ -53,6 +53,15 @@ export interface ImageOps {
    * null when unavailable/failed.
    */
   rotateSmall(image: Blob, degrees: number): Promise<Blob | null>;
+  /**
+   * Adaptive shadow binarization: threshold each pixel against a text-free
+   * local background estimate (block-max + upscale), producing a black/white
+   * image where soft shadows are erased entirely. Used for the second
+   * recognition pass that recovers words the flattened image lost under a
+   * hand/phone shadow. Optional; pipeline skips the pass when absent.
+   * Returns null when unavailable/failed.
+   */
+  binarizeShadow?(image: Blob): Promise<Blob | null>;
 }
 
 /**
@@ -249,6 +258,104 @@ export function filterLowConfidenceWords(
 }
 
 /**
+ * Pixel-brightness ratio below which a pixel counts as text during shadow
+ * binarization. Local backgrounds are text-free (block-max), so anything
+ * meaningfully darker than its surrounding paper is ink — including ink
+ * inside a soft shadow, where flatten-by-division leaves too little
+ * contrast for Tesseract.
+ */
+const SHADOW_BINARIZE_RATIO = 0.8;
+
+/**
+ * Block size (in pixels, on the ≤MAX_DIMENSION image) for the block-max
+ * background estimate used by shadow binarization. Must comfortably exceed
+ * letter stroke width so every block contains paper; small enough to track
+ * a hand-shadow gradient across the page.
+ */
+const SHADOW_BACKGROUND_BLOCK = 24;
+
+/**
+ * Compute a text-free background estimate by taking the per-block MAX of
+ * grayscale brightness (dark ink is never the lightest pixel of its block,
+ * so strokes don't bias the estimate the way a plain blur does). Returns a
+ * small RGBA image to be upscaled smoothly back to full size by the caller.
+ * Exported for the sharp-based test ImageOps.
+ */
+export function blockMaxBackground(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  block: number = SHADOW_BACKGROUND_BLOCK,
+): { data: Uint8ClampedArray; width: number; height: number } {
+  const bgW = Math.max(1, Math.ceil(width / block));
+  const bgH = Math.max(1, Math.ceil(height / block));
+  const out = new Uint8ClampedArray(bgW * bgH * 4);
+  for (let by = 0; by < bgH; by++) {
+    for (let bx = 0; bx < bgW; bx++) {
+      let max = 0;
+      const y1 = Math.min(height, (by + 1) * block);
+      const x1 = Math.min(width, (bx + 1) * block);
+      for (let y = by * block; y < y1; y++) {
+        for (let x = bx * block; x < x1; x++) {
+          const i = (y * width + x) * 4;
+          const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          if (gray > max) max = gray;
+        }
+      }
+      const o = (by * bgW + bx) * 4;
+      out[o] = max;
+      out[o + 1] = max;
+      out[o + 2] = max;
+      out[o + 3] = 255;
+    }
+  }
+  return { data: out, width: bgW, height: bgH };
+}
+
+/**
+ * Threshold an RGBA image in place against a text-free background estimate
+ * of the same size: pixels darker than SHADOW_BINARIZE_RATIO of their local
+ * background become black, everything else white. Shared by the browser
+ * canvas implementation and the Node test implementation.
+ */
+export function binarizeWithBackground(
+  image: Uint8ClampedArray,
+  background: Uint8ClampedArray,
+): void {
+  for (let i = 0; i < image.length; i += 4) {
+    const gray = (image[i] + image[i + 1] + image[i + 2]) / 3;
+    const bg = Math.max(1, (background[i] + background[i + 1] + background[i + 2]) / 3);
+    const v = gray < bg * SHADOW_BINARIZE_RATIO ? 0 : 255;
+    image[i] = v;
+    image[i + 1] = v;
+    image[i + 2] = v;
+  }
+}
+
+/**
+ * Merge dictionary words recovered by the shadow-binarized second pass into
+ * the main recognition text. Only dictionary words are merged — the second
+ * pass exists to rescue real list words from shadowed regions, and limiting
+ * the merge to WORD_SET entries means it can never add garbage tokens.
+ * Exported for tests.
+ */
+export function mergeShadowPassText(mainText: string, shadowText: string): string {
+  const have = new Set<string>();
+  for (const raw of mainText.split(/\s+/)) {
+    const token = normalizeToken(raw);
+    if (token.length > 0) have.add(token);
+  }
+  const added: string[] = [];
+  for (const raw of shadowText.split(/\s+/)) {
+    const token = normalizeToken(raw);
+    if (token.length === 0 || have.has(token) || !WORD_SET.has(token)) continue;
+    have.add(token);
+    added.push(token);
+  }
+  return added.length === 0 ? mainText : `${mainText} ${added.join(' ')}`;
+}
+
+/**
  * Divide an RGBA image by a blurred-background RGBA estimate of the same
  * size, writing a flattened grayscale result in place. This removes uneven
  * lighting (vignettes, shadows, dim rooms) that defeats Tesseract's global
@@ -437,6 +544,52 @@ export const canvasImageOps: ImageOps = {
       return null;
     }
   },
+
+  async binarizeShadow(image: Blob): Promise<Blob | null> {
+    if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
+      return null;
+    }
+    try {
+      const bitmap = await createImageBitmap(image);
+      try {
+        const { width, height } = bitmap;
+        const canvas = new OffscreenCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(bitmap, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const small = blockMaxBackground(imageData.data, width, height);
+
+        // Upscale the block-max estimate smoothly via canvas (bilinear),
+        // mirroring the existing downscale-then-upscale flattening path.
+        const smallCanvas = new OffscreenCanvas(small.width, small.height);
+        const smallCtx = smallCanvas.getContext('2d');
+        if (!smallCtx) return null;
+        // Copy into a fresh ArrayBuffer-backed array (ImageData rejects
+        // SharedArrayBuffer-typed views under TS strict lib types).
+        smallCtx.putImageData(
+          new ImageData(new Uint8ClampedArray(small.data), small.width, small.height),
+          0,
+          0,
+        );
+        const bgCanvas = drawScaled(smallCanvas, small.width, small.height, width, height);
+        const bgCtx = bgCanvas?.getContext('2d');
+        if (!bgCanvas || !bgCtx) return null;
+
+        binarizeWithBackground(imageData.data, bgCtx.getImageData(0, 0, width, height).data);
+        ctx.putImageData(imageData, 0, 0);
+
+        const result = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+        if (result.size < MIN_BLOB_SIZE) return null;
+        return result;
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      return null;
+    }
+  },
 };
 
 /**
@@ -512,8 +665,30 @@ export async function recognizeWithOrientationDetection(
     }
   }
 
+  let text = filterLowConfidenceWords(best.text, best.blocks);
+
+  // Shadow recovery pass: a hand/phone shadow leaves the flattened image with
+  // too little contrast in the shadowed region, so individual words drop out
+  // even though the rest of the list reads fine. Adaptive binarization against
+  // a text-free background erases the shadow completely; one extra recognition
+  // on the winning orientation rescues those words. Only dictionary words are
+  // merged, so this pass can never introduce garbage tokens.
+  if (imageOps.binarizeShadow && best.image instanceof Blob) {
+    try {
+      const binarized = await imageOps.binarizeShadow(best.image);
+      if (binarized) {
+        const bytes = new Uint8Array(await binarized.arrayBuffer());
+        const { data } = await worker.recognize(bytes, {}, RECOGNIZE_OUTPUT);
+        const shadowText = filterLowConfidenceWords(data.text, data.blocks);
+        text = mergeShadowPassText(text, shadowText);
+      }
+    } catch {
+      // fail open: the main-pass result stands on its own
+    }
+  }
+
   return {
-    text: filterLowConfidenceWords(best.text, best.blocks),
+    text,
     confidence: best.confidence / 100,
   };
 }

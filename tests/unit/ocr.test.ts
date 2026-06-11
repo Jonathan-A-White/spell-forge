@@ -4,7 +4,7 @@ import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
-import { canvasImageOps, filterLowConfidenceWords, flattenWithBackground, isLikelyGarbage, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
+import { binarizeWithBackground, blockMaxBackground, canvasImageOps, filterLowConfidenceWords, flattenWithBackground, isLikelyGarbage, mergeShadowPassText, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
 import type { ImageOps, OcrBlockInfo, OcrWorker } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
 
@@ -545,6 +545,145 @@ describe('flattenWithBackground', () => {
     expect(image[0]).toBe(image[1]);
     expect(image[1]).toBe(image[2]);
     expect(image[3]).toBe(255);
+  });
+});
+
+// ─── Shadow binarization helpers ────────────────────────────
+
+describe('blockMaxBackground', () => {
+  function grayRow(...values: number[]): Uint8ClampedArray {
+    const out = new Uint8ClampedArray(values.length * 4);
+    values.forEach((v, i) => {
+      out[i * 4] = v;
+      out[i * 4 + 1] = v;
+      out[i * 4 + 2] = v;
+      out[i * 4 + 3] = 255;
+    });
+    return out;
+  }
+
+  it('takes the per-block maximum, ignoring dark text strokes', () => {
+    // 8×1 image, block size 4: each block holds paper plus a dark stroke
+    const image = grayRow(40, 200, 190, 35, 120, 30, 110, 25);
+    const bg = blockMaxBackground(image, 8, 1, 4);
+
+    expect(bg.width).toBe(2);
+    expect(bg.height).toBe(1);
+    expect(bg.data[0]).toBe(200); // lightest pixel of block 1 (paper)
+    expect(bg.data[4]).toBe(120); // lightest pixel of block 2 (shadowed paper)
+    expect(bg.data[3]).toBe(255); // opaque alpha
+  });
+});
+
+describe('binarizeWithBackground', () => {
+  function gray(...values: number[]): Uint8ClampedArray {
+    const out = new Uint8ClampedArray(values.length * 4);
+    values.forEach((v, i) => {
+      out[i * 4] = v;
+      out[i * 4 + 1] = v;
+      out[i * 4 + 2] = v;
+      out[i * 4 + 3] = 255;
+    });
+    return out;
+  }
+
+  it('thresholds against the local background, erasing shadow gradients', () => {
+    // Bright region: paper 220, ink 80. Shadowed region: paper 120, ink 50.
+    const image = gray(220, 80, 120, 50);
+    const background = gray(220, 220, 120, 120);
+
+    binarizeWithBackground(image, background);
+
+    expect(image[0]).toBe(255); // bright paper → white
+    expect(image[4]).toBe(0); // ink → black
+    expect(image[8]).toBe(255); // shadowed paper → white too
+    expect(image[12]).toBe(0); // shadowed ink → black
+  });
+});
+
+describe('mergeShadowPassText', () => {
+  it('appends dictionary words the main pass missed', () => {
+    expect(mergeShadowPassText('action purple', 'rectangle sparkle')).toBe(
+      'action purple rectangle sparkle',
+    );
+  });
+
+  it('never merges non-dictionary tokens', () => {
+    expect(mergeShadowPassText('action', 'nzan rectangle xqzt')).toBe(
+      'action rectangle',
+    );
+  });
+
+  it('skips words the main pass already found, ignoring case and punctuation', () => {
+    expect(mergeShadowPassText('Action, purple.', 'action PURPLE rectangle')).toBe(
+      'Action, purple. rectangle',
+    );
+  });
+
+  it('returns the main text untouched when the shadow pass adds nothing', () => {
+    expect(mergeShadowPassText('action purple', 'action zzqx')).toBe('action purple');
+  });
+});
+
+describe('recognizeWithOrientationDetection shadow pass', () => {
+  it('merges dictionary words recovered from the binarized image', async () => {
+    const mainBlob = new Blob(['MAIN'], { type: 'image/jpeg' });
+    const binarizedBlob = new Blob(['BINARIZED'], { type: 'image/jpeg' });
+    const fakeOps: ImageOps = {
+      normalize: async () => mainBlob,
+      rotate: async () => null,
+      rotateSmall: async () => null,
+      binarizeShadow: async () => binarizedBlob,
+    };
+    const fakeWorker: OcrWorker = {
+      recognize: async (image) => {
+        const marker = new TextDecoder().decode(image as Uint8Array);
+        if (marker === 'BINARIZED') {
+          // Shadow pass: recovers two real words, hallucinates one garbage token
+          return { data: { text: 'rectangle nzan sparkle action', confidence: 70 } };
+        }
+        return {
+          data: {
+            text: 'action fraction motion addition vision purple',
+            confidence: 90,
+          },
+        };
+      },
+    };
+
+    const result = await recognizeWithOrientationDetection(
+      fakeWorker,
+      new Blob(['raw'], { type: 'image/jpeg' }),
+      fakeOps,
+    );
+
+    expect(result.text).toBe(
+      'action fraction motion addition vision purple rectangle sparkle',
+    );
+  });
+
+  it('keeps the main result when binarization is unavailable', async () => {
+    const mainBlob = new Blob(['MAIN'], { type: 'image/jpeg' });
+    const fakeOps: ImageOps = {
+      normalize: async () => mainBlob,
+      rotate: async () => null,
+      rotateSmall: async () => null,
+      binarizeShadow: async () => null,
+    };
+    const recognize = vi.fn(async () => ({
+      data: { text: 'action fraction motion addition vision purple', confidence: 90 },
+    }));
+    const fakeWorker: OcrWorker = { recognize };
+
+    const result = await recognizeWithOrientationDetection(
+      fakeWorker,
+      new Blob(['raw'], { type: 'image/jpeg' }),
+      fakeOps,
+    );
+
+    expect(result.text).toBe('action fraction motion addition vision purple');
+    // Early exit on 0° plus no shadow pass: exactly one recognition
+    expect(recognize).toHaveBeenCalledTimes(1);
   });
 });
 
