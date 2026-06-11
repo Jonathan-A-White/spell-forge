@@ -3,7 +3,7 @@
 import type { OcrResult } from '../contracts/types.ts';
 import { LocalOcrProvider, OcrUnreadableError } from './local.ts';
 import { RemoteOcrProvider } from './remote.ts';
-import { createTesseractRecognizer } from './tesseract-recognizer.ts';
+import { createTesseractRecognizer, OcrEngineLoadError } from './tesseract-recognizer.ts';
 
 export interface OcrManager {
   extractWords(image: Blob): Promise<OcrResult>;
@@ -35,6 +35,7 @@ export class OcrManagerImpl implements OcrManager {
     const errors: string[] = [];
     let lowConfidenceResult: OcrResult | null = null;
     let unreadableError: OcrUnreadableError | null = null;
+    let engineLoadError: OcrEngineLoadError | null = null;
 
     // Try local first
     if (this.local.isAvailable()) {
@@ -49,6 +50,9 @@ export class OcrManagerImpl implements OcrManager {
       } catch (err) {
         if (err instanceof OcrUnreadableError) {
           unreadableError = err;
+        }
+        if (err instanceof OcrEngineLoadError) {
+          engineLoadError = err;
         }
         errors.push(`Local OCR failed: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -77,6 +81,12 @@ export class OcrManagerImpl implements OcrManager {
     // user-actionable message rather than a provider error dump.
     if (unreadableError) {
       throw unreadableError;
+    }
+
+    // The OCR engine itself couldn't be loaded (stale deploy chunk, offline)
+    // — same treatment: the fix is the user's to make (refresh/reconnect).
+    if (engineLoadError) {
+      throw engineLoadError;
     }
 
     throw new Error(
