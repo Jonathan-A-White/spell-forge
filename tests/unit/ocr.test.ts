@@ -4,6 +4,7 @@ import { correctOcrWords } from '../../src/ocr/spell-check.ts';
 import { LocalOcrProvider } from '../../src/ocr/local.ts';
 import { RemoteOcrProvider } from '../../src/ocr/remote.ts';
 import { OcrManagerImpl } from '../../src/ocr/manager.ts';
+import { createTesseractRecognizer, OcrEngineLoadError } from '../../src/ocr/tesseract-recognizer.ts';
 import { binarizeWithBackground, blockMaxBackground, canvasImageOps, filterLowConfidenceWords, flattenWithBackground, isLikelyGarbage, mergeShadowPassText, recognizeWithOrientationDetection, scoreRecognizedText } from '../../src/ocr/preprocess.ts';
 import type { ImageOps, OcrBlockInfo, OcrWorker } from '../../src/ocr/preprocess.ts';
 import type { RecognizerFn } from '../../src/ocr/local.ts';
@@ -862,7 +863,64 @@ function makeRemoteProvider(opts?: {
   return provider;
 }
 
+describe('createTesseractRecognizer', () => {
+  it('maps a failed engine load to OcrEngineLoadError', async () => {
+    const loader = vi.fn(async () => {
+      throw new TypeError('Failed to fetch dynamically imported module');
+    });
+    const recognizer = createTesseractRecognizer(loader as never);
+
+    await expect(recognizer(new Blob())).rejects.toBeInstanceOf(OcrEngineLoadError);
+  });
+
+  it('retries the engine load on the next call instead of caching the failure', async () => {
+    const worker = {
+      recognize: async () => ({
+        data: { text: 'badge edge judge pace mice', confidence: 90 },
+      }),
+    };
+    let calls = 0;
+    const loader = vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new TypeError('Failed to fetch dynamically imported module');
+      return { createWorker: async () => worker };
+    });
+    const recognizer = createTesseractRecognizer(loader as never);
+
+    await expect(recognizer(new Blob())).rejects.toBeInstanceOf(OcrEngineLoadError);
+
+    // Second attempt (e.g. after the user reconnects) must reload the engine
+    const result = await recognizer(new Blob());
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('badge edge judge pace mice');
+  });
+
+  it('maps a failed worker creation to OcrEngineLoadError', async () => {
+    const loader = vi.fn(async () => ({
+      createWorker: async () => {
+        throw new Error('traineddata fetch failed');
+      },
+    }));
+    const recognizer = createTesseractRecognizer(loader as never);
+
+    await expect(recognizer(new Blob())).rejects.toBeInstanceOf(OcrEngineLoadError);
+  });
+});
+
 describe('OcrManager', () => {
+  it('surfaces OcrEngineLoadError instead of the provider error dump', async () => {
+    const local = new LocalOcrProvider(async () => {
+      throw new OcrEngineLoadError();
+    });
+    const remote = new RemoteOcrProvider(); // no endpoint — unavailable
+
+    const manager = new OcrManagerImpl(local, remote);
+
+    await expect(manager.extractWords(new Blob())).rejects.toThrow(
+      "Couldn't load the photo reader",
+    );
+  });
+
   it('tries local first and returns result', async () => {
     const local = makeLocalProvider({ text: 'apple banana orange', confidence: 0.92 });
     const remote = new RemoteOcrProvider(); // no endpoint — unavailable
