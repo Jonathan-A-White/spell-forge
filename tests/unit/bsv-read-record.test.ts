@@ -50,6 +50,17 @@ describe('readRecordByTxid', () => {
     expect(result.records[0].decodedPayload).toEqual(txFixture.payload);
   });
 
+  it('trims surrounding whitespace and newlines from the txid before validating and fetching', async () => {
+    const provider = fakeProvider();
+    const eventBus = createEventBus();
+    const goodTxid = 'a'.repeat(64);
+
+    const result = await readRecordByTxid(provider, `  ${goodTxid}\n`, eventBus);
+
+    expect(provider.getTransactionHex).toHaveBeenCalledWith(goodTxid);
+    expect(result.txid).toBe(goodTxid);
+  });
+
   it('emits bsv:record-read even when the transaction has no matching record', async () => {
     const provider = fakeProvider({ getTransactionHex: vi.fn().mockResolvedValue(txFixture.noRecordTxHex) });
     const eventBus = createEventBus();

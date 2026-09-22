@@ -27,17 +27,18 @@ export async function readRecordByTxid(
   txid: string,
   eventBus: EventBus,
 ): Promise<ReadRecordResult> {
-  if (!TXID_PATTERN.test(txid)) {
+  const trimmedTxid = txid.trim();
+  if (!TXID_PATTERN.test(trimmedTxid)) {
     throw new ChainError('Not a valid transaction id — expected 64 hex characters');
   }
 
-  const txHex = await provider.getTransactionHex(txid);
+  const txHex = await provider.getTransactionHex(trimmedTxid);
   const records = findRecordsInTransaction(txHex).map((record) => ({
     ...record,
     decodedPayload: decodeRecordPayload(record.version, record.payloadBytes),
   }));
 
-  eventBus.emit({ type: 'bsv:record-read', payload: { txid, recordCount: records.length } });
+  eventBus.emit({ type: 'bsv:record-read', payload: { txid: trimmedTxid, recordCount: records.length } });
 
-  return { txid, records };
+  return { txid: trimmedTxid, records };
 }
