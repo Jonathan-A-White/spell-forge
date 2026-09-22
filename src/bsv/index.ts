@@ -57,3 +57,5 @@ export type {
   WriteWithTokenParams,
   WriteWithTokenResult,
 } from './license-token';
+export { followLicenseToken } from './token-lineage';
+export type { LineageHop, LineageHopKind, FollowLicenseTokenResult, FollowLicenseTokenParams } from './token-lineage';
