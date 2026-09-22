@@ -2,8 +2,15 @@
 // address (single-install: the app is issuer and holder at once) and lists its tokens.
 
 import { useEffect, useRef, useState } from 'react';
-import { chainConfig, isValidTestnetAddress, mintLicenseToken, transferLicenseToken, writeWithToken } from '../../bsv';
-import type { ChainProvider, LicenseToken } from '../../bsv';
+import {
+  chainConfig,
+  followLicenseToken,
+  isValidTestnetAddress,
+  mintLicenseToken,
+  transferLicenseToken,
+  writeWithToken,
+} from '../../bsv';
+import type { ChainProvider, FollowLicenseTokenResult, LicenseToken } from '../../bsv';
 import { bsvTokenRepo } from '../../data/repositories';
 import type { BsvWalletKey, EventBus } from '../../contracts/types';
 
@@ -32,6 +39,12 @@ type TokenWriteState =
   | { status: 'done'; txid: string }
   | { status: 'error'; message: string };
 
+type HistoryState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'done'; result: FollowLicenseTokenResult }
+  | { status: 'error'; message: string };
+
 function tokenKey(token: LicenseToken): string {
   return `${token.origin.txid}:${token.origin.vout}`;
 }
@@ -43,6 +56,7 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
   const [transferStates, setTransferStates] = useState<Record<string, TransferState>>({});
   const [writeTexts, setWriteTexts] = useState<Record<string, string>>({});
   const [tokenWriteStates, setTokenWriteStates] = useState<Record<string, TokenWriteState>>({});
+  const [historyStates, setHistoryStates] = useState<Record<string, HistoryState>>({});
   // Guards against an earlier-issued list() resolving after a later one (e.g. the
   // mount load finishing after a mint's own reload) and clobbering the newer result.
   const latestListRequest = useRef(0);
@@ -129,6 +143,18 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
     }
   }
 
+  async function handleHistory(token: LicenseToken) {
+    const key = tokenKey(token);
+    setHistoryStates((prev) => ({ ...prev, [key]: { status: 'loading' } }));
+    try {
+      const result = await followLicenseToken({ origin: token.origin, provider });
+      setHistoryStates((prev) => ({ ...prev, [key]: { status: 'done', result } }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not follow token lineage';
+      setHistoryStates((prev) => ({ ...prev, [key]: { status: 'error', message } }));
+    }
+  }
+
   const canMint = hasBalance && mintState.status !== 'minting';
 
   return (
@@ -158,6 +184,7 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
         const canTransfer = isValidTestnetAddress(toAddress) && transferState.status !== 'transferring';
         const writeText = writeTexts[key] ?? '';
         const tokenWriteState = tokenWriteStates[key] ?? { status: 'idle' };
+        const historyState = historyStates[key] ?? { status: 'idle' };
         const canWriteWithToken = hasBalance && writeText.trim().length > 0 && tokenWriteState.status !== 'writing';
         return (
           <div key={key} data-testid="bsv-token-entry" className="text-sf-text border-t border-sf-border pt-2 text-sm">
@@ -220,6 +247,39 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
                 </p>
               )}
               {tokenWriteState.status === 'error' && <p className="text-red-600">{tokenWriteState.message}</p>}
+            </div>
+
+            <div className="flex flex-col gap-1 mt-2">
+              <button
+                onClick={() => handleHistory(token)}
+                disabled={historyState.status === 'loading'}
+                className="rounded-lg border border-sf-border-strong text-sf-text px-4 py-2 text-sm self-start disabled:opacity-50"
+                style={{ minHeight: 'var(--sf-tap-target-size)' }}
+              >
+                {historyState.status === 'loading' ? 'Loading history…' : 'History'}
+              </button>
+              {historyState.status === 'error' && <p className="text-red-600">{historyState.message}</p>}
+              {historyState.status === 'done' && (
+                <div data-testid="bsv-token-history" className="flex flex-col gap-2">
+                  {historyState.result.brokenAtTxid && (
+                    <p className="text-red-600">{`lineage broken at ${historyState.result.brokenAtTxid}`}</p>
+                  )}
+                  {historyState.result.hops.map((hop, index) => (
+                    <div key={`${hop.txid}-${index}`} data-testid="bsv-lineage-hop" className="border-t border-sf-border pt-1">
+                      <p className="text-sf-muted text-sm">{`${hop.kind} · ${hop.holderAddress}`}</p>
+                      <p className="font-mono select-all break-all text-sm">{hop.txid}</p>
+                      {hop.text && <p className="break-words">{hop.text}</p>}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => handleHistory(token)}
+                    className="rounded-lg border border-sf-border-strong text-sf-text px-4 py-2 text-sm self-start"
+                    style={{ minHeight: 'var(--sf-tap-target-size)' }}
+                  >
+                    Refresh
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );
