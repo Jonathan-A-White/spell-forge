@@ -7,6 +7,7 @@ import { ChainError } from './chain-error';
 
 const MAX_ATTEMPTS = 3;
 const INITIAL_RETRY_DELAY_MS = 500;
+const MAX_ERROR_BODY_CHARS = 200;
 
 type FetchFn = typeof globalThis.fetch;
 type DelayFn = (ms: number) => Promise<void>;
@@ -45,7 +46,7 @@ export class WhatsOnChainProvider implements ChainProvider {
   }
 
   async getUtxos(address: string): Promise<Utxo[]> {
-    const unspent = await this.getJson<WhatsOnChainUnspent[]>(`/address/${address}/unspent`);
+    const unspent = await this.getJson<WhatsOnChainUnspent[]>(`/address/${address.trim()}/unspent`);
     return unspent.map((u) => ({
       txid: u.tx_hash,
       vout: u.tx_pos,
@@ -55,12 +56,12 @@ export class WhatsOnChainProvider implements ChainProvider {
   }
 
   async getAddressHistory(address: string): Promise<AddressHistoryEntry[]> {
-    const history = await this.getJson<WhatsOnChainHistoryEntry[]>(`/address/${address}/history`);
+    const history = await this.getJson<WhatsOnChainHistoryEntry[]>(`/address/${address.trim()}/history`);
     return history.map((h) => ({ txid: h.tx_hash, height: h.height }));
   }
 
   async getTransactionHex(txid: string): Promise<string> {
-    const response = await this.request(`/tx/${txid}/hex`);
+    const response = await this.request(`/tx/${txid.trim()}/hex`);
     return (await response.text()).trim();
   }
 
@@ -101,7 +102,9 @@ export class WhatsOnChainProvider implements ChainProvider {
       }
 
       if (!response.ok) {
-        throw new ChainError(`WhatsOnChain said ${response.status}`);
+        const bodyText = (await response.text()).trim().slice(0, MAX_ERROR_BODY_CHARS);
+        const suffix = bodyText ? `: ${bodyText}` : '';
+        throw new ChainError(`WhatsOnChain said ${response.status}${suffix}`);
       }
 
       return response;

@@ -124,4 +124,74 @@ describe('WhatsOnChainProvider', () => {
 
     await expect(provider.broadcast('deadbeef')).rejects.toThrow(/WhatsOnChain said 400/);
   });
+
+  it('carries the response body text after the status when the node rejects a broadcast', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response('bad-txns-inputs-missingorspent', { status: 400 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    let caught: unknown;
+    try {
+      await provider.broadcast('deadbeef');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    expect((caught as Error).message).toBe('WhatsOnChain said 400: bad-txns-inputs-missingorspent');
+  });
+
+  it('omits the body suffix when a non-OK response has an empty body', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('', { status: 404 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    let caught: unknown;
+    try {
+      await provider.getUtxos(address);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    expect((caught as Error).message).toBe('WhatsOnChain said 404');
+  });
+
+  it('truncates a long response body to at most 200 characters', async () => {
+    const longBody = 'x'.repeat(500);
+    const fetchFn = vi.fn().mockResolvedValue(new Response(longBody, { status: 400 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    let caught: unknown;
+    try {
+      await provider.getUtxos(address);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    expect((caught as Error).message).toBe(`WhatsOnChain said 400: ${'x'.repeat(200)}`);
+  });
+
+  it('getTransactionHex trims surrounding whitespace and newlines from the txid before building the URL', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('deadbeef00', { status: 200 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    await provider.getTransactionHex('  a1b2c3d4\n');
+
+    const [requestedUrl] = fetchFn.mock.calls[0];
+    expect(String(requestedUrl)).toContain('/tx/a1b2c3d4/hex');
+    expect(String(requestedUrl)).not.toMatch(/\s|%0A/i);
+  });
+
+  it('getAddressHistory trims surrounding whitespace and newlines from the address before building the URL', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(historyFixture));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    await provider.getAddressHistory(`  ${address}\n`);
+
+    const [requestedUrl] = fetchFn.mock.calls[0];
+    expect(String(requestedUrl)).toContain(`/address/${address}/history`);
+    expect(String(requestedUrl)).not.toMatch(/\s|%0A/i);
+  });
 });
