@@ -51,6 +51,7 @@ import type { QrWordListPayload } from './features/word-lists/qr-codec';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
+import { BsvDebugScreen } from './features/bsv-debug';
 import { SharePanel } from './features/settings/share-panel';
 import { AudioManagerImpl, useAudioBusy, warmUp as warmUpTts } from './audio';
 import { TtsDebugOverlay } from './audio/tts-debug-overlay';
@@ -65,7 +66,7 @@ import { countMasteredWords } from './core/mastery';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar' | 'record-test-results' | 'test-history' | 'test-result-detail' | 'trouble-words';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar' | 'record-test-results' | 'test-history' | 'test-result-detail' | 'trouble-words' | 'bsv-debug';
 
 const eventBus = createEventBus();
 
@@ -1150,9 +1151,13 @@ function App() {
           onToggleTtsDebug={toggleTtsDebug}
           debugModeEnabled={debugModeEnabled}
           onToggleDebugMode={toggleDebugMode}
+          onOpenBsvDebug={() => setView('bsv-debug')}
           onBack={goBack}
         />
       );
+
+    case 'bsv-debug':
+      return <BsvDebugScreen onBack={goBack} />;
 
     case 'share':
       return <SharePanel onBack={goBack} />;

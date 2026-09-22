@@ -1,9 +1,14 @@
 // src/features/settings/settings-panel.tsx — Full settings screen with theme toggle and accessibility presets
 
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import type { AccessibilitySettings, LearningStrategy } from '../../contracts/types';
 import { PRESETS, type NamedPreset } from '../../accessibility/presets';
 import { ImportFilterSettings } from './import-filter-settings';
+import { APP_VERSION } from '../../version';
+import { useBsvDebugMode } from '../bsv-debug/bsv-debug-flag';
+
+const BSV_DEBUG_TAP_WINDOW_MS = 3000;
+const BSV_DEBUG_TAPS_REQUIRED = 7;
 
 type ContrastMode = AccessibilitySettings['contrastMode'];
 
@@ -24,6 +29,7 @@ interface SettingsPanelProps {
   onToggleTtsDebug?: () => void;
   debugModeEnabled?: boolean;
   onToggleDebugMode?: () => void;
+  onOpenBsvDebug: () => void;
   onBack: () => void;
 }
 
@@ -63,9 +69,26 @@ export function SettingsPanel({
   onToggleTtsDebug,
   debugModeEnabled,
   onToggleDebugMode,
+  onOpenBsvDebug,
   onBack,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [bsvDebugEnabled, toggleBsvDebug] = useBsvDebugMode();
+  const bsvTapCountRef = useRef(0);
+  const bsvLastTapRef = useRef(0);
+
+  const handleVersionTap = useCallback(() => {
+    const now = Date.now();
+    if (now - bsvLastTapRef.current > BSV_DEBUG_TAP_WINDOW_MS) {
+      bsvTapCountRef.current = 0;
+    }
+    bsvLastTapRef.current = now;
+    bsvTapCountRef.current += 1;
+    if (bsvTapCountRef.current >= BSV_DEBUG_TAPS_REQUIRED) {
+      bsvTapCountRef.current = 0;
+      toggleBsvDebug();
+    }
+  }, [toggleBsvDebug]);
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -369,12 +392,22 @@ export function SettingsPanel({
         )}
 
         {/* Developer Settings */}
-        {(onToggleTtsDebug || onToggleDebugMode) && (
+        {(onToggleTtsDebug || onToggleDebugMode || bsvDebugEnabled) && (
           <section>
             <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
               Developer
             </h2>
             <div className="space-y-2">
+              {bsvDebugEnabled && (
+                <button
+                  onClick={onOpenBsvDebug}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
+                >
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm text-sf-text">BSV Debug</p>
+                  </div>
+                </button>
+              )}
               {onToggleDebugMode && (
                 <button
                   onClick={onToggleDebugMode}
@@ -442,6 +475,14 @@ export function SettingsPanel({
             </div>
           </section>
         )}
+
+        <button
+          type="button"
+          onClick={handleVersionTap}
+          className="w-full text-center text-xs text-sf-muted bg-transparent border-0 pt-2 select-none"
+        >
+          {`SpellForge v${APP_VERSION}`}
+        </button>
       </div>
     </div>
   );
