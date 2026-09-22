@@ -3,6 +3,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
+import { ChainError } from '../../src/bsv/chain-error';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { BsvWalletKey } from '../../src/contracts/types';
 
@@ -114,5 +115,91 @@ describe('BsvDebugScreen write record', () => {
     });
     expect(writeButton).toBeDisabled();
     expect(writeRecordMock).not.toHaveBeenCalled();
+  });
+
+  it('fetches a fresh UTXO list right before broadcasting, not the list cached from mount', async () => {
+    await bsvWalletRepo.save(storedKey);
+    localStorage.setItem('sf-bsv-anchor', 'mfx7Vdf1UVMZcRbYcjVNTrHbP3tRKSYsXy');
+    writeRecordMock.mockResolvedValue({ txid: 'a'.repeat(64) });
+    const mountUtxos = [{ txid: 'first', vout: 0, satoshis: 600, height: 100 }];
+    const freshUtxos = [{ txid: 'second', vout: 0, satoshis: 900, height: 101 }];
+    const reloadedUtxos = [{ txid: 'third', vout: 0, satoshis: 1200, height: 102 }];
+    const getUtxos = vi
+      .fn()
+      .mockResolvedValueOnce(mountUtxos)
+      .mockResolvedValueOnce(freshUtxos)
+      .mockResolvedValueOnce(reloadedUtxos);
+    const provider = makeProvider({ getUtxos });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    const writeButton = await screen.findByRole('button', { name: 'Write' });
+    await waitFor(() => expect(getUtxos).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(screen.getByText('Balance: 600 sat (1 UTXOs)')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
+    await waitFor(() => expect(writeButton).toBeEnabled());
+    fireEvent.click(writeButton);
+
+    await waitFor(() => {
+      expect(writeRecordMock).toHaveBeenCalledTimes(1);
+    });
+    expect(writeRecordMock.mock.calls[0][0].utxos).toEqual(freshUtxos);
+    expect(getUtxos.mock.invocationCallOrder[1]).toBeLessThan(writeRecordMock.mock.invocationCallOrder[0]);
+  });
+
+  it('reloads the balance from a fresh getUtxos call after a successful broadcast', async () => {
+    await bsvWalletRepo.save(storedKey);
+    localStorage.setItem('sf-bsv-anchor', 'mfx7Vdf1UVMZcRbYcjVNTrHbP3tRKSYsXy');
+    writeRecordMock.mockResolvedValue({ txid: 'a'.repeat(64) });
+    const mountUtxos = [{ txid: 'first', vout: 0, satoshis: 600, height: 100 }];
+    const freshUtxos = [{ txid: 'second', vout: 0, satoshis: 900, height: 101 }];
+    const reloadedUtxos = [{ txid: 'third', vout: 0, satoshis: 1200, height: 102 }];
+    const getUtxos = vi
+      .fn()
+      .mockResolvedValueOnce(mountUtxos)
+      .mockResolvedValueOnce(freshUtxos)
+      .mockResolvedValueOnce(reloadedUtxos);
+    const provider = makeProvider({ getUtxos });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    const writeButton = await screen.findByRole('button', { name: 'Write' });
+    await waitFor(() => expect(getUtxos).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
+    await waitFor(() => expect(writeButton).toBeEnabled());
+    fireEvent.click(writeButton);
+
+    await waitFor(() => {
+      expect(getUtxos).toHaveBeenCalledTimes(3);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Balance: 1200 sat (1 UTXOs)')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the whole ChainError message, including the WhatsOnChain-reported reason, when the write fails', async () => {
+    await bsvWalletRepo.save(storedKey);
+    localStorage.setItem('sf-bsv-anchor', 'mfx7Vdf1UVMZcRbYcjVNTrHbP3tRKSYsXy');
+    writeRecordMock.mockRejectedValue(
+      new ChainError('WhatsOnChain said 400: bad-txns-inputs-missingorspent'),
+    );
+    const provider = makeProvider();
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    const writeButton = await screen.findByRole('button', { name: 'Write' });
+    fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
+    await waitFor(() => expect(writeButton).toBeEnabled());
+    fireEvent.click(writeButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('WhatsOnChain said 400: bad-txns-inputs-missingorspent'),
+      ).toBeInTheDocument();
+    });
   });
 });

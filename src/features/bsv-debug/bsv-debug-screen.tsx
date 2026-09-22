@@ -155,15 +155,17 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
     if (!wallet || balance.status !== 'loaded') return;
     setWriteState({ status: 'writing' });
     try {
+      const freshUtxos = await provider.getUtxos(wallet.address);
       const result = await writeRecord({
         key: wallet.material,
-        utxos: balance.utxos,
+        utxos: freshUtxos,
         payload: { text: recordText, ts: new Date().toISOString() },
         config: { ...chainConfig, anchorAddress: anchorAddress || chainConfig.anchorAddress },
         provider,
         eventBus: bus,
       });
       setWriteState({ status: 'done', txid: result.txid });
+      await loadBalance(wallet.address);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not write record';
       setWriteState({ status: 'error', message });
