@@ -9,9 +9,12 @@ import {
   writeRecord,
   readRecordByTxid,
   scanRecords,
+  outpointKey,
+  reconcilePendingSpends,
+  filterUtxosExcludingPending,
 } from '../../bsv';
 import type { ChainProvider, DecodedRecord, ScanRecordEntry } from '../../bsv';
-import { bsvWalletRepo } from '../../data/repositories';
+import { bsvWalletRepo, bsvPendingSpendRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
 import type { BsvWalletKey, EventBus, Utxo } from '../../contracts/types';
 import { createEventBus } from '../../contracts';
@@ -43,7 +46,7 @@ interface BsvDebugScreenProps {
 type BalanceState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'loaded'; satoshis: number; utxoCount: number; utxos: Utxo[] }
+  | { status: 'loaded'; satoshis: number; utxoCount: number; utxos: Utxo[]; pendingExcludedCount: number }
   | { status: 'error'; message: string };
 
 type WriteState =
@@ -98,23 +101,43 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
     };
   }, []);
 
+  // Fetches the address's UTXOs, drops any pending-spend entries WhatsOnChain has since
+  // confirmed or expired (persisting the drop), and excludes the rest from the result —
+  // WhatsOnChain double-lists a just-broadcast transaction's inputs as unspent until it
+  // confirms (mw-0ym9.14).
+  const loadActiveUtxos = useCallback(
+    async (address: string): Promise<{ utxos: Utxo[]; excludedCount: number }> => {
+      const [utxos, pendingEntries] = await Promise.all([
+        provider.getUtxos(address),
+        bsvPendingSpendRepo.getAll(),
+      ]);
+      const { remaining, dropped } = reconcilePendingSpends(pendingEntries, utxos, new Date());
+      if (dropped.length > 0) {
+        await bsvPendingSpendRepo.removeMany(dropped);
+      }
+      return filterUtxosExcludingPending(utxos, remaining);
+    },
+    [provider],
+  );
+
   const loadBalance = useCallback(
     async (address: string) => {
       setBalance({ status: 'loading' });
       try {
-        const utxos = await provider.getUtxos(address);
+        const { utxos, excludedCount } = await loadActiveUtxos(address);
         setBalance({
           status: 'loaded',
           satoshis: utxos.reduce((total, utxo) => total + utxo.satoshis, 0),
           utxoCount: utxos.length,
           utxos,
+          pendingExcludedCount: excludedCount,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not load balance';
         setBalance({ status: 'error', message });
       }
     },
-    [provider],
+    [loadActiveUtxos],
   );
 
   useEffect(() => {
@@ -155,7 +178,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
     if (!wallet || balance.status !== 'loaded') return;
     setWriteState({ status: 'writing' });
     try {
-      const freshUtxos = await provider.getUtxos(wallet.address);
+      const { utxos: freshUtxos } = await loadActiveUtxos(wallet.address);
       const result = await writeRecord({
         key: wallet.material,
         utxos: freshUtxos,
@@ -163,6 +186,11 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
         config: { ...chainConfig, anchorAddress: anchorAddress || chainConfig.anchorAddress },
         provider,
         eventBus: bus,
+      });
+      await bsvPendingSpendRepo.add({
+        txid: result.txid,
+        outpoints: freshUtxos.map(outpointKey),
+        createdAt: new Date(),
       });
       setWriteState({ status: 'done', txid: result.txid });
       await loadBalance(wallet.address);
@@ -366,7 +394,11 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
             <div className="flex flex-col gap-2">
               {balance.status === 'loading' && <p className="text-sf-muted">Loading balance…</p>}
               {balance.status === 'loaded' && (
-                <p className="text-sf-text">{`Balance: ${balance.satoshis} sat (${balance.utxoCount} UTXOs)`}</p>
+                <p className="text-sf-text">
+                  {balance.pendingExcludedCount > 0
+                    ? `Balance: ${balance.satoshis} sat (${balance.utxoCount} UTXOs, ${balance.pendingExcludedCount} pending)`
+                    : `Balance: ${balance.satoshis} sat (${balance.utxoCount} UTXOs)`}
+                </p>
               )}
               {balance.status === 'error' && <p className="text-red-600">{balance.message}</p>}
               <button

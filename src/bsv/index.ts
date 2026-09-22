@@ -22,3 +22,5 @@ export { readRecordByTxid } from './read-record';
 export type { DecodedRecord, ReadRecordResult } from './read-record';
 export { scanRecords } from './scan-records';
 export type { ScanRecordEntry, ScanRecordFound, ScanRecordUnreadable, ScanRecordsOptions } from './scan-records';
+export { outpointKey, reconcilePendingSpends, filterUtxosExcludingPending, PENDING_SPEND_TTL_MS } from './pending-spends';
+export type { PendingSpendEntry } from './pending-spends';
