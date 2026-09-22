@@ -20,3 +20,5 @@ export { buildRecordTransaction, writeRecord } from './write-record';
 export type { BuildRecordTransactionParams, BuiltRecordTransaction, WriteRecordParams, WriteRecordResult } from './write-record';
 export { readRecordByTxid } from './read-record';
 export type { DecodedRecord, ReadRecordResult } from './read-record';
+export { scanRecords } from './scan-records';
+export type { ScanRecordEntry, ScanRecordFound, ScanRecordUnreadable, ScanRecordsOptions } from './scan-records';
