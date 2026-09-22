@@ -467,7 +467,8 @@ export type AppEvent =
   | { type: 'profile:archived'; payload: { profileId: string } }
   | { type: 'profile:restored'; payload: { profileId: string } }
   | { type: 'profile:deleted'; payload: { profileId: string } }
-  | { type: 'test:recorded'; payload: { testResult: TestResult; wordListId: string } };
+  | { type: 'test:recorded'; payload: { testResult: TestResult; wordListId: string } }
+  | { type: 'bsv:record-written'; payload: { txid: string } };
 
 export interface EventBus {
   emit(event: AppEvent): void;
