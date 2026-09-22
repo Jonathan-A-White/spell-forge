@@ -32,7 +32,18 @@ export async function readRecordByTxid(
     throw new ChainError('Not a valid transaction id — expected 64 hex characters');
   }
 
-  const txHex = await provider.getTransactionHex(trimmedTxid);
+  let txHex: string;
+  try {
+    txHex = await provider.getTransactionHex(trimmedTxid);
+  } catch (error) {
+    if (error instanceof ChainError && /\b404\b/.test(error.message)) {
+      throw new ChainError(
+        `WhatsOnChain has not seen ${trimmedTxid} yet: a new transaction takes a minute; try again`,
+      );
+    }
+    throw error;
+  }
+
   const records = findRecordsInTransaction(txHex).map((record) => ({
     ...record,
     decodedPayload: decodeRecordPayload(record.version, record.payloadBytes),

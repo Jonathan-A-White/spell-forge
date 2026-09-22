@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readRecordByTxid } from '../../src/bsv/read-record';
 import { createEventBus } from '../../src/contracts/events';
+import { ChainError } from '../../src/bsv/chain-error';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import txFixture from '../fixtures/bsv/record-transaction.json';
 
@@ -74,5 +75,38 @@ describe('readRecordByTxid', () => {
 
     expect(result.records).toEqual([]);
     expect(received).toEqual([goodTxid]);
+  });
+
+  it('explains a fresh 404 instead of passing the raw status through, and names the txid', async () => {
+    const goodTxid = 'c'.repeat(64);
+    const provider = fakeProvider({
+      getTransactionHex: vi.fn().mockRejectedValue(new ChainError('WhatsOnChain said 404')),
+    });
+    const eventBus = createEventBus();
+
+    let caught: unknown;
+    try {
+      await readRecordByTxid(provider, goodTxid, eventBus);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    const message = (caught as Error).message;
+    expect(message).toContain(goodTxid);
+    expect(message).toMatch(/has not seen/i);
+    expect(message).not.toContain('404');
+  });
+
+  it('still throws other ChainErrors from getTransactionHex unchanged', async () => {
+    const goodTxid = 'd'.repeat(64);
+    const provider = fakeProvider({
+      getTransactionHex: vi.fn().mockRejectedValue(new ChainError('Could not reach WhatsOnChain (offline?)')),
+    });
+    const eventBus = createEventBus();
+
+    await expect(readRecordByTxid(provider, goodTxid, eventBus)).rejects.toThrow(
+      'Could not reach WhatsOnChain (offline?)',
+    );
   });
 });
