@@ -1,0 +1,93 @@
+import { describe, it, expect, vi } from 'vitest';
+import { WhatsOnChainProvider } from '../../src/bsv/whatsonchain-provider';
+import { ChainError } from '../../src/bsv/chain-error';
+import type { ChainConfig } from '../../src/bsv/config';
+import unspentFixture from '../fixtures/bsv/unspent.json';
+import historyFixture from '../fixtures/bsv/history.json';
+
+const testConfig: ChainConfig = {
+  network: 'testnet',
+  providerBaseUrl: 'https://api.whatsonchain.com/v1/bsv/test',
+  anchorAddress: 'mpHF9jLctkpJfgBkksYVbdVvhqcYm5MS2b',
+  feeRateSatPerKb: 1,
+};
+
+const address = 'mpHF9jLctkpJfgBkksYVbdVvhqcYm5MS2b';
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status });
+}
+
+function noopDelay() {
+  return vi.fn().mockResolvedValue(undefined);
+}
+
+describe('WhatsOnChainProvider', () => {
+  it('getUtxos returns typed UTXOs from a URL under the configured base', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(unspentFixture));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    const utxos = await provider.getUtxos(address);
+
+    expect(utxos).toEqual([
+      { txid: unspentFixture[0].tx_hash, vout: 0, satoshis: 600, height: 2432624 },
+      { txid: unspentFixture[1].tx_hash, vout: 1, satoshis: 400, height: 2432700 },
+    ]);
+
+    const [requestedUrl] = fetchFn.mock.calls[0];
+    expect(String(requestedUrl)).toMatch(/^https:\/\/api\.whatsonchain\.com\/v1\/bsv\/test/);
+    expect(String(requestedUrl)).toContain(`/address/${address}/unspent`);
+  });
+
+  it('retries once after a 429 then returns the result on 200, waiting via the injected delay', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('rate limited', { status: 429 }))
+      .mockResolvedValueOnce(jsonResponse(unspentFixture));
+    const delay = noopDelay();
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, delay);
+
+    const utxos = await provider.getUtxos(address);
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(delay).toHaveBeenCalledTimes(1);
+    expect(utxos).toHaveLength(2);
+  });
+
+  it('throws a ChainError after three consecutive 429s, calling fetch exactly three times', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('rate limited', { status: 429 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    await expect(provider.getUtxos(address)).rejects.toThrow(ChainError);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('throws a ChainError with a readable offline message when fetch rejects', async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new TypeError('network error'));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    await expect(provider.getUtxos(address)).rejects.toThrow(/Could not reach WhatsOnChain \(offline\?\)/);
+  });
+
+  it('throws a readable ChainError on a non-2xx response', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    await expect(provider.getUtxos(address)).rejects.toThrow(/WhatsOnChain said 500/);
+  });
+
+  it('getAddressHistory returns txids with heights from the history fixture', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(historyFixture));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    const history = await provider.getAddressHistory(address);
+
+    expect(history).toEqual([
+      { txid: historyFixture[0].tx_hash, height: 2432624 },
+      { txid: historyFixture[1].tx_hash, height: 0 },
+    ]);
+
+    const [requestedUrl] = fetchFn.mock.calls[0];
+    expect(String(requestedUrl)).toContain(`/address/${address}/history`);
+  });
+});
