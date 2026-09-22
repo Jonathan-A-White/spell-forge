@@ -1,6 +1,6 @@
 export { chainConfig } from './config';
 export type { ChainConfig } from './config';
-export { generateTestnetKey } from './keys';
+export { generateTestnetKey, isValidTestnetAddress } from './keys';
 export type { GeneratedKey } from './keys';
 export { createChainProvider } from './chain-provider';
 export type { ChainProvider } from './chain-provider';
@@ -24,5 +24,16 @@ export { scanRecords } from './scan-records';
 export type { ScanRecordEntry, ScanRecordFound, ScanRecordUnreadable, ScanRecordsOptions } from './scan-records';
 export { outpointKey, reconcilePendingSpends, filterUtxosExcludingPending, selectFeeUtxos, PENDING_SPEND_TTL_MS } from './pending-spends';
 export type { PendingSpendEntry } from './pending-spends';
-export { buildMintTransaction, mintLicenseToken } from './license-token';
-export type { Outpoint, LicenseToken, BuildMintTransactionParams, BuiltMintTransaction, MintLicenseTokenParams } from './license-token';
+export { buildMintTransaction, mintLicenseToken, buildTransferTransaction, transferLicenseToken } from './license-token';
+export type {
+  Outpoint,
+  LicenseToken,
+  BuildMintTransactionParams,
+  BuiltMintTransaction,
+  MintLicenseTokenParams,
+  BuildTransferTransactionParams,
+  BuiltTransferTransaction,
+  TokenRepository,
+  TransferLicenseTokenParams,
+  TransferLicenseTokenResult,
+} from './license-token';

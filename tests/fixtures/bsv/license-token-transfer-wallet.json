@@ -1,0 +1,29 @@
+{
+  "holderWif": "cSZ9JGomQ9mc5SxXwh6ttFvAHdVxZBHqkHLFKgvyGkeoficjtmGB",
+  "holderAddress": "mjYtqKBaDSJhaXLrLsH3UtyHVfg6x7pnbi",
+  "toAddress": "mzAa7VXfyXULFC1mh6Dpjf48LfJXUg2zwJ",
+  "originTx": {
+    "txid": "1afa38adf8b3b31e964dbdf148911c0040ea6e76c9be723af60811b3353a9d1c",
+    "hex": "01000000000201000000000000001976a9142c3e7228e7f03005f4ad00bb14154b1fe83bc5aa88ac000000000000000009006a066f726967696e00000000",
+    "vout": 0,
+    "satoshis": 1
+  },
+  "currentTx": {
+    "txid": "4e62683a9cbcc5ae9e5d1b3aa8d3a9c7b38ad464fa65dbda7617c95f1d83c661",
+    "hex": "01000000000201000000000000001976a9142c3e7228e7f03005f4ad00bb14154b1fe83bc5aa88ac00000000000000000a006a0763757272656e7400000000",
+    "vout": 0,
+    "satoshis": 1
+  },
+  "fundingTx": {
+    "txid": "f2ac6d7cfd399fb3a2a2d1e50c2827d4ac63c2596db6ca00c888a1eb53743c75",
+    "hex": "01000000000288130000000000001976a9142c3e7228e7f03005f4ad00bb14154b1fe83bc5aa88ac00000000000000000a006a0766756e64696e6700000000",
+    "vout": 0,
+    "satoshis": 5000
+  },
+  "decoyOneSatTx": {
+    "txid": "236e826dc4775ef23b2b0546e316742ba7ee78cad36c80ca68d21ad003196e2e",
+    "hex": "01000000000201000000000000001976a9142c3e7228e7f03005f4ad00bb14154b1fe83bc5aa88ac000000000000000008006a056465636f7900000000",
+    "vout": 0,
+    "satoshis": 1
+  }
+}
