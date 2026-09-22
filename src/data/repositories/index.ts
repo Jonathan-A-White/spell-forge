@@ -9,3 +9,4 @@ export { learningProgressRepo } from './learning-progress-repo';
 export { coinRepo } from './coin-repo';
 export { themeProgressRepo } from './theme-progress-repo';
 export { testResultRepo } from './test-result-repo';
+export { bsvWalletRepo } from './bsv-wallet-repo';

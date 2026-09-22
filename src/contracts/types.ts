@@ -474,6 +474,20 @@ export interface EventBus {
   on(type: AppEvent['type'], handler: (event: AppEvent) => void): () => void;
 }
 
+// ─── BSV Wallet ──────────────────────────────────────────────
+
+export type BsvWalletKeyKind = 'wif';
+
+export interface BsvWalletKey {
+  id: string;
+  kind: BsvWalletKeyKind;
+  network: 'testnet' | 'mainnet';
+  material: string;   // the WIF string
+  address: string;
+  createdAt: Date;
+  label?: string;
+}
+
 // ─── Sync Queue ───────────────────────────────────────────────
 
 export interface SyncQueueItem {
