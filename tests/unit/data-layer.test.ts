@@ -551,8 +551,8 @@ describe('streakRepo', () => {
 
   it('weekend days do not break streak (Fri to Mon)', async () => {
     // 2026-01-16 is Friday, 2026-01-19 is Monday
-    await streakRepo.recordSession(profileId, new Date('2026-01-16'), 5);
-    const streak = await streakRepo.recordSession(profileId, new Date('2026-01-19'), 3);
+    await streakRepo.recordSession(profileId, new Date(2026, 0, 16), 5);
+    const streak = await streakRepo.recordSession(profileId, new Date(2026, 0, 19), 3);
     expect(streak.currentStreak).toBe(2); // weekend skipped, streak continues
   });
 
@@ -641,9 +641,9 @@ describe('streakRepo', () => {
 
   it('get preserves streak when only weekends passed since last session', async () => {
     // Record session on Friday 2026-01-16
-    await streakRepo.recordSession(profileId, new Date('2026-01-16'), 5);
+    await streakRepo.recordSession(profileId, new Date(2026, 0, 16), 5);
     // Read on Monday 2026-01-19 — only Sat/Sun in between
-    const streak = await streakRepo.get(profileId, new Date('2026-01-19'));
+    const streak = await streakRepo.get(profileId, new Date(2026, 0, 19));
     expect(streak!.currentStreak).toBe(1);
   });
 
