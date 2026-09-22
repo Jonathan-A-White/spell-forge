@@ -468,7 +468,7 @@ export type AppEvent =
   | { type: 'profile:restored'; payload: { profileId: string } }
   | { type: 'profile:deleted'; payload: { profileId: string } }
   | { type: 'test:recorded'; payload: { testResult: TestResult; wordListId: string } }
-  | { type: 'bsv:record-written'; payload: { txid: string } }
+  | { type: 'bsv:record-written'; payload: { txid: string; origin?: string } }
   | { type: 'bsv:record-read'; payload: { txid: string; recordCount: number } }
   | { type: 'bsv:token-minted'; payload: { txid: string; origin: { txid: string; vout: number } } }
   | { type: 'bsv:token-transferred'; payload: { txid: string; origin: { txid: string; vout: number }; to: string } };

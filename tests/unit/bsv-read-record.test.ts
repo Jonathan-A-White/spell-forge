@@ -51,6 +51,17 @@ describe('readRecordByTxid', () => {
     expect(result.records[0].decodedPayload).toEqual(txFixture.payload);
   });
 
+  it('decodes a record that sits at output 2, not just output 0', async () => {
+    const provider = fakeProvider();
+    const eventBus = createEventBus();
+
+    const result = await readRecordByTxid(provider, 'a'.repeat(64), eventBus);
+
+    expect(txFixture.recordVout).toBe(2);
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0].vout).toBe(txFixture.recordVout);
+  });
+
   it('trims surrounding whitespace and newlines from the txid before validating and fetching', async () => {
     const provider = fakeProvider();
     const eventBus = createEventBus();

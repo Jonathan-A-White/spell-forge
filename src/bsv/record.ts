@@ -120,30 +120,70 @@ export function decodeRecordScript(script: string | LockingScript): DecodedRecor
   return { version: versionBytes[0], payloadBytes };
 }
 
+export interface MintRecordPayload {
+  kind: 'mint';
+  collection: string;
+  holder: string;
+}
+
+export interface TransferRecordPayload {
+  kind: 'transfer';
+  origin: string; // "txid:vout"
+  to: string;
+}
+
+export interface WriteRecordPayload {
+  kind: 'write';
+  origin: string; // "txid:vout"
+  text: string;
+  ts: string; // ISO timestamp, supplied by the caller — never read from the clock here
+}
+
 export type DecodedRecordPayload =
   | RecordPayloadV1
+  | MintRecordPayload
+  | TransferRecordPayload
+  | WriteRecordPayload
   | { unreadable: true }
   | { unsupportedVersion: number };
 
 /**
- * Decodes payload bytes for a given record version. Version 0x01 is UTF-8 JSON;
- * malformed or unexpectedly shaped JSON comes back as a typed 'unreadable' result,
- * never a thrown error, so the UI can always show something. Any other version comes
- * back as { unsupportedVersion } so phase 2 records are listed, not dropped.
+ * Decodes payload bytes for a given record version. Version 0x01 is UTF-8 JSON, either
+ * the phase-1 plain shape { text, ts } (no 'kind' field) or a typed { kind, ... } shape
+ * (mint, transfer, write). Malformed or unexpectedly shaped JSON comes back as a typed
+ * 'unreadable' result, never a thrown error, so the UI can always show something. Any
+ * other version comes back as { unsupportedVersion } so phase 2 records are listed, not
+ * dropped.
  */
 export function decodeRecordPayload(version: number, bytes: number[]): DecodedRecordPayload {
   if (version !== RECORD_VERSION_PLAINTEXT) {
     return { unsupportedVersion: version };
   }
 
+  let parsed: Record<string, unknown>;
   try {
-    const parsed = JSON.parse(Utils.toUTF8(bytes)) as Partial<RecordPayloadV1>;
-    if (typeof parsed.text !== 'string' || typeof parsed.ts !== 'string') {
-      return { unreadable: true };
-    }
-    return { text: parsed.text, ts: parsed.ts };
+    parsed = JSON.parse(Utils.toUTF8(bytes)) as Record<string, unknown>;
   } catch {
     return { unreadable: true };
+  }
+
+  switch (parsed.kind) {
+    case undefined:
+      if (typeof parsed.text !== 'string' || typeof parsed.ts !== 'string') return { unreadable: true };
+      return { text: parsed.text, ts: parsed.ts };
+    case 'mint':
+      if (typeof parsed.collection !== 'string' || typeof parsed.holder !== 'string') return { unreadable: true };
+      return { kind: 'mint', collection: parsed.collection, holder: parsed.holder };
+    case 'transfer':
+      if (typeof parsed.origin !== 'string' || typeof parsed.to !== 'string') return { unreadable: true };
+      return { kind: 'transfer', origin: parsed.origin, to: parsed.to };
+    case 'write':
+      if (typeof parsed.origin !== 'string' || typeof parsed.text !== 'string' || typeof parsed.ts !== 'string') {
+        return { unreadable: true };
+      }
+      return { kind: 'write', origin: parsed.origin, text: parsed.text, ts: parsed.ts };
+    default:
+      return { unreadable: true };
   }
 }
 

@@ -10,6 +10,7 @@ import {
 } from '../../src/bsv/record';
 import goldenFixture from '../fixtures/bsv/record-script.json';
 import txFixture from '../fixtures/bsv/record-transaction.json';
+import kindsFixture from '../fixtures/bsv/record-kinds.json';
 
 describe('decodeRecordScript', () => {
   it('round-trips with encodeRecordScript using the golden fixture', () => {
@@ -87,6 +88,39 @@ describe('decodeRecordPayload', () => {
     const bytes = Utils.toArray('anything', 'utf8');
 
     expect(decodeRecordPayload(0x02, bytes)).toEqual({ unsupportedVersion: 2 });
+  });
+
+  it('decodes the golden mint fixture by its kind', () => {
+    const decodedScript = decodeRecordScript(kindsFixture.mint.hex);
+    expect(decodedScript).not.toBeNull();
+
+    expect(decodeRecordPayload(decodedScript!.version, decodedScript!.payloadBytes)).toEqual(kindsFixture.mint.payload);
+  });
+
+  it('decodes the golden transfer fixture by its kind', () => {
+    const decodedScript = decodeRecordScript(kindsFixture.transfer.hex);
+    expect(decodedScript).not.toBeNull();
+
+    expect(decodeRecordPayload(decodedScript!.version, decodedScript!.payloadBytes)).toEqual(kindsFixture.transfer.payload);
+  });
+
+  it('decodes the golden write fixture by its kind', () => {
+    const decodedScript = decodeRecordScript(kindsFixture.write.hex);
+    expect(decodedScript).not.toBeNull();
+
+    expect(decodeRecordPayload(decodedScript!.version, decodedScript!.payloadBytes)).toEqual(kindsFixture.write.payload);
+  });
+
+  it('returns unreadable for a mint payload missing required fields', () => {
+    const bytes = Utils.toArray(JSON.stringify({ kind: 'mint', collection: 'x' }), 'utf8');
+
+    expect(decodeRecordPayload(0x01, bytes)).toEqual({ unreadable: true });
+  });
+
+  it('returns unreadable for an unknown kind', () => {
+    const bytes = Utils.toArray(JSON.stringify({ kind: 'rotate', foo: 'bar' }), 'utf8');
+
+    expect(decodeRecordPayload(0x01, bytes)).toEqual({ unreadable: true });
   });
 });
 
