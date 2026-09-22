@@ -488,6 +488,20 @@ export interface BsvWalletKey {
   label?: string;
 }
 
+// ─── BSV Chain Provider ─────────────────────────────────────
+
+export interface Utxo {
+  txid: string;
+  vout: number;
+  satoshis: number;
+  height?: number;   // 0 or undefined = unconfirmed
+}
+
+export interface AddressHistoryEntry {
+  txid: string;
+  height?: number;   // 0 or undefined = unconfirmed
+}
+
 // ─── Sync Queue ───────────────────────────────────────────────
 
 export interface SyncQueueItem {
