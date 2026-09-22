@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { chainConfig, createChainProvider, generateTestnetKey, writeRecord } from '../../bsv';
-import type { ChainProvider } from '../../bsv';
+import { chainConfig, createChainProvider, generateTestnetKey, writeRecord, readRecordByTxid } from '../../bsv';
+import type { ChainProvider, DecodedRecord } from '../../bsv';
 import { bsvWalletRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
 import type { BsvWalletKey, EventBus, Utxo } from '../../contracts/types';
@@ -45,6 +45,12 @@ type WriteState =
   | { status: 'done'; txid: string }
   | { status: 'error'; message: string };
 
+type ReadState =
+  | { status: 'idle' }
+  | { status: 'reading' }
+  | { status: 'done'; records: DecodedRecord[] }
+  | { status: 'error'; message: string };
+
 export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScreenProps) {
   const [wallet, setWallet] = useState<BsvWalletKey | null | undefined>(undefined);
   const [confirmingWipe, setConfirmingWipe] = useState(false);
@@ -53,6 +59,8 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
   const [anchorAddress, setAnchorAddress] = useState(readStoredAnchorAddress);
   const [recordText, setRecordText] = useState('');
   const [writeState, setWriteState] = useState<WriteState>({ status: 'idle' });
+  const [readTxid, setReadTxid] = useState('');
+  const [readState, setReadState] = useState<ReadState>({ status: 'idle' });
   const provider = useMemo(() => chainProvider ?? createChainProvider(), [chainProvider]);
   const bus = useMemo(() => eventBus ?? createEventBus(), [eventBus]);
 
@@ -138,8 +146,20 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
     }
   }
 
+  async function handleRead() {
+    setReadState({ status: 'reading' });
+    try {
+      const result = await readRecordByTxid(provider, readTxid.trim(), bus);
+      setReadState({ status: 'done', records: result.records });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not read transaction';
+      setReadState({ status: 'error', message });
+    }
+  }
+
   const canWrite =
     !!wallet && balance.status === 'loaded' && balance.satoshis > 0 && recordText.trim().length > 0;
+  const canRead = readTxid.trim().length > 0 && readState.status !== 'reading';
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -176,6 +196,50 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
             className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text font-mono px-3 py-2 text-sm"
             style={{ minHeight: 'var(--sf-tap-target-size)' }}
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="bsv-read-txid" className="text-sf-muted text-sm">
+            Read by txid
+          </label>
+          <input
+            id="bsv-read-txid"
+            type="text"
+            value={readTxid}
+            onChange={(event) => setReadTxid(event.target.value)}
+            className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text font-mono px-3 py-2 text-sm"
+            style={{ minHeight: 'var(--sf-tap-target-size)' }}
+          />
+          <button
+            onClick={handleRead}
+            disabled={!canRead}
+            className="rounded-lg border border-sf-border-strong text-sf-text px-4 py-2 text-sm self-start disabled:opacity-50"
+            style={{ minHeight: 'var(--sf-tap-target-size)' }}
+          >
+            {readState.status === 'reading' ? 'Reading…' : 'Read'}
+          </button>
+          {readState.status === 'done' && readState.records.length === 0 && (
+            <p className="text-sf-text">no nftgate record in this transaction</p>
+          )}
+          {readState.status === 'done' &&
+            readState.records.map((record) => (
+              <div key={record.vout} className="text-sf-text">
+                <p className="text-sf-muted text-sm">{`vout ${record.vout} · version ${record.version}`}</p>
+                {'text' in record.decodedPayload && (
+                  <>
+                    <p className="break-words">{record.decodedPayload.text}</p>
+                    <p className="text-sf-muted text-sm">{record.decodedPayload.ts}</p>
+                  </>
+                )}
+                {'unreadable' in record.decodedPayload && (
+                  <p className="text-red-600">Payload could not be read (not valid JSON)</p>
+                )}
+                {'unsupportedVersion' in record.decodedPayload && (
+                  <p className="text-sf-muted">{`Unsupported record version ${record.decodedPayload.unsupportedVersion}`}</p>
+                )}
+              </div>
+            ))}
+          {readState.status === 'error' && <p className="text-red-600">{readState.message}</p>}
         </div>
 
         {wallet === undefined && <p className="text-sf-muted">Loading…</p>}
