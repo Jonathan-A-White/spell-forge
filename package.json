@@ -25,6 +25,7 @@
     "test:qr": "vitest run tests/unit/qr-codec.test.ts",
     "test:learning": "vitest run tests/unit/learning-engine.test.ts",
     "test:bsv": "vitest run tests/unit/bsv",
+    "test:e2e": "playwright test",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
