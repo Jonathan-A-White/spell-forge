@@ -90,4 +90,38 @@ describe('WhatsOnChainProvider', () => {
     const [requestedUrl] = fetchFn.mock.calls[0];
     expect(String(requestedUrl)).toContain(`/address/${address}/history`);
   });
+
+  it('getTransactionHex returns the trimmed hex body from the tx/{txid}/hex route', async () => {
+    const txid = 'a1b2c3d4';
+    const fetchFn = vi.fn().mockResolvedValue(new Response('  deadbeef00\n', { status: 200 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    const hex = await provider.getTransactionHex(txid);
+
+    expect(hex).toBe('deadbeef00');
+    const [requestedUrl] = fetchFn.mock.calls[0];
+    expect(String(requestedUrl)).toContain(`/tx/${txid}/hex`);
+  });
+
+  it('broadcast posts the tx hex to tx/raw and returns the unquoted txid', async () => {
+    const txHex = 'deadbeef00';
+    const fetchFn = vi.fn().mockResolvedValue(new Response('"resulttxid123"', { status: 200 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    const txid = await provider.broadcast(txHex);
+
+    expect(txid).toBe('resulttxid123');
+    const [requestedUrl, requestInit] = fetchFn.mock.calls[0];
+    expect(String(requestedUrl)).toContain('/tx/raw');
+    expect(requestInit?.method).toBe('POST');
+    expect(requestInit?.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(requestInit?.body as string)).toEqual({ txhex: txHex });
+  });
+
+  it('broadcast throws a readable ChainError when the node rejects the transaction', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('tx has no inputs', { status: 400 }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    await expect(provider.broadcast('deadbeef')).rejects.toThrow(/WhatsOnChain said 400/);
+  });
 });
