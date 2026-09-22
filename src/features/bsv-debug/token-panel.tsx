@@ -1,7 +1,7 @@
 // src/features/bsv-debug/token-panel.tsx — Mints a License Token to this device's own
 // address (single-install: the app is issuer and holder at once) and lists its tokens.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { chainConfig, mintLicenseToken } from '../../bsv';
 import type { ChainProvider, LicenseToken } from '../../bsv';
 import { bsvTokenRepo } from '../../data/repositories';
@@ -23,11 +23,15 @@ type MintState =
 export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPanelProps) {
   const [tokens, setTokens] = useState<LicenseToken[]>([]);
   const [mintState, setMintState] = useState<MintState>({ status: 'idle' });
+  // Guards against an earlier-issued list() resolving after a later one (e.g. the
+  // mount load finishing after a mint's own reload) and clobbering the newer result.
+  const latestListRequest = useRef(0);
 
   useEffect(() => {
+    const requestId = ++latestListRequest.current;
     let cancelled = false;
     bsvTokenRepo.list().then((list) => {
-      if (!cancelled) setTokens(list);
+      if (!cancelled && requestId === latestListRequest.current) setTokens(list);
     });
     return () => {
       cancelled = true;
@@ -45,8 +49,12 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
         eventBus,
       });
       await bsvTokenRepo.put(token);
+      const requestId = ++latestListRequest.current;
+      const list = await bsvTokenRepo.list();
+      // Set together so the txid and the updated Tokens list land in the same render —
+      // never a frame where the txid shows but the new token is still missing.
+      if (requestId === latestListRequest.current) setTokens(list);
       setMintState({ status: 'done', txid: token.origin.txid });
-      setTokens(await bsvTokenRepo.list());
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not mint token';
       setMintState({ status: 'error', message });
