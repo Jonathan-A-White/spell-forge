@@ -1,0 +1,17 @@
+{
+  "issuerWif": "cUWsMMFnwBkE3HCNAnqEfcqBoLLCS47ysLhxJ4Ze2N5VntpdqDi6",
+  "issuerAddress": "msUehNpsTYriubgntbAkgjhXLpUFP25RTZ",
+  "holderAddress": "mgaL4DEQ3FJAtsgaxdqF1PPSCyjsyR5LxK",
+  "fundingTx": {
+    "txid": "0fae0927ebf3c6054bf3c457a0800c0298cfc98d593ab78157925786e06a6a8e",
+    "hex": "01000000000188130000000000001976a9148331fccdab1402f443d5d38ae1aaca86c97b4a5e88ac00000000",
+    "vout": 0,
+    "satoshis": 5000
+  },
+  "oneSatTx": {
+    "txid": "d5b3d4923e3d7f8e3a6b9b7734c1d617724f897818fe99a068d57536f2567073",
+    "hex": "01000000000101000000000000001976a9148331fccdab1402f443d5d38ae1aaca86c97b4a5e88ac00000000",
+    "vout": 0,
+    "satoshis": 1
+  }
+}

@@ -13,6 +13,7 @@ const baseConfig: ChainConfig = {
   providerBaseUrl: 'https://api.whatsonchain.com/v1/bsv/test',
   anchorAddress: wallet.anchorAddress,
   feeRateSatPerKb: 1,
+  collectionId: 'spellforge-leaderboard-testnet',
 };
 
 const utxo: Utxo = {

@@ -6,6 +6,7 @@ export interface ChainConfig {
   providerBaseUrl: string;
   anchorAddress: string;
   feeRateSatPerKb: number;
+  collectionId: string;
 }
 
 export const chainConfig: ChainConfig = {
@@ -13,4 +14,5 @@ export const chainConfig: ChainConfig = {
   providerBaseUrl: 'https://api.whatsonchain.com/v1/bsv/test',
   anchorAddress: '',
   feeRateSatPerKb: 1,
+  collectionId: 'spellforge-leaderboard-testnet',
 };

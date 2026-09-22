@@ -469,7 +469,8 @@ export type AppEvent =
   | { type: 'profile:deleted'; payload: { profileId: string } }
   | { type: 'test:recorded'; payload: { testResult: TestResult; wordListId: string } }
   | { type: 'bsv:record-written'; payload: { txid: string } }
-  | { type: 'bsv:record-read'; payload: { txid: string; recordCount: number } };
+  | { type: 'bsv:record-read'; payload: { txid: string; recordCount: number } }
+  | { type: 'bsv:token-minted'; payload: { txid: string; origin: { txid: string; vout: number } } };
 
 export interface EventBus {
   emit(event: AppEvent): void;

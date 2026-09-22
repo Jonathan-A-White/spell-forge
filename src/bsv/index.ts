@@ -24,3 +24,5 @@ export { scanRecords } from './scan-records';
 export type { ScanRecordEntry, ScanRecordFound, ScanRecordUnreadable, ScanRecordsOptions } from './scan-records';
 export { outpointKey, reconcilePendingSpends, filterUtxosExcludingPending, selectFeeUtxos, PENDING_SPEND_TTL_MS } from './pending-spends';
 export type { PendingSpendEntry } from './pending-spends';
+export { buildMintTransaction, mintLicenseToken } from './license-token';
+export type { Outpoint, LicenseToken, BuildMintTransactionParams, BuiltMintTransaction, MintLicenseTokenParams } from './license-token';

@@ -10,6 +10,7 @@ const testConfig: ChainConfig = {
   providerBaseUrl: 'https://api.whatsonchain.com/v1/bsv/test',
   anchorAddress: 'mpHF9jLctkpJfgBkksYVbdVvhqcYm5MS2b',
   feeRateSatPerKb: 1,
+  collectionId: 'spellforge-leaderboard-testnet',
 };
 
 const address = 'mpHF9jLctkpJfgBkksYVbdVvhqcYm5MS2b';
