@@ -1,10 +1,11 @@
 // src/bsv/keys.ts — Testnet key generation for the phase-1 BSV Debug screen.
 
-import { PrivateKey } from '@bsv/sdk';
+import { PrivateKey, Utils } from '@bsv/sdk';
 import { chainConfig } from './config';
 
 const TESTNET_WIF_PREFIX = [0xef];
 const TESTNET_ADDRESS_PREFIX = [0x6f];
+const P2PKH_HASH_BYTES = 20;
 
 export interface GeneratedKey {
   network: typeof chainConfig.network;
@@ -20,4 +21,14 @@ export function generateTestnetKey(): GeneratedKey {
     material: privateKey.toWif(TESTNET_WIF_PREFIX),
     address: privateKey.toAddress(TESTNET_ADDRESS_PREFIX),
   };
+}
+
+/** True if `address` base58check-decodes to a testnet P2PKH address. */
+export function isValidTestnetAddress(address: string): boolean {
+  try {
+    const { prefix, data } = Utils.fromBase58Check(address);
+    return prefix.length === 1 && prefix[0] === TESTNET_ADDRESS_PREFIX[0] && data.length === P2PKH_HASH_BYTES;
+  } catch {
+    return false;
+  }
 }
