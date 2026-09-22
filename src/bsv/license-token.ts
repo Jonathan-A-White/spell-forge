@@ -6,7 +6,12 @@ import { P2PKH, PrivateKey, SatoshisPerKilobyte, Transaction, Utils } from '@bsv
 import type { EventBus, Utxo } from '../contracts/types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
-import { encodeRecordScript } from './record';
+import {
+  encodeRecordScript,
+  type MintRecordPayload,
+  type TransferRecordPayload,
+  type WriteRecordPayload,
+} from './record';
 import { selectFeeUtxos } from './pending-spends';
 
 const TOKEN_OUTPUT_SATOSHIS = 1;
@@ -23,23 +28,15 @@ export interface LicenseToken {
   collectionId: string;
 }
 
-interface MintRecordPayload {
-  kind: 'mint';
-  collection: string;
-  holder: string;
-}
-
 function encodeMintPayload(payload: MintRecordPayload): number[] {
   return Utils.toArray(JSON.stringify(payload), 'utf8');
 }
 
-interface TransferRecordPayload {
-  kind: 'transfer';
-  origin: string; // "txid:vout"
-  to: string;
+function encodeTransferPayload(payload: TransferRecordPayload): number[] {
+  return Utils.toArray(JSON.stringify(payload), 'utf8');
 }
 
-function encodeTransferPayload(payload: TransferRecordPayload): number[] {
+function encodeWritePayload(payload: WriteRecordPayload): number[] {
   return Utils.toArray(JSON.stringify(payload), 'utf8');
 }
 
@@ -260,6 +257,138 @@ export async function transferLicenseToken(params: TransferLicenseTokenParams): 
   await repository.updateCurrent(token.origin, current, toAddress);
 
   eventBus.emit({ type: 'bsv:token-transferred', payload: { txid, origin: token.origin, to: toAddress } });
+
+  return { txid };
+}
+
+export interface RecordWithTokenPayload {
+  text: string;
+  ts: string; // ISO timestamp, supplied by the caller — never read from the clock here
+}
+
+export interface BuildTokenRecordTransactionParams {
+  holderKey: string; // current holder's WIF
+  token: LicenseToken;
+  feeUtxos: Utxo[];
+  payload: RecordWithTokenPayload;
+  config: ChainConfig;
+  provider: ChainProvider;
+}
+
+export interface BuiltTokenRecordTransaction {
+  transaction: Transaction;
+  hex: string;
+  txid: string;
+}
+
+/**
+ * Builds a signed write-with-token transaction (spec §4.3, phase-1 shape: no fuel, no
+ * epoch encryption, the holder pays the fee). Input 0 spends the token's current
+ * outpoint; the rest are fee inputs (never a 1-sat UTXO, never the token itself).
+ * Exactly three outputs: the 1-sat token recreated to the SAME holder (a write never
+ * changes ownership), change to the holder, and a write record naming the token's
+ * origin. No anchor output — discovery of a write is by token lineage, not by anchor
+ * scan (the anchor scan is phase 1's mechanism and does not see these).
+ */
+export async function buildTokenRecordTransaction(
+  params: BuildTokenRecordTransactionParams,
+): Promise<BuiltTokenRecordTransaction> {
+  const { holderKey, token, feeUtxos, payload, config, provider } = params;
+
+  const privateKey = PrivateKey.fromWif(holderKey);
+  const holderAddress = privateKey.toAddress(config.network);
+
+  const holderUtxos = await provider.getUtxos(holderAddress);
+  const tokenStillHeld = holderUtxos.some(
+    (utxo) =>
+      utxo.txid === token.current.txid &&
+      utxo.vout === token.current.vout &&
+      utxo.satoshis === TOKEN_OUTPUT_SATOSHIS,
+  );
+  if (!tokenStillHeld) {
+    throw new Error('token already spent or not confirmed here');
+  }
+
+  const eligibleFeeUtxos = selectFeeUtxos(feeUtxos, { exclude: [] });
+  if (eligibleFeeUtxos.length === 0) {
+    throw new Error('No fee UTXOs available — fund this wallet before writing a record');
+  }
+
+  const payloadBytes = encodeWritePayload({
+    kind: 'write',
+    origin: `${token.origin.txid}:${token.origin.vout}`,
+    text: payload.text,
+    ts: payload.ts,
+  });
+  const recordScript = encodeRecordScript(payloadBytes); // throws over the 10 KB payload cap
+
+  const transaction = new Transaction();
+
+  const tokenSourceHex = await provider.getTransactionHex(token.current.txid);
+  transaction.addInput({
+    sourceTransaction: Transaction.fromHex(tokenSourceHex),
+    sourceOutputIndex: token.current.vout,
+    unlockingScriptTemplate: new P2PKH().unlock(privateKey),
+  });
+
+  for (const utxo of eligibleFeeUtxos) {
+    const sourceHex = await provider.getTransactionHex(utxo.txid);
+    transaction.addInput({
+      sourceTransaction: Transaction.fromHex(sourceHex),
+      sourceOutputIndex: utxo.vout,
+      unlockingScriptTemplate: new P2PKH().unlock(privateKey),
+    });
+  }
+
+  transaction.addP2PKHOutput(holderAddress, TOKEN_OUTPUT_SATOSHIS);
+  transaction.addP2PKHOutput(holderAddress);
+  transaction.addOutput({ lockingScript: recordScript, satoshis: 0 });
+
+  await transaction.fee(new SatoshisPerKilobyte(config.feeRateSatPerKb));
+
+  if (transaction.outputs.length < 3) {
+    throw new Error('Not enough satoshis to cover the write and fee');
+  }
+
+  await transaction.sign();
+
+  return { transaction, hex: transaction.toHex(), txid: transaction.id('hex') };
+}
+
+export interface WriteWithTokenParams {
+  holderKey: string;
+  token: LicenseToken;
+  payload: RecordWithTokenPayload;
+  provider: ChainProvider;
+  config: ChainConfig;
+  eventBus: EventBus;
+  repository: TokenRepository;
+}
+
+export interface WriteWithTokenResult {
+  txid: string;
+}
+
+/**
+ * Fetches the holder's UTXOs, builds, signs, broadcasts once, moves the repository's
+ * current outpoint (holder unchanged — a write recreates the token to itself), and
+ * emits 'bsv:record-written' with the txid and the token's origin.
+ */
+export async function writeWithToken(params: WriteWithTokenParams): Promise<WriteWithTokenResult> {
+  const { holderKey, token, payload, provider, config, eventBus, repository } = params;
+
+  const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
+  const feeUtxos = await provider.getUtxos(holderAddress);
+  const built = await buildTokenRecordTransaction({ holderKey, token, feeUtxos, payload, config, provider });
+  const txid = await provider.broadcast(built.hex);
+
+  const current: Outpoint = { txid, vout: 0 };
+  await repository.updateCurrent(token.origin, current, token.holderAddress);
+
+  eventBus.emit({
+    type: 'bsv:record-written',
+    payload: { txid, origin: `${token.origin.txid}:${token.origin.vout}` },
+  });
 
   return { txid };
 }
