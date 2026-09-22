@@ -46,6 +46,20 @@ function byNewestFirst(a: AddressHistoryEntry, b: AddressHistoryEntry): number {
 }
 
 /**
+ * Merges confirmed history with unconfirmed (mempool) history, keeping the confirmed
+ * entry when a txid appears in both — WhatsOnChain drops a transaction from the
+ * unconfirmed endpoint the moment it is mined, but the merge can race that.
+ */
+function mergeHistories(
+  confirmed: AddressHistoryEntry[],
+  unconfirmed: AddressHistoryEntry[],
+): AddressHistoryEntry[] {
+  const confirmedTxids = new Set(confirmed.map((entry) => entry.txid));
+  const extra = unconfirmed.filter((entry) => !confirmedTxids.has(entry.txid));
+  return [...confirmed, ...extra];
+}
+
+/**
  * Lists every 'nftgate' record paid to anchorAddress, newest first. Fetches one
  * transaction at a time — never concurrently — since the provider is rate-limited
  * and already backs off on 429 by itself. A transaction that fails to fetch or
@@ -58,7 +72,13 @@ export async function scanRecords(
   options: ScanRecordsOptions = {},
 ): Promise<ScanRecordEntry[]> {
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const history = await provider.getAddressHistory(anchorAddress);
+  const [confirmedHistory, unconfirmedHistory] = await Promise.all([
+    provider.getAddressHistory(anchorAddress),
+    provider.getUnconfirmedAddressHistory
+      ? provider.getUnconfirmedAddressHistory(anchorAddress)
+      : Promise.resolve([]),
+  ]);
+  const history = mergeHistories(confirmedHistory, unconfirmedHistory);
   const toFetch = [...history].sort(byNewestFirst).slice(0, limit);
 
   const entries: ScanRecordEntry[] = [];

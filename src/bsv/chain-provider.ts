@@ -14,6 +14,8 @@ export interface ChainProvider {
   getTransactionHex(txid: string): Promise<string>;
   broadcast(txHex: string): Promise<string>;
   getAddressHistory(address: string): Promise<AddressHistoryEntry[]>;
+  /** Confirmed history only lists a transaction once it is mined; this lists it while it is still in the mempool. */
+  getUnconfirmedAddressHistory?(address: string): Promise<AddressHistoryEntry[]>;
 }
 
 /** The one place a concrete ChainProvider gets constructed. */

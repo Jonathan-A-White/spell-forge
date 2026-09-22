@@ -125,4 +125,50 @@ describe('scanRecords', () => {
     expect(entries).toEqual([]);
     expect(provider.getTransactionHex).not.toHaveBeenCalled();
   });
+
+  it('merges the unconfirmed history in, ahead of confirmed entries, calling the unconfirmed variant once', async () => {
+    const confirmedTxid = fixture.recordOldestTxid;
+    const unconfirmedTxid = fixture.recordNewestTxid;
+    const getUnconfirmedAddressHistory = vi.fn().mockResolvedValue([{ txid: unconfirmedTxid, height: 0 }]);
+    const provider: ChainProvider = {
+      getUtxos: vi.fn(),
+      broadcast: vi.fn(),
+      getAddressHistory: vi.fn().mockResolvedValue([{ txid: confirmedTxid, height: 200000 }]),
+      getUnconfirmedAddressHistory,
+      getTransactionHex: vi.fn((txid: string) => Promise.resolve(txHexByTxid[txid])),
+    };
+
+    const entries = await scanRecords(provider, fixture.anchorAddress);
+
+    expect(getUnconfirmedAddressHistory).toHaveBeenCalledTimes(1);
+    expect(getUnconfirmedAddressHistory).toHaveBeenCalledWith(fixture.anchorAddress);
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({ txid: unconfirmedTxid, height: 0 });
+    expect(entries[1]).toMatchObject({ txid: confirmedTxid, height: 200000 });
+  });
+
+  it('does not duplicate a txid that appears in both the confirmed and unconfirmed history', async () => {
+    const txid = fixture.recordOldestTxid;
+    const getUnconfirmedAddressHistory = vi.fn().mockResolvedValue([{ txid, height: 0 }]);
+    const provider: ChainProvider = {
+      getUtxos: vi.fn(),
+      broadcast: vi.fn(),
+      getAddressHistory: vi.fn().mockResolvedValue([{ txid, height: 200000 }]),
+      getUnconfirmedAddressHistory,
+      getTransactionHex: vi.fn((t: string) => Promise.resolve(txHexByTxid[t])),
+    };
+
+    const entries = await scanRecords(provider, fixture.anchorAddress);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ txid, height: 200000 });
+  });
+
+  it('works when the provider has no unconfirmed history variant at all', async () => {
+    const provider = trackedProvider({ history: [{ txid: fixture.recordOldestTxid, height: 200000 }] });
+
+    const entries = await scanRecords(provider, fixture.anchorAddress);
+
+    expect(entries).toHaveLength(1);
+  });
 });

@@ -60,6 +60,13 @@ export class WhatsOnChainProvider implements ChainProvider {
     return history.map((h) => ({ txid: h.tx_hash, height: h.height }));
   }
 
+  async getUnconfirmedAddressHistory(address: string): Promise<AddressHistoryEntry[]> {
+    const history = await this.getJson<WhatsOnChainHistoryEntry[]>(
+      `/address/${address.trim()}/unconfirmed/history`,
+    );
+    return history.map((h) => ({ txid: h.tx_hash, height: h.height }));
+  }
+
   async getTransactionHex(txid: string): Promise<string> {
     const response = await this.request(`/tx/${txid.trim()}/hex`);
     return (await response.text()).trim();
