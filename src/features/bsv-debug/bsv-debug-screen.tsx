@@ -2,29 +2,59 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { chainConfig, createChainProvider, generateTestnetKey } from '../../bsv';
+import { chainConfig, createChainProvider, generateTestnetKey, writeRecord } from '../../bsv';
 import type { ChainProvider } from '../../bsv';
 import { bsvWalletRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
-import type { BsvWalletKey } from '../../contracts/types';
+import type { BsvWalletKey, EventBus, Utxo } from '../../contracts/types';
+import { createEventBus } from '../../contracts';
+
+const ANCHOR_ADDRESS_STORAGE_KEY = 'sf-bsv-anchor';
+
+function readStoredAnchorAddress(): string {
+  try {
+    return localStorage.getItem(ANCHOR_ADDRESS_STORAGE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function storeAnchorAddress(address: string): void {
+  try {
+    localStorage.setItem(ANCHOR_ADDRESS_STORAGE_KEY, address);
+  } catch {
+    // localStorage may be unavailable in some contexts
+  }
+}
 
 interface BsvDebugScreenProps {
   onBack: () => void;
   chainProvider?: ChainProvider;
+  eventBus?: EventBus;
 }
 
 type BalanceState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'loaded'; satoshis: number; utxoCount: number }
+  | { status: 'loaded'; satoshis: number; utxoCount: number; utxos: Utxo[] }
   | { status: 'error'; message: string };
 
-export function BsvDebugScreen({ onBack, chainProvider }: BsvDebugScreenProps) {
+type WriteState =
+  | { status: 'idle' }
+  | { status: 'writing' }
+  | { status: 'done'; txid: string }
+  | { status: 'error'; message: string };
+
+export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScreenProps) {
   const [wallet, setWallet] = useState<BsvWalletKey | null | undefined>(undefined);
   const [confirmingWipe, setConfirmingWipe] = useState(false);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [balance, setBalance] = useState<BalanceState>({ status: 'idle' });
+  const [anchorAddress, setAnchorAddress] = useState(readStoredAnchorAddress);
+  const [recordText, setRecordText] = useState('');
+  const [writeState, setWriteState] = useState<WriteState>({ status: 'idle' });
   const provider = useMemo(() => chainProvider ?? createChainProvider(), [chainProvider]);
+  const bus = useMemo(() => eventBus ?? createEventBus(), [eventBus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +75,7 @@ export function BsvDebugScreen({ onBack, chainProvider }: BsvDebugScreenProps) {
           status: 'loaded',
           satoshis: utxos.reduce((total, utxo) => total + utxo.satoshis, 0),
           utxoCount: utxos.length,
+          utxos,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not load balance';
@@ -83,6 +114,33 @@ export function BsvDebugScreen({ onBack, chainProvider }: BsvDebugScreenProps) {
     setShowPrivateKey(false);
   }
 
+  function handleAnchorAddressChange(value: string) {
+    setAnchorAddress(value);
+    storeAnchorAddress(value);
+  }
+
+  async function handleWrite() {
+    if (!wallet || balance.status !== 'loaded') return;
+    setWriteState({ status: 'writing' });
+    try {
+      const result = await writeRecord({
+        key: wallet.material,
+        utxos: balance.utxos,
+        payload: { text: recordText, ts: new Date().toISOString() },
+        config: { ...chainConfig, anchorAddress: anchorAddress || chainConfig.anchorAddress },
+        provider,
+        eventBus: bus,
+      });
+      setWriteState({ status: 'done', txid: result.txid });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not write record';
+      setWriteState({ status: 'error', message });
+    }
+  }
+
+  const canWrite =
+    !!wallet && balance.status === 'loaded' && balance.satoshis > 0 && recordText.trim().length > 0;
+
   return (
     <div className="min-h-screen bg-sf-bg">
       <div className="bg-sf-surface border-b border-sf-border px-4 py-4">
@@ -103,6 +161,22 @@ export function BsvDebugScreen({ onBack, chainProvider }: BsvDebugScreenProps) {
 
       <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto px-4 py-6 flex flex-col gap-4">
         <p className="text-sf-text">{`network: ${chainConfig.network}`}</p>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="bsv-anchor-address" className="text-sf-muted text-sm">
+            Anchor address (stored on this device only, overrides the configured anchor — point two
+            installs at the same address by hand)
+          </label>
+          <input
+            id="bsv-anchor-address"
+            type="text"
+            value={anchorAddress}
+            onChange={(event) => handleAnchorAddressChange(event.target.value)}
+            placeholder={chainConfig.anchorAddress || 'not set'}
+            className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text font-mono px-3 py-2 text-sm"
+            style={{ minHeight: 'var(--sf-tap-target-size)' }}
+          />
+        </div>
 
         {wallet === undefined && <p className="text-sf-muted">Loading…</p>}
 
@@ -141,6 +215,34 @@ export function BsvDebugScreen({ onBack, chainProvider }: BsvDebugScreenProps) {
               >
                 Refresh
               </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="bsv-record-text" className="text-sf-muted text-sm">
+                Write a record
+              </label>
+              <textarea
+                id="bsv-record-text"
+                value={recordText}
+                onChange={(event) => setRecordText(event.target.value)}
+                className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text px-3 py-2 text-sm"
+                rows={3}
+              />
+              <button
+                onClick={handleWrite}
+                disabled={!canWrite || writeState.status === 'writing'}
+                className="rounded-lg bg-sf-primary text-white font-semibold px-4 py-3 self-start disabled:opacity-50"
+                style={{ minHeight: 'var(--sf-tap-target-size)' }}
+              >
+                {writeState.status === 'writing' ? 'Writing…' : 'Write'}
+              </button>
+              {writeState.status === 'done' && (
+                <div>
+                  <p className="text-sf-muted text-sm mb-1">txid</p>
+                  <p className="text-sf-text font-mono select-all break-all">{writeState.txid}</p>
+                </div>
+              )}
+              {writeState.status === 'error' && <p className="text-red-600">{writeState.message}</p>}
             </div>
 
             <div>

@@ -1157,7 +1157,7 @@ function App() {
       );
 
     case 'bsv-debug':
-      return <BsvDebugScreen onBack={goBack} />;
+      return <BsvDebugScreen onBack={goBack} eventBus={eventBus} />;
 
     case 'share':
       return <SharePanel onBack={goBack} />;
