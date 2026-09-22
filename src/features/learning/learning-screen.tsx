@@ -390,7 +390,7 @@ export function LearningScreen({
   }, [currentWord, currentProgress?.stage, currentProgress?.consecutiveSuccesses]);
 
   // Generate memory aids for the current word (memoized per word).
-  // At Stage 0, each of the 3 reps shows a different aid:
+  // All three show at Stage 0; each rep auto-expands a different one:
   //   Rep 1 (successes=0): Phonetic breakdown — "Sound It Out"
   //   Rep 2 (successes=1): Pattern spotlight — "Pattern Spotter"
   //   Rep 3 (successes=2): Memory tricks — "Memory Tricks"
@@ -399,9 +399,7 @@ export function LearningScreen({
     return generateMemoryAids(currentWord.text);
   }, [currentWord]);
 
-  const currentMemoryAid = wordDisplay?.stage === 0 && memoryAids && !testOutMode
-    ? memoryAids[wordDisplay.successes] ?? null
-    : null;
+  const showMemoryAids = wordDisplay?.stage === 0 && !testOutMode;
 
   // The chunk of the word that doesn't sound the way it's written —
   // spotlighted in the word display while the full word is visible.
@@ -507,6 +505,10 @@ export function LearningScreen({
 
   const stageLabels = ['Full Word', '⅓ Hidden', '⅔ Hidden', 'Audio Only'];
 
+  // Narrowed here so the hint-list map callback can use it without
+  // tripping null checks (TS doesn't carry narrowing into closures).
+  const currentWordId = sessionState.currentWord.id;
+
   return (
     <div className="h-[100dvh] bg-sf-bg p-4 flex flex-col overflow-hidden">
       {/* Header */}
@@ -587,21 +589,26 @@ export function LearningScreen({
           </div>
         )}
 
-        {/* Memory aid — shown at Stage 0, different aid each rep. Auto-expanded
-            on the first rep of a new word, collapsible after. */}
-        {currentMemoryAid && (
-          <CollapsibleHints
-            key={`${sessionState.currentWord.id}-${wordDisplay.successes}`}
-            label={HINT_LABELS[currentMemoryAid.type]}
-            icon={HINT_ICONS[currentMemoryAid.type]}
-            defaultExpanded={wordDisplay.successes === 0}
-          >
-            <MemoryAidDisplay
-              aid={currentMemoryAid}
-              onSpeakChunk={handleSpeakChunk}
-              audioBusy={audioBusy}
-            />
-          </CollapsibleHints>
+        {/* Memory aids — all three available at Stage 0, so the kid can
+            revisit any of them on any rep. The rep's featured aid starts
+            expanded (sounds → patterns → tricks); the others start collapsed. */}
+        {showMemoryAids && memoryAids && (
+          <div className="w-full max-w-md mx-auto flex flex-col gap-2">
+            {memoryAids.map((aid, i) => (
+              <CollapsibleHints
+                key={`${currentWordId}-${wordDisplay.successes}-${aid.type}`}
+                label={HINT_LABELS[aid.type]}
+                icon={HINT_ICONS[aid.type]}
+                defaultExpanded={i === wordDisplay.successes}
+              >
+                <MemoryAidDisplay
+                  aid={aid}
+                  onSpeakChunk={handleSpeakChunk}
+                  audioBusy={audioBusy}
+                />
+              </CollapsibleHints>
+            ))}
+          </div>
         )}
 
         {/* Audio only indicator for stage 3 or test-out */}
