@@ -14,6 +14,7 @@ import type {
   ThemeProgress,
   CompletedCreature,
   TestResult,
+  BsvWalletKey,
 } from '../contracts/types';
 
 class SpellForgeDB extends Dexie {
@@ -31,6 +32,7 @@ class SpellForgeDB extends Dexie {
   themeProgress!: Table<ThemeProgress, string>;
   completedCreatures!: Table<CompletedCreature, string>;
   testResults!: Table<TestResult, string>;
+  bsvWallet!: Table<BsvWalletKey, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -151,6 +153,25 @@ class SpellForgeDB extends Dexie {
           list.language = 'en';
         }
       });
+    });
+
+    // v9: Add bsvWallet table for the phase-1 BSV Debug screen's stored key
+    this.version(9).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived], language',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+      bsvWallet: 'id',
     });
   }
 }
