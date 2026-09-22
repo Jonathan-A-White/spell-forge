@@ -17,6 +17,11 @@ import type {
   BsvWalletKey,
   BsvPendingSpend,
 } from '../contracts/types';
+import type { LicenseToken } from '../bsv/license-token';
+
+export interface BsvTokenRow extends LicenseToken {
+  mintedAt: Date;
+}
 
 class SpellForgeDB extends Dexie {
   profiles!: Table<Profile, string>;
@@ -35,6 +40,7 @@ class SpellForgeDB extends Dexie {
   testResults!: Table<TestResult, string>;
   bsvWallet!: Table<BsvWalletKey, string>;
   bsvPendingSpends!: Table<BsvPendingSpend, string>;
+  bsvTokens!: Table<BsvTokenRow, [string, number]>;
 
   constructor() {
     super('SpellForgeDB');
@@ -195,6 +201,28 @@ class SpellForgeDB extends Dexie {
       testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
       bsvWallet: 'id',
       bsvPendingSpends: 'txid',
+    });
+
+    // v11: Add bsvTokens table — minted License Tokens, keyed by their origin outpoint
+    // (which never changes across transfers) so a mint is idempotent to re-record.
+    this.version(11).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+      bsvWallet: 'id',
+      bsvPendingSpends: 'txid',
+      bsvTokens: '[origin.txid+origin.vout], mintedAt',
     });
   }
 }
