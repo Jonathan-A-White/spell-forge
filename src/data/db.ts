@@ -15,6 +15,7 @@ import type {
   CompletedCreature,
   TestResult,
   BsvWalletKey,
+  BsvPendingSpend,
 } from '../contracts/types';
 
 class SpellForgeDB extends Dexie {
@@ -33,6 +34,7 @@ class SpellForgeDB extends Dexie {
   completedCreatures!: Table<CompletedCreature, string>;
   testResults!: Table<TestResult, string>;
   bsvWallet!: Table<BsvWalletKey, string>;
+  bsvPendingSpends!: Table<BsvPendingSpend, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -172,6 +174,27 @@ class SpellForgeDB extends Dexie {
       completedCreatures: 'id, profileId, [profileId+themeId]',
       testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
       bsvWallet: 'id',
+    });
+
+    // v10: Add bsvPendingSpends table — outpoints spent by a not-yet-confirmed write,
+    // excluded from the balance and the next write until WhatsOnChain confirms them.
+    this.version(10).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived], language',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+      bsvWallet: 'id',
+      bsvPendingSpends: 'txid',
     });
   }
 }

@@ -10,3 +10,4 @@ export { coinRepo } from './coin-repo';
 export { themeProgressRepo } from './theme-progress-repo';
 export { testResultRepo } from './test-result-repo';
 export { bsvWalletRepo } from './bsv-wallet-repo';
+export { bsvPendingSpendRepo } from './bsv-pending-spend-repo';

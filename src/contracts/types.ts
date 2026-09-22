@@ -504,6 +504,13 @@ export interface AddressHistoryEntry {
   height?: number;   // 0 or undefined = unconfirmed
 }
 
+/** Outpoints spent by a broadcast, remembered until WhatsOnChain confirms it or 24h pass. */
+export interface BsvPendingSpend {
+  txid: string;
+  outpoints: string[]; // "txid:vout"
+  createdAt: Date;
+}
+
 // ─── Sync Queue ───────────────────────────────────────────────
 
 export interface SyncQueueItem {
