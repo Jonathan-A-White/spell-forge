@@ -24,6 +24,7 @@
     "test:pdf": "vitest run tests/unit/pdf-generator.test.ts",
     "test:qr": "vitest run tests/unit/qr-codec.test.ts",
     "test:learning": "vitest run tests/unit/learning-engine.test.ts",
+    "test:bsv": "vitest run tests/unit/bsv",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
