@@ -1,10 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { BsvWalletKey, Utxo } from '../../src/contracts/types';
+
+// See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup and the
+// balance load without a real-time waitFor deadline.
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  }
+}
 
 const { writeRecordMock } = vi.hoisted(() => ({ writeRecordMock: vi.fn() }));
 
@@ -42,9 +52,11 @@ function makeProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {
 
 async function writeOnce() {
   const writeButton = screen.getByRole('button', { name: 'Write' });
-  await waitFor(() => expect(writeButton).toBeEnabled());
+  await flush();
+  expect(writeButton).toBeEnabled();
   fireEvent.click(writeButton);
-  await waitFor(() => expect(writeRecordMock).toHaveBeenCalled());
+  await flush();
+  expect(writeRecordMock).toHaveBeenCalled();
 }
 
 beforeEach(async () => {
@@ -57,6 +69,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 describe('BsvDebugScreen pending spend exclusion', () => {
@@ -70,15 +83,14 @@ describe('BsvDebugScreen pending spend exclusion', () => {
     const provider = makeProvider({ getUtxos });
     writeRecordMock.mockResolvedValueOnce({ txid: T1 }).mockResolvedValueOnce({ txid: T2 });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await screen.findByRole('button', { name: 'Write' });
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
     await writeOnce();
 
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
 
     await writeOnce();
 
@@ -97,21 +109,19 @@ describe('BsvDebugScreen pending spend exclusion', () => {
     const provider = makeProvider({ getUtxos });
     writeRecordMock.mockResolvedValueOnce({ txid: T1 });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await screen.findByRole('button', { name: 'Write' });
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
     await writeOnce();
 
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 49998 sat (2 UTXOs)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 49998 sat (2 UTXOs)')).toBeInTheDocument();
     expect(screen.queryByText(/pending/)).not.toBeInTheDocument();
   });
 
@@ -125,22 +135,20 @@ describe('BsvDebugScreen pending spend exclusion', () => {
     const provider = makeProvider({ getUtxos });
     writeRecordMock.mockResolvedValueOnce({ txid: T1 });
 
+    vi.useFakeTimers();
     const { unmount } = render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await screen.findByRole('button', { name: 'Write' });
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
     await writeOnce();
 
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
 
     unmount();
 
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 49998 sat (2 UTXOs, 2 pending)')).toBeInTheDocument();
   });
 });

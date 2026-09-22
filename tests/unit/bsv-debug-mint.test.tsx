@@ -1,11 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { BsvWalletKey } from '../../src/contracts/types';
 import wallet from '../fixtures/bsv/license-token-mint-wallet.json';
+
+// See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup, the balance
+// load and TokenPanel's own token-list load without a real-time waitFor deadline.
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  }
+}
 
 const storedKey: BsvWalletKey = {
   id: 'wallet-1',
@@ -36,6 +46,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 describe('BsvDebugScreen mint token', () => {
@@ -43,17 +54,17 @@ describe('BsvDebugScreen mint token', () => {
     await bsvWalletRepo.save(storedKey);
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const mintButton = await screen.findByRole('button', { name: 'Mint token' });
-    await waitFor(() => expect(mintButton).toBeEnabled());
+    const mintButton = screen.getByRole('button', { name: 'Mint token' });
+    expect(mintButton).toBeEnabled();
 
     fireEvent.click(mintButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('e'.repeat(64))).toBeInTheDocument();
-    });
-
+    expect(screen.getByText('e'.repeat(64))).toBeInTheDocument();
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
     expect(screen.getByText(new RegExp(`origin ${'e'.repeat(64)}:0`))).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`holder ${wallet.issuerAddress}`))).toBeInTheDocument();
@@ -63,13 +74,12 @@ describe('BsvDebugScreen mint token', () => {
     await bsvWalletRepo.save(storedKey);
     const provider = makeProvider({ getUtxos: vi.fn().mockResolvedValue([]) });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const mintButton = await screen.findByRole('button', { name: 'Mint token' });
-
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 0 sat (0 UTXOs)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 0 sat (0 UTXOs)')).toBeInTheDocument();
+    const mintButton = screen.getByRole('button', { name: 'Mint token' });
     expect(mintButton).toBeDisabled();
     expect(provider.broadcast).not.toHaveBeenCalled();
   });

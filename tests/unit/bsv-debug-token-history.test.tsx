@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act, within } from '@testing-library/react';
 import { P2PKH, PrivateKey, Transaction, UnlockingScript } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo, bsvTokenRepo } from '../../src/data/repositories';
@@ -58,6 +58,16 @@ const storedKey: BsvWalletKey = {
   createdAt: new Date('2026-01-01'),
 };
 
+// See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup, the balance
+// load and TokenPanel's own token-list load without a real-time waitFor deadline.
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  }
+}
+
 beforeEach(async () => {
   await db.delete();
   await db.open();
@@ -66,6 +76,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 describe('BsvDebugScreen token history', () => {
@@ -89,14 +100,13 @@ describe('BsvDebugScreen token history', () => {
       getAddressHistory: vi.fn().mockResolvedValue([]),
     };
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const historyButton = await screen.findByRole('button', { name: 'History' }, { timeout: 5000 });
+    const historyButton = screen.getByRole('button', { name: 'History' });
     fireEvent.click(historyButton);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('bsv-token-history')).toBeInTheDocument();
-    });
+    await flush();
 
     const historyPanel = screen.getByTestId('bsv-token-history');
     const hops = within(historyPanel).getAllByTestId('bsv-lineage-hop');
@@ -134,13 +144,14 @@ describe('BsvDebugScreen token history', () => {
       getAddressHistory: vi.fn().mockResolvedValue([{ txid: brokenTxid, height: 100 }]),
     };
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const historyButton = await screen.findByRole('button', { name: 'History' }, { timeout: 5000 });
+    const historyButton = screen.getByRole('button', { name: 'History' });
     fireEvent.click(historyButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText(`lineage broken at ${brokenTxid}`)).toBeInTheDocument();
-    });
+    expect(screen.getByText(`lineage broken at ${brokenTxid}`)).toBeInTheDocument();
   });
 });

@@ -1,11 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
 import { ChainError } from '../../src/bsv/chain-error';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { BsvWalletKey } from '../../src/contracts/types';
+
+// See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup and the
+// balance load without a real-time waitFor deadline.
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  }
+}
 
 const { writeRecordMock } = vi.hoisted(() => ({ writeRecordMock: vi.fn() }));
 
@@ -42,6 +52,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 describe('BsvDebugScreen write record', () => {
@@ -51,20 +62,21 @@ describe('BsvDebugScreen write record', () => {
     writeRecordMock.mockResolvedValue({ txid: 'a'.repeat(64) });
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const writeButton = await screen.findByRole('button', { name: 'Write' });
+    const writeButton = screen.getByRole('button', { name: 'Write' });
     expect(writeButton).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
+    await flush();
 
-    await waitFor(() => expect(writeButton).toBeEnabled());
+    expect(writeButton).toBeEnabled();
     fireEvent.click(writeButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('a'.repeat(64))).toBeInTheDocument();
-    });
-
+    expect(screen.getByText('a'.repeat(64))).toBeInTheDocument();
     expect(writeRecordMock).toHaveBeenCalledTimes(1);
     const call = writeRecordMock.mock.calls[0][0];
     expect(call.key).toBe(storedKey.material);
@@ -78,26 +90,29 @@ describe('BsvDebugScreen write record', () => {
     writeRecordMock.mockRejectedValue(new Error('No UTXOs available — fund this wallet before writing a record'));
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const writeButton = await screen.findByRole('button', { name: 'Write' });
+    const writeButton = screen.getByRole('button', { name: 'Write' });
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
-    await waitFor(() => expect(writeButton).toBeEnabled());
-    fireEvent.click(writeButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('No UTXOs available — fund this wallet before writing a record')).toBeInTheDocument();
-    });
+    expect(writeButton).toBeEnabled();
+    fireEvent.click(writeButton);
+    await flush();
+
+    expect(screen.getByText('No UTXOs available — fund this wallet before writing a record')).toBeInTheDocument();
   });
 
   it('disables Write with no stored key', async () => {
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Generate key' })).toBeInTheDocument();
-    });
+    expect(screen.getByRole('button', { name: 'Generate key' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Write' })).not.toBeInTheDocument();
   });
 
@@ -105,14 +120,15 @@ describe('BsvDebugScreen write record', () => {
     await bsvWalletRepo.save(storedKey);
     const provider = makeProvider({ getUtxos: vi.fn().mockResolvedValue([]) });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const writeButton = await screen.findByRole('button', { name: 'Write' });
+    const writeButton = screen.getByRole('button', { name: 'Write' });
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 0 sat (0 UTXOs)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 0 sat (0 UTXOs)')).toBeInTheDocument();
     expect(writeButton).toBeDisabled();
     expect(writeRecordMock).not.toHaveBeenCalled();
   });
@@ -131,21 +147,22 @@ describe('BsvDebugScreen write record', () => {
       .mockResolvedValueOnce(reloadedUtxos);
     const provider = makeProvider({ getUtxos });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const writeButton = await screen.findByRole('button', { name: 'Write' });
-    await waitFor(() => expect(getUtxos).toHaveBeenCalledTimes(1));
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 600 sat (1 UTXOs)')).toBeInTheDocument();
-    });
+    const writeButton = screen.getByRole('button', { name: 'Write' });
+    expect(getUtxos).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Balance: 600 sat (1 UTXOs)')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
-    await waitFor(() => expect(writeButton).toBeEnabled());
-    fireEvent.click(writeButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(writeRecordMock).toHaveBeenCalledTimes(1);
-    });
+    expect(writeButton).toBeEnabled();
+    fireEvent.click(writeButton);
+    await flush();
+
+    expect(writeRecordMock).toHaveBeenCalledTimes(1);
     expect(writeRecordMock.mock.calls[0][0].utxos).toEqual(freshUtxos);
     expect(getUtxos.mock.invocationCallOrder[1]).toBeLessThan(writeRecordMock.mock.invocationCallOrder[0]);
   });
@@ -164,21 +181,22 @@ describe('BsvDebugScreen write record', () => {
       .mockResolvedValueOnce(reloadedUtxos);
     const provider = makeProvider({ getUtxos });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const writeButton = await screen.findByRole('button', { name: 'Write' });
-    await waitFor(() => expect(getUtxos).toHaveBeenCalledTimes(1));
+    const writeButton = screen.getByRole('button', { name: 'Write' });
+    expect(getUtxos).toHaveBeenCalledTimes(1);
 
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
-    await waitFor(() => expect(writeButton).toBeEnabled());
-    fireEvent.click(writeButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(getUtxos).toHaveBeenCalledTimes(3);
-    });
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 1200 sat (1 UTXOs)')).toBeInTheDocument();
-    });
+    expect(writeButton).toBeEnabled();
+    fireEvent.click(writeButton);
+    await flush();
+
+    expect(getUtxos).toHaveBeenCalledTimes(3);
+    expect(screen.getByText('Balance: 1200 sat (1 UTXOs)')).toBeInTheDocument();
   });
 
   it('shows the whole ChainError message, including the WhatsOnChain-reported reason, when the write fails', async () => {
@@ -189,17 +207,20 @@ describe('BsvDebugScreen write record', () => {
     );
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const writeButton = await screen.findByRole('button', { name: 'Write' });
+    const writeButton = screen.getByRole('button', { name: 'Write' });
     fireEvent.change(screen.getByLabelText('Write a record'), { target: { value: 'hello nftgate' } });
-    await waitFor(() => expect(writeButton).toBeEnabled());
-    fireEvent.click(writeButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(
-        screen.getByText('WhatsOnChain said 400: bad-txns-inputs-missingorspent'),
-      ).toBeInTheDocument();
-    });
+    expect(writeButton).toBeEnabled();
+    fireEvent.click(writeButton);
+    await flush();
+
+    expect(
+      screen.getByText('WhatsOnChain said 400: bad-txns-inputs-missingorspent'),
+    ).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo, bsvTokenRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
@@ -8,6 +8,16 @@ import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { BsvWalletKey } from '../../src/contracts/types';
 import type { LicenseToken } from '../../src/bsv/license-token';
 import wallet from '../fixtures/bsv/license-token-transfer-wallet.json';
+
+// See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup, the balance
+// load and TokenPanel's own token-list load without a real-time waitFor deadline.
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  }
+}
 
 const storedKey: BsvWalletKey = {
   id: 'wallet-1',
@@ -50,6 +60,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 describe('BsvDebugScreen write with token', () => {
@@ -58,20 +69,21 @@ describe('BsvDebugScreen write with token', () => {
     await bsvTokenRepo.put(token);
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const textBox = await screen.findByLabelText('Write with token');
+    const textBox = screen.getByLabelText('Write with token');
     fireEvent.change(textBox, { target: { value: 'level 5 unlocked' } });
+    await flush();
 
     const writeButton = screen.getByRole('button', { name: 'Write with token' });
-    await waitFor(() => expect(writeButton).toBeEnabled());
+    expect(writeButton).toBeEnabled();
 
     fireEvent.click(writeButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('f'.repeat(64))).toBeInTheDocument();
-    });
-
+    expect(screen.getByText('f'.repeat(64))).toBeInTheDocument();
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
   });
 
@@ -80,9 +92,11 @@ describe('BsvDebugScreen write with token', () => {
     await bsvTokenRepo.put(token);
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await screen.findByLabelText('Write with token');
+    screen.getByLabelText('Write with token');
     const writeButton = screen.getByRole('button', { name: 'Write with token' });
 
     expect(writeButton).toBeDisabled();
@@ -96,18 +110,20 @@ describe('BsvDebugScreen write with token', () => {
       broadcast: vi.fn().mockRejectedValue(new ChainError('Could not reach WhatsOnChain (offline?)')),
     });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    const textBox = await screen.findByLabelText('Write with token');
+    const textBox = screen.getByLabelText('Write with token');
     fireEvent.change(textBox, { target: { value: 'level 5 unlocked' } });
+    await flush();
 
     const writeButton = screen.getByRole('button', { name: 'Write with token' });
-    await waitFor(() => expect(writeButton).toBeEnabled());
+    expect(writeButton).toBeEnabled();
 
     fireEvent.click(writeButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('Could not reach WhatsOnChain (offline?)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Could not reach WhatsOnChain (offline?)')).toBeInTheDocument();
   });
 });
