@@ -31,7 +31,14 @@ export class WhatsOnChainProvider implements ChainProvider {
   private readonly fetchFn: FetchFn;
   private readonly delay: DelayFn;
 
-  constructor(config: ChainConfig, fetchFn: FetchFn = globalThis.fetch, delay: DelayFn = defaultDelay) {
+  constructor(
+    config: ChainConfig,
+    // Bound, not a bare reference: a real browser's fetch throws "Illegal invocation"
+    // when called detached from `window` (jsdom's fetch, used by every vitest run in
+    // this repo, does not enforce that — this only surfaces against a real browser).
+    fetchFn: FetchFn = globalThis.fetch.bind(globalThis),
+    delay: DelayFn = defaultDelay,
+  ) {
     this.config = config;
     this.fetchFn = fetchFn;
     this.delay = delay;
