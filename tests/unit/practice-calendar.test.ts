@@ -114,8 +114,8 @@ describe('Practice Calendar — session grouping', () => {
   });
 
   it('toDateKey formats dates correctly', () => {
-    expect(toDateKey(new Date('2026-01-05'))).toBe('2026-01-05');
-    expect(toDateKey(new Date('2026-12-25'))).toBe('2026-12-25');
-    expect(toDateKey(new Date('2026-03-01'))).toBe('2026-03-01');
+    expect(toDateKey(new Date(2026, 0, 5))).toBe('2026-01-05');
+    expect(toDateKey(new Date(2026, 11, 25))).toBe('2026-12-25');
+    expect(toDateKey(new Date(2026, 2, 1))).toBe('2026-03-01');
   });
 });
