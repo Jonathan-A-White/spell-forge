@@ -471,7 +471,8 @@ export type AppEvent =
   | { type: 'bsv:record-written'; payload: { txid: string; origin?: string } }
   | { type: 'bsv:record-read'; payload: { txid: string; recordCount: number } }
   | { type: 'bsv:token-minted'; payload: { txid: string; origin: { txid: string; vout: number } } }
-  | { type: 'bsv:token-transferred'; payload: { txid: string; origin: { txid: string; vout: number }; to: string } };
+  | { type: 'bsv:token-transferred'; payload: { txid: string; origin: { txid: string; vout: number }; to: string } }
+  | { type: 'bsv:sats-sent'; payload: { txid: string; toAddress: string; amountSats: number } };
 
 export interface EventBus {
   emit(event: AppEvent): void;

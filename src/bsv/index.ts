@@ -59,3 +59,11 @@ export type {
 } from './license-token';
 export { followLicenseToken } from './token-lineage';
 export type { LineageHop, LineageHopKind, FollowLicenseTokenResult, FollowLicenseTokenParams } from './token-lineage';
+export { buildSendTransaction, sendSats } from './send-sats';
+export type {
+  BuildSendTransactionParams,
+  BuiltSendTransaction,
+  PendingSpendRepository,
+  SendSatsParams,
+  SendSatsResult,
+} from './send-sats';
