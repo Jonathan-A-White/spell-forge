@@ -5,6 +5,7 @@ import type { EventBus, Utxo } from '../contracts/types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
 import { encodeRecordPayloadV1, encodeRecordScript, type RecordPayloadV1 } from './record';
+import { selectFeeUtxos } from './pending-spends';
 
 const ANCHOR_OUTPUT_SATOSHIS = 1;
 
@@ -46,8 +47,9 @@ export async function buildRecordTransaction(
   const changeAddress = privateKey.toAddress(config.network);
 
   const transaction = new Transaction();
+  const eligibleUtxos = selectFeeUtxos(utxos, { exclude: [] });
 
-  for (const utxo of utxos) {
+  for (const utxo of eligibleUtxos) {
     const sourceHex = await provider.getTransactionHex(utxo.txid);
     transaction.addInput({
       sourceTransaction: Transaction.fromHex(sourceHex),

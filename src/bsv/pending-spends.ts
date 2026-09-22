@@ -52,3 +52,16 @@ export function filterUtxosExcludingPending(
   const filtered = utxos.filter((utxo) => !excluded.has(outpointKey(utxo)));
   return { utxos: filtered, excludedCount: utxos.length - filtered.length };
 }
+
+/**
+ * Coin selection for paying a transaction's fee: never a 1-satoshi UTXO (that's a token,
+ * not fee money — spending it as a plain input would burn its origin) and never a UTXO
+ * this wallet already knows is a token by outpoint. Shared by writeRecord and the mint.
+ */
+export function selectFeeUtxos(
+  utxos: Utxo[],
+  options: { exclude: { txid: string; vout: number }[] },
+): Utxo[] {
+  const excluded = new Set(options.exclude.map(outpointKey));
+  return utxos.filter((utxo) => utxo.satoshis !== 1 && !excluded.has(outpointKey(utxo)));
+}
