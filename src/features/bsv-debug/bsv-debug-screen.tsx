@@ -16,6 +16,7 @@ import {
 import type { ChainProvider, DecodedRecord, ScanRecordEntry } from '../../bsv';
 import { bsvWalletRepo, bsvPendingSpendRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
+import { TokenPanel } from './token-panel';
 import type { BsvWalletKey, EventBus, Utxo } from '../../contracts/types';
 import { createEventBus } from '../../contracts';
 
@@ -439,6 +440,13 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
               )}
               {writeState.status === 'error' && <p className="text-red-600">{writeState.message}</p>}
             </div>
+
+            <TokenPanel
+              wallet={wallet}
+              hasBalance={balance.status === 'loaded' && balance.satoshis > 0}
+              provider={provider}
+              eventBus={bus}
+            />
 
             <div>
               {!showPrivateKey ? (
