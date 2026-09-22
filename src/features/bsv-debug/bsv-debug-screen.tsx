@@ -351,7 +351,21 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
             readState.records.map((record) => (
               <div key={record.vout} className="text-sf-text">
                 <p className="text-sf-muted text-sm">{`vout ${record.vout} · version ${record.version}`}</p>
-                {'text' in record.decodedPayload && (
+                {'kind' in record.decodedPayload && (
+                  <>
+                    <p className="text-sf-muted text-sm">{`kind ${record.decodedPayload.kind}`}</p>
+                    {'origin' in record.decodedPayload && (
+                      <p className="font-mono break-all text-sm">{`origin ${record.decodedPayload.origin}`}</p>
+                    )}
+                    {'text' in record.decodedPayload && (
+                      <p data-testid="bsv-read-text" className="break-words">{record.decodedPayload.text}</p>
+                    )}
+                    {'ts' in record.decodedPayload && (
+                      <p className="text-sf-muted text-sm">{record.decodedPayload.ts}</p>
+                    )}
+                  </>
+                )}
+                {!('kind' in record.decodedPayload) && 'text' in record.decodedPayload && (
                   <>
                     <p data-testid="bsv-read-text" className="break-words">{record.decodedPayload.text}</p>
                     <p className="text-sf-muted text-sm">{record.decodedPayload.ts}</p>

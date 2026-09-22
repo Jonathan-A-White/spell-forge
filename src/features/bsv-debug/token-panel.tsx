@@ -2,7 +2,7 @@
 // address (single-install: the app is issuer and holder at once) and lists its tokens.
 
 import { useEffect, useRef, useState } from 'react';
-import { chainConfig, isValidTestnetAddress, mintLicenseToken, transferLicenseToken } from '../../bsv';
+import { chainConfig, isValidTestnetAddress, mintLicenseToken, transferLicenseToken, writeWithToken } from '../../bsv';
 import type { ChainProvider, LicenseToken } from '../../bsv';
 import { bsvTokenRepo } from '../../data/repositories';
 import type { BsvWalletKey, EventBus } from '../../contracts/types';
@@ -26,6 +26,12 @@ type TransferState =
   | { status: 'done'; txid: string }
   | { status: 'error'; message: string };
 
+type TokenWriteState =
+  | { status: 'idle' }
+  | { status: 'writing' }
+  | { status: 'done'; txid: string }
+  | { status: 'error'; message: string };
+
 function tokenKey(token: LicenseToken): string {
   return `${token.origin.txid}:${token.origin.vout}`;
 }
@@ -35,6 +41,8 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
   const [mintState, setMintState] = useState<MintState>({ status: 'idle' });
   const [transferAddresses, setTransferAddresses] = useState<Record<string, string>>({});
   const [transferStates, setTransferStates] = useState<Record<string, TransferState>>({});
+  const [writeTexts, setWriteTexts] = useState<Record<string, string>>({});
+  const [tokenWriteStates, setTokenWriteStates] = useState<Record<string, TokenWriteState>>({});
   // Guards against an earlier-issued list() resolving after a later one (e.g. the
   // mount load finishing after a mint's own reload) and clobbering the newer result.
   const latestListRequest = useRef(0);
@@ -97,6 +105,30 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
     }
   }
 
+  async function handleWriteWithToken(token: LicenseToken) {
+    const key = tokenKey(token);
+    const text = writeTexts[key] ?? '';
+    setTokenWriteStates((prev) => ({ ...prev, [key]: { status: 'writing' } }));
+    try {
+      const result = await writeWithToken({
+        holderKey: wallet.material,
+        token,
+        payload: { text, ts: new Date().toISOString() },
+        provider,
+        config: chainConfig,
+        eventBus,
+        repository: bsvTokenRepo,
+      });
+      const requestId = ++latestListRequest.current;
+      const list = await bsvTokenRepo.list();
+      if (requestId === latestListRequest.current) setTokens(list);
+      setTokenWriteStates((prev) => ({ ...prev, [key]: { status: 'done', txid: result.txid } }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not write with token';
+      setTokenWriteStates((prev) => ({ ...prev, [key]: { status: 'error', message } }));
+    }
+  }
+
   const canMint = hasBalance && mintState.status !== 'minting';
 
   return (
@@ -124,6 +156,9 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
         const toAddress = transferAddresses[key] ?? '';
         const transferState = transferStates[key] ?? { status: 'idle' };
         const canTransfer = isValidTestnetAddress(toAddress) && transferState.status !== 'transferring';
+        const writeText = writeTexts[key] ?? '';
+        const tokenWriteState = tokenWriteStates[key] ?? { status: 'idle' };
+        const canWriteWithToken = hasBalance && writeText.trim().length > 0 && tokenWriteState.status !== 'writing';
         return (
           <div key={key} data-testid="bsv-token-entry" className="text-sf-text border-t border-sf-border pt-2 text-sm">
             <p className="font-mono break-all">{`origin ${token.origin.txid}:${token.origin.vout}`}</p>
@@ -158,6 +193,33 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
                 </p>
               )}
               {transferState.status === 'error' && <p className="text-red-600">{transferState.message}</p>}
+            </div>
+
+            <div className="flex flex-col gap-1 mt-2">
+              <label htmlFor={`bsv-token-write-text-${key}`} className="text-sf-muted text-sm">
+                Write with token
+              </label>
+              <textarea
+                id={`bsv-token-write-text-${key}`}
+                value={writeText}
+                onChange={(event) => setWriteTexts((prev) => ({ ...prev, [key]: event.target.value }))}
+                className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text px-3 py-2 text-sm"
+                rows={2}
+              />
+              <button
+                onClick={() => handleWriteWithToken(token)}
+                disabled={!canWriteWithToken}
+                className="rounded-lg border border-sf-border-strong text-sf-text px-4 py-2 text-sm self-start disabled:opacity-50"
+                style={{ minHeight: 'var(--sf-tap-target-size)' }}
+              >
+                {tokenWriteState.status === 'writing' ? 'Writing…' : 'Write with token'}
+              </button>
+              {tokenWriteState.status === 'done' && (
+                <p data-testid="bsv-token-write-txid" className="text-sf-text font-mono select-all break-all">
+                  {tokenWriteState.txid}
+                </p>
+              )}
+              {tokenWriteState.status === 'error' && <p className="text-red-600">{tokenWriteState.message}</p>}
             </div>
           </div>
         );

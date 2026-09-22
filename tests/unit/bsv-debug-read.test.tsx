@@ -54,6 +54,24 @@ describe('BsvDebugScreen read by txid', () => {
     expect(provider.getTransactionHex).toHaveBeenCalledWith('a'.repeat(64));
   });
 
+  it('shows a write record\'s kind, origin, text and ts', async () => {
+    await bsvWalletRepo.save(storedKey);
+    const provider = makeProvider({ getTransactionHex: vi.fn().mockResolvedValue(txFixture.writeTxHex) });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    const txidInput = await screen.findByLabelText('Read by txid');
+    fireEvent.change(txidInput, { target: { value: 'a'.repeat(64) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Read' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(txFixture.writePayload.text)).toBeInTheDocument();
+    });
+    expect(screen.getByText('kind write')).toBeInTheDocument();
+    expect(screen.getByText(`origin ${txFixture.writePayload.origin}`)).toBeInTheDocument();
+    expect(screen.getByText(txFixture.writePayload.ts)).toBeInTheDocument();
+  });
+
   it('shows "no nftgate record in this transaction" for a transaction with no record', async () => {
     await bsvWalletRepo.save(storedKey);
     const provider = makeProvider({ getTransactionHex: vi.fn().mockResolvedValue(txFixture.noRecordTxHex) });
