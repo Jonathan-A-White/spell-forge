@@ -260,7 +260,12 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
           )}
           {scanState.status === 'done' &&
             scanState.entries.map((entry, index) => (
-              <div key={`${entry.txid}-${index}`} className="text-sf-text border-t border-sf-border pt-2">
+              <div
+                key={`${entry.txid}-${index}`}
+                data-testid="bsv-scan-entry"
+                data-full-txid={entry.txid}
+                className="text-sf-text border-t border-sf-border pt-2"
+              >
                 {'couldNotRead' in entry && <p className="text-red-600">could not read</p>}
                 {'decoded' in entry && 'text' in entry.decoded && (
                   <>
@@ -317,7 +322,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
                 <p className="text-sf-muted text-sm">{`vout ${record.vout} · version ${record.version}`}</p>
                 {'text' in record.decodedPayload && (
                   <>
-                    <p className="break-words">{record.decodedPayload.text}</p>
+                    <p data-testid="bsv-read-text" className="break-words">{record.decodedPayload.text}</p>
                     <p className="text-sf-muted text-sm">{record.decodedPayload.ts}</p>
                   </>
                 )}
@@ -393,7 +398,9 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
               {writeState.status === 'done' && (
                 <div>
                   <p className="text-sf-muted text-sm mb-1">txid</p>
-                  <p className="text-sf-text font-mono select-all break-all">{writeState.txid}</p>
+                  <p data-testid="bsv-write-txid" className="text-sf-text font-mono select-all break-all">
+                    {writeState.txid}
+                  </p>
                 </div>
               )}
               {writeState.status === 'error' && <p className="text-red-600">{writeState.message}</p>}
