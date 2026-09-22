@@ -2,8 +2,15 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { chainConfig, createChainProvider, generateTestnetKey, writeRecord, readRecordByTxid } from '../../bsv';
-import type { ChainProvider, DecodedRecord } from '../../bsv';
+import {
+  chainConfig,
+  createChainProvider,
+  generateTestnetKey,
+  writeRecord,
+  readRecordByTxid,
+  scanRecords,
+} from '../../bsv';
+import type { ChainProvider, DecodedRecord, ScanRecordEntry } from '../../bsv';
 import { bsvWalletRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
 import type { BsvWalletKey, EventBus, Utxo } from '../../contracts/types';
@@ -51,6 +58,22 @@ type ReadState =
   | { status: 'done'; records: DecodedRecord[] }
   | { status: 'error'; message: string };
 
+type ScanState =
+  | { status: 'idle' }
+  | { status: 'scanning'; current: number; total: number }
+  | { status: 'done'; entries: ScanRecordEntry[] }
+  | { status: 'error'; message: string };
+
+function shortTxid(txid: string): string {
+  return `${txid.slice(0, 8)}…${txid.slice(-4)}`;
+}
+
+function copyToClipboard(text: string): void {
+  navigator.clipboard?.writeText(text).catch(() => {
+    // best-effort — some contexts (older browsers, non-secure origins) have no clipboard API
+  });
+}
+
 export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScreenProps) {
   const [wallet, setWallet] = useState<BsvWalletKey | null | undefined>(undefined);
   const [confirmingWipe, setConfirmingWipe] = useState(false);
@@ -61,6 +84,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
   const [writeState, setWriteState] = useState<WriteState>({ status: 'idle' });
   const [readTxid, setReadTxid] = useState('');
   const [readState, setReadState] = useState<ReadState>({ status: 'idle' });
+  const [scanState, setScanState] = useState<ScanState>({ status: 'idle' });
   const provider = useMemo(() => chainProvider ?? createChainProvider(), [chainProvider]);
   const bus = useMemo(() => eventBus ?? createEventBus(), [eventBus]);
 
@@ -157,9 +181,27 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
     }
   }
 
+  async function handleScan() {
+    const effectiveAnchor = anchorAddress || chainConfig.anchorAddress;
+    if (!effectiveAnchor) return;
+    setScanState({ status: 'scanning', current: 0, total: 0 });
+    try {
+      const entries = await scanRecords(provider, effectiveAnchor, {
+        onProgress: (current, total) => setScanState({ status: 'scanning', current, total }),
+      });
+      setScanState({ status: 'done', entries });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not scan';
+      setScanState({ status: 'error', message });
+    }
+  }
+
   const canWrite =
     !!wallet && balance.status === 'loaded' && balance.satoshis > 0 && recordText.trim().length > 0;
   const canRead = readTxid.trim().length > 0 && readState.status !== 'reading';
+  const effectiveAnchorAddress = anchorAddress || chainConfig.anchorAddress;
+  const scanDisabledReason = !effectiveAnchorAddress ? 'Set an anchor address above before scanning' : undefined;
+  const canScan = !scanDisabledReason && scanState.status !== 'scanning';
 
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -196,6 +238,54 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
             className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text font-mono px-3 py-2 text-sm"
             style={{ minHeight: 'var(--sf-tap-target-size)' }}
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-sf-muted text-sm">Scan by anchor</p>
+          <button
+            onClick={handleScan}
+            disabled={!canScan}
+            className="rounded-lg border border-sf-border-strong text-sf-text px-4 py-2 text-sm self-start disabled:opacity-50"
+            style={{ minHeight: 'var(--sf-tap-target-size)' }}
+          >
+            {scanState.status === 'scanning' ? 'Scanning…' : 'Scan'}
+          </button>
+          {scanDisabledReason && <p className="text-sf-muted text-sm">{scanDisabledReason}</p>}
+          {scanState.status === 'scanning' && scanState.total > 0 && (
+            <p className="text-sf-muted text-sm">{`${scanState.current} of ${scanState.total}`}</p>
+          )}
+          {scanState.status === 'error' && <p className="text-red-600">{scanState.message}</p>}
+          {scanState.status === 'done' && scanState.entries.length === 0 && (
+            <p className="text-sf-text">no records yet at this anchor</p>
+          )}
+          {scanState.status === 'done' &&
+            scanState.entries.map((entry, index) => (
+              <div key={`${entry.txid}-${index}`} className="text-sf-text border-t border-sf-border pt-2">
+                {'couldNotRead' in entry && <p className="text-red-600">could not read</p>}
+                {'decoded' in entry && 'text' in entry.decoded && (
+                  <>
+                    <p className="break-words">{entry.decoded.text}</p>
+                    <p className="text-sf-muted text-sm">{entry.decoded.ts}</p>
+                  </>
+                )}
+                {'decoded' in entry && 'unreadable' in entry.decoded && (
+                  <p className="text-red-600">Payload could not be read (not valid JSON)</p>
+                )}
+                {'decoded' in entry && 'unsupportedVersion' in entry.decoded && (
+                  <p className="text-sf-muted">{`Unsupported record version ${entry.decoded.unsupportedVersion}`}</p>
+                )}
+                <div className="flex items-center gap-2 text-sm">
+                  <button
+                    onClick={() => copyToClipboard(entry.txid)}
+                    className="text-sf-muted font-mono hover:text-sf-secondary"
+                    title="Tap to copy the full transaction id"
+                  >
+                    {shortTxid(entry.txid)}
+                  </button>
+                  {entry.height === 0 && <span className="text-sf-muted">unconfirmed</span>}
+                </div>
+              </div>
+            ))}
         </div>
 
         <div className="flex flex-col gap-2">
