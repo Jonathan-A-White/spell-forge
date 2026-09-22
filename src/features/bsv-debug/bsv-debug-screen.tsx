@@ -1,20 +1,30 @@
 // src/features/bsv-debug/bsv-debug-screen.tsx — Hidden BSV debug screen (phase 1).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { chainConfig, generateTestnetKey } from '../../bsv';
+import { chainConfig, createChainProvider, generateTestnetKey } from '../../bsv';
+import type { ChainProvider } from '../../bsv';
 import { bsvWalletRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
 import type { BsvWalletKey } from '../../contracts/types';
 
 interface BsvDebugScreenProps {
   onBack: () => void;
+  chainProvider?: ChainProvider;
 }
 
-export function BsvDebugScreen({ onBack }: BsvDebugScreenProps) {
+type BalanceState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'loaded'; satoshis: number; utxoCount: number }
+  | { status: 'error'; message: string };
+
+export function BsvDebugScreen({ onBack, chainProvider }: BsvDebugScreenProps) {
   const [wallet, setWallet] = useState<BsvWalletKey | null | undefined>(undefined);
   const [confirmingWipe, setConfirmingWipe] = useState(false);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [balance, setBalance] = useState<BalanceState>({ status: 'idle' });
+  const provider = useMemo(() => chainProvider ?? createChainProvider(), [chainProvider]);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,6 +35,31 @@ export function BsvDebugScreen({ onBack }: BsvDebugScreenProps) {
       cancelled = true;
     };
   }, []);
+
+  const loadBalance = useCallback(
+    async (address: string) => {
+      setBalance({ status: 'loading' });
+      try {
+        const utxos = await provider.getUtxos(address);
+        setBalance({
+          status: 'loaded',
+          satoshis: utxos.reduce((total, utxo) => total + utxo.satoshis, 0),
+          utxoCount: utxos.length,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not load balance';
+        setBalance({ status: 'error', message });
+      }
+    },
+    [provider],
+  );
+
+  useEffect(() => {
+    if (wallet) {
+      loadBalance(wallet.address);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.address]);
 
   async function handleGenerate() {
     const generated = generateTestnetKey();
@@ -92,6 +127,21 @@ export function BsvDebugScreen({ onBack }: BsvDebugScreenProps) {
               className="w-48 h-48"
               dangerouslySetInnerHTML={{ __html: generateQrSvg(wallet.address, 192) }}
             />
+
+            <div className="flex flex-col gap-2">
+              {balance.status === 'loading' && <p className="text-sf-muted">Loading balance…</p>}
+              {balance.status === 'loaded' && (
+                <p className="text-sf-text">{`Balance: ${balance.satoshis} sat (${balance.utxoCount} UTXOs)`}</p>
+              )}
+              {balance.status === 'error' && <p className="text-red-600">{balance.message}</p>}
+              <button
+                onClick={() => loadBalance(wallet.address)}
+                disabled={balance.status === 'loading'}
+                className="rounded-lg border border-sf-border-strong text-sf-text px-4 py-2 text-sm self-start disabled:opacity-50"
+              >
+                Refresh
+              </button>
+            </div>
 
             <div>
               {!showPrivateKey ? (
