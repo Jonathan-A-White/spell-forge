@@ -1,11 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
 import { ChainError } from '../../src/bsv/chain-error';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { BsvWalletKey } from '../../src/contracts/types';
+
+// Every render's async settle (wallet lookup, then the balance load that
+// lookup's state update triggers) resolves through fake-indexeddb, which
+// schedules its callbacks with setImmediate. React only queues the next
+// effect's setImmediate once the previous act() round has committed, so one
+// round of runAllTimersAsync only drains the wallet lookup; a second round is
+// needed to drain the balance load it kicks off. Looping a few rounds drains
+// any such chain deterministically — no waitFor polling against a real-time
+// deadline that contention can blow past.
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  }
+}
 
 const storedKey: BsvWalletKey = {
   id: 'wallet-1',
@@ -33,6 +49,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 describe('BsvDebugScreen balance', () => {
@@ -42,11 +59,11 @@ describe('BsvDebugScreen balance', () => {
     });
     const provider = makeProvider();
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Generate key' })).toBeInTheDocument();
-    });
+    expect(screen.getByRole('button', { name: 'Generate key' })).toBeInTheDocument();
     expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
     expect(provider.getUtxos).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -66,11 +83,11 @@ describe('BsvDebugScreen balance', () => {
       ]),
     });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('Balance: 1000 sat (2 UTXOs)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Balance: 1000 sat (2 UTXOs)')).toBeInTheDocument();
 
     fetchSpy.mockRestore();
   });
@@ -84,11 +101,11 @@ describe('BsvDebugScreen balance', () => {
       getUtxos: vi.fn().mockRejectedValue(new ChainError('Could not reach WhatsOnChain (offline?)')),
     });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await waitFor(() => {
-      expect(screen.getByText('Could not reach WhatsOnChain (offline?)')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Could not reach WhatsOnChain (offline?)')).toBeInTheDocument();
     const refreshButton = screen.getByRole('button', { name: 'Refresh' });
     expect(refreshButton).toBeEnabled();
 
@@ -101,20 +118,28 @@ describe('BsvDebugScreen balance', () => {
     });
     await bsvWalletRepo.save(storedKey);
     const provider = makeProvider({
-      getUtxos: vi.fn().mockResolvedValue([{ txid: 'a', vout: 0, satoshis: 600, height: 100 }]),
+      getUtxos: vi
+        .fn()
+        .mockResolvedValueOnce([{ txid: 'a', vout: 0, satoshis: 600, height: 100 }])
+        .mockResolvedValueOnce([
+          { txid: 'a', vout: 0, satoshis: 600, height: 100 },
+          { txid: 'b', vout: 1, satoshis: 400, height: 100 },
+        ]),
     });
 
+    vi.useFakeTimers();
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
 
-    await waitFor(() => {
-      expect(provider.getUtxos).toHaveBeenCalledTimes(1);
-    });
+    expect(screen.getByText('Balance: 600 sat (1 UTXOs)')).toBeInTheDocument();
+    const refreshButton = screen.getByRole('button', { name: 'Refresh' });
+    expect(refreshButton).toBeEnabled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    fireEvent.click(refreshButton);
+    await flush();
 
-    await waitFor(() => {
-      expect(provider.getUtxos).toHaveBeenCalledTimes(2);
-    });
+    expect(screen.getByText('Balance: 1000 sat (2 UTXOs)')).toBeInTheDocument();
+    expect(provider.getUtxos).toHaveBeenCalledTimes(2);
 
     fetchSpy.mockRestore();
   });
