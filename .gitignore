@@ -33,3 +33,6 @@ dist-ssr
 
 # Claude Code
 .claude/
+
+# bsv-contracts-check.ts scratch compile dirs (src/bsv/node/contracts-toolchain.ts)
+src/bsv/contracts/.check-*
