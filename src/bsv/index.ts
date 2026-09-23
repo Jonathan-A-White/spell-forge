@@ -28,6 +28,7 @@ export type {
   WriteRecordPayload,
   TypedRecordType,
   DecodedTypedRecordScript,
+  ValueManifestEntry,
 } from './record';
 export { buildRecordTransaction, writeRecord } from './write-record';
 export type { BuildRecordTransactionParams, BuiltRecordTransaction, WriteRecordParams, WriteRecordResult } from './write-record';
