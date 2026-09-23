@@ -3,17 +3,14 @@
 // hash256 is the fuelScriptHash the License binds), output 2 a type-M Data output, output 3
 // the issuer's change. No network.
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { Hash, P2PKH, Transaction, Utils } from '@bsv/sdk';
+import { Transaction } from '@bsv/sdk';
 import {
   buildContractMintTransaction,
-  fuelLockingScript,
   InvalidMintFuelError,
   mintContractLicenseToken,
-  readLicenseState,
 } from '../../src/bsv/license-contract';
 import type { BuiltContractTransaction } from '../../src/bsv/license-contract';
 import { createEventBus } from '../../src/contracts/events';
-import { decodeTypedRecordScript } from '../../src/bsv/record';
 import {
   ARTIFACT_MD5,
   config,
@@ -43,32 +40,8 @@ function mintWithFuel(mintFuelSatoshis: number | undefined): Promise<BuiltContra
 }
 
 describe('buildContractMintTransaction', () => {
-  it('builds the License token, Fuel(C) at exactly MINT_FUEL, an M Data output, then the issuer’s change', async () => {
-    const { outputs } = mint.transaction;
-    expect(outputs).toHaveLength(4);
-
-    expect(outputs[0].satoshis).toBe(1);
-    const state = await readLicenseState(outputs[0].lockingScript.toHex());
-    expect(state.ownerPubKeyHex).toBe(wallet.owner.pubKey);
-    expect(state.collectionIdHex).toBe(Utils.toHex(Utils.toArray(config.collectionId, 'utf8')));
-
-    const fuel = await fuelLockingScript(config);
-    expect(outputs[1].lockingScript.toHex()).toBe(fuel.toHex());
-    expect(outputs[1].satoshis).toBe(10_000);
-    expect(outputs[1].satoshis).toBe(MINT_FUEL);
-    expect(state.fuelScriptHashHex).toBe(Utils.toHex(Hash.hash256(outputs[1].lockingScript.toBinary())));
-
-    expect(outputs[2].satoshis).toBe(0);
-    const record = decodeTypedRecordScript(outputs[2].lockingScript);
-    expect(record).toMatchObject({ version: 2, recordType: 'M', manifest: [] });
-    expect(JSON.parse(Utils.toUTF8(record!.payloadBytes))).toEqual({
-      collection: config.collectionId,
-      holder: wallet.owner.address,
-    });
-
-    expect(outputs[3].lockingScript.toHex()).toBe(new P2PKH().lock(wallet.owner.address).toHex());
-    expect(outputs[3].satoshis).toBeGreaterThan(0);
-  });
+  // The License at output 0, Fuel(C) at MINT_FUEL at output 1, and the type-M Data output at
+  // output 2 are covered by tests/features/bsv/license-contract-builders.feature (AC-4.1.1-1).
 
   it('spends only the funding inputs, signed, and inputs total = outputs total + fee', () => {
     const { inputs, outputs } = mint.transaction;

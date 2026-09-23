@@ -83,10 +83,8 @@ describe('buildContractTransferTransaction, a License + Fuel token', () => {
     expect(JSON.parse(Utils.toUTF8(record!.payloadBytes))).toEqual({ to: wallet.buyer.address });
   });
 
-  it('passes both covenants’ local verify against the committed artifacts', async () => {
-    expect(await verifyLicenseInput(transfer.transaction, 0)).toEqual(VERIFIED);
-    expect(await verifyFuelInput(transfer.transaction, 1)).toEqual(VERIFIED);
-  });
+  // Both covenants' local verify against the committed artifacts is covered by
+  // tests/features/bsv/license-contract-builders.feature (AC-4.4.2-1).
 
   it('adds payment inputs after the Fuel and payment outputs after the Data output; the fee still comes from the Fuel', async () => {
     const withPayment = await buildContractTransferTransaction({

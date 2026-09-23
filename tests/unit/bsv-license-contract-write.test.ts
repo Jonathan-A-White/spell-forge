@@ -9,7 +9,6 @@ import { P2PKH, Transaction, Utils } from '@bsv/sdk';
 import {
   buildContractSpendVariant,
   buildContractTokenRecordTransaction,
-  ContractVersionMismatchError,
   FuelFeeCapExceededError,
   readLicenseState,
   verifyFuelInput,
@@ -91,16 +90,8 @@ describe('buildContractTokenRecordTransaction, a License + Fuel token', () => {
     expect(JSON.parse(Utils.toUTF8(record!.payloadBytes))).toEqual(payload);
   });
 
-  it('passes both covenants’ local verify: the License (input 0) and the Fuel (input 1), against the committed artifacts', async () => {
-    expect(await verifyLicenseInput(write.transaction, 0)).toEqual(VERIFIED);
-    expect(await verifyFuelInput(write.transaction, 1)).toEqual(VERIFIED);
-    // The same, from the broadcast hex alone.
-    const fromHex = Transaction.fromHex(write.hex);
-    fromHex.inputs[0].sourceTransaction = mint.transaction;
-    fromHex.inputs[1].sourceTransaction = mint.transaction;
-    expect(await verifyLicenseInput(fromHex, 0)).toEqual(VERIFIED);
-    expect(await verifyFuelInput(fromHex, 1)).toEqual(VERIFIED);
-  });
+  // Both covenants' local verify (License at input 0, Fuel at input 1, against the committed
+  // artifacts) is covered by tests/features/bsv/license-contract-builders.feature (AC-4.3.1-1).
 
   it('pays the fee from the Fuel: output 1 = own − fee, the fee at least the configured rate and at most FEE_CAP', () => {
     const fuelOut = write.transaction.outputs[1].satoshis ?? 0;
@@ -249,27 +240,9 @@ describe('buildContractTokenRecordTransaction refuses', () => {
     ).rejects.toMatchObject({ name: 'TokenLockMismatchError' });
   });
 
-  it('a token minted under another License artifact, with ContractVersionMismatchError, before fetching or building anything', async () => {
-    for (const token of [
-      { ...mint.token, artifact: '0'.repeat(32) },
-      { ...standInMint.token, artifact: '0'.repeat(32) },
-      { ...mint.token, fuelArtifact: '0'.repeat(32) },
-    ]) {
-      const provider = fakeChain([mint.transaction, standInMint.transaction]);
-      const attempt = buildContractTokenRecordTransaction({
-        holderKey: wallet.owner.wif,
-        token,
-        feeUtxos: [utxoOf(wallet.writeFundingTx)],
-        payload,
-        config,
-        provider,
-      });
-      await expect(attempt).rejects.toBeInstanceOf(ContractVersionMismatchError);
-      await expect(attempt).rejects.toMatchObject({ name: 'ContractVersionMismatchError' });
-      await expect(attempt).rejects.toThrow('This token was minted under an older contract version');
-      expect(provider.getTransactionHex).not.toHaveBeenCalled();
-    }
-  });
+  // The artifact-version refusal (an old-artifact License, stand-in License, or Fuel, each
+  // with ContractVersionMismatchError before touching the chain) is covered by
+  // tests/features/bsv/license-contract-builders.feature (AC-4.3.1-1).
 });
 
 describe('buildContractSpendVariant, the Fuel negatives (not verified by the builder, so a caller can broadcast one)', () => {
