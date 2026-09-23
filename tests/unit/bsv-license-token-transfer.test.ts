@@ -40,6 +40,7 @@ const token: LicenseToken = {
   current: { txid: wallet.currentTx.txid, vout: wallet.currentTx.vout },
   holderAddress: wallet.holderAddress,
   collectionId: baseConfig.collectionId,
+  lock: 'p2pkh',
 };
 
 function fakeProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {

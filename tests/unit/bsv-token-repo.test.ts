@@ -8,6 +8,7 @@ const tokenA: LicenseToken = {
   current: { txid: 'a'.repeat(64), vout: 0 },
   holderAddress: 'mHolderA',
   collectionId: 'spellforge-leaderboard-testnet',
+  lock: 'p2pkh',
 };
 
 const tokenB: LicenseToken = {
@@ -15,6 +16,7 @@ const tokenB: LicenseToken = {
   current: { txid: 'b'.repeat(64), vout: 0 },
   holderAddress: 'mHolderB',
   collectionId: 'spellforge-leaderboard-testnet',
+  lock: 'p2pkh',
 };
 
 beforeEach(async () => {

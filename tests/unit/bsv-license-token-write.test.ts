@@ -40,6 +40,7 @@ const token: LicenseToken = {
   current: { txid: wallet.currentTx.txid, vout: wallet.currentTx.vout },
   holderAddress: wallet.holderAddress,
   collectionId: baseConfig.collectionId,
+  lock: 'p2pkh',
 };
 
 const payload = { text: 'hello chain', ts: '2026-03-01T00:00:00.000Z' };

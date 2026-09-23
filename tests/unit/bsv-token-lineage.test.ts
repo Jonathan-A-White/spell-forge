@@ -67,6 +67,7 @@ async function buildChain(): Promise<{ mint: BuiltHop; write1: BuiltHop; transfe
     current: { txid: mint.txid, vout: 0 },
     holderAddress: holderAAddress,
     collectionId: config.collectionId,
+    lock: 'p2pkh',
   };
   const holderAFunding1 = fundingTx(holderAAddress);
   const write1Built = await buildTokenRecordTransaction({
@@ -102,6 +103,7 @@ async function buildChain(): Promise<{ mint: BuiltHop; write1: BuiltHop; transfe
     current: { txid: transfer.txid, vout: 0 },
     holderAddress: holderBAddress,
     collectionId: config.collectionId,
+    lock: 'p2pkh',
   };
   const holderBFunding = fundingTx(holderBAddress);
   const write2Built = await buildTokenRecordTransaction({

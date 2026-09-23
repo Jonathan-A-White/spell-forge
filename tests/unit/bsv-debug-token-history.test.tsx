@@ -87,6 +87,7 @@ describe('BsvDebugScreen token history', () => {
       current: { txid: mint.txid, vout: 0 },
       holderAddress,
       collectionId: config.collectionId,
+      lock: 'p2pkh',
     };
     await bsvWalletRepo.save(storedKey);
     await bsvTokenRepo.put(token);
@@ -123,6 +124,7 @@ describe('BsvDebugScreen token history', () => {
       current: { txid: mint.txid, vout: 0 },
       holderAddress,
       collectionId: config.collectionId,
+      lock: 'p2pkh',
     };
     await bsvWalletRepo.save(storedKey);
     await bsvTokenRepo.put(token);

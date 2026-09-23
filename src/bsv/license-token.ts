@@ -28,11 +28,35 @@ export interface Outpoint {
   vout: number;
 }
 
+/** What locks the token's 1-sat output: a plain P2PKH, or the License contract (mw-5wuz6.3). */
+export type TokenLock = 'p2pkh' | 'license';
+
 export interface LicenseToken {
   origin: Outpoint;
   current: Outpoint;
   holderAddress: string;
   collectionId: string;
+  lock: TokenLock;
+  /** lock 'license' only: the md5 of the committed License artifact that locked it. */
+  artifact?: string;
+}
+
+/** A write or transfer builder was handed a token locked some other way than the one it spends. */
+export class TokenLockMismatchError extends Error {
+  readonly lock: TokenLock;
+  readonly expected: TokenLock;
+
+  constructor(lock: TokenLock, expected: TokenLock) {
+    super(`This token is locked by '${lock}'; this builder spends '${expected}' tokens`);
+    this.name = 'TokenLockMismatchError';
+    this.lock = lock;
+    this.expected = expected;
+  }
+}
+
+/** Throws TokenLockMismatchError unless the token's lock is the one the builder spends. */
+export function assertTokenLock(token: LicenseToken, expected: TokenLock): void {
+  if (token.lock !== expected) throw new TokenLockMismatchError(token.lock, expected);
 }
 
 function encodeMintPayload(payload: MintRecordPayload): number[] {
@@ -170,6 +194,7 @@ export async function mintLicenseToken(params: MintLicenseTokenParams): Promise<
     current: origin,
     holderAddress,
     collectionId: config.collectionId,
+    lock: 'p2pkh',
   };
 
   eventBus.emit({ type: 'bsv:token-minted', payload: { txid, origin } });
@@ -202,6 +227,7 @@ export interface BuiltTransferTransaction {
  */
 export async function buildTransferTransaction(params: BuildTransferTransactionParams): Promise<BuiltTransferTransaction> {
   const { holderKey, token, feeUtxos, toAddress, config, provider } = params;
+  assertTokenLock(token, 'p2pkh');
 
   const privateKey = PrivateKey.fromWif(holderKey);
   const holderAddress = privateKey.toAddress(config.network);
@@ -366,6 +392,7 @@ export async function buildTokenRecordTransaction(
   params: BuildTokenRecordTransactionParams,
 ): Promise<BuiltTokenRecordTransaction> {
   const { holderKey, token, feeUtxos, payload, config, provider } = params;
+  assertTokenLock(token, 'p2pkh');
 
   const privateKey = PrivateKey.fromWif(holderKey);
   const holderAddress = privateKey.toAddress(config.network);

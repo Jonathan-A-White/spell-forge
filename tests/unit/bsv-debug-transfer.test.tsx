@@ -32,6 +32,7 @@ const token: LicenseToken = {
   current: { txid: wallet.currentTx.txid, vout: wallet.currentTx.vout },
   holderAddress: wallet.holderAddress,
   collectionId: 'spellforge-leaderboard-testnet',
+  lock: 'p2pkh',
 };
 
 function makeProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {

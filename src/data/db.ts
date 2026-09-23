@@ -224,6 +224,37 @@ class SpellForgeDB extends Dexie {
       bsvPendingSpends: 'txid',
       bsvTokens: '[origin.txid+origin.vout], mintedAt',
     });
+
+    // v12: bsvTokens rows gain lock ('p2pkh' | 'license') and, for a License, artifact
+    // (mw-5wuz6.3). Every token recorded before was P2PKH-locked, so it reads as 'p2pkh'.
+    this.version(12)
+      .stores({
+        profiles: 'id, name',
+        wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+        words: 'id, listId, profileId, [profileId+listId], text',
+        wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+        sessionLogs: 'id, profileId, startedAt',
+        streaks: 'profileId',
+        syncQueue: 'id, [type+synced], synced',
+        activityProgress: 'id, profileId, [profileId+activityType]',
+        learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+        coinBalances: 'profileId',
+        coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+        themeProgress: 'id, profileId, [profileId+themeId]',
+        completedCreatures: 'id, profileId, [profileId+themeId]',
+        testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+        bsvWallet: 'id',
+        bsvPendingSpends: 'txid',
+        bsvTokens: '[origin.txid+origin.vout], mintedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table<BsvTokenRow>('bsvTokens')
+          .toCollection()
+          .modify((row) => {
+            if (!row.lock) row.lock = 'p2pkh';
+          }),
+      );
   }
 }
 
