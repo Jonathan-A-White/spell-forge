@@ -39,6 +39,8 @@ export interface LicenseToken {
   lock: TokenLock;
   /** lock 'license' only: the md5 of the committed License artifact that locked it. */
   artifact?: string;
+  /** A License + Fuel token only (mw-yo97u.3): the md5 of the committed Fuel artifact its Fuel(C) was minted from. */
+  fuelArtifact?: string;
 }
 
 /** A write or transfer builder was handed a token locked some other way than the one it spends. */

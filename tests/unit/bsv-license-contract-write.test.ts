@@ -295,7 +295,8 @@ describe('buildContractSpendVariant, the Fuel negatives (not verified by the bui
   it('output 1 under own − FEE_CAP: the Fuel fails, the License (which accepts any Fuel value) verifies', async () => {
     const built = await variant({ fuelOutputSatoshis: MINT_FUEL - FEE_CAP - 1 });
     expect(built.transaction.outputs[1].satoshis).toBe(MINT_FUEL - FEE_CAP - 1);
-    expect(await verifyFuelInput(built.transaction, 1)).toEqual({ success: false, error: 'TBD' });
+    // Fuel's `fuelValue >= own − FEE_CAP` assert.
+    expect(await verifyFuelInput(built.transaction, 1)).toEqual({ success: false, error: 'SCRIPT_ERR_VERIFY' });
     expect(await verifyLicenseInput(built.transaction, 0)).toEqual(VERIFIED);
   });
 
@@ -306,15 +307,18 @@ describe('buildContractSpendVariant, the Fuel negatives (not verified by the bui
       [wallet.writeFundingTx.txid, 0],
       [mint.txid, 1],
     ]);
-    expect(await verifyFuelInput(built.transaction, 1)).toEqual({ success: false, error: 'TBD' });
+    // FB-1: prevouts[0] == (T, 0).
+    expect(await verifyFuelInput(built.transaction, 1)).toEqual({ success: false, error: 'SCRIPT_ERR_EQUALVERIFY' });
   });
 
   it('output 1 carrying a different script: both the Fuel and the License fail', async () => {
     const stranger = new P2PKH().lock(wallet.stranger.address).toHex();
     const built = await variant({ fuelOutputScriptHex: stranger });
     expect(built.transaction.outputs[1].lockingScript.toHex()).toBe(stranger);
-    expect(await verifyFuelInput(built.transaction, 1)).toEqual({ success: false, error: 'TBD' });
-    expect(await verifyLicenseInput(built.transaction, 0)).toEqual({ success: false, error: 'TBD' });
+    // Fuel's last assert (hashOutputs is its own script at fuelValue) leaves false on the stack.
+    expect(await verifyFuelInput(built.transaction, 1)).toEqual({ success: false, error: 'SCRIPT_ERR_EVAL_FALSE_IN_STACK' });
+    // The License's rule (f): hash256(output 1's script) == fuelScriptHash.
+    expect(await verifyLicenseInput(built.transaction, 0)).toEqual({ success: false, error: 'SCRIPT_ERR_EQUALVERIFY' });
   });
 
   it('the Fuel at input 2, a funding input at 1: the Fuel fails, the License verifies', async () => {
@@ -325,7 +329,8 @@ describe('buildContractSpendVariant, the Fuel negatives (not verified by the bui
       [wallet.writeFundingTx.txid, 0],
       [mint.txid, 1],
     ]);
-    expect(await verifyFuelInput(built.transaction, 2)).toEqual({ success: false, error: 'TBD' });
+    // "the Fuel is input 1": prevouts[1] == its own outpoint.
+    expect(await verifyFuelInput(built.transaction, 2)).toEqual({ success: false, error: 'SCRIPT_ERR_EQUALVERIFY' });
     expect(await verifyLicenseInput(built.transaction, 0)).toEqual(VERIFIED);
   });
 
@@ -349,7 +354,7 @@ describe('writeWithContractToken, a License + Fuel token', () => {
     const provider = fakeChain([mint.transaction]);
     vi.mocked(provider.broadcast).mockImplementation(async (hex: string) => Transaction.fromHex(hex).id('hex'));
     const pendingSpendRepo = { getAll: vi.fn().mockResolvedValue([]), add: vi.fn(), removeMany: vi.fn() };
-    const repository = { put: vi.fn(), list: vi.fn(), updateCurrent: vi.fn() };
+    const repository = { updateCurrent: vi.fn() };
 
     const { txid } = await writeWithContractToken({
       holderKey: wallet.owner.wif,
@@ -382,7 +387,7 @@ describe('writeWithContractToken, a License + Fuel token', () => {
       provider,
       config,
       eventBus: createEventBus(),
-      repository: { put: vi.fn(), list: vi.fn(), updateCurrent: vi.fn() },
+      repository: { updateCurrent: vi.fn() },
       pendingSpendRepo: { getAll: vi.fn().mockResolvedValue([]), add: vi.fn(), removeMany: vi.fn() },
     });
     expect(provider.getUtxos).toHaveBeenCalledWith(wallet.owner.address);

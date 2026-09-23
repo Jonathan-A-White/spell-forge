@@ -159,12 +159,13 @@ describe('BsvDebugScreen token history', () => {
   });
 
   it('shows the owner for a license hop', async () => {
-    const issuerFunding = fundingTx(PrivateKey.fromWif(ISSUER_WIF).toAddress('testnet'));
+    const issuerFunding = fundingTx(PrivateKey.fromWif(ISSUER_WIF).toAddress('testnet'), 20_000);
     const holderPubKey = PrivateKey.fromWif(HOLDER_WIF).toPublicKey().toString();
     const mintBuilt = await buildContractMintTransaction({
       issuerKey: ISSUER_WIF,
       utxos: [issuerFunding.utxo],
       holderPubKey,
+      mintFuelSatoshis: 10_000,
       config,
       provider: {
         getUtxos: vi.fn(),
