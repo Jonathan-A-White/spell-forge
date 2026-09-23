@@ -30,6 +30,8 @@
     "tests/e2e",
     "src/bsv/contracts",
     "tests/unit/bsv-contracts-license.test.ts",
-    "tests/fixtures/bsv/license-contract.ts"
+    "tests/fixtures/bsv/license-contract.ts",
+    "tests/unit/bsv-contracts-fuel.test.ts",
+    "tests/fixtures/bsv/fuel-contract.ts"
   ]
 }

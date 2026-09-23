@@ -41,8 +41,8 @@ export default defineConfig([
     },
   },
   {
-    // The License contract test's fixture drives the contract through scrypt-ts (mw-5wuz6.2).
-    files: ['tests/fixtures/bsv/license-contract.ts'],
+    // The contract tests' fixtures drive the contracts through scrypt-ts (mw-5wuz6.2, mw-yo97u.2).
+    files: ['tests/fixtures/bsv/license-contract.ts', 'tests/fixtures/bsv/fuel-contract.ts'],
     rules: {
       'no-restricted-imports': 'off',
     },

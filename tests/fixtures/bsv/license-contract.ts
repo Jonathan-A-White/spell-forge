@@ -39,7 +39,7 @@ export type RecordType = keyof typeof RECORD_TYPE_PUSH;
 /** A 200-byte opaque payload (OP_PUSHDATA1 200), standing in for §3.8 fields 3-5. */
 const PAYLOAD_PUSH = '4cc8' + 'ab'.repeat(200);
 
-function dataScript(recordType: RecordType): ByteString {
+export function dataScript(recordType: RecordType): ByteString {
   return toByteString(DATA_HEADER + RECORD_TYPE_PUSH[recordType] + PAYLOAD_PUSH);
 }
 
