@@ -21,4 +21,6 @@ export const chainConfig: ChainConfig = {
   anchorAddress: '',
   feeRateSatPerKb: 1,
   collectionId: 'spellforge-leaderboard-testnet',
+  // Testnet value pending spec R4.1.3's production decision; confirmed minting on testnet by mw-yo97u.5.
+  mintFuelSatoshis: 10_000,
 };
