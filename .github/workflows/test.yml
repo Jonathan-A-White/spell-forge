@@ -71,6 +71,9 @@ jobs:
               - 'src/data/repositories/bsv-wallet-repo.ts'
               - 'tests/unit/bsv-*'
               - 'tests/fixtures/bsv/**'
+              - 'tests/features/bsv/**'
+              - 'tests/features/steps/**'
+              - 'scripts/bsv-rules-coverage.ts'
             src:
               - 'src/**'
               - 'tests/**'
@@ -248,6 +251,7 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run test:bsv
+      - run: npm run test:bsv:rules
 
   # Gate job — require this single check in branch protection rules
   ci-pass:
