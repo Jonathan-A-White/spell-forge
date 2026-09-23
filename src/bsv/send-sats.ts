@@ -7,7 +7,14 @@ import type { EventBus, Utxo } from '../contracts/types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
 import { isValidTestnetAddress } from './keys';
-import { outpointKey, selectFeeUtxos, type PendingSpendEntry } from './pending-spends';
+import {
+  outpointKey,
+  selectFeeUtxos,
+  reconcilePendingSpends,
+  filterUtxosExcludingPending,
+  describePendingShortfall,
+  type PendingSpendRepository,
+} from './pending-spends';
 import type { Outpoint } from './license-token';
 
 const MIN_SEND_SATOSHIS = 2; // a 1-sat output is a token by this app's convention
@@ -83,11 +90,6 @@ export async function buildSendTransaction(params: BuildSendTransactionParams): 
   };
 }
 
-/** The subset of bsvPendingSpendRepo that sendSats needs, kept minimal like TokenRepository. */
-export interface PendingSpendRepository {
-  add(entry: PendingSpendEntry): Promise<void>;
-}
-
 export interface SendSatsParams {
   key: string; // wallet WIF
   toAddress: string;
@@ -106,15 +108,31 @@ export interface SendSatsResult {
 }
 
 /**
- * Fetches the sender's UTXOs, builds, signs, broadcasts once, records the spent
- * outpoints as a pending spend, and emits 'bsv:sats-sent'.
+ * Fetches the sender's UTXOs, reconciles them against the app's own pending spends so a
+ * still-unconfirmed transaction's outpoints are never reselected (mw-b00z.10), builds,
+ * signs, broadcasts once, records the spent outpoints as a pending spend, and emits
+ * 'bsv:sats-sent'.
  */
 export async function sendSats(params: SendSatsParams): Promise<SendSatsResult> {
   const { key, toAddress, amountSats, provider, config, eventBus, pendingSpendRepo, excludeOutpoints } = params;
 
   const senderAddress = PrivateKey.fromWif(key).toAddress(config.network);
-  const utxos = await provider.getUtxos(senderAddress);
-  const built = await buildSendTransaction({ key, utxos, toAddress, amountSats, config, provider, excludeOutpoints });
+  const rawUtxos = await provider.getUtxos(senderAddress);
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos } = filterUtxosExcludingPending(rawUtxos, remaining);
+
+  let built: BuiltSendTransaction;
+  try {
+    built = await buildSendTransaction({ key, utxos, toAddress, amountSats, config, provider, excludeOutpoints });
+  } catch (error) {
+    throw describePendingShortfall(error, rawUtxos, remaining);
+  }
+
   const txid = await provider.broadcast(built.hex);
 
   await pendingSpendRepo.add({

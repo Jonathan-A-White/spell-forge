@@ -9,7 +9,6 @@ import {
   writeRecord,
   readRecordByTxid,
   scanRecords,
-  outpointKey,
   reconcilePendingSpends,
   filterUtxosExcludingPending,
 } from '../../bsv';
@@ -180,7 +179,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
     if (!wallet || balance.status !== 'loaded') return;
     setWriteState({ status: 'writing' });
     try {
-      const { utxos: freshUtxos } = await loadActiveUtxos(wallet.address);
+      const freshUtxos = await provider.getUtxos(wallet.address);
       const result = await writeRecord({
         key: wallet.material,
         utxos: freshUtxos,
@@ -188,11 +187,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
         config: { ...chainConfig, anchorAddress: anchorAddress || chainConfig.anchorAddress },
         provider,
         eventBus: bus,
-      });
-      await bsvPendingSpendRepo.add({
-        txid: result.txid,
-        outpoints: freshUtxos.map(outpointKey),
-        createdAt: new Date(),
+        pendingSpendRepo: bsvPendingSpendRepo,
       });
       setWriteState({ status: 'done', txid: result.txid });
       await loadBalance(wallet.address);

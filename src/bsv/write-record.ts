@@ -5,7 +5,14 @@ import type { EventBus, Utxo } from '../contracts/types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
 import { encodeRecordPayloadV1, encodeRecordScript, type RecordPayloadV1 } from './record';
-import { selectFeeUtxos } from './pending-spends';
+import {
+  outpointKey,
+  selectFeeUtxos,
+  reconcilePendingSpends,
+  filterUtxosExcludingPending,
+  describePendingShortfall,
+  type PendingSpendRepository,
+} from './pending-spends';
 
 const ANCHOR_OUTPUT_SATOSHIS = 1;
 
@@ -75,17 +82,43 @@ export async function buildRecordTransaction(
 
 export interface WriteRecordParams extends BuildRecordTransactionParams {
   eventBus: EventBus;
+  pendingSpendRepo: PendingSpendRepository;
 }
 
 export interface WriteRecordResult {
   txid: string;
 }
 
-/** Builds, signs, broadcasts once, and emits 'bsv:record-written' with the broadcast txid. */
+/**
+ * Reconciles the app's own pending spends against the fresh UTXO list so a still-
+ * unconfirmed transaction's outpoints are never reselected (mw-b00z.10), builds, signs,
+ * broadcasts once, records the spent outpoints as a new pending spend, and emits
+ * 'bsv:record-written'.
+ */
 export async function writeRecord(params: WriteRecordParams): Promise<WriteRecordResult> {
-  const { eventBus, provider, ...buildParams } = params;
-  const built = await buildRecordTransaction({ ...buildParams, provider });
+  const { eventBus, provider, pendingSpendRepo, utxos: rawUtxos, ...buildParams } = params;
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos } = filterUtxosExcludingPending(rawUtxos, remaining);
+
+  let built: BuiltRecordTransaction;
+  try {
+    built = await buildRecordTransaction({ ...buildParams, utxos, provider });
+  } catch (error) {
+    throw describePendingShortfall(error, rawUtxos, remaining);
+  }
+
   const txid = await provider.broadcast(built.hex);
+
+  await pendingSpendRepo.add({
+    txid,
+    outpoints: utxos.map(outpointKey),
+    createdAt: new Date(),
+  });
 
   eventBus.emit({ type: 'bsv:record-written', payload: { txid } });
 
