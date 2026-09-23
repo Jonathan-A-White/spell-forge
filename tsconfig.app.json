@@ -26,5 +26,10 @@
     "resolveJsonModule": true
   },
   "include": ["src", "tests"],
-  "exclude": ["tests/e2e", "src/bsv/contracts"]
+  "exclude": [
+    "tests/e2e",
+    "src/bsv/contracts",
+    "tests/unit/bsv-contracts-license.test.ts",
+    "tests/fixtures/bsv/license-contract.ts"
+  ]
 }

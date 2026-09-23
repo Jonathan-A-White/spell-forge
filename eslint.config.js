@@ -40,4 +40,11 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': 'off',
     },
   },
+  {
+    // The License contract test's fixture drives the contract through scrypt-ts (mw-5wuz6.2).
+    files: ['tests/fixtures/bsv/license-contract.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
 ])

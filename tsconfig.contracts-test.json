@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.contracts-test.tsbuildinfo",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* scrypt-ts contracts: legacy decorators, [[Set]] class fields (as tsconfig.contracts.json) */
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "resolveJsonModule": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  // The License contract and the one test that runs it. Kept out of tsconfig.app.json,
+  // whose standard decorators and verbatimModuleSyntax scrypt-ts contracts cannot use;
+  // vitest (via this reference) compiles license.ts with these options too.
+  "include": [
+    "src/bsv/contracts/*.ts",
+    "tests/unit/bsv-contracts-license.test.ts",
+    "tests/fixtures/bsv/license-contract.ts"
+  ]
+}
