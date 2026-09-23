@@ -12,7 +12,7 @@
 // three addresses (issuer, holderA, holderB) has a zero balance — see mw-2rbm.2.
 
 import { describe, it, expect } from 'vitest';
-import { PrivateKey, Transaction } from '@bsv/sdk';
+import { P2PKH, PrivateKey, Transaction } from '@bsv/sdk';
 import { createChainProvider } from '../../src/bsv/chain-provider';
 import { chainConfig } from '../../src/bsv/config';
 import { createEventBus } from '../../src/contracts/events';
@@ -23,8 +23,11 @@ import {
   buildContractTokenRecordTransaction,
   buildContractTransferTransaction,
   buildContractSpendVariant,
+  fuelLockingScript,
+  verifyFuelInput,
   verifyLicenseInput,
 } from '../../src/bsv/license-contract';
+import type { BuildContractSpendVariantParams } from '../../src/bsv/license-contract';
 import { followLicenseToken } from '../../src/bsv/token-lineage';
 import { requireFundedHarness, withPacing, pollForUtxo } from '../../src/bsv/node/testnet-e2e-helpers';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
@@ -101,55 +104,6 @@ async function waitUntilContractReady(provider: ChainProvider, txid: string, tim
   await waitForTransactionHex(provider, txid, 3000, timeoutMs);
 }
 
-/**
- * The License-locked equivalent of waitUntilReady, for a hop whose Fuel/change output
- * (vout 1, a real P2PKH to the holder — unlike output 0, the covenant) the NEXT step will
- * select as a fee UTXO via that holder's address: waits for vout 1 to show up there too,
- * not just the transaction hex. Skip this (use waitUntilContractReady instead) for a hop
- * nothing downstream spends the change of, e.g. the last op before negatives/lineage.
- * Observed live 2026-09-23: WhatsOnChain's address-level /unspent index and its
- * /tx/{txid}/hex can each lag the other by over a minute, in either order, so a step that
- * actually needs the address-level signal must wait for it explicitly (mw-5wuz6.6).
- */
-async function waitUntilContractFeeReady(
-  provider: ChainProvider,
-  address: string,
-  txid: string,
-  timeoutMs = 60000,
-): Promise<void> {
-  await pollForUtxo({ provider, address, outpoint: { txid, vout: 1 }, timeoutMs });
-  await waitForTransactionHex(provider, txid, 3000, timeoutMs);
-}
-
-/**
- * followLicenseToken finds each hop by searching the current holder's address history for
- * a transaction whose input 0 references the previous hop's outpoint — a third WhatsOnChain
- * index (/address/{addr}/history and /unconfirmed/history), independent of the /unspent and
- * /tx/hex ones, that can lag behind a broadcast just as unpredictably (observed live
- * 2026-09-23: a lineage walk called right after a write and transfer broadcast found only
- * the mint hop and reported the token complete at the origin — not broken, just too early).
- * Waits for a specific txid to show up in address's history before trusting a lineage walk
- * over it (mw-5wuz6.6).
- */
-async function waitForAddressHistory(
-  provider: ChainProvider,
-  address: string,
-  txid: string,
-  timeoutMs = 60000,
-  intervalMs = 3000,
-): Promise<void> {
-  const maxAttempts = Math.max(1, Math.floor(timeoutMs / intervalMs));
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const [confirmed, unconfirmed] = await Promise.all([
-      provider.getAddressHistory(address),
-      provider.getUnconfirmedAddressHistory ? provider.getUnconfirmedAddressHistory(address) : Promise.resolve([]),
-    ]);
-    if ([...confirmed, ...unconfirmed].some((entry) => entry.txid === txid)) return;
-    if (attempt < maxAttempts) await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  throw new Error(`Timed out after ${timeoutMs}ms waiting for ${txid} to appear in ${address}'s address history`);
-}
-
 function outpointKey(u: { txid: string; vout: number }): string {
   return `${u.txid}:${u.vout}`;
 }
@@ -165,16 +119,20 @@ function feeOf(transaction: Transaction): number {
 }
 
 /**
- * Wraps getUtxos to hide outpoints this run already knows it spent. license-token.ts's
- * builders re-fetch and sweep ALL of a holder's non-token UTXOs on every call (unlike
- * writeRecord/sendSats, they carry no pending-spend exclusion of their own — out of scope
- * to add here). WhatsOnChain's /unspent keeps listing an input as unspent until the
- * spending transaction actually confirms in a block, not just once it is broadcast
- * (observed live 2026-09-23: a fee UTXO spent by write1 was still listed unspent, still
- * unconfirmed, when transfer read the same address seconds later, and the reselected
- * double-spend was rejected as "txn-mempool-conflict"). Tracking our own spends locally
- * sidesteps that lag deterministically, without waiting on a block or touching production
- * coin selection.
+ * Wraps getUtxos to hide outpoints this run already knows it spent, and to dedupe by
+ * outpoint. license-token.ts's builders re-fetch and sweep ALL of a holder's non-token
+ * UTXOs on every call (unlike writeRecord/sendSats, they carry no pending-spend exclusion
+ * of their own — out of scope to add here). WhatsOnChain's /unspent keeps listing an input
+ * as unspent until the spending transaction actually confirms in a block, not just once it
+ * is broadcast (observed live 2026-09-23: a fee UTXO spent by write1 was still listed
+ * unspent, still unconfirmed, when transfer read the same address seconds later, and the
+ * reselected double-spend was rejected as "txn-mempool-conflict"). Tracking our own spends
+ * locally sidesteps that lag deterministically, without waiting on a block or touching
+ * production coin selection. Separately, /unspent can list the SAME outpoint twice around
+ * the moment it confirms — once at height 0, once at its real height (observed live
+ * 2026-09-23 on a freshly-funded issuer address) — which would otherwise make a builder add
+ * it as two inputs and get "bad-txns-inputs-duplicate" back from the node; deduping here
+ * fixes it for every call through this provider, without touching production coin selection.
  */
 function withSpentTracking(provider: ChainProvider): { provider: ChainProvider; markSpent: (utxos: Utxo[]) => void } {
   const spent = new Set<string>();
@@ -182,7 +140,13 @@ function withSpentTracking(provider: ChainProvider): { provider: ChainProvider; 
     ...provider,
     getUtxos: async (address: string) => {
       const utxos = await provider.getUtxos(address);
-      return utxos.filter((u) => !spent.has(outpointKey(u)));
+      const seen = new Set<string>();
+      return utxos.filter((u) => {
+        const key = outpointKey(u);
+        if (spent.has(key) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     },
   };
   return {
@@ -194,7 +158,7 @@ function withSpentTracking(provider: ChainProvider): { provider: ChainProvider; 
 }
 
 describe('testnet license token e2e', () => {
-  it('mints, writes, transfers, writes a p2pkh token (lineage: four hops); then mints, writes and transfers a License-locked contract token (lineage: three hops), and its four invalid spends fail local verify with the non-owner signature rejected on broadcast', async () => {
+  it('mints, writes, transfers, writes a p2pkh token (lineage: four hops); then mints (MINT_FUEL 10,000 sat), writes with no holder coin and transfers a License + Fuel(C) contract token, with the Governor\'s four Fuel negatives failing local verify and the under-conservation one rejected on broadcast', async () => {
     const { provider, markSpent } = withSpentTracking(withPacing(createChainProvider(chainConfig)));
     const harness = await requireFundedHarness(provider);
     const eventBus = createEventBus();
@@ -327,12 +291,19 @@ describe('testnet license token e2e', () => {
     expect(lineage.current).toEqual({ txid: txids.write2, vout: 0 });
     expect(lineage.holderAddress).toBe(holderBAddress);
 
-    // === Contract run (mw-5wuz6.6): the same three wallets, now minting and spending a
-    // License-locked token instead of a plain P2PKH one. Shares this test's provider and
-    // markSpent (rather than a fresh withSpentTracking) so this run's own fee UTXOs are
-    // correctly excluded — WhatsOnChain still lists the p2pkh flow's spent UTXOs above as
-    // unspent for a while after broadcast (mw-b00z.6), and a fresh spent-tracker here would
-    // reselect one of them and collide with it as "txn-mempool-conflict". ===
+    // === Contract run (mw-yo97u.5): the same three wallets, now minting and spending a
+    // License-locked token backed by a real Fuel(C) at MINT_FUEL = 10,000 sat (two FEE_CAP
+    // burns plus headroom, spec §3.9/§6) instead of the step 2 P2PKH stand-in. Shares this
+    // test's provider and markSpent (rather than a fresh withSpentTracking) so this run's
+    // own fee UTXOs are correctly excluded — WhatsOnChain still lists the p2pkh flow's spent
+    // UTXOs above as unspent for a while after broadcast (mw-b00z.6), and a fresh
+    // spent-tracker here would reselect one of them and collide with it as
+    // "txn-mempool-conflict". Neither the License covenant (output 0) nor Fuel(C) (output 1)
+    // is a P2PKH, so address-history-based lineage discovery (token-lineage.ts) does not
+    // apply here — this run confirms each hop directly from the built and refetched
+    // transactions instead. ===
+    const MINT_FUEL = 10_000; // two FEE_CAP burns (write, transfer) plus headroom
+    const FEE_CAP = 2_000; // Fuel(C)'s FEE_CAP, spec §3.9
     const holderAPubKeyHex = PrivateKey.fromWif(harness.holderA.entry.wif).toPublicKey().toString();
     const holderBPubKeyHex = PrivateKey.fromWif(harness.holderB.entry.wif).toPublicKey().toString();
 
@@ -343,6 +314,7 @@ describe('testnet license token e2e', () => {
       issuerKey: harness.issuer.entry.wif,
       utxos: issuerUtxos,
       holderPubKey: holderAPubKeyHex,
+      mintFuelSatoshis: MINT_FUEL,
       config: chainConfig,
       provider,
     });
@@ -350,168 +322,161 @@ describe('testnet license token e2e', () => {
     const mintTxid = await provider.broadcast(mintBuilt.hex);
     expect(mintTxid).toBe(mintBuilt.txid);
     let contractToken: LicenseToken = mintBuilt.token;
-    await waitUntilContractFeeReady(provider, holderAAddress, mintTxid, 120000);
+    await waitUntilContractReady(provider, mintTxid, 120000);
 
-    // --- Write: holder A writes a record, spend-and-recreate to itself. ---
-    const holderAFeeUtxosForWrite = (await provider.getUtxos(holderAAddress)).filter((u) => u.satoshis !== 1);
+    // Output 1's value and script hash, read back from the confirmed tx (not just the
+    // locally built one): exactly MINT_FUEL, exactly Fuel(C) for this collection.
+    const mintTx = Transaction.fromHex(await provider.getTransactionHex(mintTxid));
+    const expectedFuelScript = await fuelLockingScript(chainConfig);
+    expect(mintTx.outputs[1].satoshis).toBe(MINT_FUEL);
+    expect(mintTx.outputs[1].lockingScript.toHex()).toBe(expectedFuelScript.toHex());
+
+    // --- Write: holder A writes a record, spend-and-recreate to itself, with NO holder coin
+    // — a License + Fuel token pays the write's fee from its own Fuel(C) at input 1, so no
+    // feeUtxos are fetched or passed at all. ---
     const contractTs1 = new Date().toISOString();
     const writeBuilt = await buildContractTokenRecordTransaction({
       holderKey: harness.holderA.entry.wif,
       token: contractToken,
-      feeUtxos: holderAFeeUtxosForWrite,
       payload: { text: `contract e2e write ${contractTs1}`, ts: contractTs1 },
       config: chainConfig,
       provider,
     });
-    markSpent(holderAFeeUtxosForWrite);
-    markSpent([{ txid: contractToken.current.txid, vout: contractToken.current.vout, satoshis: 1 }]);
     const writeTxid = await provider.broadcast(writeBuilt.hex);
     expect(writeTxid).toBe(writeBuilt.txid);
     contractToken = writeBuilt.token;
-    await waitUntilContractFeeReady(provider, holderAAddress, writeTxid, 120000);
+    await waitUntilContractReady(provider, writeTxid, 120000);
 
-    // --- The four invalid spends, built against the write-stage token (still holder A's):
-    // each fails local verify (rules f, c, b, d). Built from holder A, not holder B — the
-    // Fuel stand-in binds the minting holder's own key forever (spendableLicense's check,
-    // license-contract.ts), so a later holder cannot spend this token at all under the
-    // current stand-in, let alone build a spend deliberately violating one more rule of it;
-    // that is a real, separate, already-documented limitation, not this story's rule
-    // violations, so it must not be what these four negatives fail on (mw-5wuz6.6).
-    //
-    // license-bridge.ts's unlockingScript() calls the committed contract's own write()
-    // method to build the script (not a "blind" build): rules (b), (c) and (f) are all one
-    // assert over the exact rebuilt output list, so a layout violation throws synchronously
-    // right there, during buildContractSpendVariant itself — never reaching a transaction to
-    // hand to verifyLicenseInput. Only rule (d) (the signature) survives to be built into a
-    // real transaction, for verifyLicenseInput's interpreter to reject afterward — so that
-    // one is also the one broadcast below. ---
+    expect(writeBuilt.transaction.inputs).toHaveLength(2);
+    expect([writeBuilt.transaction.inputs[0].sourceTXID, writeBuilt.transaction.inputs[0].sourceOutputIndex]).toEqual([
+      mintTxid,
+      0,
+    ]);
+    expect([writeBuilt.transaction.inputs[1].sourceTXID, writeBuilt.transaction.inputs[1].sourceOutputIndex]).toEqual([
+      mintTxid,
+      1,
+    ]);
+    const writeFuelOutput = writeBuilt.transaction.outputs[1].satoshis ?? 0;
+    expect(writeFuelOutput).toBeGreaterThanOrEqual(MINT_FUEL - FEE_CAP);
+    const writeFeeSatoshis = feeOf(writeBuilt.transaction);
+
+    // --- The Governor's four Fuel negatives, built against the write-stage token (still
+    // holder A's) via buildContractSpendVariant — which does not verify its own result, so
+    // the caller checks it and decides whether to broadcast — mirroring the unit tests'
+    // Fuel negatives (tests/unit/bsv-license-contract-write.test.ts) against a real token. ---
     const holderAFeeUtxosForNegatives = (await provider.getUtxos(holderAAddress)).filter((u) => u.satoshis !== 1);
-    const negativePayload = { text: 'invalid spend probe', ts: new Date().toISOString() };
-    const LAYOUT_ASSERT = /rules \(b\), \(c\), \(f\)/;
+    const negativePayload = { text: 'invalid Fuel spend probe', ts: new Date().toISOString() };
 
-    await expect(
-      buildContractSpendVariant({
+    function fuelVariant(overrides: Partial<BuildContractSpendVariantParams>) {
+      return buildContractSpendVariant({
         holderKey: harness.holderA.entry.wif,
         token: contractToken,
         feeUtxos: holderAFeeUtxosForNegatives,
         payload: negativePayload,
-        extraOutputs: [{ address: harness.issuer.address, satoshis: 500 }],
         config: chainConfig,
         provider,
-      }),
-    ).rejects.toThrow(LAYOUT_ASSERT);
-    console.log('negative (four outputs, rule f): the contract\'s own layout assert refused it while building');
+        ...overrides,
+      });
+    }
 
-    await expect(
-      buildContractSpendVariant({
-        holderKey: harness.holderA.entry.wif,
-        token: contractToken,
-        feeUtxos: holderAFeeUtxosForNegatives,
-        payload: negativePayload,
-        output0OwnerPubKeyHex: holderBPubKeyHex,
-        config: chainConfig,
-        provider,
-      }),
-    ).rejects.toThrow(LAYOUT_ASSERT);
-    console.log('negative (owner key swapped on a write, rule c): the contract\'s own layout assert refused it while building');
+    // 1) Under-conservation: output 1 keeps own − 2,001 sat, one under FEE_CAP's floor. The
+    // License accepts any Fuel value, so only the Fuel fails — this is the one broadcast
+    // below (built blind: buildContractSpendVariant sets fuelBlind whenever a Fuel override
+    // is set, since Fuel's own TypeScript assertions would otherwise throw while building).
+    const underConservation = await fuelVariant({ fuelOutputSatoshis: writeFuelOutput - FEE_CAP - 1 });
+    const underConservationFuelResult = await verifyFuelInput(underConservation.transaction, 1);
+    const underConservationLicenseResult = await verifyLicenseInput(underConservation.transaction, 0);
+    console.log('negative (under-conservation, output 1 = own - 2,001) Fuel local verify:', JSON.stringify(underConservationFuelResult));
+    expect(underConservationFuelResult.success).toBe(false);
+    expect(underConservationLicenseResult.success).toBe(true);
 
-    await expect(
-      buildContractSpendVariant({
-        holderKey: harness.holderA.entry.wif,
-        token: contractToken,
-        feeUtxos: holderAFeeUtxosForNegatives,
-        payload: negativePayload,
-        outputSatoshis: 2,
-        config: chainConfig,
-        provider,
-      }),
-    ).rejects.toThrow(LAYOUT_ASSERT);
-    console.log('negative (output 0 with 2 satoshis, rule b): the contract\'s own layout assert refused it while building');
+    // 2) FB-1: input 0 is an ordinary P2PKH outpoint (the holder's own fee UTXO), not the
+    // License — the Fuel's own prevouts[0] == (T, 0) check fails.
+    const ordinaryInput0 = await fuelVariant({ ordinaryInput0: true });
+    const ordinaryInput0Result = await verifyFuelInput(ordinaryInput0.transaction, 1);
+    console.log('negative (FB-1, ordinary outpoint at input 0) Fuel local verify:', JSON.stringify(ordinaryInput0Result));
+    expect(ordinaryInput0Result.success).toBe(false);
 
-    const nonOwnerSig = await buildContractSpendVariant({
-      holderKey: harness.holderA.entry.wif,
-      token: contractToken,
-      feeUtxos: holderAFeeUtxosForNegatives,
-      payload: negativePayload,
-      signerKey: harness.holderB.entry.wif,
-      config: chainConfig,
-      provider,
-    });
-    const nonOwnerSigResult = await verifyLicenseInput(nonOwnerSig.transaction);
-    console.log('negative (non-owner signature, rule d) local verify:', JSON.stringify(nonOwnerSigResult));
-    expect(nonOwnerSigResult.success).toBe(false);
+    // 3) Output 1 carries a different script: both covenants fail (Fuel's own hashOutputs
+    // check, and the License's rule (f), hash256(output 1) == fuelScriptHash).
+    const strangerScript = new P2PKH().lock(harness.holderB.address).toHex();
+    const differentOutputScript = await fuelVariant({ fuelOutputScriptHex: strangerScript });
+    const differentOutputScriptFuelResult = await verifyFuelInput(differentOutputScript.transaction, 1);
+    const differentOutputScriptLicenseResult = await verifyLicenseInput(differentOutputScript.transaction, 0);
+    console.log(
+      'negative (output 1, a different script) Fuel local verify:',
+      JSON.stringify(differentOutputScriptFuelResult),
+      'License local verify:',
+      JSON.stringify(differentOutputScriptLicenseResult),
+    );
+    expect(differentOutputScriptFuelResult.success).toBe(false);
+    expect(differentOutputScriptLicenseResult.success).toBe(false);
 
-    // --- Broadcast exactly one (the non-owner signature): everything about this
-    // transaction — funding, fee, layout, every other signature — is exactly as valid as
-    // the real write above, so the node can only reject it because of the covenant's rule
-    // (d) (Governor's Q3). ---
+    // 4) The Fuel at input 2, behind a funding input at 1, not input 1 — Fuel's own
+    // "prevouts[1] == its own outpoint" check fails; the License (which only cares about
+    // input 0) still verifies.
+    const fuelAtInput2 = await fuelVariant({ fuelInputIndex: 2 });
+    const fuelAtInput2Result = await verifyFuelInput(fuelAtInput2.transaction, 2);
+    const fuelAtInput2LicenseResult = await verifyLicenseInput(fuelAtInput2.transaction, 0);
+    console.log('negative (Fuel at input 2, not 1) Fuel local verify:', JSON.stringify(fuelAtInput2Result));
+    expect(fuelAtInput2Result.success).toBe(false);
+    expect(fuelAtInput2LicenseResult.success).toBe(true);
+
+    // --- Broadcast exactly one (the under-conservation spend): everything about this
+    // transaction — funding, layout, the License's own signature — is exactly as valid as
+    // the real write above, so the node can only reject it because of Fuel(C)'s own value
+    // rule (the Governor's Q3). ---
     let broadcastError: unknown;
     try {
-      await provider.broadcast(nonOwnerSig.hex);
+      await provider.broadcast(underConservation.hex);
     } catch (error) {
       broadcastError = error;
     }
     expect(broadcastError).toBeInstanceOf(Error);
     const rejectionMessage = broadcastError instanceof Error ? broadcastError.message : String(broadcastError);
-    console.log('attempted txid (non-owner signature, rejected by the node):', nonOwnerSig.txid);
+    console.log('attempted txid (under-conservation, rejected by the node):', underConservation.txid);
     console.log('node rejection text:', rejectionMessage);
     expect(rejectionMessage.length).toBeGreaterThan(0);
 
     // --- Transfer: holder A -> holder B. The rejected negative above never touched the
-    // chain, so the write's outpoint is still there to spend. ---
-    const holderAFeeUtxosForTransfer = (await provider.getUtxos(holderAAddress)).filter((u) => u.satoshis !== 1);
+    // chain, so the write's outpoint is still there to spend; the transfer, like the write,
+    // pays its fee from the Fuel it recreates, with no holder coin. ---
     const transferBuilt = await buildContractTransferTransaction({
       holderKey: harness.holderA.entry.wif,
       token: contractToken,
-      feeUtxos: holderAFeeUtxosForTransfer,
       toPubKey: holderBPubKeyHex,
       config: chainConfig,
       provider,
     });
-    markSpent(holderAFeeUtxosForTransfer);
-    markSpent([{ txid: contractToken.current.txid, vout: contractToken.current.vout, satoshis: 1 }]);
     const transferTxid = await provider.broadcast(transferBuilt.hex);
     expect(transferTxid).toBe(transferBuilt.txid);
     contractToken = transferBuilt.token;
     await waitUntilContractReady(provider, transferTxid, 120000);
+    const transferFeeSatoshis = feeOf(transferBuilt.transaction);
 
-    // --- Lineage: three hops (mint, write, transfer), the right owner at each. Both write
-    // and transfer are found by searching holder A's address history (the token's holder
-    // through both of those hops), so both must show up there first. ---
-    await waitForAddressHistory(provider, holderAAddress, writeTxid, 120000);
-    await waitForAddressHistory(provider, holderAAddress, transferTxid, 120000);
-    const contractLineage = await followLicenseToken({ origin: mintBuilt.token.origin, provider });
+    // --- Measured sizes of the real write and transfer's Fuel input, for SIZES.md beside
+    // the spec-comparison estimates: the Fuel unlocking script (input 1) on each, and the
+    // write's full transaction size and the fee it actually paid. ---
+    const writeFuelUnlockingBytes = writeBuilt.transaction.inputs[1].unlockingScript!.toBinary().length;
+    const transferFuelUnlockingBytes = transferBuilt.transaction.inputs[1].unlockingScript!.toBinary().length;
+    const writeFullSizeBytes = writeBuilt.transaction.toBinary().length;
 
-    console.log('=== testnet contract e2e result ===');
+    console.log('=== testnet Fuel-backed contract e2e result ===');
     console.log('mint txid:', mintTxid);
     console.log('write txid:', writeTxid);
     console.log('transfer txid:', transferTxid);
-    console.log('lineage complete:', contractLineage.complete);
-    console.log('lineage current holder:', contractLineage.holderAddress);
-    console.log('lineage hops:', JSON.stringify(contractLineage.hops, null, 2));
-
-    expect(contractLineage.brokenAtTxid).toBeUndefined();
-    expect(contractLineage.complete).toBe(true);
-    expect(contractLineage.hops).toHaveLength(3);
-    expect(contractLineage.hops.map((hop) => hop.holderAddress)).toEqual([holderAAddress, holderAAddress, holderBAddress]);
-    expect(contractLineage.hops.map((hop) => hop.txid)).toEqual([mintTxid, writeTxid, transferTxid]);
-    expect(contractLineage.current).toEqual({ txid: transferTxid, vout: 0 });
-    expect(contractLineage.holderAddress).toBe(holderBAddress);
-
-    // --- Measured sizes of the real write and transfer, for SIZES.md beside the estimates. ---
-    const writeSizes = {
-      unlockingBytes: writeBuilt.transaction.inputs[0].unlockingScript!.toBinary().length,
-      dataScriptBytes: writeBuilt.transaction.outputs[2].lockingScript.toBinary().length,
-      output1Bytes: writeBuilt.transaction.outputs[1].lockingScript.toBinary().length,
-      feeSatoshis: feeOf(writeBuilt.transaction),
-    };
-    const transferSizes = {
-      unlockingBytes: transferBuilt.transaction.inputs[0].unlockingScript!.toBinary().length,
-      dataScriptBytes: transferBuilt.transaction.outputs[2].lockingScript.toBinary().length,
-      output1Bytes: transferBuilt.transaction.outputs[1].lockingScript.toBinary().length,
-      feeSatoshis: feeOf(transferBuilt.transaction),
-    };
-    console.log('measured write sizes (real tx):', JSON.stringify(writeSizes));
-    console.log('measured transfer sizes (real tx):', JSON.stringify(transferSizes));
+    console.log(
+      'write inputs:',
+      writeBuilt.transaction.inputs.map((input) => [input.sourceTXID, input.sourceOutputIndex]),
+    );
+    console.log('write output 1 (Fuel) satoshis:', writeFuelOutput);
+    console.log('write fee paid (sat):', writeFeeSatoshis, 'transfer fee paid (sat):', transferFeeSatoshis);
+    console.log(
+      'measured Fuel unlocking sizes (real tx, bytes): write',
+      writeFuelUnlockingBytes,
+      'transfer',
+      transferFuelUnlockingBytes,
+    );
+    console.log('write full tx size (bytes):', writeFullSizeBytes);
   }, 9 * 60 * 1000);
 });
