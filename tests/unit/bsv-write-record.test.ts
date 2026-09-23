@@ -6,7 +6,11 @@ import { createEventBus } from '../../src/contracts/events';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
 import type { Utxo } from '../../src/contracts/types';
+import type { PendingSpendEntry } from '../../src/bsv/pending-spends';
 import wallet from '../fixtures/bsv/write-record-wallet.json';
+// Same wallet (wif/address) as write-record-wallet.json, funded with extra UTXOs — reused
+// here for the pending-spend exclusion tests below (mw-b00z.10).
+import extraFunding from '../fixtures/bsv/send-sats-wallet.json';
 
 const baseConfig: ChainConfig = {
   network: 'testnet',
@@ -39,6 +43,50 @@ const tinySourceTx = new Transaction();
 tinySourceTx.addOutput({ lockingScript: new P2PKH().lock(wallet.address), satoshis: 1 });
 const tinySourceTxHex = tinySourceTx.toHex();
 const tinyUtxo: Utxo = { txid: tinySourceTx.id('hex'), vout: 0, satoshis: 1 };
+
+const utxo3000: Utxo = {
+  txid: extraFunding.utxo3000Tx.txid,
+  vout: extraFunding.utxo3000Tx.vout,
+  satoshis: extraFunding.utxo3000Tx.satoshis,
+};
+const tokenUtxo: Utxo = {
+  txid: extraFunding.tokenOutpointTx.txid,
+  vout: extraFunding.tokenOutpointTx.vout,
+  satoshis: extraFunding.tokenOutpointTx.satoshis,
+};
+const oneSatUtxo: Utxo = {
+  txid: extraFunding.oneSatTx.txid,
+  vout: extraFunding.oneSatTx.vout,
+  satoshis: extraFunding.oneSatTx.satoshis,
+};
+
+function fakePendingSpendRepo(overrides: {
+  getAll?: () => Promise<PendingSpendEntry[]>;
+  add?: (entry: PendingSpendEntry) => Promise<void>;
+  removeMany?: (txids: string[]) => Promise<void>;
+} = {}) {
+  return {
+    getAll: vi.fn(overrides.getAll ?? (async () => [])),
+    add: vi.fn(overrides.add ?? (async () => {})),
+    removeMany: vi.fn(overrides.removeMany ?? (async () => {})),
+  };
+}
+
+function multiSourceProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {
+  return {
+    getUtxos: vi.fn().mockResolvedValue([utxo]),
+    getTransactionHex: vi.fn().mockImplementation((txid: string) => {
+      if (txid === wallet.sourceTx.txid) return Promise.resolve(wallet.sourceTx.hex);
+      if (txid === extraFunding.utxo3000Tx.txid) return Promise.resolve(extraFunding.utxo3000Tx.hex);
+      if (txid === extraFunding.tokenOutpointTx.txid) return Promise.resolve(extraFunding.tokenOutpointTx.hex);
+      if (txid === extraFunding.oneSatTx.txid) return Promise.resolve(extraFunding.oneSatTx.hex);
+      throw new Error(`no fixture source tx for ${txid}`);
+    }),
+    broadcast: vi.fn().mockResolvedValue('f'.repeat(64)),
+    getAddressHistory: vi.fn().mockResolvedValue([]),
+    ...overrides,
+  };
+}
 
 describe('buildRecordTransaction', () => {
   it('builds exactly three outputs in order: record (0 sat), anchor (1 sat), change', async () => {
@@ -200,6 +248,7 @@ describe('writeRecord', () => {
       config: baseConfig,
       provider,
       eventBus,
+      pendingSpendRepo: fakePendingSpendRepo(),
     });
 
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
@@ -212,6 +261,7 @@ describe('writeRecord', () => {
   it('never broadcasts when the build step refuses', async () => {
     const provider = fakeProvider();
     const eventBus = createEventBus();
+    const pendingSpendRepo = fakePendingSpendRepo();
 
     await expect(
       writeRecord({
@@ -221,9 +271,74 @@ describe('writeRecord', () => {
         config: baseConfig,
         provider,
         eventBus,
+        pendingSpendRepo,
       }),
     ).rejects.toThrow();
 
     expect(provider.broadcast).not.toHaveBeenCalled();
+    expect(pendingSpendRepo.add).not.toHaveBeenCalled();
+  });
+
+  it("never selects an outpoint the app's own unconfirmed transaction already spent (mw-b00z.10)", async () => {
+    const provider = multiSourceProvider({ getUtxos: vi.fn().mockResolvedValue([utxo, utxo3000, tokenUtxo]) });
+    const eventBus = createEventBus();
+    const pendingTxid = 'e'.repeat(64);
+    const pendingSpendRepo = fakePendingSpendRepo({
+      getAll: async () => [
+        { txid: pendingTxid, outpoints: [`${tokenUtxo.txid}:${tokenUtxo.vout}`], createdAt: new Date() },
+      ],
+    });
+
+    const result = await writeRecord({
+      key: wallet.wif,
+      utxos: [utxo, utxo3000, tokenUtxo],
+      payload,
+      config: baseConfig,
+      provider,
+      eventBus,
+      pendingSpendRepo,
+    });
+
+    expect(provider.broadcast).toHaveBeenCalledTimes(1);
+    const [broadcastHex] = (provider.broadcast as ReturnType<typeof vi.fn>).mock.calls[0];
+    const broadcastTx = Transaction.fromHex(broadcastHex);
+    expect(broadcastTx.inputs.map((input) => input.sourceTXID)).not.toContain(tokenUtxo.txid);
+    expect(broadcastTx.inputs).toHaveLength(2);
+
+    expect(pendingSpendRepo.removeMany).not.toHaveBeenCalled();
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    // Records the whole pending-filtered UTXO list (not just the fee inputs actually
+    // spent) as newly pending, matching the pre-existing screen-level convention.
+    expect(pendingSpendRepo.add.mock.calls[0][0].outpoints).toEqual([
+      `${utxo.txid}:${utxo.vout}`,
+      `${utxo3000.txid}:${utxo3000.vout}`,
+    ]);
+    expect(result.txid).toBe('f'.repeat(64));
+  });
+
+  it('rejects before broadcast, naming the pending count, when the only non-pending UTXO is too small (mw-b00z.10)', async () => {
+    const provider = multiSourceProvider({ getUtxos: vi.fn().mockResolvedValue([oneSatUtxo, utxo, utxo3000]) });
+    const eventBus = createEventBus();
+    const pendingSpendRepo = fakePendingSpendRepo({
+      getAll: async () => [
+        { txid: 'a'.repeat(64), outpoints: [`${utxo.txid}:${utxo.vout}`], createdAt: new Date() },
+        { txid: 'b'.repeat(64), outpoints: [`${utxo3000.txid}:${utxo3000.vout}`], createdAt: new Date() },
+      ],
+    });
+
+    await expect(
+      writeRecord({
+        key: wallet.wif,
+        utxos: [oneSatUtxo, utxo, utxo3000],
+        payload,
+        config: baseConfig,
+        provider,
+        eventBus,
+        pendingSpendRepo,
+      }),
+    ).rejects.toThrow(/2 pending transaction/i);
+
+    expect(provider.broadcast).not.toHaveBeenCalled();
+    expect(pendingSpendRepo.add).not.toHaveBeenCalled();
   });
 });
