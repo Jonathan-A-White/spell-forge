@@ -5,12 +5,16 @@ import { useEffect, useRef, useState } from 'react';
 import {
   chainConfig,
   followLicenseToken,
+  isValidCompressedPublicKeyHex,
   isValidTestnetAddress,
+  mintContractLicenseToken,
   mintLicenseToken,
+  transferContractToken,
   transferLicenseToken,
+  writeWithContractToken,
   writeWithToken,
 } from '../../bsv';
-import type { ChainProvider, FollowLicenseTokenResult, LicenseToken } from '../../bsv';
+import type { ChainProvider, FollowLicenseTokenResult, LicenseToken, TokenLock } from '../../bsv';
 import { bsvPendingSpendRepo, bsvTokenRepo } from '../../data/repositories';
 import type { BsvWalletKey, EventBus } from '../../contracts/types';
 
@@ -51,6 +55,7 @@ function tokenKey(token: LicenseToken): string {
 
 export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPanelProps) {
   const [tokens, setTokens] = useState<LicenseToken[]>([]);
+  const [mintLock, setMintLock] = useState<TokenLock>('p2pkh');
   const [mintState, setMintState] = useState<MintState>({ status: 'idle' });
   const [transferAddresses, setTransferAddresses] = useState<Record<string, string>>({});
   const [transferStates, setTransferStates] = useState<Record<string, TransferState>>({});
@@ -75,14 +80,23 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
   async function handleMint() {
     setMintState({ status: 'minting' });
     try {
-      const token = await mintLicenseToken({
-        issuerKey: wallet.material,
-        holderAddress: wallet.address,
-        provider,
-        config: chainConfig,
-        eventBus,
-        pendingSpendRepo: bsvPendingSpendRepo,
-      });
+      const token =
+        mintLock === 'license'
+          ? await mintContractLicenseToken({
+              issuerKey: wallet.material,
+              provider,
+              config: chainConfig,
+              eventBus,
+              pendingSpendRepo: bsvPendingSpendRepo,
+            })
+          : await mintLicenseToken({
+              issuerKey: wallet.material,
+              holderAddress: wallet.address,
+              provider,
+              config: chainConfig,
+              eventBus,
+              pendingSpendRepo: bsvPendingSpendRepo,
+            });
       await bsvTokenRepo.put(token);
       const requestId = ++latestListRequest.current;
       const list = await bsvTokenRepo.list();
@@ -98,19 +112,31 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
 
   async function handleTransfer(token: LicenseToken) {
     const key = tokenKey(token);
-    const toAddress = transferAddresses[key] ?? '';
+    const toValue = transferAddresses[key] ?? '';
     setTransferStates((prev) => ({ ...prev, [key]: { status: 'transferring' } }));
     try {
-      const result = await transferLicenseToken({
-        holderKey: wallet.material,
-        token,
-        toAddress,
-        provider,
-        config: chainConfig,
-        eventBus,
-        repository: bsvTokenRepo,
-        pendingSpendRepo: bsvPendingSpendRepo,
-      });
+      const result =
+        token.lock === 'license'
+          ? await transferContractToken({
+              holderKey: wallet.material,
+              token,
+              toPubKey: toValue,
+              provider,
+              config: chainConfig,
+              eventBus,
+              repository: bsvTokenRepo,
+              pendingSpendRepo: bsvPendingSpendRepo,
+            })
+          : await transferLicenseToken({
+              holderKey: wallet.material,
+              token,
+              toAddress: toValue,
+              provider,
+              config: chainConfig,
+              eventBus,
+              repository: bsvTokenRepo,
+              pendingSpendRepo: bsvPendingSpendRepo,
+            });
       const requestId = ++latestListRequest.current;
       const list = await bsvTokenRepo.list();
       if (requestId === latestListRequest.current) setTokens(list);
@@ -126,16 +152,29 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
     const text = writeTexts[key] ?? '';
     setTokenWriteStates((prev) => ({ ...prev, [key]: { status: 'writing' } }));
     try {
-      const result = await writeWithToken({
-        holderKey: wallet.material,
-        token,
-        payload: { text, ts: new Date().toISOString() },
-        provider,
-        config: chainConfig,
-        eventBus,
-        repository: bsvTokenRepo,
-        pendingSpendRepo: bsvPendingSpendRepo,
-      });
+      const payload = { text, ts: new Date().toISOString() };
+      const result =
+        token.lock === 'license'
+          ? await writeWithContractToken({
+              holderKey: wallet.material,
+              token,
+              payload,
+              provider,
+              config: chainConfig,
+              eventBus,
+              repository: bsvTokenRepo,
+              pendingSpendRepo: bsvPendingSpendRepo,
+            })
+          : await writeWithToken({
+              holderKey: wallet.material,
+              token,
+              payload,
+              provider,
+              config: chainConfig,
+              eventBus,
+              repository: bsvTokenRepo,
+              pendingSpendRepo: bsvPendingSpendRepo,
+            });
       const requestId = ++latestListRequest.current;
       const list = await bsvTokenRepo.list();
       if (requestId === latestListRequest.current) setTokens(list);
@@ -163,6 +202,30 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sf-muted text-sm">Mint a License Token to this device's own address</p>
+      <div className="flex items-center gap-4 text-sm">
+        <label htmlFor="bsv-mint-lock-p2pkh" className="flex items-center gap-1 text-sf-text">
+          <input
+            id="bsv-mint-lock-p2pkh"
+            type="radio"
+            name="bsv-mint-lock"
+            value="p2pkh"
+            checked={mintLock === 'p2pkh'}
+            onChange={() => setMintLock('p2pkh')}
+          />
+          P2PKH
+        </label>
+        <label htmlFor="bsv-mint-lock-license" className="flex items-center gap-1 text-sf-text">
+          <input
+            id="bsv-mint-lock-license"
+            type="radio"
+            name="bsv-mint-lock"
+            value="license"
+            checked={mintLock === 'license'}
+            onChange={() => setMintLock('license')}
+          />
+          License
+        </label>
+      </div>
       <button
         onClick={handleMint}
         disabled={!canMint}
@@ -182,9 +245,11 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
       {tokens.length === 0 && <p className="text-sf-text">no tokens minted yet</p>}
       {tokens.map((token) => {
         const key = tokenKey(token);
-        const toAddress = transferAddresses[key] ?? '';
+        const isLicenseLock = token.lock === 'license';
+        const toValue = transferAddresses[key] ?? '';
         const transferState = transferStates[key] ?? { status: 'idle' };
-        const canTransfer = isValidTestnetAddress(toAddress) && transferState.status !== 'transferring';
+        const isValidTransferTarget = isLicenseLock ? isValidCompressedPublicKeyHex(toValue) : isValidTestnetAddress(toValue);
+        const canTransfer = isValidTransferTarget && transferState.status !== 'transferring';
         const writeText = writeTexts[key] ?? '';
         const tokenWriteState = tokenWriteStates[key] ?? { status: 'idle' };
         const historyState = historyStates[key] ?? { status: 'idle' };
@@ -194,15 +259,17 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
             <p className="font-mono break-all">{`origin ${token.origin.txid}:${token.origin.vout}`}</p>
             <p className="font-mono break-all">{`current ${token.current.txid}:${token.current.vout}`}</p>
             <p className="font-mono break-all">{`holder ${token.holderAddress}`}</p>
+            <p className="font-mono break-all">{`lock ${token.lock}`}</p>
+            {isLicenseLock && token.artifact && <p className="font-mono break-all">{`artifact ${token.artifact}`}</p>}
 
             <div className="flex flex-col gap-1 mt-2">
               <label htmlFor={`bsv-transfer-to-${key}`} className="text-sf-muted text-sm">
-                Transfer to address
+                {isLicenseLock ? 'Transfer to public key' : 'Transfer to address'}
               </label>
               <input
                 id={`bsv-transfer-to-${key}`}
                 type="text"
-                value={toAddress}
+                value={toValue}
                 onChange={(event) =>
                   setTransferAddresses((prev) => ({ ...prev, [key]: event.target.value }))
                 }
