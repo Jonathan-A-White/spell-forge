@@ -375,26 +375,31 @@ export interface PlainPayment {
 
 /**
  * Classifies a transaction with no nftgate data output as a plain payment touching
- * anchorAddress, or null if it doesn't touch the anchor at all. "Received" sums the
- * outputs paid to the anchor; "sent" (the anchor spending, read off an input's revealed
- * public key) sums the outputs paid elsewhere, since the spent output's own value isn't
- * available from the transaction hex alone.
+ * anchorAddress, or null if it doesn't touch the anchor at all. The inputs decide the
+ * direction first: if the anchor signed one of them, this is the anchor spending
+ * ("sent"), and the amount is the outputs paid elsewhere — excluding any change output
+ * back to the anchor, which isn't a receipt. Only when the anchor is not a sender does
+ * an output paid to the anchor count as "received". Checking outputs before inputs would
+ * misread the anchor's own change as a payment received (mw-0ym9.18).
  */
 export function classifyPlainPayment(txHex: string, anchorAddress: string): PlainPayment | null {
   const transaction = Transaction.fromHex(txHex);
+
+  const anchorIsSender = transaction.inputs.some(
+    (input) => input.unlockingScript && p2pkhAddressFromUnlockingScript(input.unlockingScript) === anchorAddress,
+  );
+
+  if (anchorIsSender) {
+    const sentSatoshis = transaction.outputs
+      .filter((output) => p2pkhAddressFromLockingScript(output.lockingScript) !== anchorAddress)
+      .reduce((sum, output) => sum + (output.satoshis ?? 0), 0);
+    return { direction: 'sent', satoshis: sentSatoshis };
+  }
 
   const receivedSatoshis = transaction.outputs
     .filter((output) => p2pkhAddressFromLockingScript(output.lockingScript) === anchorAddress)
     .reduce((sum, output) => sum + (output.satoshis ?? 0), 0);
   if (receivedSatoshis > 0) return { direction: 'received', satoshis: receivedSatoshis };
 
-  const anchorIsSender = transaction.inputs.some(
-    (input) => input.unlockingScript && p2pkhAddressFromUnlockingScript(input.unlockingScript) === anchorAddress,
-  );
-  if (!anchorIsSender) return null;
-
-  const sentSatoshis = transaction.outputs
-    .filter((output) => p2pkhAddressFromLockingScript(output.lockingScript) !== anchorAddress)
-    .reduce((sum, output) => sum + (output.satoshis ?? 0), 0);
-  return { direction: 'sent', satoshis: sentSatoshis };
+  return null;
 }

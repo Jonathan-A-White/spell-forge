@@ -13,6 +13,7 @@ import {
 import goldenFixture from '../fixtures/bsv/record-script.json';
 import txFixture from '../fixtures/bsv/record-transaction.json';
 import kindsFixture from '../fixtures/bsv/record-kinds.json';
+import scanHistoryFixture from '../fixtures/bsv/scan-history.json';
 
 describe('decodeRecordScript', () => {
   it('round-trips with encodeRecordScript using the golden fixture', () => {
@@ -217,5 +218,17 @@ describe('classifyPlainPayment', () => {
     const txHex = buildTxHex([{ lockingScript: new P2PKH().lock(recipientAddress), satoshis: 4000 }], unlockingScript);
 
     expect(classifyPlainPayment(txHex, anchorAddress)).toEqual({ direction: 'sent', satoshis: 4000 });
+  });
+
+  it('reports "sent" with only the amount paid elsewhere when the anchor spends its own coin and gets change back', () => {
+    const result = classifyPlainPayment(scanHistoryFixture.anchorSentTxHex, scanHistoryFixture.anchorSentAddress);
+
+    expect(result).toEqual({ direction: 'sent', satoshis: scanHistoryFixture.anchorSentSatoshis });
+  });
+
+  it('still reports "received" for a payment from another key, not "sent"', () => {
+    const result = classifyPlainPayment(scanHistoryFixture.plainPaymentTxHex, scanHistoryFixture.anchorAddress);
+
+    expect(result).toEqual({ direction: 'received', satoshis: scanHistoryFixture.plainPaymentSatoshis });
   });
 });
