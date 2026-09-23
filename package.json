@@ -25,6 +25,7 @@
     "test:qr": "vitest run tests/unit/qr-codec.test.ts",
     "test:learning": "vitest run tests/unit/learning-engine.test.ts",
     "test:bsv": "vitest run tests/unit/bsv-",
+    "test:bsv:testnet": "vitest run -c vitest.testnet.config.ts",
     "bsv:keys": "tsx scripts/bsv-keys.ts",
     "bsv:balance": "tsx scripts/bsv-balance.ts",
     "test:e2e": "playwright test",
