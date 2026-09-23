@@ -1,0 +1,9 @@
+{
+  "address": "mr3tp7w6V8fjoSFBb4xZiERXJoFNi1bTzh",
+  "script": "ea1a336c53ae33e31df16b74f0a54d678fea656731b86021a41de12c1a3f89a8",
+  "result": [
+    { "tx_hash": "ff526bb6cb6594f229bbb0eb3bbae63036392fb0fe349378ce21a41bf028cd46", "height": 0 },
+    { "tx_hash": "aa23646c2b87bac1d4bf375a8d30bcf010eebc4660e5708eb3356afe05ef1e50", "height": 0 }
+  ],
+  "error": ""
+}

@@ -4,6 +4,7 @@ import { ChainError } from '../../src/bsv/chain-error';
 import type { ChainConfig } from '../../src/bsv/config';
 import unspentFixture from '../fixtures/bsv/unspent.json';
 import historyFixture from '../fixtures/bsv/history.json';
+import unconfirmedHistoryFixture from '../fixtures/bsv/unconfirmed-history.json';
 
 const testConfig: ChainConfig = {
   network: 'testnet',
@@ -194,5 +195,80 @@ describe('WhatsOnChainProvider', () => {
     const [requestedUrl] = fetchFn.mock.calls[0];
     expect(String(requestedUrl)).toContain(`/address/${address}/history`);
     expect(String(requestedUrl)).not.toMatch(/\s|%0A/i);
+  });
+
+  it('getUnconfirmedAddressHistory maps the real WhatsOnChain envelope shape ({ address, script, result, error })', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(unconfirmedHistoryFixture));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    const history = await provider.getUnconfirmedAddressHistory(address);
+
+    expect(history).toEqual([
+      { txid: unconfirmedHistoryFixture.result[0].tx_hash, height: 0 },
+      { txid: unconfirmedHistoryFixture.result[1].tx_hash, height: 0 },
+    ]);
+
+    const [requestedUrl] = fetchFn.mock.calls[0];
+    expect(String(requestedUrl)).toContain(`/address/${address}/unconfirmed/history`);
+  });
+
+  it('getUnconfirmedAddressHistory still maps a bare array (old form)', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(historyFixture));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    const history = await provider.getUnconfirmedAddressHistory(address);
+
+    expect(history).toEqual([
+      { txid: historyFixture[0].tx_hash, height: 2432624 },
+      { txid: historyFixture[1].tx_hash, height: 0 },
+    ]);
+  });
+
+  it('getAddressHistory throws a clear ChainError naming the endpoint on an unexpected shape', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ unexpected: 'shape' }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    let caught: unknown;
+    try {
+      await provider.getAddressHistory(address);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    expect((caught as Error).message).toContain(`/address/${address}/history`);
+    expect((caught as Error).message).toContain('unexpected response shape');
+  });
+
+  it('getUnconfirmedAddressHistory throws a clear ChainError naming the endpoint on an unexpected shape', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ unexpected: 'shape' }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    let caught: unknown;
+    try {
+      await provider.getUnconfirmedAddressHistory(address);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    expect((caught as Error).message).toContain(`/address/${address}/unconfirmed/history`);
+    expect((caught as Error).message).toContain('unexpected response shape');
+  });
+
+  it('getUtxos throws a clear ChainError naming the endpoint on an unexpected shape', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ unexpected: 'shape' }));
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    let caught: unknown;
+    try {
+      await provider.getUtxos(address);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    expect((caught as Error).message).toContain(`/address/${address}/unspent`);
+    expect((caught as Error).message).toContain('unexpected response shape');
   });
 });

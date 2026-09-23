@@ -26,6 +26,11 @@ interface WhatsOnChainHistoryEntry {
   height?: number;
 }
 
+/** The unconfirmed/history endpoint wraps its entries in a result envelope instead of a bare array. */
+interface WhatsOnChainHistoryEnvelope {
+  result: WhatsOnChainHistoryEntry[];
+}
+
 /** WhatsOnChain testnet implementation of ChainProvider. fetch and the retry delay are injected so tests never touch the network. */
 export class WhatsOnChainProvider implements ChainProvider {
   private readonly config: ChainConfig;
@@ -46,7 +51,9 @@ export class WhatsOnChainProvider implements ChainProvider {
   }
 
   async getUtxos(address: string): Promise<Utxo[]> {
-    const unspent = await this.getJson<WhatsOnChainUnspent[]>(`/address/${address.trim()}/unspent`);
+    const path = `/address/${address.trim()}/unspent`;
+    const body = await this.getJson<unknown>(path);
+    const unspent = this.expectArray<WhatsOnChainUnspent>(path, body);
     return unspent.map((u) => ({
       txid: u.tx_hash,
       vout: u.tx_pos,
@@ -56,15 +63,36 @@ export class WhatsOnChainProvider implements ChainProvider {
   }
 
   async getAddressHistory(address: string): Promise<AddressHistoryEntry[]> {
-    const history = await this.getJson<WhatsOnChainHistoryEntry[]>(`/address/${address.trim()}/history`);
+    const path = `/address/${address.trim()}/history`;
+    const body = await this.getJson<unknown>(path);
+    const history = this.expectArray<WhatsOnChainHistoryEntry>(path, body);
     return history.map((h) => ({ txid: h.tx_hash, height: h.height }));
   }
 
   async getUnconfirmedAddressHistory(address: string): Promise<AddressHistoryEntry[]> {
-    const history = await this.getJson<WhatsOnChainHistoryEntry[]>(
-      `/address/${address.trim()}/unconfirmed/history`,
-    );
+    const path = `/address/${address.trim()}/unconfirmed/history`;
+    const body = await this.getJson<unknown>(path);
+    const history = this.expectArray<WhatsOnChainHistoryEntry>(path, body);
     return history.map((h) => ({ txid: h.tx_hash, height: h.height }));
+  }
+
+  /**
+   * WhatsOnChain returns a bare array from most list endpoints, but wraps the
+   * unconfirmed/history endpoint in `{ address, script, result, error }`. Accept
+   * either shape and reject anything else with a message naming the endpoint and
+   * the body, rather than letting a bare `.map` throw an opaque TypeError.
+   */
+  private expectArray<T>(path: string, body: unknown): T[] {
+    if (Array.isArray(body)) return body as T[];
+    if (
+      body &&
+      typeof body === 'object' &&
+      Array.isArray((body as Partial<WhatsOnChainHistoryEnvelope>).result)
+    ) {
+      return (body as WhatsOnChainHistoryEnvelope).result as unknown as T[];
+    }
+    const bodyText = JSON.stringify(body).slice(0, MAX_ERROR_BODY_CHARS);
+    throw new ChainError(`WhatsOnChain ${path} returned an unexpected response shape: ${bodyText}`);
   }
 
   async getTransactionHex(txid: string): Promise<string> {
