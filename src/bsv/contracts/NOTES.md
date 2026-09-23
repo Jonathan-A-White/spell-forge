@@ -100,11 +100,12 @@ recompile (though every License already minted pins the old hash).
 
 A mint (`buildContractMintTransaction`, `license-contract.ts`) lays out output 0 the
 License at 1 sat, output 1 Fuel(C) at exactly MINT_FUEL sat, output 2 the type-`M` Data
-output, output 3 the issuer's change. MINT_FUEL (`ChainConfig.mintFuelSatoshis`) is unset
-in production; the mint is refused with `InvalidMintFuelError` while it is unset or under
-2 × `FEE_CAP`, so a minted Fuel can always pay for at least two writes. The "Fuel spent
-without its License" trust note below is unaffected: FB-1 still trusts that a mint's own
-output 0 is the License it belongs to.
+output, output 3 the issuer's change. MINT_FUEL (`ChainConfig.mintFuelSatoshis`) is set to
+10,000 sat on testnet (mw-yo97u.9); the production value is still pending spec R4.1.3. The
+mint is refused with `InvalidMintFuelError` while it is unset or under 2 × `FEE_CAP`, so a
+minted Fuel can always pay for at least two writes. The "Fuel spent without its License"
+trust note below is unaffected: FB-1 still trusts that a mint's own output 0 is the License
+it belongs to.
 
 ## Not enforced, and open
 
