@@ -64,11 +64,66 @@ describe('WhatsOnChainProvider', () => {
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
-  it('throws a ChainError with a readable offline message when fetch rejects', async () => {
-    const fetchFn = vi.fn().mockRejectedValue(new TypeError('network error'));
+  it('retries a rejected fetch the same as a 429, then returns the result on 200, waiting via the injected delay', async () => {
+    // A browser sees WhatsOnChain's 429 as a rejected fetch, not a response: its 429 body
+    // carries no access-control-allow-origin header, so a cross-origin fetch throws TypeError
+    // instead of resolving with status 429 (mw-0ym9.17).
+    const fetchFn = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(jsonResponse(unspentFixture));
+    const delay = noopDelay();
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, delay);
+
+    const utxos = await provider.getUtxos(address);
+
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(delay).toHaveBeenNthCalledWith(1, 500);
+    expect(delay).toHaveBeenNthCalledWith(2, 1000);
+    expect(utxos).toHaveLength(2);
+  });
+
+  it('throws a ChainError naming both offline and rate-limiting when fetch rejects on every attempt, never trying a 4th time', async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
     const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
 
-    await expect(provider.getUtxos(address)).rejects.toThrow(/Could not reach WhatsOnChain \(offline\?\)/);
+    let caught: unknown;
+    try {
+      await provider.getUtxos(address);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ChainError);
+    expect((caught as Error).message).toMatch(/offline/i);
+    expect((caught as Error).message).toMatch(/rate-limit/i);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('spaces two requests issued at once by the hard-coded minimum, via the injected delay', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(unspentFixture))
+      .mockResolvedValueOnce(jsonResponse(historyFixture));
+    const delay = noopDelay();
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, delay);
+
+    const [utxos, history] = await Promise.all([
+      provider.getUtxos(address),
+      provider.getAddressHistory(address),
+    ]);
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(delay).toHaveBeenCalledTimes(1);
+    expect(delay).toHaveBeenCalledWith(350);
+
+    const [, secondFetchOrder] = fetchFn.mock.invocationCallOrder;
+    const [delayOrder] = delay.mock.invocationCallOrder;
+    expect(delayOrder).toBeLessThan(secondFetchOrder);
+
+    expect(utxos).toHaveLength(2);
+    expect(history).toHaveLength(2);
   });
 
   it('throws a readable ChainError on a non-2xx response', async () => {
