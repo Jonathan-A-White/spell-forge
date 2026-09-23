@@ -5,6 +5,7 @@ import { db } from '../../src/data/db';
 import { bsvWalletRepo, bsvTokenRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
 import { buildMintTransaction } from '../../src/bsv/license-token';
+import { buildContractMintTransaction } from '../../src/bsv/license-contract';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
 import type { BsvWalletKey, Utxo } from '../../src/contracts/types';
@@ -155,5 +156,51 @@ describe('BsvDebugScreen token history', () => {
     await flush();
 
     expect(screen.getByText(`lineage broken at ${brokenTxid}`)).toBeInTheDocument();
+  });
+
+  it('shows the owner for a license hop', async () => {
+    const issuerFunding = fundingTx(PrivateKey.fromWif(ISSUER_WIF).toAddress('testnet'));
+    const holderPubKey = PrivateKey.fromWif(HOLDER_WIF).toPublicKey().toString();
+    const mintBuilt = await buildContractMintTransaction({
+      issuerKey: ISSUER_WIF,
+      utxos: [issuerFunding.utxo],
+      holderPubKey,
+      config,
+      provider: {
+        getUtxos: vi.fn(),
+        getTransactionHex: vi.fn((txid: string) =>
+          txid === issuerFunding.txid ? Promise.resolve(issuerFunding.hex) : Promise.reject(new Error('unexpected')),
+        ),
+        broadcast: vi.fn(),
+        getAddressHistory: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    await bsvWalletRepo.save(storedKey);
+    await bsvTokenRepo.put(mintBuilt.token);
+
+    const provider: ChainProvider = {
+      getUtxos: vi.fn().mockResolvedValue([]),
+      getTransactionHex: vi.fn((txid: string) =>
+        txid === mintBuilt.txid ? Promise.resolve(mintBuilt.hex) : Promise.reject(new Error('unexpected')),
+      ),
+      broadcast: vi.fn(),
+      getAddressHistory: vi.fn().mockResolvedValue([]),
+    };
+
+    vi.useFakeTimers();
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
+
+    const historyButton = screen.getByRole('button', { name: 'History' });
+    fireEvent.click(historyButton);
+    await flush();
+
+    const historyPanel = screen.getByTestId('bsv-token-history');
+    const hops = within(historyPanel).getAllByTestId('bsv-lineage-hop');
+    expect(hops).toHaveLength(1);
+    // The License lock's owner (holderAddress derived from the state's ownerPubKey), same
+    // holder as the P2PKH case above — token-lineage.ts's owner-lookup seam.
+    expect(hops[0]).toHaveTextContent(holderAddress);
   });
 });

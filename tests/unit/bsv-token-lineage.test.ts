@@ -2,10 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { P2PKH, PrivateKey, Transaction, UnlockingScript } from '@bsv/sdk';
 import { buildMintTransaction, buildTokenRecordTransaction, buildTransferTransaction } from '../../src/bsv/license-token';
 import type { LicenseToken } from '../../src/bsv/license-token';
+import { buildContractTokenRecordTransaction, buildContractTransferTransaction } from '../../src/bsv/license-contract';
+import type { BuiltContractTransaction } from '../../src/bsv/license-contract';
 import { followLicenseToken } from '../../src/bsv/token-lineage';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
 import type { AddressHistoryEntry, Utxo } from '../../src/contracts/types';
+import { fakeChain, mintOwnersLicense, utxoOf, wallet as contractWallet } from '../fixtures/bsv/license-contract-chain';
 
 // Fixed WIFs (testnet), generated once — not derived from any live funds.
 const ISSUER_WIF = 'cVrqDHmU8NyhzixQUuwNoy72CpRpS3PgpMtoWDB7BYe4oCNwB9N5';
@@ -267,5 +270,77 @@ describe('followLicenseToken', () => {
     const calls = (provider.getTransactionHex as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[0]);
     const uniqueCalls = new Set(calls);
     expect(calls.length).toBe(uniqueCalls.size);
+  });
+});
+
+/** A License-locked chain: mint (owner) -> write (owner) -> transfer (owner to buyer). */
+async function buildLicenseChain(): Promise<{ mint: BuiltContractTransaction; write: BuiltContractTransaction; transfer: BuiltContractTransaction }> {
+  const mint = await mintOwnersLicense();
+  const write = await buildContractTokenRecordTransaction({
+    holderKey: contractWallet.owner.wif,
+    token: mint.token,
+    feeUtxos: [utxoOf(contractWallet.writeFundingTx)],
+    payload: { text: 'license write', ts: '2026-01-01T00:00:00.000Z' },
+    config,
+    provider: fakeChain([mint.transaction]),
+  });
+  const transfer = await buildContractTransferTransaction({
+    holderKey: contractWallet.owner.wif,
+    token: write.token,
+    feeUtxos: [utxoOf(contractWallet.transferFundingTx)],
+    toPubKey: contractWallet.buyer.pubKey,
+    config,
+    provider: fakeChain([mint.transaction, write.transaction]),
+  });
+  return { mint, write, transfer };
+}
+
+function licenseChainHistoryProvider(chain: Awaited<ReturnType<typeof buildLicenseChain>>): ChainProvider {
+  const { mint, write, transfer } = chain;
+  const hexByTxid: Record<string, string> = {
+    [mint.txid]: mint.hex,
+    [write.txid]: write.hex,
+    [transfer.txid]: transfer.hex,
+  };
+  const ownerHistory: AddressHistoryEntry[] = [
+    { txid: write.txid, height: 200 },
+    { txid: transfer.txid, height: 201 },
+  ];
+
+  return {
+    getUtxos: vi.fn(),
+    getTransactionHex: vi.fn((txid: string) => {
+      const hex = hexByTxid[txid];
+      return hex ? Promise.resolve(hex) : Promise.reject(new Error(`unexpected txid ${txid}`));
+    }),
+    broadcast: vi.fn(),
+    getAddressHistory: vi.fn((address: string) => {
+      if (address === contractWallet.owner.address) return Promise.resolve(ownerHistory);
+      return Promise.resolve([]);
+    }),
+  };
+}
+
+describe('followLicenseToken over a License-locked (contract) chain', () => {
+  it('crosses mint -> write -> transfer unchanged, reporting each hop’s owner from the contract’s state', async () => {
+    const chain = await buildLicenseChain();
+    const provider = licenseChainHistoryProvider(chain);
+
+    const result = await followLicenseToken({ origin: { txid: chain.mint.txid, vout: 0 }, provider });
+
+    // classifyHop only reads format-0x01 (plaintext) Data outputs; the contract-locked
+    // builders write format 0x02 (typed), so mint and write fall back to 'unknown' here —
+    // a pre-existing gap named in mw-5wuz6.3's closing comment, out of scope for this
+    // story. transfer is still detected because it changes the holder address.
+    expect(result.hops).toHaveLength(3);
+    expect(result.hops.map((hop) => hop.kind)).toEqual(['unknown', 'unknown', 'transfer']);
+    expect(result.hops.map((hop) => hop.txid)).toEqual([chain.mint.txid, chain.write.txid, chain.transfer.txid]);
+    expect(result.hops[0].holderAddress).toBe(contractWallet.owner.address);
+    expect(result.hops[1].holderAddress).toBe(contractWallet.owner.address);
+    expect(result.hops[2].holderAddress).toBe(contractWallet.buyer.address);
+    expect(result.current).toEqual({ txid: chain.transfer.txid, vout: 0 });
+    expect(result.holderAddress).toBe(contractWallet.buyer.address);
+    expect(result.complete).toBe(true);
+    expect(result.brokenAtTxid).toBeUndefined();
   });
 });
