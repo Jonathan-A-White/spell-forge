@@ -88,11 +88,10 @@ function parsePushDataSequence(bytes: number[]): number[][] | null {
 }
 
 /**
- * Decodes a record script back to its version and payload bytes, or null if the script
- * isn't OP_FALSE OP_RETURN <'nftgate'> <one-byte version> <payload> — including any
- * output that isn't a record at all (a P2PKH output, a foreign OP_RETURN, ...).
+ * The pushes after OP_FALSE OP_RETURN, or null if the script does not start with those two
+ * opcodes or any later chunk is not a push.
  */
-export function decodeRecordScript(script: string | LockingScript): DecodedRecordScript | null {
+function recordPushes(script: string | LockingScript): number[][] | null {
   const parsed = typeof script === 'string' ? Script.fromHex(script) : script;
   const chunks = parsed.chunks;
   if (chunks.length < 2) return null;
@@ -101,23 +100,83 @@ export function decodeRecordScript(script: string | LockingScript): DecodedRecor
   // Already-serialized scripts (chain hex) collapse to exactly 2 chunks, with the second
   // chunk's data holding every byte after OP_RETURN as one blob; scripts built in-memory
   // and never serialized keep each push as its own chunk. Handle both shapes.
-  const pushes =
-    chunks.length === 2
-      ? chunks[1].data
-        ? parsePushDataSequence(chunks[1].data)
-        : null
-      : chunks.slice(2).every((chunk) => chunk.data)
-        ? chunks.slice(2).map((chunk) => chunk.data as number[])
-        : null;
+  return chunks.length === 2
+    ? chunks[1].data
+      ? parsePushDataSequence(chunks[1].data)
+      : null
+    : chunks.slice(2).every((chunk) => chunk.data)
+      ? chunks.slice(2).map((chunk) => chunk.data as number[])
+      : null;
+}
 
+function isProtocolId(bytes: number[]): boolean {
+  return bytes.length === PROTOCOL_ID.length && PROTOCOL_ID.every((byte, i) => bytes[i] === byte);
+}
+
+/**
+ * Decodes a record script back to its version and payload bytes, or null if the script
+ * isn't OP_FALSE OP_RETURN <'nftgate'> <one-byte version> <payload> — including any
+ * output that isn't a record at all (a P2PKH output, a foreign OP_RETURN, ...).
+ */
+export function decodeRecordScript(script: string | LockingScript): DecodedRecordScript | null {
+  const pushes = recordPushes(script);
   if (!pushes || pushes.length !== 3) return null;
 
   const [protocolBytes, versionBytes, payloadBytes] = pushes;
-  if (protocolBytes.length !== PROTOCOL_ID.length) return null;
-  if (!PROTOCOL_ID.every((byte, i) => protocolBytes[i] === byte)) return null;
+  if (!isProtocolId(protocolBytes)) return null;
   if (versionBytes.length !== 1) return null;
 
   return { version: versionBytes[0], payloadBytes };
+}
+
+/** Format 0x02 (spec §3.8): the typed records the License contract reads (mw-5wuz6.3). */
+export const RECORD_VERSION_TYPED = 0x02;
+
+/** The record types the contract-locked builders write: mint, write, transfer. */
+export type TypedRecordType = 'M' | 'W' | 'TR';
+
+const TYPED_RECORD_TYPES: readonly TypedRecordType[] = ['M', 'W', 'TR'];
+
+export interface DecodedTypedRecordScript {
+  version: number;
+  recordType: TypedRecordType;
+  payloadBytes: number[];
+}
+
+/**
+ * Builds a format-0x02 Data output: OP_FALSE OP_RETURN <'nftgate'> <0x02> <record type>
+ * <payload>. The License contract reads bytes 0-10 as the fixed prefix and the record type
+ * as a push of its ASCII name from byte 12 (`01 57` for W, `02 54 52` for TR; see
+ * src/bsv/contracts/NOTES.md), which is what writeBin emits here. §3.8 fields 3-5 (epoch
+ * commitment, value manifest, typed payload) are not built yet: the payload is one opaque
+ * push, and carries no license origin (R4.3.4).
+ */
+export function encodeTypedRecordScript(recordType: TypedRecordType, payloadBytes: number[]): LockingScript {
+  if (payloadBytes.length > MAX_PAYLOAD_BYTES) {
+    throw new Error(`Record payload is ${payloadBytes.length} bytes, over the ${MAX_PAYLOAD_BYTES}-byte cap`);
+  }
+
+  return new LockingScript()
+    .writeOpCode(OP.OP_FALSE)
+    .writeOpCode(OP.OP_RETURN)
+    .writeBin(PROTOCOL_ID)
+    .writeBin([RECORD_VERSION_TYPED])
+    .writeBin(Utils.toArray(recordType, 'utf8'))
+    .writeBin(payloadBytes);
+}
+
+/** Decodes a format-0x02 Data output of a known record type, or null for anything else. */
+export function decodeTypedRecordScript(script: string | LockingScript): DecodedTypedRecordScript | null {
+  const pushes = recordPushes(script);
+  if (!pushes || pushes.length !== 4) return null;
+
+  const [protocolBytes, versionBytes, typeBytes, payloadBytes] = pushes;
+  if (!isProtocolId(protocolBytes)) return null;
+  if (versionBytes.length !== 1 || versionBytes[0] !== RECORD_VERSION_TYPED) return null;
+  const recordType = TYPED_RECORD_TYPES.find((type) => type === Utils.toUTF8(typeBytes));
+  if (!recordType) return null;
+
+  return { version: versionBytes[0], recordType, payloadBytes };
 }
 
 export interface MintRecordPayload {
