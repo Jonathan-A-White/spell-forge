@@ -26,5 +26,5 @@
     "resolveJsonModule": true
   },
   "include": ["src", "tests"],
-  "exclude": ["tests/e2e"]
+  "exclude": ["tests/e2e", "src/bsv/contracts/prototype"]
 }
