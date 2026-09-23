@@ -69,6 +69,40 @@ describe('BsvDebugScreen scan by anchor', () => {
     expect(texts).toEqual([fixture.recordNewestPayload.text, fixture.recordOldestPayload.text]);
   });
 
+  it('renders a plain payment to the anchor as sats received, not a record', async () => {
+    localStorage.setItem(ANCHOR_ADDRESS_STORAGE_KEY, fixture.anchorAddress);
+    const history: AddressHistoryEntry[] = [{ txid: fixture.plainPaymentTxid, height: 100000 }];
+    const provider = makeProvider({
+      getAddressHistory: vi.fn().mockResolvedValue(history),
+      getTransactionHex: vi.fn().mockResolvedValue(fixture.plainPaymentTxHex),
+    });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('5,000 sat received, not a record')).toBeInTheDocument();
+    });
+  });
+
+  it('keeps "could not read" (with a reason) for a data output the reader cannot decode', async () => {
+    localStorage.setItem(ANCHOR_ADDRESS_STORAGE_KEY, fixture.anchorAddress);
+    const history: AddressHistoryEntry[] = [{ txid: fixture.foreignOpReturnTxid, height: 300000 }];
+    const provider = makeProvider({
+      getAddressHistory: vi.fn().mockResolvedValue(history),
+      getTransactionHex: vi.fn().mockResolvedValue(fixture.foreignOpReturnTxHex),
+    });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(`could not read (${fixture.foreignOpReturnReason})`)).toBeInTheDocument();
+    });
+  });
+
   it('shows "no records yet at this anchor" for an empty history', async () => {
     localStorage.setItem(ANCHOR_ADDRESS_STORAGE_KEY, fixture.anchorAddress);
     const provider = makeProvider({ getAddressHistory: vi.fn().mockResolvedValue([]) });

@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { LockingScript, OP, Utils } from '@bsv/sdk';
+import { LockingScript, OP, P2PKH, PrivateKey, Transaction, UnlockingScript, Utils } from '@bsv/sdk';
 import {
   decodeRecordScript,
   decodeRecordPayload,
   findRecordsInTransaction,
+  findUnreadableDataOutputs,
+  classifyPlainPayment,
   encodeRecordScript,
   encodeRecordPayloadV1,
   PROTOCOL_ID,
@@ -138,5 +140,82 @@ describe('findRecordsInTransaction', () => {
     const records = findRecordsInTransaction(txFixture.noRecordTxHex);
 
     expect(records).toEqual([]);
+  });
+});
+
+function buildTxHex(
+  outputs: { lockingScript: LockingScript; satoshis: number }[],
+  unlockingScript: UnlockingScript = new UnlockingScript(),
+): string {
+  const tx = new Transaction();
+  tx.addInput({
+    sourceTXID: '11'.repeat(32),
+    sourceOutputIndex: 0,
+    unlockingScript,
+    sequence: 0xffffffff,
+  });
+  for (const output of outputs) tx.addOutput(output);
+  return tx.toHex();
+}
+
+describe('findUnreadableDataOutputs', () => {
+  it('returns nothing for a transaction with no data output', () => {
+    const address = PrivateKey.fromRandom().toAddress('testnet');
+    const txHex = buildTxHex([{ lockingScript: new P2PKH().lock(address), satoshis: 1000 }]);
+
+    expect(findUnreadableDataOutputs(txHex)).toEqual([]);
+  });
+
+  it('returns nothing when the data output is a valid nftgate record', () => {
+    const payloadBytes = encodeRecordPayloadV1({ text: 'hi', ts: '2026-01-01T00:00:00.000Z' });
+    const txHex = buildTxHex([{ lockingScript: encodeRecordScript(payloadBytes), satoshis: 0 }]);
+
+    expect(findUnreadableDataOutputs(txHex)).toEqual([]);
+  });
+
+  it('flags a foreign OP_RETURN protocol as unreadable, with a reason', () => {
+    const script = new LockingScript()
+      .writeOpCode(OP.OP_FALSE)
+      .writeOpCode(OP.OP_RETURN)
+      .writeBin(Utils.toArray('otherprotocol', 'utf8'))
+      .writeBin([0x01]);
+    const txHex = buildTxHex([{ lockingScript: script, satoshis: 0 }]);
+
+    const found = findUnreadableDataOutputs(txHex);
+
+    expect(found).toHaveLength(1);
+    expect(found[0].vout).toBe(0);
+    expect(found[0].reason).toBe('not an nftgate record');
+  });
+});
+
+describe('classifyPlainPayment', () => {
+  it('returns null when the transaction does not touch the anchor at all', () => {
+    const anchorAddress = PrivateKey.fromRandom().toAddress('testnet');
+    const otherAddress = PrivateKey.fromRandom().toAddress('testnet');
+    const txHex = buildTxHex([{ lockingScript: new P2PKH().lock(otherAddress), satoshis: 1000 }]);
+
+    expect(classifyPlainPayment(txHex, anchorAddress)).toBeNull();
+  });
+
+  it('reports "received" with the satoshis paid to the anchor', () => {
+    const anchorAddress = PrivateKey.fromRandom().toAddress('testnet');
+    const changeAddress = PrivateKey.fromRandom().toAddress('testnet');
+    const txHex = buildTxHex([
+      { lockingScript: new P2PKH().lock(anchorAddress), satoshis: 5000 },
+      { lockingScript: new P2PKH().lock(changeAddress), satoshis: 3000 },
+    ]);
+
+    expect(classifyPlainPayment(txHex, anchorAddress)).toEqual({ direction: 'received', satoshis: 5000 });
+  });
+
+  it('reports "sent" with the satoshis paid elsewhere when the anchor is the input side', () => {
+    const anchorKey = PrivateKey.fromRandom();
+    const anchorAddress = anchorKey.toAddress('testnet');
+    const recipientAddress = PrivateKey.fromRandom().toAddress('testnet');
+    const unlockingScript = new UnlockingScript().writeBin(new Array(71).fill(0)).writeBin(anchorKey.toPublicKey().toDER() as number[]);
+    const txHex = buildTxHex([{ lockingScript: new P2PKH().lock(recipientAddress), satoshis: 4000 }], unlockingScript);
+
+    expect(classifyPlainPayment(txHex, anchorAddress)).toEqual({ direction: 'sent', satoshis: 4000 });
   });
 });

@@ -46,7 +46,7 @@ function trackedProvider(options: {
 }
 
 describe('scanRecords', () => {
-  it('returns the two records newest first plus one could-not-read entry, fetching one tx at a time', async () => {
+  it('returns the two records newest first, a could-not-read entry for a fetch failure and one for a foreign OP_RETURN, and a payment entry for a plain payment', async () => {
     const provider = trackedProvider({
       history: fixture.history as AddressHistoryEntry[],
       failingTxids: [fixture.throwsTxid],
@@ -64,15 +64,35 @@ describe('scanRecords', () => {
       fixture.plainPaymentTxid,
     ]);
 
-    expect(entries).toHaveLength(3);
+    expect(entries).toHaveLength(5);
 
     expect(entries[0]).toMatchObject({ txid: fixture.recordNewestTxid, vout: 0, version: 1 });
     expect(entries[0]).toHaveProperty('decoded', fixture.recordNewestPayload);
 
-    expect(entries[1]).toEqual({ txid: fixture.throwsTxid, height: 400000, couldNotRead: true });
+    expect(entries[1]).toEqual({
+      txid: fixture.throwsTxid,
+      height: 400000,
+      couldNotRead: true,
+      reason: 'could not fetch the transaction',
+    });
 
-    expect(entries[2]).toMatchObject({ txid: fixture.recordOldestTxid, vout: 0, version: 1 });
-    expect(entries[2]).toHaveProperty('decoded', fixture.recordOldestPayload);
+    expect(entries[2]).toEqual({
+      txid: fixture.foreignOpReturnTxid,
+      height: 300000,
+      couldNotRead: true,
+      reason: fixture.foreignOpReturnReason,
+    });
+
+    expect(entries[3]).toMatchObject({ txid: fixture.recordOldestTxid, vout: 0, version: 1 });
+    expect(entries[3]).toHaveProperty('decoded', fixture.recordOldestPayload);
+
+    expect(entries[4]).toEqual({
+      txid: fixture.plainPaymentTxid,
+      height: 100000,
+      payment: true,
+      direction: 'received',
+      satoshis: fixture.plainPaymentSatoshis,
+    });
   });
 
   it('fetches only `limit` transactions, the newest ones first', async () => {
