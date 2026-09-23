@@ -21,6 +21,7 @@ jobs:
       themes: ${{ steps.filter.outputs.themes }}
       a11y: ${{ steps.filter.outputs.a11y }}
       adaptive: ${{ steps.filter.outputs.adaptive }}
+      bsv: ${{ steps.filter.outputs.bsv }}
       src: ${{ steps.filter.outputs.src }}
     steps:
       - uses: actions/checkout@v4
@@ -64,6 +65,12 @@ jobs:
               - 'src/core/adaptive/**'
               - 'src/features/practice/**'
               - 'tests/unit/adaptive-engine.test.ts'
+            bsv:
+              - 'src/bsv/**'
+              - 'src/features/bsv-debug/**'
+              - 'src/data/repositories/bsv-wallet-repo.ts'
+              - 'tests/unit/bsv-*'
+              - 'tests/fixtures/bsv/**'
             src:
               - 'src/**'
               - 'tests/**'
@@ -228,6 +235,20 @@ jobs:
       - run: npm ci
       - run: npm run test:adaptive
 
+  # BSV chain integration
+  test-bsv:
+    needs: changes
+    if: needs.changes.outputs.bsv == 'true' || needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:bsv
+
   # Gate job — require this single check in branch protection rules
   ci-pass:
     if: always()
@@ -243,6 +264,7 @@ jobs:
       - test-themes
       - test-accessibility
       - test-adaptive
+      - test-bsv
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs

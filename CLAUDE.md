@@ -26,6 +26,7 @@ npm run test:themes      # src/themes/
 npm run test:a11y        # src/accessibility/
 npm run test:adaptive    # src/core/adaptive/
 npm run test:contracts   # src/contracts/
+npm run test:bsv         # src/bsv/, src/features/bsv-debug/, bsv-wallet-repo
 ```
 
 Always run the relevant subsystem test after making changes. Run `npm run typecheck` and `npm run lint` before committing.
