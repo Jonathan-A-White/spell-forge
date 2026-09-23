@@ -8,6 +8,13 @@ import type { BsvWalletKey } from '../../src/contracts/types';
 import type { LicenseToken } from '../../src/bsv/license-token';
 import wallet from '../fixtures/bsv/license-token-transfer-wallet.json';
 
+const { transferContractTokenMock } = vi.hoisted(() => ({ transferContractTokenMock: vi.fn() }));
+
+vi.mock('../../src/bsv', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/bsv')>();
+  return { ...actual, transferContractToken: transferContractTokenMock };
+});
+
 // See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup, the balance
 // load and TokenPanel's own token-list load without a real-time waitFor deadline.
 async function flush(): Promise<void> {
@@ -56,6 +63,7 @@ beforeEach(async () => {
   await db.delete();
   await db.open();
   localStorage.clear();
+  transferContractTokenMock.mockReset();
 });
 
 afterEach(() => {
@@ -73,6 +81,8 @@ describe('BsvDebugScreen transfer token', () => {
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
     await flush();
 
+    expect(screen.getByText(/lock p2pkh/)).toBeInTheDocument();
+
     const addressInput = screen.getByLabelText('Transfer to address');
     fireEvent.change(addressInput, { target: { value: wallet.toAddress } });
     await flush();
@@ -87,6 +97,38 @@ describe('BsvDebugScreen transfer token', () => {
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
     expect(screen.getByText(new RegExp(`holder ${wallet.toAddress}`))).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`current ${'c'.repeat(64)}:0`))).toBeInTheDocument();
+    expect(transferContractTokenMock).not.toHaveBeenCalled();
+  });
+
+  it('dispatches to the contract transfer builder for a license-locked token, using a pasted public key', async () => {
+    await bsvWalletRepo.save(storedKey);
+    const licenseToken: LicenseToken = { ...token, lock: 'license', artifact: 'fake-artifact-md5' };
+    await bsvTokenRepo.put(licenseToken);
+    const provider = makeProvider();
+    const buyerPubKey = '0246b2af2c1ff8e4b758b53d803617f6147e03b4322455947ab0edeeb2a6d7ef17';
+    transferContractTokenMock.mockResolvedValue({ txid: 'a'.repeat(64) });
+
+    vi.useFakeTimers();
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
+
+    expect(screen.getByText(/lock license/)).toBeInTheDocument();
+
+    const pubKeyInput = screen.getByLabelText('Transfer to public key');
+    fireEvent.change(pubKeyInput, { target: { value: buyerPubKey } });
+    await flush();
+
+    const transferButton = screen.getByRole('button', { name: 'Transfer' });
+    expect(transferButton).toBeEnabled();
+
+    fireEvent.click(transferButton);
+    await flush();
+
+    expect(transferContractTokenMock).toHaveBeenCalledTimes(1);
+    const call = transferContractTokenMock.mock.calls[0][0];
+    expect(call.token.lock).toBe('license');
+    expect(call.toPubKey).toBe(buyerPubKey);
+    expect(provider.broadcast).not.toHaveBeenCalled();
   });
 
   it('disables Transfer when the pasted address is not a valid testnet address', async () => {

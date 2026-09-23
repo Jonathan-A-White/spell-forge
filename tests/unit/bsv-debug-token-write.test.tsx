@@ -9,6 +9,13 @@ import type { BsvWalletKey } from '../../src/contracts/types';
 import type { LicenseToken } from '../../src/bsv/license-token';
 import wallet from '../fixtures/bsv/license-token-transfer-wallet.json';
 
+const { writeWithContractTokenMock } = vi.hoisted(() => ({ writeWithContractTokenMock: vi.fn() }));
+
+vi.mock('../../src/bsv', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/bsv')>();
+  return { ...actual, writeWithContractToken: writeWithContractTokenMock };
+});
+
 // See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup, the balance
 // load and TokenPanel's own token-list load without a real-time waitFor deadline.
 async function flush(): Promise<void> {
@@ -57,6 +64,7 @@ beforeEach(async () => {
   await db.delete();
   await db.open();
   localStorage.clear();
+  writeWithContractTokenMock.mockReset();
 });
 
 afterEach(() => {
@@ -74,6 +82,8 @@ describe('BsvDebugScreen write with token', () => {
     render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
     await flush();
 
+    expect(screen.getByText(/lock p2pkh/)).toBeInTheDocument();
+
     const textBox = screen.getByLabelText('Write with token');
     fireEvent.change(textBox, { target: { value: 'level 5 unlocked' } });
     await flush();
@@ -86,6 +96,35 @@ describe('BsvDebugScreen write with token', () => {
 
     expect(screen.getByText('f'.repeat(64))).toBeInTheDocument();
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
+    expect(writeWithContractTokenMock).not.toHaveBeenCalled();
+  });
+
+  it('dispatches to the contract write builder for a license-locked token', async () => {
+    await bsvWalletRepo.save(storedKey);
+    const licenseToken: LicenseToken = { ...token, lock: 'license', artifact: 'fake-artifact-md5' };
+    await bsvTokenRepo.put(licenseToken);
+    const provider = makeProvider();
+    writeWithContractTokenMock.mockResolvedValue({ txid: 'b'.repeat(64) });
+
+    vi.useFakeTimers();
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+    await flush();
+
+    expect(screen.getByText(/lock license/)).toBeInTheDocument();
+    expect(screen.getByText(/artifact fake-artifact-md5/)).toBeInTheDocument();
+
+    const textBox = screen.getByLabelText('Write with token');
+    fireEvent.change(textBox, { target: { value: 'level 5 unlocked' } });
+    await flush();
+
+    const writeButton = screen.getByRole('button', { name: 'Write with token' });
+    fireEvent.click(writeButton);
+    await flush();
+
+    expect(screen.getByText('b'.repeat(64))).toBeInTheDocument();
+    expect(writeWithContractTokenMock).toHaveBeenCalledTimes(1);
+    expect(writeWithContractTokenMock.mock.calls[0][0].token.lock).toBe('license');
+    expect(provider.broadcast).not.toHaveBeenCalled();
   });
 
   it('disables Write with token when there is no text', async () => {
