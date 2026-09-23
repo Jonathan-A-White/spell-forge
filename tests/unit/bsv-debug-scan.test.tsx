@@ -86,6 +86,23 @@ describe('BsvDebugScreen scan by anchor', () => {
     });
   });
 
+  it('renders the anchor spending its own coin as sats sent, not the change amount received', async () => {
+    localStorage.setItem(ANCHOR_ADDRESS_STORAGE_KEY, fixture.anchorSentAddress);
+    const history: AddressHistoryEntry[] = [{ txid: fixture.anchorSentTxid, height: 200000 }];
+    const provider = makeProvider({
+      getAddressHistory: vi.fn().mockResolvedValue(history),
+      getTransactionHex: vi.fn().mockResolvedValue(fixture.anchorSentTxHex),
+    });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('5,000 sat sent, not a record')).toBeInTheDocument();
+    });
+  });
+
   it('keeps "could not read" (with a reason) for a data output the reader cannot decode', async () => {
     localStorage.setItem(ANCHOR_ADDRESS_STORAGE_KEY, fixture.anchorAddress);
     const history: AddressHistoryEntry[] = [{ txid: fixture.foreignOpReturnTxid, height: 300000 }];

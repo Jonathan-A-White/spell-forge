@@ -191,4 +191,23 @@ describe('scanRecords', () => {
 
     expect(entries).toHaveLength(1);
   });
+
+  it('reports the anchor spending its own coin as sent, not received with the change amount', async () => {
+    const provider = trackedProvider({
+      history: [{ txid: fixture.anchorSentTxid, height: 200000 }],
+      hexByTxid: { [fixture.anchorSentTxid]: fixture.anchorSentTxHex },
+    });
+
+    const entries = await scanRecords(provider, fixture.anchorSentAddress);
+
+    expect(entries).toEqual([
+      {
+        txid: fixture.anchorSentTxid,
+        height: 200000,
+        payment: true,
+        direction: 'sent',
+        satoshis: fixture.anchorSentSatoshis,
+      },
+    ]);
+  });
 });
