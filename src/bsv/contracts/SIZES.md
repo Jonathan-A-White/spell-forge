@@ -76,6 +76,32 @@ License's argument), the second outpoint in both `prevouts` lists (36 B, twice),
 12-byte longer Data header (twice: output 2 and the License's argument), less one byte of
 DER signature. At 100 sat/kB it costs 1,334 sat: above `FEE_W` ≈ 1,290 sat, still under `FEE_CAP`.
 
+## Real testnet transactions with Fuel(C) (mw-yo97u.5)
+
+Measured on the real mint, write and transfer built by `license-contract.ts`'s production
+builders (`buildContractMintTransaction` at `MINT_FUEL` = 10,000 sat, `buildContractTokenRecordTransaction`,
+`buildContractTransferTransaction`) and broadcast against WhatsOnChain testnet by
+`tests/testnet/license-token.testnet.test.ts` (`npm run test:bsv:testnet`), reading
+`transaction.inputs[1].unlockingScript.toBinary().length` (the Fuel input), the write's
+`transaction.toBinary().length`, and (total input satoshis − total output satoshis) for the
+fee. Beside the §3.7/§6 estimates above (measured on the fixture's Push TX preimage, not a
+real broadcast tx):
+
+| | Measured | Spec v0.13 / fixture estimate |
+|--|---------:|--------------------------------------:|
+| Fuel `spend` unlocking script (`write`, real tx) | 1,440 B | 1,374 B (§3.7) / 1,443 B (fixture, mw-yo97u.2) |
+| Fuel `spend` unlocking script (`transfer`, real tx) | 1,440 B | — |
+| The whole write tx, full size | 13,105 B | ≈ 12.9 KB (§3.9, §6) / 13,341 B (fixture, mw-yo97u.2) |
+| Write fee actually paid | 14 sat | ≈ 1,290 sat (`FEE_W`, §6) |
+| Transfer fee actually paid | 14 sat | — |
+
+**Conditions**: `MINT_FUEL` 10,000 sat (two `FEE_CAP` burns plus headroom), `feeRateSatPerKb`
+1 (this app's testnet config) — at that rate the write's real 13,105-byte size costs 14 sat,
+comfortably under `FEE_CAP` (2,000 sat) and far under the fixture's 100-sat/kB estimate of
+1,334 sat (§3.7's own comparison above). Both the write and the transfer spend the License
+at input 0 and the Fuel at input 1, with no holder coin input at all — the fee is paid
+entirely from the Fuel's own value, output 1 landing at 9,986 sat (own − 14) on the write.
+
 ## Real testnet transactions (mw-5wuz6.6)
 
 Measured on the real write and transfer built by `license-contract.ts`'s production
