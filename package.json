@@ -28,6 +28,8 @@
     "test:bsv:testnet": "vitest run -c vitest.testnet.config.ts",
     "bsv:keys": "tsx scripts/bsv-keys.ts",
     "bsv:balance": "tsx scripts/bsv-balance.ts",
+    "bsv:contracts:build": "tsx scripts/bsv-contracts-build.ts",
+    "bsv:contracts:check": "tsx scripts/bsv-contracts-check.ts",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b --noEmit"
   },
@@ -62,6 +64,8 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
     "jsdom": "^28.1.0",
+    "scrypt-ord": "1.0.17",
+    "scrypt-ts": "1.4.5",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.23.15",

@@ -1,0 +1,10 @@
+{
+  "name": "spell-forge-contracts-toolchain",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Isolated TS toolchain that drives scrypt-cli to compile src/bsv/contracts/*.ts to sCrypt artifacts. Kept out of the app's own package.json: scrypt-ts-transpiler (pulled in by scrypt-cli) needs TypeScript ~5.3 via ts-patch, which cannot patch the app's TypeScript 5.9.3. See src/bsv/contracts/toolchain/README.md.",
+  "devDependencies": {
+    "scrypt-cli": "0.2.3",
+    "typescript": "5.3.3"
+  }
+}
