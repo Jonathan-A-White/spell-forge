@@ -137,19 +137,44 @@ export type TypedRecordType = 'M' | 'W' | 'TR';
 
 const TYPED_RECORD_TYPES: readonly TypedRecordType[] = ['M', 'W', 'TR'];
 
+/**
+ * §3.8 field 4: one (inputIndex, value) entry of the value manifest, VC-B's per-input fuel
+ * accounting for a consolidating transaction (§3.7). Nothing builds a non-empty manifest
+ * yet — that is consolidation's job (mw-yo97u step 4) — so this type is currently unused
+ * outside of documenting the empty case.
+ */
+export interface ValueManifestEntry {
+  inputIndex: number;
+  value: bigint;
+}
+
+/**
+ * The empty manifest (mw-yo97u.1): one push holding a single zero byte, read as "0 entries".
+ * Every writer here emits this; only consolidation (step 4) will ever populate one.
+ */
+const EMPTY_VALUE_MANIFEST_BYTES: number[] = [0x00];
+
+/** Decodes a manifest push: byte 0 is the entry count. Only 0x00 (empty) is understood so far. */
+function decodeValueManifest(bytes: number[]): ValueManifestEntry[] | null {
+  if (bytes.length !== 1 || bytes[0] !== 0) return null; // non-empty manifests are step 4's job
+  return [];
+}
+
 export interface DecodedTypedRecordScript {
   version: number;
   recordType: TypedRecordType;
+  manifest: ValueManifestEntry[];
   payloadBytes: number[];
 }
 
 /**
  * Builds a format-0x02 Data output: OP_FALSE OP_RETURN <'nftgate'> <0x02> <record type>
- * <payload>. The License contract reads bytes 0-10 as the fixed prefix and the record type
- * as a push of its ASCII name from byte 12 (`01 57` for W, `02 54 52` for TR; see
- * src/bsv/contracts/NOTES.md), which is what writeBin emits here. §3.8 fields 3-5 (epoch
- * commitment, value manifest, typed payload) are not built yet: the payload is one opaque
- * push, and carries no license origin (R4.3.4).
+ * <value manifest> <payload>. The License contract reads bytes 0-10 as the fixed prefix and
+ * the record type as a push of its ASCII name from byte 12 (`01 57` for W, `02 54 52` for
+ * TR; see src/bsv/contracts/NOTES.md), which is what writeBin emits here — unaffected by the
+ * manifest push, which comes after the record type. §3.8 field 3 (epoch commitment) is not
+ * built yet, so the manifest push (field 4) sits directly after the record type; field 5
+ * (the typed payload) follows it, one opaque push, and carries no license origin (R4.3.4).
  */
 export function encodeTypedRecordScript(recordType: TypedRecordType, payloadBytes: number[]): LockingScript {
   if (payloadBytes.length > MAX_PAYLOAD_BYTES) {
@@ -162,21 +187,32 @@ export function encodeTypedRecordScript(recordType: TypedRecordType, payloadByte
     .writeBin(PROTOCOL_ID)
     .writeBin([RECORD_VERSION_TYPED])
     .writeBin(Utils.toArray(recordType, 'utf8'))
+    .writeBin(EMPTY_VALUE_MANIFEST_BYTES)
     .writeBin(payloadBytes);
 }
 
-/** Decodes a format-0x02 Data output of a known record type, or null for anything else. */
+/**
+ * Decodes a format-0x02 Data output of a known record type, or null for anything else.
+ * Reads two layouts: 5 pushes (protocol, version, type, manifest, payload — this writer's
+ * layout since mw-yo97u.1) and 4 pushes (protocol, version, type, payload — step 2's tokens,
+ * minted before the manifest field existed, when no restricted input ever needed one). Both
+ * come back with `manifest: []`; nothing here needs to tell the two layouts apart once decoded.
+ */
 export function decodeTypedRecordScript(script: string | LockingScript): DecodedTypedRecordScript | null {
   const pushes = recordPushes(script);
-  if (!pushes || pushes.length !== 4) return null;
+  if (!pushes || (pushes.length !== 4 && pushes.length !== 5)) return null;
 
-  const [protocolBytes, versionBytes, typeBytes, payloadBytes] = pushes;
+  const [protocolBytes, versionBytes, typeBytes] = pushes;
   if (!isProtocolId(protocolBytes)) return null;
   if (versionBytes.length !== 1 || versionBytes[0] !== RECORD_VERSION_TYPED) return null;
   const recordType = TYPED_RECORD_TYPES.find((type) => type === Utils.toUTF8(typeBytes));
   if (!recordType) return null;
 
-  return { version: versionBytes[0], recordType, payloadBytes };
+  const manifest = pushes.length === 5 ? decodeValueManifest(pushes[3]) : [];
+  if (!manifest) return null;
+  const payloadBytes = pushes[pushes.length - 1];
+
+  return { version: versionBytes[0], recordType, manifest, payloadBytes };
 }
 
 export interface MintRecordPayload {
