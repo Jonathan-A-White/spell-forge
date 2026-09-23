@@ -30,8 +30,15 @@ export { readRecordByTxid } from './read-record';
 export type { DecodedRecord, ReadRecordResult } from './read-record';
 export { scanRecords } from './scan-records';
 export type { ScanRecordEntry, ScanRecordFound, ScanRecordUnreadable, ScanRecordsOptions } from './scan-records';
-export { outpointKey, reconcilePendingSpends, filterUtxosExcludingPending, selectFeeUtxos, PENDING_SPEND_TTL_MS } from './pending-spends';
-export type { PendingSpendEntry } from './pending-spends';
+export {
+  outpointKey,
+  reconcilePendingSpends,
+  filterUtxosExcludingPending,
+  selectFeeUtxos,
+  describePendingShortfall,
+  PENDING_SPEND_TTL_MS,
+} from './pending-spends';
+export type { PendingSpendEntry, PendingSpendRepository } from './pending-spends';
 export {
   buildMintTransaction,
   mintLicenseToken,
@@ -63,7 +70,6 @@ export { buildSendTransaction, sendSats } from './send-sats';
 export type {
   BuildSendTransactionParams,
   BuiltSendTransaction,
-  PendingSpendRepository,
   SendSatsParams,
   SendSatsResult,
 } from './send-sats';
