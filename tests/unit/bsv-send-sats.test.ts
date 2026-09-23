@@ -5,6 +5,7 @@ import { createEventBus } from '../../src/contracts/events';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
 import type { Utxo } from '../../src/contracts/types';
+import type { PendingSpendEntry } from '../../src/bsv/pending-spends';
 import wallet from '../fixtures/bsv/send-sats-wallet.json';
 
 const baseConfig: ChainConfig = {
@@ -208,6 +209,18 @@ describe('buildSendTransaction', () => {
   });
 });
 
+function fakePendingSpendRepo(overrides: {
+  getAll?: () => Promise<PendingSpendEntry[]>;
+  add?: (entry: PendingSpendEntry) => Promise<void>;
+  removeMany?: (txids: string[]) => Promise<void>;
+} = {}) {
+  return {
+    getAll: vi.fn(overrides.getAll ?? (async () => [])),
+    add: vi.fn(overrides.add ?? (async () => {})),
+    removeMany: vi.fn(overrides.removeMany ?? (async () => {})),
+  };
+}
+
 describe('sendSats', () => {
   it('broadcasts exactly once, records the spent outpoints as pending spends, and emits bsv:sats-sent', async () => {
     const provider = fakeProvider();
@@ -217,12 +230,11 @@ describe('sendSats', () => {
       if (event.type === 'bsv:sats-sent') received.push(event.payload);
     });
     const added: Array<{ txid: string; outpoints: string[] }> = [];
-    const pendingSpendRepo = {
-      add: vi.fn().mockImplementation((entry: { txid: string; outpoints: string[] }) => {
+    const pendingSpendRepo = fakePendingSpendRepo({
+      add: async (entry) => {
         added.push(entry);
-        return Promise.resolve();
-      }),
-    };
+      },
+    });
 
     const result = await sendSats({
       key: wallet.wif,
@@ -248,7 +260,7 @@ describe('sendSats', () => {
   it('never broadcasts when the build step refuses', async () => {
     const provider = fakeProvider();
     const eventBus = createEventBus();
-    const pendingSpendRepo = { add: vi.fn().mockResolvedValue(undefined) };
+    const pendingSpendRepo = fakePendingSpendRepo();
 
     await expect(
       sendSats({
@@ -261,6 +273,67 @@ describe('sendSats', () => {
         pendingSpendRepo,
       }),
     ).rejects.toThrow();
+
+    expect(provider.broadcast).not.toHaveBeenCalled();
+    expect(pendingSpendRepo.add).not.toHaveBeenCalled();
+  });
+
+  it("never selects an outpoint the app's own unconfirmed transaction already spent (mw-b00z.10)", async () => {
+    const provider = fakeProvider({ getUtxos: vi.fn().mockResolvedValue([utxo5000, utxo3000, tokenUtxo]) });
+    const eventBus = createEventBus();
+    const pendingTxid = 'e'.repeat(64);
+    const pendingSpendRepo = fakePendingSpendRepo({
+      getAll: async () => [
+        { txid: pendingTxid, outpoints: [`${tokenUtxo.txid}:${tokenUtxo.vout}`], createdAt: new Date() },
+      ],
+    });
+
+    const result = await sendSats({
+      key: wallet.wif,
+      toAddress: wallet.toAddress,
+      amountSats: 2000,
+      provider,
+      config: baseConfig,
+      eventBus,
+      pendingSpendRepo,
+    });
+
+    expect(provider.broadcast).toHaveBeenCalledTimes(1);
+    const [broadcastHex] = (provider.broadcast as ReturnType<typeof vi.fn>).mock.calls[0];
+    const broadcastTx = Transaction.fromHex(broadcastHex);
+    expect(broadcastTx.inputs.map((input) => input.sourceTXID)).not.toContain(tokenUtxo.txid);
+    expect(broadcastTx.inputs).toHaveLength(2);
+
+    expect(pendingSpendRepo.removeMany).not.toHaveBeenCalled();
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.add.mock.calls[0][0].outpoints).toEqual([
+      `${utxo5000.txid}:${utxo5000.vout}`,
+      `${utxo3000.txid}:${utxo3000.vout}`,
+    ]);
+    expect(result.txid).toBe('f'.repeat(64));
+  });
+
+  it('rejects before broadcast, naming the pending count, when the only non-pending UTXO is too small (mw-b00z.10)', async () => {
+    const provider = fakeProvider({ getUtxos: vi.fn().mockResolvedValue([oneSatUtxo, utxo5000, utxo3000]) });
+    const eventBus = createEventBus();
+    const pendingSpendRepo = fakePendingSpendRepo({
+      getAll: async () => [
+        { txid: 'a'.repeat(64), outpoints: [`${utxo5000.txid}:${utxo5000.vout}`], createdAt: new Date() },
+        { txid: 'b'.repeat(64), outpoints: [`${utxo3000.txid}:${utxo3000.vout}`], createdAt: new Date() },
+      ],
+    });
+
+    await expect(
+      sendSats({
+        key: wallet.wif,
+        toAddress: wallet.toAddress,
+        amountSats: 2000,
+        provider,
+        config: baseConfig,
+        eventBus,
+        pendingSpendRepo,
+      }),
+    ).rejects.toThrow(/2 pending transaction/i);
 
     expect(provider.broadcast).not.toHaveBeenCalled();
     expect(pendingSpendRepo.add).not.toHaveBeenCalled();
