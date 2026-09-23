@@ -163,6 +163,8 @@ interface LicenseUnlockOptions {
   bridge: LicenseBridge;
   ownerKey: PrivateKey;
   newOwnerPubKeyHex?: string;
+  /** Passed through to the bridge: skip the contract's own assertions (see LicenseUnlockParams.blind). */
+  blind?: boolean;
 }
 
 /**
@@ -171,7 +173,7 @@ interface LicenseUnlockOptions {
  * preimage is the one the License's Push TX will see, then builds the method call around
  * the signature. Called by transaction.sign(), after fee() has fixed the change.
  */
-function licenseUnlock({ method, bridge, ownerKey, newOwnerPubKeyHex }: LicenseUnlockOptions) {
+function licenseUnlock({ method, bridge, ownerKey, newOwnerPubKeyHex, blind }: LicenseUnlockOptions) {
   return {
     sign: async (tx: Transaction, inputIndex: number): Promise<UnlockingScript> => {
       const input = tx.inputs[inputIndex];
@@ -200,6 +202,7 @@ function licenseUnlock({ method, bridge, ownerKey, newOwnerPubKeyHex }: LicenseU
         preimageHex: Utils.toHex(preimage),
         ownerSigHex: Utils.toHex(signature),
         newOwnerPubKeyHex,
+        blind,
       });
       return UnlockingScript.fromHex(unlockingHex);
     },
@@ -358,21 +361,48 @@ interface LicenseSpendParams {
   method: 'write' | 'transfer';
   bridge: LicenseBridge;
   holderKey: PrivateKey;
+  /** Signs input 0's unlocking script; defaults to holderKey. Diverges from it only to exercise rule (d) — see buildContractSpendVariant. */
+  signingKey?: PrivateKey;
   token: LicenseToken;
   license: SpendableLicense;
   feeUtxos: Utxo[];
   output0: LockingScript;
+  /** Output 0's satoshis; defaults to TOKEN_OUTPUT_SATOSHIS. Diverges from it only to exercise rule (b). */
+  outputSatoshis?: number;
   dataScript: LockingScript;
   payments: { address: string; satoshis: number }[];
   newOwnerPubKeyHex?: string;
+  /** Passed through to licenseUnlock/the bridge: skip the contract's own assertions (see LicenseUnlockParams.blind). */
+  blind?: boolean;
   config: ChainConfig;
   provider: ChainProvider;
 }
 
-/** The layout write and transfer share: License in at 0, funding after; License, Fuel, Data out, payments after. */
+/**
+ * The layout write and transfer share: License in at 0, funding after; License, Fuel, Data
+ * out, payments after. Signs and returns the built spend but does NOT check it against
+ * local verification — callers that build a spend meant to succeed (buildContractTokenRecordTransaction,
+ * buildContractTransferTransaction) call assertVerifies themselves right after; a caller
+ * exercising the covenant's negative rules (buildContractSpendVariant) checks the result itself instead.
+ */
 async function buildLicenseSpend(params: LicenseSpendParams): Promise<{ transaction: Transaction; spentOutpoints: Outpoint[] }> {
-  const { method, bridge, holderKey, token, license, feeUtxos, output0, dataScript, payments, newOwnerPubKeyHex, config, provider } =
-    params;
+  const {
+    method,
+    bridge,
+    holderKey,
+    signingKey,
+    token,
+    license,
+    feeUtxos,
+    output0,
+    outputSatoshis,
+    dataScript,
+    payments,
+    newOwnerPubKeyHex,
+    blind,
+    config,
+    provider,
+  } = params;
 
   const eligibleFeeUtxos = selectFeeUtxos(feeUtxos, { exclude: [] });
   if (eligibleFeeUtxos.length === 0) {
@@ -383,11 +413,11 @@ async function buildLicenseSpend(params: LicenseSpendParams): Promise<{ transact
   transaction.addInput({
     sourceTransaction: license.sourceTransaction,
     sourceOutputIndex: token.current.vout,
-    unlockingScriptTemplate: licenseUnlock({ method, bridge, ownerKey: holderKey, newOwnerPubKeyHex }),
+    unlockingScriptTemplate: licenseUnlock({ method, bridge, ownerKey: signingKey ?? holderKey, newOwnerPubKeyHex, blind }),
   });
   await addFundingInputs(transaction, eligibleFeeUtxos, holderKey, provider);
 
-  transaction.addOutput({ lockingScript: output0, satoshis: TOKEN_OUTPUT_SATOSHIS });
+  transaction.addOutput({ lockingScript: output0, satoshis: outputSatoshis ?? TOKEN_OUTPUT_SATOSHIS });
   transaction.addOutput({ lockingScript: license.fuelScript, change: true });
   transaction.addOutput({ lockingScript: dataScript, satoshis: 0 });
   for (const payment of payments) {
@@ -403,7 +433,6 @@ async function buildLicenseSpend(params: LicenseSpendParams): Promise<{ transact
     throw new Error(`Not enough satoshis to cover the ${method} and fee`);
   }
   await transaction.sign();
-  assertVerifies(bridge, transaction);
 
   return {
     transaction,
@@ -458,6 +487,66 @@ export async function buildContractTokenRecordTransaction(
     config,
     provider,
   });
+  assertVerifies(bridge, transaction);
+  return built(transaction, spentOutpoints, token);
+}
+
+export interface BuildContractSpendVariantParams {
+  holderKey: string; // the token's real owner: WIF; funds the spend and satisfies the License's ownership and Fuel checks
+  token: LicenseToken;
+  feeUtxos: Utxo[];
+  payload: RecordWithTokenPayload;
+  /** Exercises rule (d): the key that actually signs input 0, when it differs from holderKey. */
+  signerKey?: string;
+  /** Exercises rule (c): the owner key baked into output 0's rebuilt state, when it differs from holderKey's own. */
+  output0OwnerPubKeyHex?: string;
+  /** Exercises rule (b): output 0's satoshis, when different from 1. */
+  outputSatoshis?: number;
+  /** Exercises rule (f): extra P2PKH outputs appended after the Data output. */
+  extraOutputs?: { address: string; satoshis: number }[];
+  config: ChainConfig;
+  provider: ChainProvider;
+}
+
+/**
+ * Builds a write spend of a real License token like buildContractTokenRecordTransaction,
+ * but with each of the covenant's negative rules (b), (c), (d) and (f) independently
+ * overridable, and WITHOUT checking the result locally — the caller does that itself
+ * (verifyLicenseInput), and decides whether to broadcast it. For exercising the contract's
+ * rejection paths against a real token (mw-5wuz6.6); never used by production code, which
+ * always verifies before broadcasting.
+ */
+export async function buildContractSpendVariant(params: BuildContractSpendVariantParams): Promise<BuiltContractTransaction> {
+  const { holderKey, token, feeUtxos, payload, signerKey, output0OwnerPubKeyHex, outputSatoshis, extraOutputs = [], config, provider } =
+    params;
+  assertTokenLock(token, 'license');
+
+  const key = PrivateKey.fromWif(holderKey);
+  const signingKey = signerKey ? PrivateKey.fromWif(signerKey) : undefined;
+  const bridge = await loadLicenseBridge();
+  const license = await spendableLicense(bridge, token, key, config, provider);
+
+  const { transaction, spentOutpoints } = await buildLicenseSpend({
+    method: 'write',
+    bridge,
+    holderKey: key,
+    signingKey,
+    token,
+    license,
+    feeUtxos,
+    output0: LockingScript.fromHex(bridge.nextLockingScript(license.lockingScriptHex, output0OwnerPubKeyHex)),
+    outputSatoshis,
+    dataScript: typedRecord('W', { text: payload.text, ts: payload.ts }),
+    payments: extraOutputs,
+    // A wrong signer is the only override the contract's own assertions don't already
+    // catch while building (rules b, c and f are all one assertion over the exact rebuilt
+    // output list — see license.ts's write()): without blind, the signature check inside
+    // that same method call throws here too, and there is never a transaction to hand to
+    // verifyLicenseInput or broadcast.
+    blind: signingKey !== undefined,
+    config,
+    provider,
+  });
   return built(transaction, spentOutpoints, token);
 }
 
@@ -505,6 +594,7 @@ export async function buildContractTransferTransaction(
     config,
     provider,
   });
+  assertVerifies(bridge, transaction);
   return built(transaction, spentOutpoints, { ...token, holderAddress: toAddress });
 }
 
