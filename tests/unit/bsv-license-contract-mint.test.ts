@@ -11,6 +11,7 @@ import {
 } from '../../src/bsv/license-contract';
 import type { BuiltContractTransaction } from '../../src/bsv/license-contract';
 import { createEventBus } from '../../src/contracts/events';
+import { chainConfig } from '../../src/bsv/config';
 import {
   ARTIFACT_MD5,
   config,
@@ -131,6 +132,24 @@ describe('mintContractLicenseToken', () => {
     });
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
     expect(token.fuelArtifact).toBe(FUEL_ARTIFACT_MD5);
+  });
+
+  it('mints with the app\'s own chainConfig, whose MINT_FUEL is 10,000 sat (mw-yo97u.9)', async () => {
+    const provider = fakeChain();
+    vi.mocked(provider.getUtxos).mockResolvedValue([utxoOf(wallet.mintFundingTx)]);
+    vi.mocked(provider.broadcast).mockImplementation(async (hex: string) => {
+      const tx = Transaction.fromHex(hex);
+      expect(tx.outputs[1].satoshis).toBe(10_000);
+      return tx.id('hex');
+    });
+    await mintContractLicenseToken({
+      issuerKey: wallet.owner.wif,
+      provider,
+      config: chainConfig,
+      eventBus: createEventBus(),
+      pendingSpendRepo: pendingSpendRepo(),
+    });
+    expect(provider.broadcast).toHaveBeenCalledTimes(1);
   });
 
   it('refuses to mint, and broadcasts nothing, when MINT_FUEL is not configured', async () => {
