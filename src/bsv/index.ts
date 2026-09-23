@@ -9,7 +9,10 @@ export { ChainError } from './chain-error';
 export {
   PROTOCOL_ID,
   RECORD_VERSION_PLAINTEXT,
+  RECORD_VERSION_TYPED,
   encodeRecordScript,
+  encodeTypedRecordScript,
+  decodeTypedRecordScript,
   encodeRecordPayloadV1,
   decodeRecordScript,
   decodeRecordPayload,
@@ -23,6 +26,8 @@ export type {
   MintRecordPayload,
   TransferRecordPayload,
   WriteRecordPayload,
+  TypedRecordType,
+  DecodedTypedRecordScript,
 } from './record';
 export { buildRecordTransaction, writeRecord } from './write-record';
 export type { BuildRecordTransactionParams, BuiltRecordTransaction, WriteRecordParams, WriteRecordResult } from './write-record';
@@ -46,10 +51,13 @@ export {
   transferLicenseToken,
   buildTokenRecordTransaction,
   writeWithToken,
+  TokenLockMismatchError,
+  assertTokenLock,
 } from './license-token';
 export type {
   Outpoint,
   LicenseToken,
+  TokenLock,
   BuildMintTransactionParams,
   BuiltMintTransaction,
   MintLicenseTokenParams,
@@ -64,6 +72,21 @@ export type {
   WriteWithTokenParams,
   WriteWithTokenResult,
 } from './license-token';
+export {
+  buildContractMintTransaction,
+  buildContractTokenRecordTransaction,
+  buildContractTransferTransaction,
+  readLicenseState,
+  verifyLicenseInput,
+} from './license-contract';
+export type {
+  BuiltContractTransaction,
+  BuildContractMintTransactionParams,
+  BuildContractTokenRecordTransactionParams,
+  BuildContractTransferTransactionParams,
+  LicenseState,
+  LicenseVerifyResult,
+} from './license-contract';
 export { followLicenseToken } from './token-lineage';
 export type { LineageHop, LineageHopKind, FollowLicenseTokenResult, FollowLicenseTokenParams } from './token-lineage';
 export { buildSendTransaction, sendSats } from './send-sats';

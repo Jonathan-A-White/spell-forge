@@ -1,0 +1,47 @@
+{
+  "owner": {
+    "wif": "cVGC56wmGgaZVN9ja3RBkeByNC5eBopw3AN9V874jrbVXhn5oFRJ",
+    "pubKey": "030053b3ff2c79f423f68b7aa322ae05040c4cacd3f1695a7caae6ea1b81610e25",
+    "address": "mj2VUSAGaF3eTfYyNS1MvxzuQme72d6rCs"
+  },
+  "buyer": {
+    "wif": "cP58XNybdzXR7TXvL4JSHVUgGiAk8YtiNFwa9hUYW2qjayJvD1D8",
+    "pubKey": "0246b2af2c1ff8e4b758b53d803617f6147e03b4322455947ab0edeeb2a6d7ef17",
+    "address": "mwPbNYZ9xYEP7e9zJaapsgg1GekptDHgJQ"
+  },
+  "stranger": {
+    "wif": "cVES31bBzrrbqMfPtDwUemxdNyk4H68dVkRzBCEjYndkPca2A2Rr",
+    "pubKey": "0242a4a548c2c12cc757f4f5447474e7e3ee1615cdb9ca885f60e11da678c4ac82",
+    "address": "mqT8gsaJyFuDE6zaYoif2DTcg2z7tD8Ak6"
+  },
+  "mintFundingTx": {
+    "txid": "7d4fc38993fdf0037317d1845803f2c0cd94d486385ad6f318714ae92415ee91",
+    "hex": "01000000000250c30000000000001976a914267e77969368958dad27d0f9a78ac449fda88fdb88ac00000000000000000f006a0c6d696e742d66756e64696e6700000000",
+    "vout": 0,
+    "satoshis": 50000
+  },
+  "writeFundingTx": {
+    "txid": "a883746ecfc371ff3c836d6fdd5a94685f3f44448ff9f4925363866fc64344e6",
+    "hex": "010000000002204e0000000000001976a914267e77969368958dad27d0f9a78ac449fda88fdb88ac000000000000000010006a0d77726974652d66756e64696e6700000000",
+    "vout": 0,
+    "satoshis": 20000
+  },
+  "transferFundingTx": {
+    "txid": "17e30af09c7bdde448e1c8fb8981eafde1bf788f5e68a32bb0c85294e4a04724",
+    "hex": "010000000002204e0000000000001976a914267e77969368958dad27d0f9a78ac449fda88fdb88ac000000000000000013006a107472616e736665722d66756e64696e6700000000",
+    "vout": 0,
+    "satoshis": 20000
+  },
+  "buyerFundingTx": {
+    "txid": "e626215a32c17ccadcacb1695cebb85a29911647b92118127a45d10344f47da2",
+    "hex": "010000000002204e0000000000001976a914ae1da2b1bc7f1dac02023028477d449bead916a288ac000000000000000010006a0d62757965722d66756e64696e6700000000",
+    "vout": 0,
+    "satoshis": 20000
+  },
+  "decoyOneSatTx": {
+    "txid": "89ba7689aad49485e27b56212a4183cfe7e3a24d187546d57a4cedc375e37586",
+    "hex": "01000000000201000000000000001976a914267e77969368958dad27d0f9a78ac449fda88fdb88ac000000000000000008006a056465636f7900000000",
+    "vout": 0,
+    "satoshis": 1
+  }
+}

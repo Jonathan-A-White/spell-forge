@@ -22,11 +22,13 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  // The License contract and the one test that runs it. Kept out of tsconfig.app.json,
-  // whose standard decorators and verbatimModuleSyntax scrypt-ts contracts cannot use;
-  // vitest (via this reference) compiles license.ts with these options too.
+  // The License contract, the test that runs it, and the bridge the contract-locked
+  // builders load lazily (mw-5wuz6.3). Kept out of tsconfig.app.json, whose standard
+  // decorators and verbatimModuleSyntax scrypt-ts contracts cannot use; vitest (via this
+  // reference) compiles license.ts with these options too.
   "include": [
     "src/bsv/contracts/*.ts",
+    "src/bsv/contracts/bridge/*.ts",
     "tests/unit/bsv-contracts-license.test.ts",
     "tests/fixtures/bsv/license-contract.ts"
   ]
