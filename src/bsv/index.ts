@@ -35,7 +35,13 @@ export type { BuildRecordTransactionParams, BuiltRecordTransaction, WriteRecordP
 export { readRecordByTxid } from './read-record';
 export type { DecodedRecord, ReadRecordResult } from './read-record';
 export { scanRecords } from './scan-records';
-export type { ScanRecordEntry, ScanRecordFound, ScanRecordUnreadable, ScanRecordsOptions } from './scan-records';
+export type {
+  ScanRecordEntry,
+  ScanRecordFound,
+  ScanRecordPayment,
+  ScanRecordUnreadable,
+  ScanRecordsOptions,
+} from './scan-records';
 export {
   outpointKey,
   reconcilePendingSpends,

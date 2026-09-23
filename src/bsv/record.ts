@@ -6,7 +6,8 @@
 // value 1 instead of a length-prefixed push. Phase 2 versions (0x02+) must keep using
 // this same explicit-push approach so the prefix bytes stay stable for tag-scanning code.
 
-import { LockingScript, OP, Script, Transaction, Utils } from '@bsv/sdk';
+import { LockingScript, OP, PublicKey, Script, Transaction, Utils } from '@bsv/sdk';
+import type { UnlockingScript } from '@bsv/sdk';
 
 export const PROTOCOL_ID: number[] = Utils.toArray('nftgate', 'utf8');
 export const RECORD_VERSION_PLAINTEXT = 0x01;
@@ -297,4 +298,103 @@ export function findRecordsInTransaction(txHex: string): RecordInTransaction[] {
   });
 
   return records;
+}
+
+/** True for an unspendable data output: OP_RETURN alone, or the OP_FALSE OP_RETURN shape this protocol writes. */
+function isDataOutputScript(script: LockingScript): boolean {
+  const chunks = script.chunks;
+  if (chunks.length === 0) return false;
+  if (chunks[0].op === OP.OP_RETURN) return true;
+  return chunks.length > 1 && chunks[0].op === OP.OP_FALSE && chunks[1].op === OP.OP_RETURN;
+}
+
+/** One short phrase for why a data output isn't a readable nftgate record. */
+function describeUnreadableReason(script: LockingScript): string {
+  const pushes = recordPushes(script);
+  if (!pushes) return 'not a valid pushdata sequence';
+  if (pushes.length === 0 || !isProtocolId(pushes[0])) return 'not an nftgate record';
+  if (pushes.length !== 3) return 'wrong number of fields for an nftgate record';
+  if (pushes[1].length !== 1) return 'version is not a single byte';
+  return 'unrecognized record shape';
+}
+
+export interface UnreadableDataOutput {
+  vout: number;
+  reason: string;
+}
+
+/**
+ * Finds data outputs (unspendable OP_RETURN-shaped) that are not valid nftgate records —
+ * a foreign protocol's OP_RETURN, or one that starts as this protocol's but is malformed.
+ * A plain P2PKH output is never "unreadable": it isn't a data output at all.
+ */
+export function findUnreadableDataOutputs(txHex: string): UnreadableDataOutput[] {
+  const transaction = Transaction.fromHex(txHex);
+  const found: UnreadableDataOutput[] = [];
+
+  transaction.outputs.forEach((output, vout) => {
+    if (!isDataOutputScript(output.lockingScript)) return;
+    if (decodeRecordScript(output.lockingScript)) return;
+    found.push({ vout, reason: describeUnreadableReason(output.lockingScript) });
+  });
+
+  return found;
+}
+
+// Matches keys.ts's own hardcoding: this app only ever deals in testnet addresses.
+const TESTNET_ADDRESS_PREFIX = [0x6f];
+
+/** The P2PKH address an output pays to, or null if it isn't a P2PKH output. */
+function p2pkhAddressFromLockingScript(script: LockingScript): string | null {
+  const chunks = script.chunks;
+  if (chunks.length !== 5) return null;
+  if (chunks[0].op !== OP.OP_DUP || chunks[1].op !== OP.OP_HASH160) return null;
+  if (chunks[3].op !== OP.OP_EQUALVERIFY || chunks[4].op !== OP.OP_CHECKSIG) return null;
+  const hash = chunks[2].data;
+  if (!hash || hash.length !== 20) return null;
+  return Utils.toBase58Check(hash, TESTNET_ADDRESS_PREFIX);
+}
+
+/** The P2PKH address an input spends from, read off the public key its unlocking script reveals. */
+function p2pkhAddressFromUnlockingScript(script: UnlockingScript): string | null {
+  const chunks = script.chunks;
+  if (chunks.length !== 2) return null;
+  const pubkeyBytes = chunks[1].data;
+  if (!pubkeyBytes) return null;
+  try {
+    return PublicKey.fromString(Utils.toHex(pubkeyBytes)).toAddress('testnet');
+  } catch {
+    return null;
+  }
+}
+
+export interface PlainPayment {
+  direction: 'received' | 'sent';
+  satoshis: number;
+}
+
+/**
+ * Classifies a transaction with no nftgate data output as a plain payment touching
+ * anchorAddress, or null if it doesn't touch the anchor at all. "Received" sums the
+ * outputs paid to the anchor; "sent" (the anchor spending, read off an input's revealed
+ * public key) sums the outputs paid elsewhere, since the spent output's own value isn't
+ * available from the transaction hex alone.
+ */
+export function classifyPlainPayment(txHex: string, anchorAddress: string): PlainPayment | null {
+  const transaction = Transaction.fromHex(txHex);
+
+  const receivedSatoshis = transaction.outputs
+    .filter((output) => p2pkhAddressFromLockingScript(output.lockingScript) === anchorAddress)
+    .reduce((sum, output) => sum + (output.satoshis ?? 0), 0);
+  if (receivedSatoshis > 0) return { direction: 'received', satoshis: receivedSatoshis };
+
+  const anchorIsSender = transaction.inputs.some(
+    (input) => input.unlockingScript && p2pkhAddressFromUnlockingScript(input.unlockingScript) === anchorAddress,
+  );
+  if (!anchorIsSender) return null;
+
+  const sentSatoshis = transaction.outputs
+    .filter((output) => p2pkhAddressFromLockingScript(output.lockingScript) !== anchorAddress)
+    .reduce((sum, output) => sum + (output.satoshis ?? 0), 0);
+  return { direction: 'sent', satoshis: sentSatoshis };
 }

@@ -293,7 +293,10 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
                 data-full-txid={entry.txid}
                 className="text-sf-text border-t border-sf-border pt-2"
               >
-                {'couldNotRead' in entry && <p className="text-red-600">could not read</p>}
+                {'couldNotRead' in entry && <p className="text-red-600">{`could not read (${entry.reason})`}</p>}
+                {'payment' in entry && (
+                  <p className="text-sf-text">{`${entry.satoshis.toLocaleString()} sat ${entry.direction}, not a record`}</p>
+                )}
                 {'decoded' in entry && 'text' in entry.decoded && (
                   <>
                     <p className="break-words">{entry.decoded.text}</p>
