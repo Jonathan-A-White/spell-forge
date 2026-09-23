@@ -9,6 +9,14 @@ const MAX_ATTEMPTS = 3;
 const INITIAL_RETRY_DELAY_MS = 500;
 const MAX_ERROR_BODY_CHARS = 200;
 
+// WhatsOnChain rate-limits at 3 requests/s per IP without a key. Its 429 reply carries no
+// access-control-allow-origin header (its 200s do), so in a real browser a rate-limited
+// request never reaches the 429 branch below: cross-origin fetch rejects with TypeError
+// before a status is ever seen. The scan and the token-panel lineage walk can fire faster
+// than 3/s on a fast connection, so every request from this provider is paced this far
+// apart, regardless of source (observed live 2026-09-23, mw-0ym9.17).
+const MIN_REQUEST_SPACING_MS = 350;
+
 // WhatsOnChain's /tx/{txid}/hex index lags a few seconds behind /address/{addr}/unspent
 // after a broadcast, so a spend right after a mint or write can see a 404 on a txid whose
 // output is already spendable (observed live 2026-09-23, mw-b00z.6 and mw-b00z.12).
@@ -45,6 +53,8 @@ export class WhatsOnChainProvider implements ChainProvider {
   private readonly config: ChainConfig;
   private readonly fetchFn: FetchFn;
   private readonly delay: DelayFn;
+  private requestGate: Promise<void> = Promise.resolve();
+  private hasSentRequest = false;
 
   constructor(
     config: ChainConfig,
@@ -59,7 +69,25 @@ export class WhatsOnChainProvider implements ChainProvider {
     this.delay = delay;
   }
 
+  /**
+   * Serializes dispatch across every request this provider instance makes, so no two
+   * fire closer together than MIN_REQUEST_SPACING_MS. Called once per public method,
+   * not per retry attempt: request()'s own 429/offline retries and getTransactionHex's
+   * 404 retries already wait longer than this floor.
+   */
+  private async waitForRequestSlot(): Promise<void> {
+    const myTurn = this.requestGate.then(async () => {
+      if (this.hasSentRequest) {
+        await this.delay(MIN_REQUEST_SPACING_MS);
+      }
+      this.hasSentRequest = true;
+    });
+    this.requestGate = myTurn;
+    await myTurn;
+  }
+
   async getUtxos(address: string): Promise<Utxo[]> {
+    await this.waitForRequestSlot();
     const path = `/address/${address.trim()}/unspent`;
     const body = await this.getJson<unknown>(path);
     const unspent = this.expectArray<WhatsOnChainUnspent>(path, body);
@@ -72,6 +100,7 @@ export class WhatsOnChainProvider implements ChainProvider {
   }
 
   async getAddressHistory(address: string): Promise<AddressHistoryEntry[]> {
+    await this.waitForRequestSlot();
     const path = `/address/${address.trim()}/history`;
     const body = await this.getJson<unknown>(path);
     const history = this.expectArray<WhatsOnChainHistoryEntry>(path, body);
@@ -79,6 +108,7 @@ export class WhatsOnChainProvider implements ChainProvider {
   }
 
   async getUnconfirmedAddressHistory(address: string): Promise<AddressHistoryEntry[]> {
+    await this.waitForRequestSlot();
     const path = `/address/${address.trim()}/unconfirmed/history`;
     const body = await this.getJson<unknown>(path);
     const history = this.expectArray<WhatsOnChainHistoryEntry>(path, body);
@@ -110,6 +140,7 @@ export class WhatsOnChainProvider implements ChainProvider {
    * above). Any other status or error propagates immediately, same as before.
    */
   async getTransactionHex(txid: string): Promise<string> {
+    await this.waitForRequestSlot();
     const path = `/tx/${txid.trim()}/hex`;
 
     for (let attempt = 1; attempt <= TX_HEX_NOT_FOUND_MAX_ATTEMPTS; attempt++) {
@@ -128,6 +159,7 @@ export class WhatsOnChainProvider implements ChainProvider {
   }
 
   async broadcast(txHex: string): Promise<string> {
+    await this.waitForRequestSlot();
     const response = await this.request('/tx/raw', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -151,7 +183,18 @@ export class WhatsOnChainProvider implements ChainProvider {
       try {
         response = await this.fetchFn(url, init);
       } catch (error) {
-        throw new ChainError('Could not reach WhatsOnChain (offline?)', { cause: error });
+        // A rejected fetch is indistinguishable here from a 429: WhatsOnChain's rate-limit
+        // reply carries no CORS header, so a real browser sees a cross-origin network error
+        // (TypeError) rather than a status 429 (mw-0ym9.17). Retry it the same way.
+        if (attempt === MAX_ATTEMPTS) {
+          throw new ChainError(
+            'Could not reach WhatsOnChain after 3 tries (offline, or rate-limited: its 429 reply carries no CORS header)',
+            { cause: error },
+          );
+        }
+        await this.delay(retryDelayMs);
+        retryDelayMs *= 2;
+        continue;
       }
 
       if (response.status === 429) {
