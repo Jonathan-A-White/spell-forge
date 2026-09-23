@@ -9,7 +9,13 @@
 
 import type { ChainProvider } from './chain-provider';
 import type { AddressHistoryEntry } from '../contracts/types';
-import { decodeRecordPayload, findRecordsInTransaction, type DecodedRecordPayload } from './record';
+import {
+  classifyPlainPayment,
+  decodeRecordPayload,
+  findRecordsInTransaction,
+  findUnreadableDataOutputs,
+  type DecodedRecordPayload,
+} from './record';
 
 const DEFAULT_LIMIT = 50;
 
@@ -25,9 +31,18 @@ export interface ScanRecordUnreadable {
   txid: string;
   height: number; // 0 = unconfirmed
   couldNotRead: true;
+  reason: string;
 }
 
-export type ScanRecordEntry = ScanRecordFound | ScanRecordUnreadable;
+export interface ScanRecordPayment {
+  txid: string;
+  height: number; // 0 = unconfirmed
+  payment: true;
+  direction: 'received' | 'sent';
+  satoshis: number;
+}
+
+export type ScanRecordEntry = ScanRecordFound | ScanRecordUnreadable | ScanRecordPayment;
 
 export interface ScanRecordsOptions {
   limit?: number;
@@ -60,11 +75,14 @@ function mergeHistories(
 }
 
 /**
- * Lists every 'nftgate' record paid to anchorAddress, newest first. Fetches one
- * transaction at a time — never concurrently — since the provider is rate-limited
- * and already backs off on 429 by itself. A transaction that fails to fetch or
- * parse becomes a single 'could not read' entry and the scan continues; it never
- * aborts the whole scan.
+ * Lists every 'nftgate' record paid to anchorAddress, newest first, alongside the plain
+ * payments and unreadable data outputs also found at the anchor. Fetches one transaction
+ * at a time — never concurrently — since the provider is rate-limited and already backs
+ * off on 429 by itself. A transaction that fails to fetch becomes a single 'could not
+ * read' entry and the scan continues; it never aborts the whole scan. A transaction with
+ * no nftgate record renders as a plain payment when it pays (or spends from) the anchor
+ * as an ordinary P2PKH output, or as 'could not read' (with a reason) when it carries a
+ * data output the reader cannot decode instead.
  */
 export async function scanRecords(
   provider: ChainProvider,
@@ -88,17 +106,31 @@ export async function scanRecords(
     const height = item.height ?? 0;
     try {
       const txHex = await provider.getTransactionHex(item.txid);
-      for (const record of findRecordsInTransaction(txHex)) {
-        entries.push({
-          txid: item.txid,
-          vout: record.vout,
-          version: record.version,
-          decoded: decodeRecordPayload(record.version, record.payloadBytes),
-          height,
-        });
+      const records = findRecordsInTransaction(txHex);
+
+      if (records.length > 0) {
+        for (const record of records) {
+          entries.push({
+            txid: item.txid,
+            vout: record.vout,
+            version: record.version,
+            decoded: decodeRecordPayload(record.version, record.payloadBytes),
+            height,
+          });
+        }
+      } else {
+        const [unreadable] = findUnreadableDataOutputs(txHex);
+        if (unreadable) {
+          entries.push({ txid: item.txid, height, couldNotRead: true, reason: unreadable.reason });
+        } else {
+          const payment = classifyPlainPayment(txHex, anchorAddress);
+          if (payment) {
+            entries.push({ txid: item.txid, height, payment: true, direction: payment.direction, satoshis: payment.satoshis });
+          }
+        }
       }
     } catch {
-      entries.push({ txid: item.txid, height, couldNotRead: true });
+      entries.push({ txid: item.txid, height, couldNotRead: true, reason: 'could not fetch the transaction' });
     }
     options.onProgress?.(i + 1, toFetch.length);
   }
