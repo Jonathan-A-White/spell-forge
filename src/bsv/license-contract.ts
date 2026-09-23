@@ -24,7 +24,7 @@ import {
   UnlockingScript,
   Utils,
 } from '@bsv/sdk';
-import type { Utxo } from '../contracts/types';
+import type { EventBus, Utxo } from '../contracts/types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
 import type {
@@ -34,8 +34,21 @@ import type {
   LicenseState,
   LicenseVerifyResult,
 } from './contracts/bridge/license-bridge-types';
-import { assertTokenLock, type LicenseToken, type Outpoint, type RecordWithTokenPayload } from './license-token';
-import { selectFeeUtxos } from './pending-spends';
+import {
+  assertTokenLock,
+  type LicenseToken,
+  type Outpoint,
+  type RecordWithTokenPayload,
+  type TokenRepository,
+} from './license-token';
+import {
+  describePendingShortfall,
+  filterUtxosExcludingPending,
+  outpointKey,
+  reconcilePendingSpends,
+  selectFeeUtxos,
+  type PendingSpendRepository,
+} from './pending-spends';
 import { encodeTypedRecordScript, type TypedRecordType } from './record';
 
 export type { LicenseState, LicenseVerifyResult } from './contracts/bridge/license-bridge-types';
@@ -493,4 +506,177 @@ export async function buildContractTransferTransaction(
     provider,
   });
   return built(transaction, spentOutpoints, { ...token, holderAddress: toAddress });
+}
+
+export interface MintContractLicenseTokenParams {
+  issuerKey: string; // issuer WIF; single-install: also the holder, so the License locks to this key's own pubkey
+  provider: ChainProvider;
+  config: ChainConfig;
+  eventBus: EventBus;
+  pendingSpendRepo: PendingSpendRepository;
+}
+
+/**
+ * Fetches the issuer's UTXOs, reconciles them against the app's own pending spends
+ * (mw-b00z.11), mints a token whose 1-sat output is the License covenant locked to the
+ * issuer's own key, broadcasts once, records the spent outpoints as a pending spend, and
+ * emits 'bsv:token-minted'. The screen's contract-lock counterpart to mintLicenseToken.
+ */
+export async function mintContractLicenseToken(params: MintContractLicenseTokenParams): Promise<LicenseToken> {
+  const { issuerKey, provider, config, eventBus, pendingSpendRepo } = params;
+
+  const issuer = PrivateKey.fromWif(issuerKey);
+  const issuerAddress = issuer.toAddress(config.network);
+  const holderPubKey = issuer.toPublicKey().toString();
+  const rawUtxos = await provider.getUtxos(issuerAddress);
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos } = filterUtxosExcludingPending(rawUtxos, remaining);
+
+  let mintBuilt: BuiltContractTransaction;
+  try {
+    mintBuilt = await buildContractMintTransaction({ issuerKey, utxos, holderPubKey, config, provider });
+  } catch (error) {
+    throw describePendingShortfall(error, rawUtxos, remaining);
+  }
+
+  const txid = await provider.broadcast(mintBuilt.hex);
+
+  await pendingSpendRepo.add({
+    txid,
+    outpoints: mintBuilt.spentOutpoints.map(outpointKey),
+    createdAt: new Date(),
+  });
+
+  const origin: Outpoint = { txid, vout: 0 };
+  const token: LicenseToken = { ...mintBuilt.token, origin, current: origin };
+
+  eventBus.emit({ type: 'bsv:token-minted', payload: { txid, origin } });
+
+  return token;
+}
+
+export interface WriteWithContractTokenParams {
+  holderKey: string; // current owner's WIF
+  token: LicenseToken;
+  payload: RecordWithTokenPayload;
+  provider: ChainProvider;
+  config: ChainConfig;
+  eventBus: EventBus;
+  repository: TokenRepository;
+  pendingSpendRepo: PendingSpendRepository;
+}
+
+export interface WriteWithContractTokenResult {
+  txid: string;
+}
+
+/**
+ * Fetches the holder's fee UTXOs, reconciles them against pending spends (mw-b00z.11),
+ * writes a record through the License's `write`, broadcasts once, records the spend,
+ * moves the repository's current outpoint, and emits 'bsv:record-written'. The screen's
+ * contract-lock counterpart to writeWithToken.
+ */
+export async function writeWithContractToken(params: WriteWithContractTokenParams): Promise<WriteWithContractTokenResult> {
+  const { holderKey, token, payload, provider, config, eventBus, repository, pendingSpendRepo } = params;
+
+  const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
+  const rawFeeUtxos = await provider.getUtxos(holderAddress);
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawFeeUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos: feeUtxos } = filterUtxosExcludingPending(rawFeeUtxos, remaining);
+
+  let writeBuilt: BuiltContractTransaction;
+  try {
+    writeBuilt = await buildContractTokenRecordTransaction({ holderKey, token, feeUtxos, payload, config, provider });
+  } catch (error) {
+    throw describePendingShortfall(error, rawFeeUtxos, remaining);
+  }
+
+  const txid = await provider.broadcast(writeBuilt.hex);
+
+  await pendingSpendRepo.add({
+    txid,
+    outpoints: writeBuilt.spentOutpoints.map(outpointKey),
+    createdAt: new Date(),
+  });
+
+  const current: Outpoint = { txid, vout: 0 };
+  await repository.updateCurrent(token.origin, current, token.holderAddress);
+
+  eventBus.emit({
+    type: 'bsv:record-written',
+    payload: { txid, origin: `${token.origin.txid}:${token.origin.vout}` },
+  });
+
+  return { txid };
+}
+
+export interface TransferContractTokenParams {
+  holderKey: string; // current owner's WIF
+  token: LicenseToken;
+  toPubKey: string; // the buyer's owner key (compressed, hex)
+  payments?: { address: string; satoshis: number }[];
+  provider: ChainProvider;
+  config: ChainConfig;
+  eventBus: EventBus;
+  repository: TokenRepository;
+  pendingSpendRepo: PendingSpendRepository;
+}
+
+export interface TransferContractTokenResult {
+  txid: string;
+}
+
+/**
+ * Fetches the holder's fee UTXOs, reconciles them against pending spends (mw-b00z.11),
+ * transfers the token through the License's `transfer` to the buyer's own key, broadcasts
+ * once, records the spend, moves the repository's current outpoint and holder, and emits
+ * 'bsv:token-transferred'. The screen's contract-lock counterpart to transferLicenseToken.
+ */
+export async function transferContractToken(params: TransferContractTokenParams): Promise<TransferContractTokenResult> {
+  const { holderKey, token, toPubKey, payments = [], provider, config, eventBus, repository, pendingSpendRepo } = params;
+
+  const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
+  const rawFeeUtxos = await provider.getUtxos(holderAddress);
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawFeeUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos: feeUtxos } = filterUtxosExcludingPending(rawFeeUtxos, remaining);
+
+  let transferBuilt: BuiltContractTransaction;
+  try {
+    transferBuilt = await buildContractTransferTransaction({ holderKey, token, feeUtxos, toPubKey, payments, config, provider });
+  } catch (error) {
+    throw describePendingShortfall(error, rawFeeUtxos, remaining);
+  }
+
+  const txid = await provider.broadcast(transferBuilt.hex);
+
+  await pendingSpendRepo.add({
+    txid,
+    outpoints: transferBuilt.spentOutpoints.map(outpointKey),
+    createdAt: new Date(),
+  });
+
+  const current: Outpoint = { txid, vout: 0 };
+  await repository.updateCurrent(token.origin, current, transferBuilt.token.holderAddress);
+
+  eventBus.emit({
+    type: 'bsv:token-transferred',
+    payload: { txid, origin: token.origin, to: transferBuilt.token.holderAddress },
+  });
+
+  return { txid };
 }

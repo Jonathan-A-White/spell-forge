@@ -1,6 +1,6 @@
 export { chainConfig } from './config';
 export type { ChainConfig } from './config';
-export { generateTestnetKey, isValidTestnetAddress } from './keys';
+export { generateTestnetKey, isValidCompressedPublicKeyHex, isValidTestnetAddress } from './keys';
 export type { GeneratedKey } from './keys';
 export { createChainProvider } from './chain-provider';
 export type { ChainProvider } from './chain-provider';
@@ -76,6 +76,9 @@ export {
   buildContractMintTransaction,
   buildContractTokenRecordTransaction,
   buildContractTransferTransaction,
+  mintContractLicenseToken,
+  writeWithContractToken,
+  transferContractToken,
   readLicenseState,
   verifyLicenseInput,
 } from './license-contract';
@@ -84,6 +87,11 @@ export type {
   BuildContractMintTransactionParams,
   BuildContractTokenRecordTransactionParams,
   BuildContractTransferTransactionParams,
+  MintContractLicenseTokenParams,
+  WriteWithContractTokenParams,
+  WriteWithContractTokenResult,
+  TransferContractTokenParams,
+  TransferContractTokenResult,
   LicenseState,
   LicenseVerifyResult,
 } from './license-contract';
