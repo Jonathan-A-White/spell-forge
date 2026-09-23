@@ -1,12 +1,29 @@
-// buildContractMintTransaction (mw-5wuz6.3): output 0 is the 1-sat License-locked token to
-// the holder's owner key, output 1 the Fuel stand-in (a P2PKH to the same holder carrying
-// the change, whose hash the License binds), output 2 a type-M Data output. No network.
-import { describe, it, expect, beforeAll } from 'vitest';
-import { Hash, P2PKH, Utils } from '@bsv/sdk';
-import { buildContractMintTransaction, readLicenseState } from '../../src/bsv/license-contract';
+// buildContractMintTransaction (mw-5wuz6.3, mw-yo97u.3): output 0 is the 1-sat License-locked
+// token to the holder's owner key, output 1 Fuel(C) at exactly the MINT_FUEL passed (its
+// hash256 is the fuelScriptHash the License binds), output 2 a type-M Data output, output 3
+// the issuer's change. No network.
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { Hash, P2PKH, Transaction, Utils } from '@bsv/sdk';
+import {
+  buildContractMintTransaction,
+  fuelLockingScript,
+  InvalidMintFuelError,
+  mintContractLicenseToken,
+  readLicenseState,
+} from '../../src/bsv/license-contract';
 import type { BuiltContractTransaction } from '../../src/bsv/license-contract';
+import { createEventBus } from '../../src/contracts/events';
 import { decodeTypedRecordScript } from '../../src/bsv/record';
-import { ARTIFACT_MD5, config, fakeChain, mintOwnersLicense, utxoOf, wallet } from '../fixtures/bsv/license-contract-chain';
+import {
+  ARTIFACT_MD5,
+  config,
+  fakeChain,
+  FUEL_ARTIFACT_MD5,
+  MINT_FUEL,
+  mintOwnersLicense,
+  utxoOf,
+  wallet,
+} from '../fixtures/bsv/license-contract-chain';
 
 let mint: BuiltContractTransaction;
 
@@ -14,28 +31,43 @@ beforeAll(async () => {
   mint = await mintOwnersLicense();
 });
 
+function mintWithFuel(mintFuelSatoshis: number | undefined): Promise<BuiltContractTransaction> {
+  return buildContractMintTransaction({
+    issuerKey: wallet.owner.wif,
+    utxos: [utxoOf(wallet.mintFundingTx)],
+    holderPubKey: wallet.owner.pubKey,
+    mintFuelSatoshis,
+    config,
+    provider: fakeChain(),
+  });
+}
+
 describe('buildContractMintTransaction', () => {
-  it('builds exactly three outputs: the License token, the Fuel stand-in carrying the change, an M Data output', async () => {
+  it('builds the License token, Fuel(C) at exactly MINT_FUEL, an M Data output, then the issuer’s change', async () => {
     const { outputs } = mint.transaction;
-    expect(outputs).toHaveLength(3);
+    expect(outputs).toHaveLength(4);
 
     expect(outputs[0].satoshis).toBe(1);
     const state = await readLicenseState(outputs[0].lockingScript.toHex());
     expect(state.ownerPubKeyHex).toBe(wallet.owner.pubKey);
     expect(state.collectionIdHex).toBe(Utils.toHex(Utils.toArray(config.collectionId, 'utf8')));
 
-    const standIn = new P2PKH().lock(wallet.owner.address);
-    expect(outputs[1].lockingScript.toHex()).toBe(standIn.toHex());
-    expect(outputs[1].satoshis).toBeGreaterThan(0);
-    expect(state.fuelScriptHashHex).toBe(Utils.toHex(Hash.hash256(standIn.toBinary())));
+    const fuel = await fuelLockingScript(config);
+    expect(outputs[1].lockingScript.toHex()).toBe(fuel.toHex());
+    expect(outputs[1].satoshis).toBe(10_000);
+    expect(outputs[1].satoshis).toBe(MINT_FUEL);
+    expect(state.fuelScriptHashHex).toBe(Utils.toHex(Hash.hash256(outputs[1].lockingScript.toBinary())));
 
     expect(outputs[2].satoshis).toBe(0);
     const record = decodeTypedRecordScript(outputs[2].lockingScript);
-    expect(record).toMatchObject({ version: 2, recordType: 'M' });
+    expect(record).toMatchObject({ version: 2, recordType: 'M', manifest: [] });
     expect(JSON.parse(Utils.toUTF8(record!.payloadBytes))).toEqual({
       collection: config.collectionId,
       holder: wallet.owner.address,
     });
+
+    expect(outputs[3].lockingScript.toHex()).toBe(new P2PKH().lock(wallet.owner.address).toHex());
+    expect(outputs[3].satoshis).toBeGreaterThan(0);
   });
 
   it('spends only the funding inputs, signed, and inputs total = outputs total + fee', () => {
@@ -56,13 +88,14 @@ describe('buildContractMintTransaction', () => {
       issuerKey: wallet.owner.wif,
       utxos: [utxoOf(wallet.decoyOneSatTx), utxoOf(wallet.mintFundingTx)],
       holderPubKey: wallet.owner.pubKey,
+      mintFuelSatoshis: MINT_FUEL,
       config,
       provider: fakeChain(),
     });
     expect(built.transaction.inputs.map((input) => input.sourceTXID)).toEqual([wallet.mintFundingTx.txid]);
   });
 
-  it('returns the token record: origin and current at output 0, lock license, the artifact md5', () => {
+  it('returns the token record: origin and current at output 0, lock license, the License and Fuel artifact md5s', () => {
     const origin = { txid: mint.txid, vout: 0 };
     expect(mint.token).toEqual({
       origin,
@@ -71,7 +104,22 @@ describe('buildContractMintTransaction', () => {
       collectionId: config.collectionId,
       lock: 'license',
       artifact: ARTIFACT_MD5,
+      fuelArtifact: FUEL_ARTIFACT_MD5,
     });
+  });
+
+  it('refuses a MINT_FUEL under 2 × FEE_CAP (4,000 sat), or none, with InvalidMintFuelError', async () => {
+    await expect(mintWithFuel(3_999)).rejects.toBeInstanceOf(InvalidMintFuelError);
+    await expect(mintWithFuel(3_999)).rejects.toMatchObject({
+      name: 'InvalidMintFuelError',
+      message: 'MINT_FUEL 3999 sat is below 2 × FEE_CAP (4000 sat): a Fuel that small cannot pay for two writes',
+    });
+    await expect(mintWithFuel(undefined)).rejects.toMatchObject({
+      name: 'InvalidMintFuelError',
+      message: 'MINT_FUEL is not set: configure mintFuelSatoshis before minting a License with Fuel',
+    });
+    const atMinimum = await mintWithFuel(4_000);
+    expect(atMinimum.transaction.outputs[1].satoshis).toBe(4_000);
   });
 
   it('refuses an owner key that is not a public key', async () => {
@@ -80,9 +128,50 @@ describe('buildContractMintTransaction', () => {
         issuerKey: wallet.owner.wif,
         utxos: [utxoOf(wallet.mintFundingTx)],
         holderPubKey: wallet.owner.address,
+        mintFuelSatoshis: MINT_FUEL,
         config,
         provider: fakeChain(),
       }),
     ).rejects.toThrow('Invalid holder public key');
+  });
+});
+
+describe('mintContractLicenseToken', () => {
+  function pendingSpendRepo() {
+    return { getAll: vi.fn().mockResolvedValue([]), add: vi.fn(), removeMany: vi.fn() };
+  }
+
+  it('mints with the configured MINT_FUEL', async () => {
+    const provider = fakeChain();
+    vi.mocked(provider.getUtxos).mockResolvedValue([utxoOf(wallet.mintFundingTx)]);
+    vi.mocked(provider.broadcast).mockImplementation(async (hex: string) => {
+      const tx = Transaction.fromHex(hex);
+      expect(tx.outputs[1].satoshis).toBe(12_345);
+      return tx.id('hex');
+    });
+    const token = await mintContractLicenseToken({
+      issuerKey: wallet.owner.wif,
+      provider,
+      config: { ...config, mintFuelSatoshis: 12_345 },
+      eventBus: createEventBus(),
+      pendingSpendRepo: pendingSpendRepo(),
+    });
+    expect(provider.broadcast).toHaveBeenCalledTimes(1);
+    expect(token.fuelArtifact).toBe(FUEL_ARTIFACT_MD5);
+  });
+
+  it('refuses to mint, and broadcasts nothing, when MINT_FUEL is not configured', async () => {
+    const provider = fakeChain();
+    vi.mocked(provider.getUtxos).mockResolvedValue([utxoOf(wallet.mintFundingTx)]);
+    await expect(
+      mintContractLicenseToken({
+        issuerKey: wallet.owner.wif,
+        provider,
+        config,
+        eventBus: createEventBus(),
+        pendingSpendRepo: pendingSpendRepo(),
+      }),
+    ).rejects.toMatchObject({ name: 'InvalidMintFuelError' });
+    expect(provider.broadcast).not.toHaveBeenCalled();
   });
 });

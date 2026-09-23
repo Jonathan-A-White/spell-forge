@@ -1,5 +1,5 @@
 // The token record's lock and artifact fields (mw-5wuz6.3): a License token stores lock
-// 'license' and the artifact md5; every token recorded before the field existed (schema
+// 'license' and the artifact md5, and a License + Fuel token the Fuel's (mw-yo97u.3); every token recorded before the field existed (schema
 // v11) reads back as lock 'p2pkh' after the upgrade.
 import { describe, it, expect, beforeEach } from 'vitest';
 import Dexie from 'dexie';
@@ -13,8 +13,9 @@ beforeEach(async () => {
 });
 
 describe('token record lock and artifact', () => {
-  it('stores and lists a License token with lock license and its artifact, and keeps them across updateCurrent', async () => {
+  it('stores and lists a License token with lock license and its License and Fuel artifacts, and keeps them across updateCurrent', async () => {
     const { token } = await mintOwnersLicense();
+    expect(token.fuelArtifact).toBeDefined();
     await bsvTokenRepo.put(token);
     expect(await bsvTokenRepo.list()).toEqual([token]);
 
@@ -23,6 +24,7 @@ describe('token record lock and artifact', () => {
     const [updated] = await bsvTokenRepo.list();
     expect(updated.lock).toBe('license');
     expect(updated.artifact).toBe(token.artifact);
+    expect(updated.fuelArtifact).toBe(token.fuelArtifact);
   });
 
   it('reads every token recorded before v12 as lock p2pkh, with no artifact', async () => {

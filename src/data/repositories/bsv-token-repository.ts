@@ -17,6 +17,7 @@ export const bsvTokenRepo = {
       collectionId: row.collectionId,
       lock: row.lock,
       ...(row.artifact !== undefined ? { artifact: row.artifact } : {}),
+      ...(row.fuelArtifact !== undefined ? { fuelArtifact: row.fuelArtifact } : {}),
     }));
   },
 

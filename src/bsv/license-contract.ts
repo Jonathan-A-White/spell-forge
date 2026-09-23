@@ -1,16 +1,18 @@
 // src/bsv/license-contract.ts — Contract-locked License Token builders (mw-5wuz6.3): the
 // mint, write-with-token and transfer transactions of license-token.ts with the token's
 // 1-sat output locked by the License covenant (src/bsv/contracts/license.ts, spec §3.7)
-// instead of a P2PKH. @bsv/sdk builds, funds and signs the transaction; the License's
-// locking script and input 0's unlocking script come from the scrypt-ts side
-// (contracts/bridge/license-bridge.ts) as raw hex, loaded lazily so the app's main chunk
-// carries no scrypt-ts.
+// instead of a P2PKH. @bsv/sdk builds, funds and signs the transaction; the License's and
+// the Fuel's locking scripts and unlocking scripts come from the scrypt-ts side
+// (contracts/bridge/license-bridge.ts, fuel-bridge.ts) as raw hex, loaded lazily so the
+// app's main chunk carries no scrypt-ts.
 //
-// Output layout, rule (f): [0] the License, 1 sat; [1] the Fuel stand-in, a P2PKH to the
-// holder carrying the change, whose hash256 is the fuelScriptHash the License was
-// constructed with (so the License binds it) until the Fuel contract exists; [2] the Data
-// output (record type M, W or TR); a transfer may add payment outputs after. Funding
-// inputs are P2PKH, at index 1 and later when input 0 spends the License.
+// Output layout, rule (f): [0] the License, 1 sat; [1] the Fuel; [2] the Data output (record
+// type M, W or TR); a transfer may add payment outputs after. Since mw-yo97u.3 the mint
+// creates Fuel(C) (src/bsv/contracts/fuel.ts) at output 1 with exactly MINT_FUEL sat, the
+// issuer's change at output 3, and every spend of such a token takes its Fuel at input 1
+// and pays the fee from it: output 1 = own − fee, no holder coin on a write. A step 2 token
+// (mw-5wuz6.3), whose License binds a P2PKH stand-in to the holder, keeps the stand-in path:
+// funding inputs at 1 and later, the stand-in carrying the change.
 
 import {
   Hash,
@@ -34,6 +36,7 @@ import type {
   LicenseState,
   LicenseVerifyResult,
 } from './contracts/bridge/license-bridge-types';
+import type { FuelBridge, FuelBridgeModule } from './contracts/bridge/fuel-bridge-types';
 import {
   assertTokenLock,
   type LicenseToken,
@@ -47,6 +50,7 @@ import {
   outpointKey,
   reconcilePendingSpends,
   selectFeeUtxos,
+  type PendingSpendEntry,
   type PendingSpendRepository,
 } from './pending-spends';
 import { encodeTypedRecordScript, type TypedRecordType } from './record';
@@ -54,35 +58,101 @@ import { encodeTypedRecordScript, type TypedRecordType } from './record';
 export type { LicenseState, LicenseVerifyResult } from './contracts/bridge/license-bridge-types';
 
 const TOKEN_OUTPUT_SATOSHIS = 1;
+/** Fuel(C) is always output 1 of the transaction that made it, and input 1 of the one that spends it (§4.3). */
+const FUEL_INDEX = 1;
 const SIGHASH_ALL_FORKID = TransactionSignature.SIGHASH_ALL | TransactionSignature.SIGHASH_FORKID;
+const SIGHASH_SINGLE_FORKID = TransactionSignature.SIGHASH_SINGLE | TransactionSignature.SIGHASH_FORKID;
 
-// A lazy glob rather than a bare import(): Vite still gives the bridge (and scrypt-ts) its
-// own chunk, loaded on first use, but the app's tsc does not follow it into license.ts,
-// whose legacy decorators only tsconfig.contracts-test.json compiles.
-const BRIDGE_MODULE = './contracts/bridge/license-bridge.ts';
-const bridgeLoaders = import.meta.glob<LicenseBridgeModule>('./contracts/bridge/license-bridge.ts');
-
-let bridgePromise: Promise<LicenseBridge> | undefined;
-
-function loadLicenseBridge(): Promise<LicenseBridge> {
-  bridgePromise ??= bridgeLoaders[BRIDGE_MODULE]().then(
-    (module) => module.licenseBridge,
-    (error: unknown) => {
-      bridgePromise = undefined;
-      throw error;
-    },
-  );
-  return bridgePromise;
+/** A MINT_FUEL that is unset, or under 2 × FEE_CAP, so the Fuel could not pay for two writes. */
+export class InvalidMintFuelError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidMintFuelError';
+  }
 }
+
+/**
+ * The token record names a License (or Fuel) artifact other than the one this build carries.
+ * No older artifacts are kept (deferred until mainnet), so such a token cannot be spent.
+ */
+export class ContractVersionMismatchError extends Error {
+  readonly contract: 'License' | 'Fuel';
+  readonly minted: string | undefined;
+  readonly current: string;
+
+  constructor(contract: 'License' | 'Fuel', minted: string | undefined, current: string) {
+    super(
+      `This token was minted under an older contract version: its ${contract} artifact is ${minted ?? 'unrecorded'}, ` +
+        `this build carries ${current}, and no older artifact is kept to spend it`,
+    );
+    this.name = 'ContractVersionMismatchError';
+    this.contract = contract;
+    this.minted = minted;
+    this.current = current;
+  }
+}
+
+/** A Fuel-paid spend whose estimated fee is more than the Fuel may burn in one spend. */
+export class FuelFeeCapExceededError extends Error {
+  readonly fee: number;
+  readonly feeCap: number;
+
+  constructor(fee: number, feeCap: number) {
+    super(`This spend's estimated fee ${fee} sat exceeds the Fuel's FEE_CAP of ${feeCap} sat`);
+    this.name = 'FuelFeeCapExceededError';
+    this.fee = fee;
+    this.feeCap = feeCap;
+  }
+}
+
+/** Loads once, on first use; a failed load is retried on the next call. */
+function lazy<T>(load: () => Promise<T>): () => Promise<T> {
+  let promise: Promise<T> | undefined;
+  return () => {
+    promise ??= load().catch((error: unknown) => {
+      promise = undefined;
+      throw error;
+    });
+    return promise;
+  };
+}
+
+// Lazy globs rather than bare import()s: Vite still gives the bridges (and scrypt-ts) their
+// own chunk, loaded on first use, but the app's tsc does not follow them into license.ts
+// and fuel.ts, whose legacy decorators only tsconfig.contracts-test.json compiles.
+const LICENSE_BRIDGE_MODULE = './contracts/bridge/license-bridge.ts';
+const licenseBridgeLoaders = import.meta.glob<LicenseBridgeModule>('./contracts/bridge/license-bridge.ts');
+const FUEL_BRIDGE_MODULE = './contracts/bridge/fuel-bridge.ts';
+const fuelBridgeLoaders = import.meta.glob<FuelBridgeModule>('./contracts/bridge/fuel-bridge.ts');
+
+const loadLicenseBridge = lazy(() => licenseBridgeLoaders[LICENSE_BRIDGE_MODULE]().then((module) => module.licenseBridge));
+const loadFuelBridge = lazy(() => fuelBridgeLoaders[FUEL_BRIDGE_MODULE]().then((module) => module.fuelBridge));
 
 /** The owner key, collection and Fuel script hash a License locking script carries. */
 export async function readLicenseState(lockingScriptHex: string): Promise<LicenseState> {
   return (await loadLicenseBridge()).readLockingScript(lockingScriptHex);
 }
 
+/** A new License's locking script from the committed artifact, as hex. */
+export async function licenseLockingScript(state: LicenseState): Promise<string> {
+  return (await loadLicenseBridge()).lockingScript(state);
+}
+
+/** Fuel(C)'s locking script for config's collection, from the committed artifact. */
+export async function fuelLockingScript(config: ChainConfig): Promise<LockingScript> {
+  return LockingScript.fromHex((await loadFuelBridge()).lockingScript(collectionIdHex(config)));
+}
+
 /** Runs input `inputIndex` (a License spend) through the committed artifact's script, locally. */
 export async function verifyLicenseInput(transaction: Transaction, inputIndex = 0): Promise<LicenseVerifyResult> {
   const bridge = await loadLicenseBridge();
+  const { lockingScript, satoshis } = sourceOutput(transaction, inputIndex);
+  return bridge.verifyInput(transaction.toHex(), inputIndex, lockingScript.toHex(), satoshis);
+}
+
+/** Runs input `inputIndex` (a Fuel spend) through the committed Fuel artifact's script, locally. */
+export async function verifyFuelInput(transaction: Transaction, inputIndex = FUEL_INDEX): Promise<LicenseVerifyResult> {
+  const bridge = await loadFuelBridge();
   const { lockingScript, satoshis } = sourceOutput(transaction, inputIndex);
   return bridge.verifyInput(transaction.toHex(), inputIndex, lockingScript.toHex(), satoshis);
 }
@@ -149,6 +219,13 @@ function describeTransaction(tx: Transaction): BridgeTransaction {
   };
 }
 
+function inputOutpoints(transaction: Transaction): Outpoint[] {
+  return transaction.inputs.map((input) => ({
+    txid: input.sourceTXID ?? input.sourceTransaction?.id('hex') ?? '',
+    vout: input.sourceOutputIndex,
+  }));
+}
+
 /** Bytes of a data push of n bytes, its opcode (and length) included. */
 function pushLength(n: number): number {
   return n + (n < 76 ? 1 : n < 256 ? 2 : n < 65536 ? 3 : 5);
@@ -156,6 +233,11 @@ function pushLength(n: number): number {
 
 function varIntLength(n: number): number {
   return n < 0xfd ? 1 : n <= 0xffff ? 3 : 5;
+}
+
+/** A BIP143 preimage's length: fixed fields plus the subscript (the spent locking script) and its length. */
+function preimageLength(scriptLength: number): number {
+  return 156 + varIntLength(scriptLength) + scriptLength;
 }
 
 interface LicenseUnlockOptions {
@@ -171,7 +253,7 @@ interface LicenseUnlockOptions {
  * Input 0's unlocking template. @bsv/sdk formats the SIGHASH_ALL|FORKID preimage and signs
  * it with the owner key, exactly as its own P2PKH template does; the bridge checks the
  * preimage is the one the License's Push TX will see, then builds the method call around
- * the signature. Called by transaction.sign(), after fee() has fixed the change.
+ * the signature. Called by transaction.sign(), after the fee has fixed every output.
  */
 function licenseUnlock({ method, bridge, ownerKey, newOwnerPubKeyHex, blind }: LicenseUnlockOptions) {
   return {
@@ -213,13 +295,12 @@ function licenseUnlock({ method, bridge, ownerKey, newOwnerPubKeyHex, blind }: L
       const { lockingScript } = sourceOutput(tx, inputIndex);
       const scriptLength = lockingScript.toBinary().length;
       const outputScriptLength = (index: number) => tx.outputs[index].lockingScript.toBinary().length;
-      const preimageLength = 156 + varIntLength(scriptLength) + scriptLength;
       let length =
         pushLength(73) +
         pushLength(outputScriptLength(1)) +
         pushLength(9) +
         pushLength(outputScriptLength(2)) +
-        pushLength(preimageLength) +
+        pushLength(preimageLength(scriptLength)) +
         pushLength(36 * tx.inputs.length) +
         1;
       if (method === 'transfer') {
@@ -234,6 +315,48 @@ function licenseUnlock({ method, bridge, ownerKey, newOwnerPubKeyHex, blind }: L
   };
 }
 
+/**
+ * The Fuel input's unlocking template: @bsv/sdk formats its SIGHASH_SINGLE|FORKID preimage
+ * (no signature: Fuel(C) has no key), the bridge checks it is the one the Fuel's Push TX
+ * will see and builds spend(fuelValue) with the preimage and the prevouts list (FB-1).
+ */
+function fuelUnlock({ bridge, blind }: { bridge: FuelBridge; blind?: boolean }) {
+  return {
+    sign: async (tx: Transaction, inputIndex: number): Promise<UnlockingScript> => {
+      const input = tx.inputs[inputIndex];
+      const { lockingScript, satoshis } = sourceOutput(tx, inputIndex);
+      const preimage = TransactionSignature.format({
+        sourceTXID: input.sourceTXID ?? input.sourceTransaction!.id('hex'),
+        sourceOutputIndex: input.sourceOutputIndex,
+        sourceSatoshis: satoshis,
+        transactionVersion: tx.version,
+        otherInputs: tx.inputs.filter((_, index) => index !== inputIndex),
+        inputIndex,
+        outputs: tx.outputs,
+        inputSequence: input.sequence ?? 0xffffffff,
+        subscript: lockingScript,
+        lockTime: tx.lockTime,
+        scope: SIGHASH_SINGLE_FORKID,
+      });
+      const unlockingHex = bridge.unlockingScript({
+        tx: describeTransaction(tx),
+        inputIndex,
+        sourceLockingScriptHex: lockingScript.toHex(),
+        sourceSatoshis: satoshis,
+        preimageHex: Utils.toHex(preimage),
+        fuelValue: tx.outputs[FUEL_INDEX].satoshis ?? 0,
+        blind,
+      });
+      return UnlockingScript.fromHex(unlockingHex);
+    },
+    // fuelValue, the preimage (carrying the Fuel's own locking script), the prevouts. Rounded up.
+    estimateLength: async (tx: Transaction, inputIndex: number): Promise<number> => {
+      const scriptLength = sourceOutput(tx, inputIndex).lockingScript.toBinary().length;
+      return pushLength(9) + pushLength(preimageLength(scriptLength)) + pushLength(36 * tx.inputs.length) + 16;
+    },
+  };
+}
+
 /** Throws a named error if the built License spend would fail the committed artifact's script. */
 function assertVerifies(bridge: LicenseBridge, transaction: Transaction): void {
   const { lockingScript, satoshis } = sourceOutput(transaction, 0);
@@ -243,21 +366,52 @@ function assertVerifies(bridge: LicenseBridge, transaction: Transaction): void {
   }
 }
 
+/** Throws a named error if the built Fuel spend at input 1 would fail the committed Fuel artifact's script. */
+function assertFuelVerifies(bridge: FuelBridge, transaction: Transaction): void {
+  const { lockingScript, satoshis } = sourceOutput(transaction, FUEL_INDEX);
+  const { success, error } = bridge.verifyInput(transaction.toHex(), FUEL_INDEX, lockingScript.toHex(), satoshis);
+  if (!success) {
+    throw new Error(`The built Fuel spend fails local verification against artifact ${bridge.artifactVersion}: ${error}`);
+  }
+}
+
 export interface BuildContractMintTransactionParams {
-  issuerKey: string; // issuer WIF: signs the funding inputs
+  issuerKey: string; // issuer WIF: signs the funding inputs, and takes the change
   utxos: Utxo[];
   holderPubKey: string; // the owner key the License locks to (compressed, hex)
+  /**
+   * MINT_FUEL: output 1's satoshis, exactly. Refused with InvalidMintFuelError when unset
+   * or under 2 × FEE_CAP. The app passes config.mintFuelSatoshis.
+   */
+  mintFuelSatoshis?: number;
   config: ChainConfig;
   provider: ChainProvider;
 }
 
+function assertMintFuel(mintFuelSatoshis: number | undefined, fuelBridge: FuelBridge): number {
+  if (mintFuelSatoshis === undefined) {
+    throw new InvalidMintFuelError('MINT_FUEL is not set: configure mintFuelSatoshis before minting a License with Fuel');
+  }
+  const minimum = 2 * fuelBridge.feeCapSatoshis;
+  if (!Number.isInteger(mintFuelSatoshis) || mintFuelSatoshis < minimum) {
+    throw new InvalidMintFuelError(
+      `MINT_FUEL ${mintFuelSatoshis} sat is below 2 × FEE_CAP (${minimum} sat): a Fuel that small cannot pay for two writes`,
+    );
+  }
+  return mintFuelSatoshis;
+}
+
 /**
- * Builds a signed mint: [0] a 1-sat License owned by holderPubKey, [1] the Fuel stand-in
- * (a P2PKH to the holder, carrying the change), [2] a type-M Data output. Funding inputs
- * only; never a 1-satoshi UTXO (spec R4.1.1), so output 0 is a fresh origin.
+ * Builds a signed mint (spec §4.1): [0] a 1-sat License owned by holderPubKey, whose
+ * fuelScriptHash is hash256 of Fuel(C); [1] Fuel(C) with exactly MINT_FUEL sat; [2] a
+ * type-M Data output; [3] the issuer's change. Funding inputs only; never a 1-satoshi UTXO
+ * (spec R4.1.1), so output 0 is a fresh origin.
  */
 export async function buildContractMintTransaction(params: BuildContractMintTransactionParams): Promise<BuiltContractTransaction> {
-  const { issuerKey, utxos, holderPubKey, config, provider } = params;
+  const { issuerKey, utxos, holderPubKey, mintFuelSatoshis, config, provider } = params;
+
+  const fuelBridge = await loadFuelBridge();
+  const mintFuel = assertMintFuel(mintFuelSatoshis, fuelBridge);
 
   if (utxos.length === 0) {
     throw new Error('No UTXOs available — fund the issuer wallet before minting');
@@ -267,7 +421,7 @@ export async function buildContractMintTransaction(params: BuildContractMintTran
   const issuer = PrivateKey.fromWif(issuerKey);
   const holder = parsePublicKey(holderPubKey, 'holder');
   const holderAddress = holder.toAddress(config.network);
-  const fuelScript = new P2PKH().lock(holderAddress);
+  const fuelScript = LockingScript.fromHex(fuelBridge.lockingScript(collectionIdHex(config)));
 
   const bridge = await loadLicenseBridge();
   const licenseScript = LockingScript.fromHex(
@@ -281,15 +435,16 @@ export async function buildContractMintTransaction(params: BuildContractMintTran
   const transaction = new Transaction();
   await addFundingInputs(transaction, eligibleUtxos, issuer, provider);
   transaction.addOutput({ lockingScript: licenseScript, satoshis: TOKEN_OUTPUT_SATOSHIS });
-  transaction.addOutput({ lockingScript: fuelScript, change: true });
+  transaction.addOutput({ lockingScript: fuelScript, satoshis: mintFuel });
   transaction.addOutput({
     lockingScript: encodeTypedRecordScript('M', jsonBytes({ collection: config.collectionId, holder: holderAddress })),
     satoshis: 0,
   });
+  transaction.addOutput({ lockingScript: new P2PKH().lock(issuer.toAddress(config.network)), change: true });
 
   await transaction.fee(new SatoshisPerKilobyte(config.feeRateSatPerKb));
-  if (transaction.outputs.length < 3) {
-    throw new Error('Not enough satoshis to mint a token and cover the fee');
+  if (transaction.outputs.length < 4) {
+    throw new Error('Not enough satoshis to mint a token, fund its Fuel and cover the fee');
   }
   await transaction.sign();
 
@@ -307,55 +462,87 @@ export async function buildContractMintTransaction(params: BuildContractMintTran
       collectionId: config.collectionId,
       lock: 'license',
       artifact: bridge.artifactVersion,
+      fuelArtifact: fuelBridge.artifactVersion,
     },
   };
 }
 
-interface SpendableLicense {
-  sourceTransaction: Transaction;
-  lockingScriptHex: string;
-  fuelScript: LockingScript;
+interface Bridges {
+  license: LicenseBridge;
+  fuel: FuelBridge;
 }
 
 /**
- * Reads the License at token.current and checks, with a named error for each, that this
- * build's artifact locked it, the key is its owner, and the Fuel stand-in (a P2PKH to this
- * holder) is the script the License binds, so the spend cannot fail verification for those.
+ * The artifact version gate (the Governor's Q3): a token whose record names a License (or
+ * Fuel) artifact other than this build's is refused before anything is fetched or built.
+ */
+async function loadBridgesFor(token: LicenseToken): Promise<Bridges> {
+  const [license, fuel] = await Promise.all([loadLicenseBridge(), loadFuelBridge()]);
+  if (token.artifact !== license.artifactVersion) {
+    throw new ContractVersionMismatchError('License', token.artifact, license.artifactVersion);
+  }
+  if (token.fuelArtifact !== undefined && token.fuelArtifact !== fuel.artifactVersion) {
+    throw new ContractVersionMismatchError('Fuel', token.fuelArtifact, fuel.artifactVersion);
+  }
+  return { license, fuel };
+}
+
+/** The License at token.current, and which of the two spend paths its fuelScriptHash selects. */
+type SpendableLicense = {
+  sourceTransaction: Transaction;
+  lockingScriptHex: string;
+} & (
+  | { path: 'fuel'; fuel: { lockingScript: LockingScript; satoshis: number } }
+  | { path: 'stand-in'; fuelScript: LockingScript }
+);
+
+/**
+ * Reads the License at token.current and checks, with a named error for each, that the key
+ * is its owner and that its fuelScriptHash is either Fuel(C) of this build (the Fuel path:
+ * the Fuel is output 1 of the same transaction) or the P2PKH stand-in to this holder (the
+ * step 2 path), so the spend cannot fail verification for those.
  */
 async function spendableLicense(
-  bridge: LicenseBridge,
+  bridges: Bridges,
   token: LicenseToken,
   holderKey: PrivateKey,
   config: ChainConfig,
   provider: ChainProvider,
 ): Promise<SpendableLicense> {
-  if (token.artifact !== bridge.artifactVersion) {
-    throw new Error(`This token was locked by License artifact ${token.artifact}; this build carries ${bridge.artifactVersion}`);
-  }
-
   const sourceTransaction = Transaction.fromHex(await provider.getTransactionHex(token.current.txid));
   const output = sourceTransaction.outputs[token.current.vout];
   if (!output || output.satoshis !== TOKEN_OUTPUT_SATOSHIS) {
     throw new Error(`token.current ${token.current.txid}:${token.current.vout} is not a 1-satoshi output`);
   }
   const lockingScriptHex = output.lockingScript.toHex();
-  const state = bridge.readLockingScript(lockingScriptHex);
+  const state = bridges.license.readLockingScript(lockingScriptHex);
 
   const holderPubKeyHex = holderKey.toPublicKey().toString();
   if (state.ownerPubKeyHex !== holderPubKeyHex) {
     throw new Error(`Key ${holderPubKeyHex} is not this License's owner (${state.ownerPubKeyHex})`);
   }
 
-  const fuelScript = new P2PKH().lock(holderKey.toAddress(config.network));
-  if (hash256Hex(fuelScript) !== state.fuelScriptHashHex) {
+  const fuelScript = LockingScript.fromHex(bridges.fuel.lockingScript(state.collectionIdHex));
+  if (hash256Hex(fuelScript) === state.fuelScriptHashHex) {
+    const fuelOutput = sourceTransaction.outputs[FUEL_INDEX];
+    if (!fuelOutput || fuelOutput.satoshis === undefined || fuelOutput.lockingScript.toHex() !== fuelScript.toHex()) {
+      throw new Error(`Output ${FUEL_INDEX} of ${token.current.txid} is not this License's Fuel(C)`);
+    }
+    return { sourceTransaction, lockingScriptHex, path: 'fuel', fuel: { lockingScript: fuelScript, satoshis: fuelOutput.satoshis } };
+  }
+
+  const standIn = new P2PKH().lock(holderKey.toAddress(config.network));
+  if (hash256Hex(standIn) !== state.fuelScriptHashHex) {
     throw new Error(
       "This License's Fuel stand-in is not a P2PKH to this holder's key: the stand-in binds the minting holder's key, " +
         'so a later holder cannot spend it until the Fuel contract replaces the stand-in',
     );
   }
-
-  return { sourceTransaction, lockingScriptHex, fuelScript };
+  return { sourceTransaction, lockingScriptHex, path: 'stand-in', fuelScript: standIn };
 }
+
+/** Where a spend's holder coin comes from: asked for only by a build that needs it. */
+type FeeUtxoSource = () => Promise<Utxo[]>;
 
 interface LicenseSpendParams {
   method: 'write' | 'transfer';
@@ -364,7 +551,7 @@ interface LicenseSpendParams {
   /** Signs input 0's unlocking script; defaults to holderKey. Diverges from it only to exercise rule (d) — see buildContractSpendVariant. */
   signingKey?: PrivateKey;
   token: LicenseToken;
-  license: SpendableLicense;
+  license: SpendableLicense & { path: 'stand-in' };
   feeUtxos: Utxo[];
   output0: LockingScript;
   /** Output 0's satoshis; defaults to TOKEN_OUTPUT_SATOSHIS. Diverges from it only to exercise rule (b). */
@@ -379,11 +566,11 @@ interface LicenseSpendParams {
 }
 
 /**
- * The layout write and transfer share: License in at 0, funding after; License, Fuel, Data
- * out, payments after. Signs and returns the built spend but does NOT check it against
- * local verification — callers that build a spend meant to succeed (buildContractTokenRecordTransaction,
- * buildContractTransferTransaction) call assertVerifies themselves right after; a caller
- * exercising the covenant's negative rules (buildContractSpendVariant) checks the result itself instead.
+ * The step 2 layout write and transfer share: License in at 0, funding after; License, the
+ * stand-in with the change, Data out, payments after. Signs and returns the built spend but
+ * does NOT check it against local verification — callers that build a spend meant to
+ * succeed call assertVerifies themselves right after; a caller exercising the covenant's
+ * negative rules (buildContractSpendVariant) checks the result itself instead.
  */
 async function buildLicenseSpend(params: LicenseSpendParams): Promise<{ transaction: Transaction; spentOutpoints: Outpoint[] }> {
   const {
@@ -420,13 +607,7 @@ async function buildLicenseSpend(params: LicenseSpendParams): Promise<{ transact
   transaction.addOutput({ lockingScript: output0, satoshis: outputSatoshis ?? TOKEN_OUTPUT_SATOSHIS });
   transaction.addOutput({ lockingScript: license.fuelScript, change: true });
   transaction.addOutput({ lockingScript: dataScript, satoshis: 0 });
-  for (const payment of payments) {
-    try {
-      transaction.addP2PKHOutput(payment.address, payment.satoshis);
-    } catch {
-      throw new Error(`Invalid payment address: ${payment.address}`);
-    }
-  }
+  addPaymentOutputs(transaction, payments);
 
   await transaction.fee(new SatoshisPerKilobyte(config.feeRateSatPerKb));
   if (transaction.outputs.length < 3 + payments.length) {
@@ -438,6 +619,130 @@ async function buildLicenseSpend(params: LicenseSpendParams): Promise<{ transact
     transaction,
     spentOutpoints: [token.current, ...eligibleFeeUtxos.map((utxo) => ({ txid: utxo.txid, vout: utxo.vout }))],
   };
+}
+
+function addPaymentOutputs(transaction: Transaction, payments: { address: string; satoshis: number }[]): void {
+  for (const payment of payments) {
+    try {
+      transaction.addP2PKHOutput(payment.address, payment.satoshis);
+    } catch {
+      throw new Error(`Invalid payment address: ${payment.address}`);
+    }
+  }
+}
+
+/** Overrides of a Fuel spend, each breaking one of Fuel(C)'s rules; only buildContractSpendVariant sets them. */
+interface FuelSpendOverrides {
+  /** Output 1's satoshis instead of own − fee (the fee cap is then not checked). */
+  outputSatoshis?: number;
+  /** Output 1's script instead of Fuel(C). */
+  outputScript?: LockingScript;
+  /** The Fuel's input index: 2, behind the holder's first fee UTXO at 1. */
+  inputIndex?: 1 | 2;
+  /** Input 0 is the holder's first fee UTXO, an ordinary P2PKH outpoint, and the License is not spent. */
+  ordinaryInput0?: boolean;
+}
+
+interface FuelSpendParams extends Omit<LicenseSpendParams, 'license' | 'feeUtxos'> {
+  fuelBridge: FuelBridge;
+  license: SpendableLicense & { path: 'fuel' };
+  /** The holder's coin: asked for only when the spend has payments to fund, or an override needs an ordinary input. */
+  feeUtxos: FeeUtxoSource;
+  /** Build the Fuel's unlocking script blind (see FuelUnlockParams.blind). */
+  fuelBlind?: boolean;
+  fuelOverrides?: FuelSpendOverrides;
+}
+
+/**
+ * The License + Fuel layout (§4.3, §4.4): the License in at 0, its Fuel(C) at 1, any payment
+ * inputs after; outputs the License, Fuel(C) at own − fee, Data, then payments and the
+ * payer's change. The whole fee is paid from the Fuel: it is estimated before signing and
+ * refused with FuelFeeCapExceededError over FEE_CAP. Like buildLicenseSpend, it does NOT
+ * verify the result.
+ */
+async function buildFuelSpend(params: FuelSpendParams): Promise<{ transaction: Transaction; spentOutpoints: Outpoint[] }> {
+  const {
+    method,
+    bridge,
+    fuelBridge,
+    holderKey,
+    signingKey,
+    token,
+    license,
+    feeUtxos,
+    output0,
+    outputSatoshis,
+    dataScript,
+    payments,
+    newOwnerPubKeyHex,
+    blind,
+    fuelBlind,
+    fuelOverrides = {},
+    config,
+    provider,
+  } = params;
+  const { outputSatoshis: fuelOutputOverride, outputScript: fuelOutputScript, inputIndex: fuelInputIndex = FUEL_INDEX, ordinaryInput0 } =
+    fuelOverrides;
+
+  const ordinaryInputs = (ordinaryInput0 ? 1 : 0) + (fuelInputIndex === 2 ? 1 : 0);
+  const funding = ordinaryInputs > 0 || payments.length > 0 ? selectFeeUtxos(await feeUtxos(), { exclude: [] }) : [];
+  if (funding.length < ordinaryInputs) {
+    throw new Error('No fee UTXOs available — this override needs an ordinary input from the holder');
+  }
+  const ordinary0 = ordinaryInput0 ? funding[0] : undefined;
+  const ordinary1 = fuelInputIndex === 2 ? funding[ordinaryInput0 ? 1 : 0] : undefined;
+  const paymentFunding = payments.length > 0 ? funding.slice(ordinaryInputs) : [];
+
+  const transaction = new Transaction();
+  if (ordinary0) {
+    await addFundingInputs(transaction, [ordinary0], holderKey, provider);
+  } else {
+    transaction.addInput({
+      sourceTransaction: license.sourceTransaction,
+      sourceOutputIndex: token.current.vout,
+      unlockingScriptTemplate: licenseUnlock({ method, bridge, ownerKey: signingKey ?? holderKey, newOwnerPubKeyHex, blind }),
+    });
+  }
+  if (ordinary1) await addFundingInputs(transaction, [ordinary1], holderKey, provider);
+  transaction.addInput({
+    sourceTransaction: license.sourceTransaction,
+    sourceOutputIndex: FUEL_INDEX,
+    unlockingScriptTemplate: fuelUnlock({ bridge: fuelBridge, blind: fuelBlind }),
+  });
+  await addFundingInputs(transaction, paymentFunding, holderKey, provider);
+
+  const holderChange = new P2PKH().lock(holderKey.toAddress(config.network));
+  if (ordinary0) {
+    // No License here to recreate: the ordinary input's value goes back to the holder.
+    transaction.addOutput({ lockingScript: holderChange, satoshis: ordinary0.satoshis });
+  } else {
+    transaction.addOutput({ lockingScript: output0, satoshis: outputSatoshis ?? TOKEN_OUTPUT_SATOSHIS });
+  }
+  // Output 1 holds the Fuel's own value until the fee is known.
+  transaction.addOutput({ lockingScript: fuelOutputScript ?? license.fuel.lockingScript, satoshis: license.fuel.satoshis });
+  transaction.addOutput({ lockingScript: dataScript, satoshis: 0 });
+  addPaymentOutputs(transaction, payments);
+  if (payments.length > 0) {
+    const paid = payments.reduce((sum, payment) => sum + payment.satoshis, 0);
+    const funded = paymentFunding.reduce((sum, utxo) => sum + utxo.satoshis, 0);
+    if (funded < paid) {
+      throw new Error(`Not enough satoshis to cover the ${method}'s payments: ${paid} sat to pay, ${funded} sat of fee UTXOs`);
+    }
+    if (funded > paid) transaction.addOutput({ lockingScript: holderChange, satoshis: funded - paid });
+  }
+
+  const fee = await new SatoshisPerKilobyte(config.feeRateSatPerKb).computeFee(transaction);
+  if (fuelOutputOverride === undefined && fee > fuelBridge.feeCapSatoshis) {
+    throw new FuelFeeCapExceededError(fee, fuelBridge.feeCapSatoshis);
+  }
+  const fuelOutput = fuelOutputOverride ?? license.fuel.satoshis - fee;
+  if (fuelOutput < 1) {
+    throw new Error(`The Fuel holds ${license.fuel.satoshis} sat, too little for this ${method}'s ${fee} sat fee`);
+  }
+  transaction.outputs[FUEL_INDEX].satoshis = fuelOutput;
+  await transaction.sign();
+
+  return { transaction, spentOutpoints: inputOutpoints(transaction) };
 }
 
 function built(transaction: Transaction, spentOutpoints: Outpoint[], token: LicenseToken): BuiltContractTransaction {
@@ -452,43 +757,61 @@ function typedRecord(recordType: TypedRecordType, value: object): LockingScript 
 export interface BuildContractTokenRecordTransactionParams {
   holderKey: string; // current owner's WIF
   token: LicenseToken;
-  feeUtxos: Utxo[];
+  /** The holder's coin, for a step 2 token only: a License + Fuel token's write pays from its Fuel, with no holder coin. */
+  feeUtxos?: Utxo[];
   payload: RecordWithTokenPayload;
   config: ChainConfig;
   provider: ChainProvider;
 }
 
-/**
- * Builds a signed write-with-token through the License's `write`: input 0 spends
- * token.current, funding inputs follow; exactly three outputs: the License recreated to the
- * same owner, the Fuel stand-in with the change, a type-W Data output. Refuses a token not
- * locked by 'license' with TokenLockMismatchError, and checks the built spend locally.
- */
-export async function buildContractTokenRecordTransaction(
-  params: BuildContractTokenRecordTransactionParams,
+/** buildContractTokenRecordTransaction, with the holder's coin fetched only if the step 2 path needs it. */
+async function buildContractWrite(
+  params: Omit<BuildContractTokenRecordTransactionParams, 'feeUtxos'>,
+  feeUtxos: FeeUtxoSource,
 ): Promise<BuiltContractTransaction> {
-  const { holderKey, token, feeUtxos, payload, config, provider } = params;
+  const { holderKey, token, payload, config, provider } = params;
   assertTokenLock(token, 'license');
 
+  const bridges = await loadBridgesFor(token);
   const key = PrivateKey.fromWif(holderKey);
-  const bridge = await loadLicenseBridge();
-  const license = await spendableLicense(bridge, token, key, config, provider);
-
-  const { transaction, spentOutpoints } = await buildLicenseSpend({
-    method: 'write',
-    bridge,
+  const license = await spendableLicense(bridges, token, key, config, provider);
+  const spend = {
+    method: 'write' as const,
+    bridge: bridges.license,
     holderKey: key,
     token,
-    license,
-    feeUtxos,
-    output0: LockingScript.fromHex(bridge.nextLockingScript(license.lockingScriptHex)),
+    output0: LockingScript.fromHex(bridges.license.nextLockingScript(license.lockingScriptHex)),
     dataScript: typedRecord('W', { text: payload.text, ts: payload.ts }),
     payments: [],
     config,
     provider,
-  });
-  assertVerifies(bridge, transaction);
+  };
+
+  if (license.path === 'fuel') {
+    const { transaction, spentOutpoints } = await buildFuelSpend({ ...spend, fuelBridge: bridges.fuel, license, feeUtxos });
+    assertVerifies(bridges.license, transaction);
+    assertFuelVerifies(bridges.fuel, transaction);
+    return built(transaction, spentOutpoints, token);
+  }
+  const { transaction, spentOutpoints } = await buildLicenseSpend({ ...spend, license, feeUtxos: await feeUtxos() });
+  assertVerifies(bridges.license, transaction);
   return built(transaction, spentOutpoints, token);
+}
+
+/**
+ * Builds a signed write-with-token through the License's `write`: input 0 spends
+ * token.current; exactly three outputs: the License recreated to the same owner, the Fuel,
+ * a type-W Data output. A License + Fuel token spends its Fuel at input 1 and pays the fee
+ * from it (feeUtxos unused); a step 2 token funds the write from feeUtxos, the stand-in
+ * taking the change. Refuses a token not locked by 'license' with TokenLockMismatchError and
+ * one minted under another artifact with ContractVersionMismatchError, and checks the built
+ * spend locally.
+ */
+export async function buildContractTokenRecordTransaction(
+  params: BuildContractTokenRecordTransactionParams,
+): Promise<BuiltContractTransaction> {
+  const { feeUtxos = [], ...rest } = params;
+  return buildContractWrite(rest, async () => feeUtxos);
 }
 
 export interface BuildContractSpendVariantParams {
@@ -504,48 +827,100 @@ export interface BuildContractSpendVariantParams {
   outputSatoshis?: number;
   /** Exercises rule (f): extra P2PKH outputs appended after the Data output. */
   extraOutputs?: { address: string; satoshis: number }[];
+  /** License + Fuel token only. Exercises Fuel's value rule: output 1's satoshis, e.g. under own − FEE_CAP. */
+  fuelOutputSatoshis?: number;
+  /** License + Fuel token only. Exercises FB-1: input 0 is feeUtxos[0], an ordinary outpoint, and the License is not spent. */
+  ordinaryInput0?: boolean;
+  /** License + Fuel token only. Exercises "output 1 is this Fuel(C)" (and the License's rule (f)): output 1's script. */
+  fuelOutputScriptHex?: string;
+  /** License + Fuel token only. Exercises "the Fuel is input 1": 2 puts it behind feeUtxos[0], whose value becomes fee. */
+  fuelInputIndex?: 1 | 2;
   config: ChainConfig;
   provider: ChainProvider;
 }
 
 /**
  * Builds a write spend of a real License token like buildContractTokenRecordTransaction,
- * but with each of the covenant's negative rules (b), (c), (d) and (f) independently
+ * but with each of the License's negative rules (b), (c), (d) and (f), and for a License +
+ * Fuel token each of Fuel(C)'s (value, FB-1, output script, input index), independently
  * overridable, and WITHOUT checking the result locally — the caller does that itself
- * (verifyLicenseInput), and decides whether to broadcast it. For exercising the contract's
- * rejection paths against a real token (mw-5wuz6.6); never used by production code, which
- * always verifies before broadcasting.
+ * (verifyLicenseInput, verifyFuelInput), and decides whether to broadcast it. For exercising
+ * the contracts' rejection paths against a real token (mw-5wuz6.6, mw-yo97u.3); never used
+ * by production code, which always verifies before broadcasting.
  */
 export async function buildContractSpendVariant(params: BuildContractSpendVariantParams): Promise<BuiltContractTransaction> {
-  const { holderKey, token, feeUtxos, payload, signerKey, output0OwnerPubKeyHex, outputSatoshis, extraOutputs = [], config, provider } =
-    params;
+  const {
+    holderKey,
+    token,
+    feeUtxos,
+    payload,
+    signerKey,
+    output0OwnerPubKeyHex,
+    outputSatoshis,
+    extraOutputs = [],
+    fuelOutputSatoshis,
+    ordinaryInput0,
+    fuelOutputScriptHex,
+    fuelInputIndex,
+    config,
+    provider,
+  } = params;
   assertTokenLock(token, 'license');
 
+  const bridges = await loadBridgesFor(token);
   const key = PrivateKey.fromWif(holderKey);
   const signingKey = signerKey ? PrivateKey.fromWif(signerKey) : undefined;
-  const bridge = await loadLicenseBridge();
-  const license = await spendableLicense(bridge, token, key, config, provider);
+  const license = await spendableLicense(bridges, token, key, config, provider);
+  const fuelOverrides: FuelSpendOverrides = {
+    outputSatoshis: fuelOutputSatoshis,
+    outputScript: fuelOutputScriptHex === undefined ? undefined : LockingScript.fromHex(fuelOutputScriptHex),
+    inputIndex: fuelInputIndex,
+    ordinaryInput0,
+  };
+  const fuelOverridden = Object.values(fuelOverrides).some((value) => value !== undefined);
 
-  const { transaction, spentOutpoints } = await buildLicenseSpend({
-    method: 'write',
-    bridge,
+  const spend = {
+    method: 'write' as const,
+    bridge: bridges.license,
     holderKey: key,
     signingKey,
     token,
-    license,
-    feeUtxos,
-    output0: LockingScript.fromHex(bridge.nextLockingScript(license.lockingScriptHex, output0OwnerPubKeyHex)),
+    output0: LockingScript.fromHex(bridges.license.nextLockingScript(license.lockingScriptHex, output0OwnerPubKeyHex)),
     outputSatoshis,
     dataScript: typedRecord('W', { text: payload.text, ts: payload.ts }),
     payments: extraOutputs,
+    config,
+    provider,
+  };
+
+  if (license.path === 'fuel') {
+    const { transaction, spentOutpoints } = await buildFuelSpend({
+      ...spend,
+      fuelBridge: bridges.fuel,
+      license,
+      feeUtxos: async () => feeUtxos,
+      // The License's own assertions throw while building on a wrong signer (see below) and
+      // on output 1's script (rule (f)); the Fuel's on any Fuel override.
+      blind: signingKey !== undefined || fuelOverrides.outputScript !== undefined,
+      fuelBlind: fuelOverridden,
+      fuelOverrides,
+    });
+    return built(transaction, spentOutpoints, token);
+  }
+
+  if (fuelOverridden) {
+    throw new Error('The Fuel overrides need a License + Fuel token; this is a step 2 token (the P2PKH stand-in)');
+  }
+  const { transaction, spentOutpoints } = await buildLicenseSpend({
+    ...spend,
+    license,
+    feeUtxos,
     // A wrong signer is the only override the contract's own assertions don't already
     // catch while building (rules b, c and f are all one assertion over the exact rebuilt
     // output list — see license.ts's write()): without blind, the signature check inside
     // that same method call throws here too, and there is never a transaction to hand to
     // verifyLicenseInput or broadcast.
     blind: signingKey !== undefined,
-    config,
-    provider,
   });
   return built(transaction, spentOutpoints, token);
 }
@@ -553,7 +928,8 @@ export async function buildContractSpendVariant(params: BuildContractSpendVarian
 export interface BuildContractTransferTransactionParams {
   holderKey: string; // current owner's WIF
   token: LicenseToken;
-  feeUtxos: Utxo[];
+  /** The seller's coin: a step 2 token's fee, or a License + Fuel token's payments (its fee comes from the Fuel). */
+  feeUtxos?: Utxo[];
   toPubKey: string; // the buyer's owner key (compressed, hex)
   /** Outputs after the Data output (payment, the buyer's change); none by default. */
   payments?: { address: string; satoshis: number }[];
@@ -561,46 +937,65 @@ export interface BuildContractTransferTransactionParams {
   provider: ChainProvider;
 }
 
-/**
- * Builds a signed transfer through the License's `transfer`: input 0 spends token.current,
- * funding inputs follow; outputs: the License recreated to toPubKey, the Fuel stand-in with
- * the seller's change, a type-TR Data output naming the buyer's address, then any payments.
- * Refuses a token not locked by 'license' with TokenLockMismatchError, and checks the built
- * spend locally.
- */
-export async function buildContractTransferTransaction(
-  params: BuildContractTransferTransactionParams,
+/** buildContractTransferTransaction, with the holder's coin fetched only if the build needs it. */
+async function buildContractTransfer(
+  params: Omit<BuildContractTransferTransactionParams, 'feeUtxos'>,
+  feeUtxos: FeeUtxoSource,
 ): Promise<BuiltContractTransaction> {
-  const { holderKey, token, feeUtxos, toPubKey, payments = [], config, provider } = params;
+  const { holderKey, token, toPubKey, payments = [], config, provider } = params;
   assertTokenLock(token, 'license');
 
+  const bridges = await loadBridgesFor(token);
   const key = PrivateKey.fromWif(holderKey);
   const newOwner = parsePublicKey(toPubKey, 'recipient');
   const toAddress = newOwner.toAddress(config.network);
-  const bridge = await loadLicenseBridge();
-  const license = await spendableLicense(bridge, token, key, config, provider);
-
-  const { transaction, spentOutpoints } = await buildLicenseSpend({
-    method: 'transfer',
-    bridge,
+  const license = await spendableLicense(bridges, token, key, config, provider);
+  const spend = {
+    method: 'transfer' as const,
+    bridge: bridges.license,
     holderKey: key,
     token,
-    license,
-    feeUtxos,
-    output0: LockingScript.fromHex(bridge.nextLockingScript(license.lockingScriptHex, newOwner.toString())),
+    output0: LockingScript.fromHex(bridges.license.nextLockingScript(license.lockingScriptHex, newOwner.toString())),
     dataScript: typedRecord('TR', { to: toAddress }),
     payments,
     newOwnerPubKeyHex: newOwner.toString(),
     config,
     provider,
-  });
-  assertVerifies(bridge, transaction);
-  return built(transaction, spentOutpoints, { ...token, holderAddress: toAddress });
+  };
+  const transferred = { ...token, holderAddress: toAddress };
+
+  if (license.path === 'fuel') {
+    const { transaction, spentOutpoints } = await buildFuelSpend({ ...spend, fuelBridge: bridges.fuel, license, feeUtxos });
+    assertVerifies(bridges.license, transaction);
+    assertFuelVerifies(bridges.fuel, transaction);
+    return built(transaction, spentOutpoints, transferred);
+  }
+  const { transaction, spentOutpoints } = await buildLicenseSpend({ ...spend, license, feeUtxos: await feeUtxos() });
+  assertVerifies(bridges.license, transaction);
+  return built(transaction, spentOutpoints, transferred);
+}
+
+/**
+ * Builds a signed transfer through the License's `transfer`: input 0 spends token.current;
+ * outputs: the License recreated to toPubKey, the Fuel, a type-TR Data output naming the
+ * buyer's address, then any payments. A License + Fuel token spends its Fuel at input 1 and
+ * pays the fee from it; feeUtxos then fund only the payments (inputs 2+, the change after
+ * the payments). A step 2 token funds the fee from feeUtxos, the stand-in taking the
+ * seller's change. Refuses a token not locked by 'license' with TokenLockMismatchError and
+ * one minted under another artifact with ContractVersionMismatchError, and checks the built
+ * spend locally.
+ */
+export async function buildContractTransferTransaction(
+  params: BuildContractTransferTransactionParams,
+): Promise<BuiltContractTransaction> {
+  const { feeUtxos = [], ...rest } = params;
+  return buildContractTransfer(rest, async () => feeUtxos);
 }
 
 export interface MintContractLicenseTokenParams {
   issuerKey: string; // issuer WIF; single-install: also the holder, so the License locks to this key's own pubkey
   provider: ChainProvider;
+  /** Its mintFuelSatoshis is the mint's MINT_FUEL: the mint is refused while it is unset. */
   config: ChainConfig;
   eventBus: EventBus;
   pendingSpendRepo: PendingSpendRepository;
@@ -609,8 +1004,9 @@ export interface MintContractLicenseTokenParams {
 /**
  * Fetches the issuer's UTXOs, reconciles them against the app's own pending spends
  * (mw-b00z.11), mints a token whose 1-sat output is the License covenant locked to the
- * issuer's own key, broadcasts once, records the spent outpoints as a pending spend, and
- * emits 'bsv:token-minted'. The screen's contract-lock counterpart to mintLicenseToken.
+ * issuer's own key, with Fuel(C) at config.mintFuelSatoshis, broadcasts once, records the
+ * spent outpoints as a pending spend, and emits 'bsv:token-minted'. The screen's
+ * contract-lock counterpart to mintLicenseToken.
  */
 export async function mintContractLicenseToken(params: MintContractLicenseTokenParams): Promise<LicenseToken> {
   const { issuerKey, provider, config, eventBus, pendingSpendRepo } = params;
@@ -629,7 +1025,14 @@ export async function mintContractLicenseToken(params: MintContractLicenseTokenP
 
   let mintBuilt: BuiltContractTransaction;
   try {
-    mintBuilt = await buildContractMintTransaction({ issuerKey, utxos, holderPubKey, config, provider });
+    mintBuilt = await buildContractMintTransaction({
+      issuerKey,
+      utxos,
+      holderPubKey,
+      mintFuelSatoshis: config.mintFuelSatoshis,
+      config,
+      provider,
+    });
   } catch (error) {
     throw describePendingShortfall(error, rawUtxos, remaining);
   }
@@ -650,6 +1053,28 @@ export async function mintContractLicenseToken(params: MintContractLicenseTokenP
   return token;
 }
 
+/**
+ * The holder's fee UTXOs, fetched and reconciled against pending spends (mw-b00z.11) only
+ * when a build asks for them; `describe` rewrites a build failure the way
+ * describePendingShortfall does, once they were fetched.
+ */
+function holderFeeUtxos(address: string, provider: ChainProvider, pendingSpendRepo: PendingSpendRepository) {
+  let fetched: { rawUtxos: Utxo[]; remaining: PendingSpendEntry[] } | undefined;
+  return {
+    load: async (): Promise<Utxo[]> => {
+      const rawUtxos = await provider.getUtxos(address);
+      const pendingEntries = await pendingSpendRepo.getAll();
+      const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawUtxos, new Date());
+      if (dropped.length > 0) {
+        await pendingSpendRepo.removeMany(dropped);
+      }
+      fetched = { rawUtxos, remaining };
+      return filterUtxosExcludingPending(rawUtxos, remaining).utxos;
+    },
+    describe: (error: unknown): unknown => (fetched ? describePendingShortfall(error, fetched.rawUtxos, fetched.remaining) : error),
+  };
+}
+
 export interface WriteWithContractTokenParams {
   holderKey: string; // current owner's WIF
   token: LicenseToken;
@@ -666,29 +1091,23 @@ export interface WriteWithContractTokenResult {
 }
 
 /**
- * Fetches the holder's fee UTXOs, reconciles them against pending spends (mw-b00z.11),
- * writes a record through the License's `write`, broadcasts once, records the spend,
- * moves the repository's current outpoint, and emits 'bsv:record-written'. The screen's
- * contract-lock counterpart to writeWithToken.
+ * Writes a record through the License's `write`, broadcasts once, records the spend, moves
+ * the repository's current outpoint, and emits 'bsv:record-written'. A License + Fuel token
+ * pays from its Fuel, so only token.current's transaction is fetched; a step 2 token also
+ * fetches the holder's fee UTXOs, reconciled against pending spends (mw-b00z.11). The
+ * screen's contract-lock counterpart to writeWithToken.
  */
 export async function writeWithContractToken(params: WriteWithContractTokenParams): Promise<WriteWithContractTokenResult> {
   const { holderKey, token, payload, provider, config, eventBus, repository, pendingSpendRepo } = params;
 
   const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
-  const rawFeeUtxos = await provider.getUtxos(holderAddress);
-
-  const pendingEntries = await pendingSpendRepo.getAll();
-  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawFeeUtxos, new Date());
-  if (dropped.length > 0) {
-    await pendingSpendRepo.removeMany(dropped);
-  }
-  const { utxos: feeUtxos } = filterUtxosExcludingPending(rawFeeUtxos, remaining);
+  const feeUtxos = holderFeeUtxos(holderAddress, provider, pendingSpendRepo);
 
   let writeBuilt: BuiltContractTransaction;
   try {
-    writeBuilt = await buildContractTokenRecordTransaction({ holderKey, token, feeUtxos, payload, config, provider });
+    writeBuilt = await buildContractWrite({ holderKey, token, payload, config, provider }, feeUtxos.load);
   } catch (error) {
-    throw describePendingShortfall(error, rawFeeUtxos, remaining);
+    throw feeUtxos.describe(error);
   }
 
   const txid = await provider.broadcast(writeBuilt.hex);
@@ -727,29 +1146,23 @@ export interface TransferContractTokenResult {
 }
 
 /**
- * Fetches the holder's fee UTXOs, reconciles them against pending spends (mw-b00z.11),
- * transfers the token through the License's `transfer` to the buyer's own key, broadcasts
+ * Transfers the token through the License's `transfer` to the buyer's own key, broadcasts
  * once, records the spend, moves the repository's current outpoint and holder, and emits
- * 'bsv:token-transferred'. The screen's contract-lock counterpart to transferLicenseToken.
+ * 'bsv:token-transferred'. The holder's fee UTXOs (reconciled against pending spends,
+ * mw-b00z.11) are fetched only for a step 2 token or for payments. The screen's
+ * contract-lock counterpart to transferLicenseToken.
  */
 export async function transferContractToken(params: TransferContractTokenParams): Promise<TransferContractTokenResult> {
   const { holderKey, token, toPubKey, payments = [], provider, config, eventBus, repository, pendingSpendRepo } = params;
 
   const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
-  const rawFeeUtxos = await provider.getUtxos(holderAddress);
-
-  const pendingEntries = await pendingSpendRepo.getAll();
-  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawFeeUtxos, new Date());
-  if (dropped.length > 0) {
-    await pendingSpendRepo.removeMany(dropped);
-  }
-  const { utxos: feeUtxos } = filterUtxosExcludingPending(rawFeeUtxos, remaining);
+  const feeUtxos = holderFeeUtxos(holderAddress, provider, pendingSpendRepo);
 
   let transferBuilt: BuiltContractTransaction;
   try {
-    transferBuilt = await buildContractTransferTransaction({ holderKey, token, feeUtxos, toPubKey, payments, config, provider });
+    transferBuilt = await buildContractTransfer({ holderKey, token, toPubKey, payments, config, provider }, feeUtxos.load);
   } catch (error) {
-    throw describePendingShortfall(error, rawFeeUtxos, remaining);
+    throw feeUtxos.describe(error);
   }
 
   const txid = await provider.broadcast(transferBuilt.hex);

@@ -8,13 +8,8 @@ import { bsv, PubKey, Sig, toByteString, Utils } from 'scrypt-ts';
 import type { Artifact, ByteString } from 'scrypt-ts';
 import { License } from '../license';
 import artifact from '../artifacts/license.json';
-import type {
-  BridgeTransaction,
-  LicenseBridge,
-  LicenseState,
-  LicenseUnlockParams,
-  LicenseVerifyResult,
-} from './license-bridge-types';
+import { toBsvTransaction, verifyInput } from './bsv-transaction';
+import type { LicenseBridge, LicenseState, LicenseUnlockParams } from './license-bridge-types';
 
 License.loadArtifact(artifact as unknown as Artifact);
 
@@ -56,39 +51,14 @@ function nextLockingScript(currentLockingScriptHex: string, newOwnerPubKeyHex?: 
   return next.lockingScript.toHex();
 }
 
-/** The transaction as scrypt-ts's bsv sees it, input 0 carrying the License it spends. */
-function toBsvTransaction(tx: BridgeTransaction, sourceLockingScriptHex: string, sourceSatoshis: number): bsv.Transaction {
-  // bsv's typings omit `version`, which its Transaction has and serializes.
-  const bsvTx = new bsv.Transaction() as bsv.Transaction & { version: number };
-  bsvTx.version = tx.version;
-  bsvTx.nLockTime = tx.lockTime;
-  tx.inputs.forEach((input, index) => {
-    const bsvInput = new bsv.Transaction.Input({
-      prevTxId: input.txid,
-      outputIndex: input.vout,
-      script: bsv.Script.empty(),
-      sequenceNumber: input.sequence,
-    });
-    if (index === 0) {
-      bsvTx.addInput(bsvInput, bsv.Script.fromHex(sourceLockingScriptHex), sourceSatoshis);
-    } else {
-      // Only input 0's source output enters its preimage; the others need an outpoint and a sequence.
-      bsvTx.addInput(bsvInput, bsv.Script.empty(), 0);
-    }
-  });
-  for (const output of tx.outputs) {
-    bsvTx.addOutput(new bsv.Transaction.Output({ script: bsv.Script.fromHex(output.scriptHex), satoshis: output.satoshis }));
-  }
-  return bsvTx;
-}
-
 function unlockingScript(params: LicenseUnlockParams): string {
   const { method, tx, sourceLockingScriptHex, sourceSatoshis, preimageHex, ownerSigHex, newOwnerPubKeyHex, blind } = params;
   if (tx.outputs.length < 3) {
     throw new Error(`A License ${method} needs at least three outputs (itself, Fuel, Data), got ${tx.outputs.length}`);
   }
 
-  const bsvTx = toBsvTransaction(tx, sourceLockingScriptHex, sourceSatoshis);
+  // Only input 0's source output enters its preimage.
+  const bsvTx = toBsvTransaction(tx, { 0: { scriptHex: sourceLockingScriptHex, satoshis: sourceSatoshis } });
   const ownPreimageHex = bsvTx.getPreimage(0, SIGHASH_ALL_FORKID);
   if (ownPreimageHex !== preimageHex) {
     throw new Error('Sighash preimage mismatch: the preimage @bsv/sdk signed is not the one the License checks');
@@ -142,16 +112,6 @@ function unlockingScript(params: LicenseUnlockParams): string {
     }
   });
   return script.toHex();
-}
-
-function verifyInput(txHex: string, inputIndex: number, sourceLockingScriptHex: string, sourceSatoshis: number): LicenseVerifyResult {
-  const bsvTx = new bsv.Transaction(txHex);
-  bsvTx.inputs[inputIndex].output = new bsv.Transaction.Output({
-    script: bsv.Script.fromHex(sourceLockingScriptHex),
-    satoshis: sourceSatoshis,
-  });
-  const { success, error } = bsvTx.verifyScript(inputIndex);
-  return { success, error };
 }
 
 export const licenseBridge: LicenseBridge = {

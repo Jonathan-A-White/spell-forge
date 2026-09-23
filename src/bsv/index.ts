@@ -82,7 +82,13 @@ export {
   writeWithContractToken,
   transferContractToken,
   readLicenseState,
+  licenseLockingScript,
+  fuelLockingScript,
   verifyLicenseInput,
+  verifyFuelInput,
+  InvalidMintFuelError,
+  ContractVersionMismatchError,
+  FuelFeeCapExceededError,
 } from './license-contract';
 export type {
   BuiltContractTransaction,
