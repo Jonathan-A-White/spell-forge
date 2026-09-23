@@ -25,6 +25,7 @@
     "test:qr": "vitest run tests/unit/qr-codec.test.ts",
     "test:learning": "vitest run tests/unit/learning-engine.test.ts",
     "test:bsv": "vitest run tests/unit/bsv-",
+    "test:bsv:rules": "vitest run tests/features/bsv",
     "test:bsv:testnet": "vitest run -c vitest.testnet.config.ts",
     "bsv:keys": "tsx scripts/bsv-keys.ts",
     "bsv:balance": "tsx scripts/bsv-balance.ts",
@@ -47,6 +48,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@amiceli/vitest-cucumber": "7.0.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.2.1",
