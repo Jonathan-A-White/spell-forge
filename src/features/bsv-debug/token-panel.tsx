@@ -1,20 +1,23 @@
 // src/features/bsv-debug/token-panel.tsx — Mints a License Token to this device's own
 // address (single-install: the app is issuer and holder at once) and lists its tokens.
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   chainConfig,
   followLicenseToken,
+  formatWritesLeftRange,
   isValidCompressedPublicKeyHex,
   isValidTestnetAddress,
   mintContractLicenseToken,
   mintLicenseToken,
+  readFuelValue,
   transferContractToken,
   transferLicenseToken,
   writeWithContractToken,
   writeWithToken,
+  writesLeftRange,
 } from '../../bsv';
-import type { ChainProvider, FollowLicenseTokenResult, LicenseToken, TokenLock } from '../../bsv';
+import type { ChainProvider, FollowLicenseTokenResult, FuelValue, LicenseToken, TokenLock } from '../../bsv';
 import { bsvPendingSpendRepo, bsvTokenRepo } from '../../data/repositories';
 import type { BsvWalletKey, EventBus } from '../../contracts/types';
 
@@ -53,6 +56,30 @@ function tokenKey(token: LicenseToken): string {
   return `${token.origin.txid}:${token.origin.vout}`;
 }
 
+type FuelDisplay =
+  | { status: 'live'; value: FuelValue }
+  | { status: 'cached'; satoshis: number; seenAt: Date }
+  | { status: 'unavailable' };
+
+function formatAsOf(date: Date): string {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `as of ${hh}:${mm}`;
+}
+
+/** The fuel row's text: the live value online, the last value seen with its age offline, or 'stand-in' for a step 2 token. */
+function fuelRowText(display: FuelDisplay | undefined, feeRateSatPerKb: number): string {
+  if (!display) return 'fuel …';
+  if (display.status === 'unavailable') return 'fuel: unavailable';
+  if (display.status === 'live') {
+    if (display.value.kind === 'stand-in') return 'fuel: stand-in';
+    const range = writesLeftRange(display.value.satoshis, feeRateSatPerKb);
+    return `fuel ${display.value.satoshis} sat (${formatWritesLeftRange(range)})`;
+  }
+  const range = writesLeftRange(display.satoshis, feeRateSatPerKb);
+  return `fuel ${display.satoshis} sat ${formatAsOf(display.seenAt)} (${formatWritesLeftRange(range)})`;
+}
+
 export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPanelProps) {
   const [tokens, setTokens] = useState<LicenseToken[]>([]);
   const [mintLock, setMintLock] = useState<TokenLock>('p2pkh');
@@ -62,9 +89,40 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
   const [writeTexts, setWriteTexts] = useState<Record<string, string>>({});
   const [tokenWriteStates, setTokenWriteStates] = useState<Record<string, TokenWriteState>>({});
   const [historyStates, setHistoryStates] = useState<Record<string, HistoryState>>({});
+  const [fuelDisplays, setFuelDisplays] = useState<Record<string, FuelDisplay>>({});
+  // The last fuel value read from the chain for each token, kept across a failed refresh so
+  // the row can fall back to 'the last value seen with its age' offline (mw-yo97u.4).
+  const fuelCache = useRef<Record<string, { satoshis: number; seenAt: Date }>>({});
   // Guards against an earlier-issued list() resolving after a later one (e.g. the
   // mount load finishing after a mint's own reload) and clobbering the newer result.
   const latestListRequest = useRef(0);
+
+  const loadFuel = useCallback(
+    async (token: LicenseToken) => {
+      const key = tokenKey(token);
+      try {
+        const value = await readFuelValue(token.current.txid, provider);
+        if (value.kind === 'fuel') {
+          fuelCache.current[key] = { satoshis: value.satoshis, seenAt: new Date() };
+        }
+        setFuelDisplays((prev) => ({ ...prev, [key]: { status: 'live', value } }));
+      } catch {
+        const cached = fuelCache.current[key];
+        setFuelDisplays((prev) => ({
+          ...prev,
+          [key]: cached ? { status: 'cached', satoshis: cached.satoshis, seenAt: cached.seenAt } : { status: 'unavailable' },
+        }));
+      }
+    },
+    [provider],
+  );
+
+  useEffect(() => {
+    for (const token of tokens) {
+      if (token.lock === 'license') loadFuel(token);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens]);
 
   useEffect(() => {
     const requestId = ++latestListRequest.current;
@@ -261,6 +319,19 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
             <p className="font-mono break-all">{`holder ${token.holderAddress}`}</p>
             <p className="font-mono break-all">{`lock ${token.lock}`}</p>
             {isLicenseLock && token.artifact && <p className="font-mono break-all">{`artifact ${token.artifact}`}</p>}
+            {isLicenseLock && (
+              <div className="flex items-center gap-2">
+                <p data-testid="bsv-token-fuel" className="font-mono break-all">
+                  {fuelRowText(fuelDisplays[key], chainConfig.feeRateSatPerKb)}
+                </p>
+                <button
+                  onClick={() => loadFuel(token)}
+                  className="text-sf-muted text-sm hover:text-sf-secondary"
+                >
+                  Refresh fuel
+                </button>
+              </div>
+            )}
 
             <div className="flex flex-col gap-1 mt-2">
               <label htmlFor={`bsv-transfer-to-${key}`} className="text-sf-muted text-sm">
