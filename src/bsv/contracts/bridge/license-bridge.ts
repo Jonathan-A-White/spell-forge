@@ -83,7 +83,7 @@ function toBsvTransaction(tx: BridgeTransaction, sourceLockingScriptHex: string,
 }
 
 function unlockingScript(params: LicenseUnlockParams): string {
-  const { method, tx, sourceLockingScriptHex, sourceSatoshis, preimageHex, ownerSigHex, newOwnerPubKeyHex } = params;
+  const { method, tx, sourceLockingScriptHex, sourceSatoshis, preimageHex, ownerSigHex, newOwnerPubKeyHex, blind } = params;
   if (tx.outputs.length < 3) {
     throw new Error(`A License ${method} needs at least three outputs (itself, Fuel, Data), got ${tx.outputs.length}`);
   }
@@ -100,6 +100,34 @@ function unlockingScript(params: LicenseUnlockParams): string {
   const fuelValue = BigInt(fuel.satoshis);
   const dataScript: ByteString = toByteString(data.scriptHex);
   const sig = Sig(toByteString(ownerSigHex));
+
+  if (blind) {
+    // The same "blind" mechanism scrypt-ts's own MethodCallOptions.exec: false uses
+    // internally (contract.js's signSingleCallTx): callDelegatedMethod serializes the
+    // method call into a script without running License.write/transfer's TypeScript
+    // assertions, so a deliberately invalid call (e.g. a wrong-key signature) still
+    // produces a real script for the interpreter — and a real node — to reject, instead
+    // of throwing here before either ever sees it. Declared `private` in scrypt-ts's own
+    // types (internal API, called here the same way contract.js calls it on itself), so
+    // reached through a cast naming only the two members this uses.
+    const delegated = license as unknown as {
+      to: { tx: bsv.Transaction; inputIndex: number };
+      callDelegatedMethod: (methodName: string, ...args: unknown[]) => { publicMethodCall: { toScript: () => bsv.Script } };
+    };
+    delegated.to = { tx: bsvTx, inputIndex: 0 };
+    const args =
+      method === 'write'
+        ? [sig, fuelScript, fuelValue, dataScript]
+        : (() => {
+            if (!newOwnerPubKeyHex) throw new Error('A License transfer needs the new owner key');
+            const restOutputs = toByteString(
+              rest.map((output) => Utils.buildOutput(toByteString(output.scriptHex), BigInt(output.satoshis))).join(''),
+            );
+            return [sig, PubKey(newOwnerPubKeyHex), fuelScript, fuelValue, dataScript, restOutputs];
+          })();
+    const { publicMethodCall } = delegated.callDelegatedMethod(method, ...args);
+    return publicMethodCall.toScript().toHex();
+  }
 
   const script = license.getUnlockingScript((self) => {
     self.to = { tx: bsvTx, inputIndex: 0 };

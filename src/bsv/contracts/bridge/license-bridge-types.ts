@@ -30,6 +30,16 @@ export interface LicenseUnlockParams {
   ownerSigHex: string;
   /** transfer only: output 0's new owner key. */
   newOwnerPubKeyHex?: string;
+  /**
+   * Skips the committed contract's own TypeScript assertions while building the script
+   * (scrypt-ts's callDelegatedMethod, the same mechanism MethodCallOptions.exec: false uses
+   * internally) instead of running them (License.write/transfer, via getUnlockingScript) —
+   * for building a real, signature-invalid spend to broadcast and watch a node reject,
+   * since every rule's assertion otherwise throws synchronously right here, before a
+   * transaction to broadcast even exists (mw-5wuz6.6). Never used by production callers,
+   * which always want the assertions.
+   */
+  blind?: boolean;
 }
 
 export interface LicenseVerifyResult {
