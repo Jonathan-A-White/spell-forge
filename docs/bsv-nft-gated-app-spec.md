@@ -1,6 +1,6 @@
 # Spec: NFT-Gated, Self-Funded On-Chain Application Data
 
-**Status:** Draft v0.13 — v0.2 (F1–F34, D1–D10), v0.3 (F35, F36, F38, F44, D11), v0.4 (F42, F43, F46, D12–D16), v0.5 (F47, D17), v0.6 (F48, F49, D18), v0.7 (F40, F45, F50, D19–D22), v0.8 (F51, F52, D23), v0.9 (F53, F54, D24), v0.10 (F37, D25), v0.11 (F55, D26), v0.12 (F39, D27), and round 12 (F41, D28–D30); see §11
+**Status:** Draft v0.14 — v0.2 (F1–F34, D1–D10), v0.3 (F35, F36, F38, F44, D11), v0.4 (F42, F43, F46, D12–D16), v0.5 (F47, D17), v0.6 (F48, F49, D18), v0.7 (F40, F45, F50, D19–D22), v0.8 (F51, F52, D23), v0.9 (F53, F54, D24), v0.10 (F37, D25), v0.11 (F55, D26), v0.12 (F39, D27), round 12 (F41, D28–D30), and v0.14 (F57); see §11
 **Target chain:** BSV
 **Target client:** Offline-capable PWA (mobile-first), no full node
 
@@ -152,14 +152,16 @@ Rules (a) and (b) together guarantee the token satoshi moves from input 0 to out
 
 **Common.** All contracts use Push TX (BRC-21) introspection and require transaction version > 1.
 
-**Measured sizes** *(v0.4, F43; sCrypt compiler 1.20.0 prototype, research round 3)*:
+**Measured sizes** *(v0.4, F43; remeasured v0.14, F57, on the shipped `write` transaction, sCrypt compiler 1.20.0+commit.693498a, 200 B payload; `src/bsv/contracts/SIZES.md`, measured by mw-yo97u.2)*:
 
-| Contract | Locking script | Unlocking script |
-|----------|---------------:|-----------------:|
-| License (exact layout, ALL) *(v0.5)* | 4,171 B | 5,828 B |
-| Fuel `spend` (SINGLE) | 1,171 B | 1,374 B |
+| Contract | Locking script | Unlocking script (`write`) |
+|----------|---------------:|----------------------------:|
+| License (exact layout, ALL, rules (a)–(f)) *(v0.5; remeasured v0.14)* | 4,307 B | 6,044 B |
+| Fuel `spend` (SINGLE) *(remeasured v0.14)* | 1,204 B | 1,443 B |
 | Fuel `consolidate` (ALL) *(v0.6)* | 1,725 B | ≈ 6,322 B |
 | TopUp `merge` (ALL) *(v0.6)* | 1,148 B | ≈ 6,994 B |
+
+*Prototype (v0.4, research round 3; same toolchain, before License rules (e)/(f) and Fuel's check (3), and measured with a one-input `prevouts`)*: License (exact layout, ALL) 4,171 B locking / 5,828 B unlocking; Fuel `spend` (SINGLE) 1,171 B locking / 1,374 B unlocking. F57 found that these parts, each measured in isolation and summed, undercount a real combined transaction: see F57 in §11.
 
 The two ALL-mode rows were measured against a stand-in License output and adjusted to the real License script size; see round-5 research.
 
@@ -199,7 +201,7 @@ A **collection** is the set of licenses minted by one issuer under one genesis r
 |-----------|---------|--------|
 | `D_MAX` (unconfirmed writes chained per license) | 20 | Conservative; node policy only partly verified (§8 Q9) |
 | `GAP` (owner-key gap limit) *(renamed v0.3 from `G` to avoid clashing with record type `G`)* | 20 | — |
-| `FEE_W` (fee for one write) *(new v0.4; remeasured v0.5)* | ≈ 1,290 sat | Measured write size (≈ 12.9 KB with a 200 B payload) × live policy (100 sat/kB, GorillaPool, 2026-09-17) |
+| `FEE_W` (fee for one write) *(new v0.4; remeasured v0.5; remeasured v0.14, F57)* | ≈ 1,334 sat | Measured write size (13,341 B for a 200 B payload; sCrypt compiler 1.20.0, on the shipped `write` transaction, measured by mw-yo97u.2 in `SIZES.md`) × live policy (100 sat/kB, GorillaPool, 2026-09-17). 466 B over v0.5's ≈12,875-B estimate: License's §3.7 rule growth beyond the prototype (272 B), the real Data-output header vs. the prototype's bare payload push (24 B), Fuel's own §3.7 check (3) (99 B), and the second input's `prevouts` outpoint counted in both unlocking scripts (72 B), less 1 B of DER signature noise (F57) |
 | `FEE_CAP` (max fuel burned **per restricted input**, v0.6 D18) | 2,000 sat | ≈ 1.55 × `FEE_W`; compiled into the Fuel contract (changing it is a contract version change, §8 Q7, Q17) |
 | `V_MIN` (minimum TopUp value) *(raised v0.6, F49)* | 25,000 sat | ≈ 10 × `FEE_CONS`, so merging costs ≈ 10% of a TopUp |
 | `FEE_CONS` (reference consolidation cost) *(new v0.6)* | ≈ 2,486 sat | Measured consolidation ≈ 24.9 KB × live policy; exceeds a single `FEE_CAP`, which is why D18 scales the cap |
@@ -550,7 +552,7 @@ Fill in current values at implementation time; the shape is what matters.
 |------|-------|-------|
 | Miner fee per write | Fee rate × tx size | Dominated by fee policy, not payload. Verify current ARC policy. |
 | Covenant input overhead *(v0.2; measured v0.4)* | Push TX token input + fuel input per write | ≈ 9.9 KB of a ≈ 10.1 KB write. Each covenant input costs about twice its script size, because the preimage carries the scriptCode. |
-| Write size and fee *(v0.4; remeasured v0.5)* | Measured parts + 200 B payload | ≈ 12.9 KB ≈ 1,290 sat ≈ $0.21 per 1,000 writes (100 sat/kB, $16.18/BSV, 2026-09-17). The payload is counted twice (Data output and License unlocking script). |
+| Write size and fee *(v0.4; remeasured v0.5; remeasured v0.14, F57)* | Measured parts + 200 B payload | 13,341 B ≈ 1,334 sat ≈ $0.22 per 1,000 writes (100 sat/kB, $16.18/BSV, 2026-09-17). The payload is counted twice (Data output and License unlocking script). |
 | Consolidation *(v0.4)* | ALL-mode Fuel + TopUp + License | Estimate ≈ 16–20 KB; rare and rate-limited (R4.5.3). UNVERIFIED |
 | Fuel per license at mint | ~~N outputs × unit size~~ one output *(v0.2, F30)* | Sized for expected lifetime writes |
 | Rotation Record *(v0.2; v0.4)* | Number of holders × wrap size | ~110 B per wrap (estimate). Sales: paid by the buyer. Gifts: paid by fuel, ≈ 90 wraps per transaction under `FEE_CAP`. |
@@ -625,7 +627,7 @@ An agent reviewing this spec should verify these are acknowledged rather than ac
 14. *(new v0.2; extended v0.3; amended v0.13)* **Wire formats.** Pin the exact ephemeral **P-256** ECDH + HKDF-SHA256 + AES-256-GCM wrap format, the deterministic P-256 derivation of wrap and reader keys from a seed (R4.2.14; BRC-42 covers secp256k1 only), and the stamp serialization (§3.10), each with test vectors.
 15. *(new v0.3)* **Mint-key compromise.** How is a compromised mint key replaced without starting a new collection, and how are forged mints made after the compromise told apart from genuine ones?
 16. *(new v0.4)* **Size optimization.** Can `OP_CODESEPARATOR` (shrinking the preimage scriptCode), newer toolchains, or hand-written script reduce covenant inputs? Re-measure and revisit `FEE_CAP`.
-17. *(new v0.4)* **Fee-rate rise.** `FEE_CAP` is compiled into the contract. If the live fee rate exceeds `FEE_CAP` ÷ write size (v0.5: ≈ 155 sat/kB), fuel can no longer pay for writes. What is the upgrade path?
+17. *(new v0.4)* **Fee-rate rise.** `FEE_CAP` is compiled into the contract. If the live fee rate exceeds `FEE_CAP` ÷ write size (v0.14, F57: ≈ 150 sat/kB, down from v0.5's ≈ 155 sat/kB now that the write size is remeasured at 13,341 B), fuel can no longer pay for writes. What is the upgrade path?
 18. *(new v0.7, F45)* **Signed packaging.** Should the client also ship as a signed installable package where platforms allow it, and how does that sit with C1's PWA assumption?
 19. *(new v0.7, F45)* **External verification.** Who operates the verifier that compares a served build against `V` records, and what should a user do when it reports a mismatch?
 20. *(new v0.13, F41)* **Custody choice and cadence.** Dedicated HSM, secure enclave, or managed KMS for the issuer keys; and how often the offline seed backup is exercised (R4.9.2) so that a restore is known to work before it is needed.
@@ -1211,7 +1213,7 @@ Each scenario lists the requirements it covers. "Rejected by consensus" means ev
 - **AC-C6-1 Per-write cost.** *(new v0.4, D15)*
   - **Given** the reference contracts and the configured broadcaster's live fee policy
   - **When** 1,000 writes with 200-byte payloads are built
-  - **Then** the median fee is ≤ 2,000 satoshis (expected ≈ 1,290 sat in v0.5), and the measured size, fee, policy, date, and BSV price are recorded.
+  - **Then** the median fee is ≤ 2,000 satoshis (expected ≈ 1,334 sat in v0.14, F57), and the measured size, fee, policy, date, and BSV price are recorded.
   - *Covers: C6, R4.3.12.*
 
 ---
@@ -1392,4 +1394,11 @@ Research: `thoughts/shared/research/2026-09-18-bsv-spec-v013-custody-research.md
 | D29 | §3.4, §4.2 table, R4.2.14, Q14 | Wrap keys and the issuer reader key move to P-256, derived deterministically from the seed; token-spending keys stay secp256k1 under BRC-42. Wrap keys never appear in a locking script and are declared in the `M`/`TR` record since D27, so consensus does not constrain their curve. Browser-native key agreement removes a shipped curve implementation from the PWA's most sensitive path (cf. F45/F50), and managed custody becomes possible (AWS KMS `DeriveSharedSecret` is NIST-curve only). Cost: two curves in one system, and wrap keys are no longer BRC-42-derived (Q14). |
 | D30 | §3.8 | Protocol identifier fixed as the ASCII bytes `nftgate` plus a one-byte format version, chosen over a domain-namespaced tag (~24 B per record for no added validity: validity comes from stamps and lineage, not the tag) and a hash-derived id (compact and collision-proof but unreadable in explorers and opaque in fixtures). Version `0x01` is reserved for the phase-1 plaintext proof-out so its tag-scanning code and fixtures survive into `0x02+`. |
 
+### 11.13 v0.13 → v0.14
+
+Measurement: `src/bsv/contracts/SIZES.md` (the real License `write` and `Fuel(C)` `spend` methods, built and spent together in one transaction, measured by mw-yo97u.2; restated here by mw-yo97u.6).
+
+| ID | Sections changed | Summary |
+|----|------------------|---------|
+| F57 | §3.7 (measured sizes), §3.9 (`FEE_W`), §6 (write size and fee), §8 Q17, §9 AC-C6-1 | The License + Fuel write measures 13,341 B, not the ≈12,875 B v0.5's `FEE_W` was built from: 466 B over the old estimate. Broken down against the shipped artifacts: License's §3.7 rule growth since the prototype, checks (e) and (f), counted twice (its locking script and again inside its own unlocking-script preimage), 272 B; the real Data output's `nftgate`/version/record-type header vs. the prototype's bare payload push, counted twice (the output itself and again as an argument inside License's unlocking script), 24 B; Fuel's own added §3.7 check (3), "the Fuel is input 1", counted three times (its locking script, its own preimage, and again as an argument inside License's unlocking script), 99 B; and the second input's outpoint in both `prevouts` lists, 72 B — because the spec's v0.5 `FEE_W` summed each contract's size as measured *alone*, with a one-input `prevouts`, rather than in the real two-input write; less 1 B of DER signature variance. `FEE_W` is now ≈1,334 sat, `FEE_CAP` ÷ write size falls from ≈155 to ≈150 sat/kB (Q17), and AC-C6-1's expected median follows. §3.7's measured-sizes table is replaced with these shipped-artifact figures; the prototype's figures are kept as a labelled note, since they predate License rules (e)/(f) and Fuel's check (3) and no longer describe what ships. Lesson: parts measured in isolation and then added do not equal a whole transaction's size — the missing second `prevouts` outpoint alone was 72 of the 466 B — so future size figures should come from a real combined transaction, not a sum of separately-measured parts. |
 
