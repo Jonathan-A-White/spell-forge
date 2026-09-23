@@ -39,6 +39,27 @@ and the record type; see `NOTES.md`). The write's unlocking script grew by 184 B
 136 B again inside the preimage, 36 B for the second input's outpoint in `prevouts`,
 and 12 B for the longer Data script.
 
+## Real testnet transactions (mw-5wuz6.6)
+
+Measured on the real write and transfer built by `license-contract.ts`'s production
+builders (`buildContractTokenRecordTransaction`, `buildContractTransferTransaction`) and
+broadcast against WhatsOnChain testnet by `tests/testnet/license-token.testnet.test.ts`
+(`npm run test:bsv:testnet`, confirmed in block 1759641), reading
+`transaction.inputs[0].unlockingScript.toBinary().length`, `transaction.outputs[1/2].lockingScript.toBinary().length`,
+and (total input satoshis − total output satoshis) for the fee. Beside the estimates
+above, which size output 1 as the prototype's 1,171-byte `FuelSingle` stand-in: the real
+builders' output 1 is instead a genuine 25-byte P2PKH to the holder (`new
+P2PKH().lock(holderAddress)`, the Fuel stand-in "until the Fuel contract exists" —
+license-contract.ts's own header), so the real unlocking scripts run far smaller than the
+fixture's spec-comparison estimate.
+
+| | `write` | `transfer` |
+|--|--------:|-----------:|
+| Unlocking script (input 0) | 4,784 B | 4,738 B |
+| Output 1 script (real P2PKH Fuel stand-in) | 25 B | 25 B |
+| Output 2 script (Data), incl. header | 102 B | 59 B |
+| Fee paid | 10 sat | 10 sat |
+
 ## Prototype measurement (mw-5wuz6.1)
 
 Against the unmodified copy of `prototype/licenseExact.ts`: locking 4,171 B, unlocking
