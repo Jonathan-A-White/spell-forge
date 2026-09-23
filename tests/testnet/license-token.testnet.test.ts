@@ -20,12 +20,28 @@ import type { LicenseToken, Outpoint, TokenRepository } from '../../src/bsv/lice
 import { followLicenseToken } from '../../src/bsv/token-lineage';
 import { requireFundedHarness, withPacing, pollForUtxo } from '../../src/bsv/node/testnet-e2e-helpers';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
+import type { PendingSpendRepository } from '../../src/bsv/pending-spends';
 import type { Utxo } from '../../src/contracts/types';
 
 /** This e2e tracks the token's current outpoint itself; the repository just has to satisfy the interface. */
 function noopTokenRepository(): TokenRepository {
   return {
     async updateCurrent(): Promise<void> {},
+  };
+}
+
+/**
+ * This e2e tracks its own already-spent outpoints via withSpentTracking below, ahead of
+ * WhatsOnChain's confirmation lag; the repository here just has to satisfy the interface
+ * license-token.ts's builders now require (mw-b00z.11).
+ */
+function noopPendingSpendRepo(): PendingSpendRepository {
+  return {
+    async getAll() {
+      return [];
+    },
+    async add() {},
+    async removeMany() {},
   };
 }
 
@@ -134,6 +150,7 @@ describe('testnet license token e2e', () => {
       provider,
       config: chainConfig,
       eventBus,
+      pendingSpendRepo: noopPendingSpendRepo(),
     });
     markSpent(issuerFeeUtxos);
     txids.mint = token.origin.txid;
@@ -149,6 +166,7 @@ describe('testnet license token e2e', () => {
       config: chainConfig,
       eventBus,
       repository,
+      pendingSpendRepo: noopPendingSpendRepo(),
     });
     markSpent(holderAFeeUtxosBeforeWrite1);
     markSpent([{ txid: token.current.txid, vout: token.current.vout, satoshis: 1 }]);
@@ -165,6 +183,7 @@ describe('testnet license token e2e', () => {
       config: chainConfig,
       eventBus,
       repository,
+      pendingSpendRepo: noopPendingSpendRepo(),
     });
     markSpent(holderAFeeUtxosBeforeTransfer);
     markSpent([{ txid: token.current.txid, vout: token.current.vout, satoshis: 1 }]);
@@ -183,6 +202,7 @@ describe('testnet license token e2e', () => {
       config: chainConfig,
       eventBus,
       repository,
+      pendingSpendRepo: noopPendingSpendRepo(),
     });
     markSpent(holderBFeeUtxosBeforeWrite2);
     markSpent([{ txid: token.current.txid, vout: token.current.vout, satoshis: 1 }]);
