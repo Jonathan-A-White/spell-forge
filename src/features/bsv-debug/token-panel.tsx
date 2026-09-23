@@ -11,7 +11,7 @@ import {
   writeWithToken,
 } from '../../bsv';
 import type { ChainProvider, FollowLicenseTokenResult, LicenseToken } from '../../bsv';
-import { bsvTokenRepo } from '../../data/repositories';
+import { bsvPendingSpendRepo, bsvTokenRepo } from '../../data/repositories';
 import type { BsvWalletKey, EventBus } from '../../contracts/types';
 
 interface TokenPanelProps {
@@ -81,6 +81,7 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
         provider,
         config: chainConfig,
         eventBus,
+        pendingSpendRepo: bsvPendingSpendRepo,
       });
       await bsvTokenRepo.put(token);
       const requestId = ++latestListRequest.current;
@@ -108,6 +109,7 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
         config: chainConfig,
         eventBus,
         repository: bsvTokenRepo,
+        pendingSpendRepo: bsvPendingSpendRepo,
       });
       const requestId = ++latestListRequest.current;
       const list = await bsvTokenRepo.list();
@@ -132,6 +134,7 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
         config: chainConfig,
         eventBus,
         repository: bsvTokenRepo,
+        pendingSpendRepo: bsvPendingSpendRepo,
       });
       const requestId = ++latestListRequest.current;
       const list = await bsvTokenRepo.list();

@@ -12,7 +12,14 @@ import {
   type TransferRecordPayload,
   type WriteRecordPayload,
 } from './record';
-import { selectFeeUtxos } from './pending-spends';
+import {
+  outpointKey,
+  selectFeeUtxos,
+  reconcilePendingSpends,
+  filterUtxosExcludingPending,
+  describePendingShortfall,
+  type PendingSpendRepository,
+} from './pending-spends';
 
 const TOKEN_OUTPUT_SATOSHIS = 1;
 
@@ -52,6 +59,7 @@ export interface BuiltMintTransaction {
   transaction: Transaction;
   hex: string;
   txid: string;
+  spentOutpoints: Outpoint[];
 }
 
 /**
@@ -105,7 +113,12 @@ export async function buildMintTransaction(params: BuildMintTransactionParams): 
 
   await transaction.sign();
 
-  return { transaction, hex: transaction.toHex(), txid: transaction.id('hex') };
+  return {
+    transaction,
+    hex: transaction.toHex(),
+    txid: transaction.id('hex'),
+    spentOutpoints: eligibleUtxos.map((utxo) => ({ txid: utxo.txid, vout: utxo.vout })),
+  };
 }
 
 export interface MintLicenseTokenParams {
@@ -114,16 +127,42 @@ export interface MintLicenseTokenParams {
   provider: ChainProvider;
   config: ChainConfig;
   eventBus: EventBus;
+  pendingSpendRepo: PendingSpendRepository;
 }
 
-/** Fetches the issuer's UTXOs, builds, signs, broadcasts once, and emits 'bsv:token-minted'. */
+/**
+ * Fetches the issuer's UTXOs, reconciles them against the app's own pending spends so a
+ * still-unconfirmed transaction's outpoints are never reselected (mw-b00z.11), builds,
+ * signs, broadcasts once, records the spent outpoints as a pending spend, and emits
+ * 'bsv:token-minted'.
+ */
 export async function mintLicenseToken(params: MintLicenseTokenParams): Promise<LicenseToken> {
-  const { issuerKey, holderAddress, provider, config, eventBus } = params;
+  const { issuerKey, holderAddress, provider, config, eventBus, pendingSpendRepo } = params;
 
   const issuerAddress = PrivateKey.fromWif(issuerKey).toAddress(config.network);
-  const utxos = await provider.getUtxos(issuerAddress);
-  const built = await buildMintTransaction({ issuerKey, utxos, holderAddress, config, provider });
+  const rawUtxos = await provider.getUtxos(issuerAddress);
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos } = filterUtxosExcludingPending(rawUtxos, remaining);
+
+  let built: BuiltMintTransaction;
+  try {
+    built = await buildMintTransaction({ issuerKey, utxos, holderAddress, config, provider });
+  } catch (error) {
+    throw describePendingShortfall(error, rawUtxos, remaining);
+  }
+
   const txid = await provider.broadcast(built.hex);
+
+  await pendingSpendRepo.add({
+    txid,
+    outpoints: built.spentOutpoints.map(outpointKey),
+    createdAt: new Date(),
+  });
 
   const origin: Outpoint = { txid, vout: 0 };
   const token: LicenseToken = {
@@ -151,6 +190,7 @@ export interface BuiltTransferTransaction {
   transaction: Transaction;
   hex: string;
   txid: string;
+  spentOutpoints: Outpoint[];
 }
 
 /**
@@ -222,7 +262,12 @@ export async function buildTransferTransaction(params: BuildTransferTransactionP
 
   await transaction.sign();
 
-  return { transaction, hex: transaction.toHex(), txid: transaction.id('hex') };
+  return {
+    transaction,
+    hex: transaction.toHex(),
+    txid: transaction.id('hex'),
+    spentOutpoints: [token.current, ...eligibleFeeUtxos.map((utxo) => ({ txid: utxo.txid, vout: utxo.vout }))],
+  };
 }
 
 /** The subset of bsvTokenRepo that transferLicenseToken needs, kept minimal so this module never imports the data layer. */
@@ -238,20 +283,46 @@ export interface TransferLicenseTokenParams {
   config: ChainConfig;
   eventBus: EventBus;
   repository: TokenRepository;
+  pendingSpendRepo: PendingSpendRepository;
 }
 
 export interface TransferLicenseTokenResult {
   txid: string;
 }
 
-/** Fetches the holder's UTXOs, builds, signs, broadcasts once, updates the repository, and emits 'bsv:token-transferred'. */
+/**
+ * Fetches the holder's fee UTXOs, reconciles them against the app's own pending spends
+ * so a still-unconfirmed transaction's outpoints are never reselected (mw-b00z.11),
+ * builds, signs, broadcasts once, records the spent outpoints (fee inputs and the token
+ * input) as a pending spend, updates the repository, and emits 'bsv:token-transferred'.
+ */
 export async function transferLicenseToken(params: TransferLicenseTokenParams): Promise<TransferLicenseTokenResult> {
-  const { holderKey, token, toAddress, provider, config, eventBus, repository } = params;
+  const { holderKey, token, toAddress, provider, config, eventBus, repository, pendingSpendRepo } = params;
 
   const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
-  const feeUtxos = await provider.getUtxos(holderAddress);
-  const built = await buildTransferTransaction({ holderKey, token, feeUtxos, toAddress, config, provider });
+  const rawFeeUtxos = await provider.getUtxos(holderAddress);
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawFeeUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos: feeUtxos } = filterUtxosExcludingPending(rawFeeUtxos, remaining);
+
+  let built: BuiltTransferTransaction;
+  try {
+    built = await buildTransferTransaction({ holderKey, token, feeUtxos, toAddress, config, provider });
+  } catch (error) {
+    throw describePendingShortfall(error, rawFeeUtxos, remaining);
+  }
+
   const txid = await provider.broadcast(built.hex);
+
+  await pendingSpendRepo.add({
+    txid,
+    outpoints: built.spentOutpoints.map(outpointKey),
+    createdAt: new Date(),
+  });
 
   const current: Outpoint = { txid, vout: 0 };
   await repository.updateCurrent(token.origin, current, toAddress);
@@ -279,6 +350,7 @@ export interface BuiltTokenRecordTransaction {
   transaction: Transaction;
   hex: string;
   txid: string;
+  spentOutpoints: Outpoint[];
 }
 
 /**
@@ -352,7 +424,12 @@ export async function buildTokenRecordTransaction(
 
   await transaction.sign();
 
-  return { transaction, hex: transaction.toHex(), txid: transaction.id('hex') };
+  return {
+    transaction,
+    hex: transaction.toHex(),
+    txid: transaction.id('hex'),
+    spentOutpoints: [token.current, ...eligibleFeeUtxos.map((utxo) => ({ txid: utxo.txid, vout: utxo.vout }))],
+  };
 }
 
 export interface WriteWithTokenParams {
@@ -363,6 +440,7 @@ export interface WriteWithTokenParams {
   config: ChainConfig;
   eventBus: EventBus;
   repository: TokenRepository;
+  pendingSpendRepo: PendingSpendRepository;
 }
 
 export interface WriteWithTokenResult {
@@ -370,17 +448,40 @@ export interface WriteWithTokenResult {
 }
 
 /**
- * Fetches the holder's UTXOs, builds, signs, broadcasts once, moves the repository's
- * current outpoint (holder unchanged — a write recreates the token to itself), and
- * emits 'bsv:record-written' with the txid and the token's origin.
+ * Fetches the holder's fee UTXOs, reconciles them against the app's own pending spends
+ * so a still-unconfirmed transaction's outpoints are never reselected (mw-b00z.11),
+ * builds, signs, broadcasts once, records the spent outpoints (fee inputs and the token
+ * input) as a pending spend, moves the repository's current outpoint (holder unchanged —
+ * a write recreates the token to itself), and emits 'bsv:record-written' with the txid
+ * and the token's origin.
  */
 export async function writeWithToken(params: WriteWithTokenParams): Promise<WriteWithTokenResult> {
-  const { holderKey, token, payload, provider, config, eventBus, repository } = params;
+  const { holderKey, token, payload, provider, config, eventBus, repository, pendingSpendRepo } = params;
 
   const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
-  const feeUtxos = await provider.getUtxos(holderAddress);
-  const built = await buildTokenRecordTransaction({ holderKey, token, feeUtxos, payload, config, provider });
+  const rawFeeUtxos = await provider.getUtxos(holderAddress);
+
+  const pendingEntries = await pendingSpendRepo.getAll();
+  const { remaining, dropped } = reconcilePendingSpends(pendingEntries, rawFeeUtxos, new Date());
+  if (dropped.length > 0) {
+    await pendingSpendRepo.removeMany(dropped);
+  }
+  const { utxos: feeUtxos } = filterUtxosExcludingPending(rawFeeUtxos, remaining);
+
+  let built: BuiltTokenRecordTransaction;
+  try {
+    built = await buildTokenRecordTransaction({ holderKey, token, feeUtxos, payload, config, provider });
+  } catch (error) {
+    throw describePendingShortfall(error, rawFeeUtxos, remaining);
+  }
+
   const txid = await provider.broadcast(built.hex);
+
+  await pendingSpendRepo.add({
+    txid,
+    outpoints: built.spentOutpoints.map(outpointKey),
+    createdAt: new Date(),
+  });
 
   const current: Outpoint = { txid, vout: 0 };
   await repository.updateCurrent(token.origin, current, token.holderAddress);

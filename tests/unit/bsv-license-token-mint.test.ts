@@ -6,7 +6,20 @@ import { createEventBus } from '../../src/contracts/events';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
 import type { Utxo } from '../../src/contracts/types';
+import type { PendingSpendEntry } from '../../src/bsv/pending-spends';
 import wallet from '../fixtures/bsv/license-token-mint-wallet.json';
+
+function fakePendingSpendRepo(overrides: {
+  getAll?: () => Promise<PendingSpendEntry[]>;
+  add?: (entry: PendingSpendEntry) => Promise<void>;
+  removeMany?: (txids: string[]) => Promise<void>;
+} = {}) {
+  return {
+    getAll: vi.fn(overrides.getAll ?? (async () => [])),
+    add: vi.fn(overrides.add ?? (async () => {})),
+    removeMany: vi.fn(overrides.removeMany ?? (async () => {})),
+  };
+}
 
 const baseConfig: ChainConfig = {
   network: 'testnet',
@@ -28,12 +41,19 @@ const oneSatUtxo: Utxo = {
   satoshis: wallet.oneSatTx.satoshis,
 };
 
+const fundingUtxo2: Utxo = {
+  txid: wallet.fundingTx2.txid,
+  vout: wallet.fundingTx2.vout,
+  satoshis: wallet.fundingTx2.satoshis,
+};
+
 function fakeProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {
   return {
     getUtxos: vi.fn().mockResolvedValue([fundingUtxo]),
     getTransactionHex: vi.fn((txid: string) => {
       if (txid === wallet.fundingTx.txid) return Promise.resolve(wallet.fundingTx.hex);
       if (txid === wallet.oneSatTx.txid) return Promise.resolve(wallet.oneSatTx.hex);
+      if (txid === wallet.fundingTx2.txid) return Promise.resolve(wallet.fundingTx2.hex);
       return Promise.reject(new Error(`unexpected txid ${txid}`));
     }),
     broadcast: vi.fn().mockResolvedValue('f'.repeat(64)),
@@ -205,6 +225,7 @@ describe('mintLicenseToken', () => {
       provider,
       config: baseConfig,
       eventBus,
+      pendingSpendRepo: fakePendingSpendRepo(),
     });
 
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
@@ -213,6 +234,58 @@ describe('mintLicenseToken', () => {
     expect(token.holderAddress).toBe(wallet.holderAddress);
     expect(token.collectionId).toBe(baseConfig.collectionId);
     expect(received).toEqual([{ txid: 'f'.repeat(64), origin: { txid: 'f'.repeat(64), vout: 0 } }]);
+  });
+
+  it('records the spent fee outpoint as a pending spend after broadcast', async () => {
+    const provider = fakeProvider();
+    const eventBus = createEventBus();
+    const pendingSpendRepo = fakePendingSpendRepo();
+
+    const txid = 'f'.repeat(64);
+    await mintLicenseToken({
+      issuerKey: wallet.issuerWif,
+      holderAddress: wallet.holderAddress,
+      provider,
+      config: baseConfig,
+      eventBus,
+      pendingSpendRepo,
+    });
+
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txid,
+        outpoints: [`${wallet.fundingTx.txid}:${wallet.fundingTx.vout}`],
+      }),
+    );
+  });
+
+  it("never reselects a fee outpoint the app's own unconfirmed mint already spent (mw-b00z.11)", async () => {
+    const provider = fakeProvider({ getUtxos: vi.fn().mockResolvedValue([fundingUtxo, fundingUtxo2]) });
+    const eventBus = createEventBus();
+    const pendingTxid = 'a'.repeat(64);
+    const pendingSpendRepo = fakePendingSpendRepo({
+      getAll: async () => [
+        { txid: pendingTxid, outpoints: [`${fundingUtxo.txid}:${fundingUtxo.vout}`], createdAt: new Date() },
+      ],
+    });
+
+    const token = await mintLicenseToken({
+      issuerKey: wallet.issuerWif,
+      holderAddress: wallet.holderAddress,
+      provider,
+      config: baseConfig,
+      eventBus,
+      pendingSpendRepo,
+    });
+
+    expect(provider.broadcast).toHaveBeenCalledTimes(1);
+    expect(token.origin.txid).toBe('f'.repeat(64));
+    expect(pendingSpendRepo.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outpoints: [`${fundingUtxo2.txid}:${fundingUtxo2.vout}`],
+      }),
+    );
   });
 
   it('never broadcasts when the build step refuses', async () => {
@@ -226,6 +299,7 @@ describe('mintLicenseToken', () => {
         provider,
         config: baseConfig,
         eventBus,
+        pendingSpendRepo: fakePendingSpendRepo(),
       }),
     ).rejects.toThrow();
 

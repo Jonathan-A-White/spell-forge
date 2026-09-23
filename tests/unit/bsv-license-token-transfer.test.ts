@@ -7,7 +7,20 @@ import { createEventBus } from '../../src/contracts/events';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
 import type { Utxo } from '../../src/contracts/types';
+import type { PendingSpendEntry } from '../../src/bsv/pending-spends';
 import wallet from '../fixtures/bsv/license-token-transfer-wallet.json';
+
+function fakePendingSpendRepo(overrides: {
+  getAll?: () => Promise<PendingSpendEntry[]>;
+  add?: (entry: PendingSpendEntry) => Promise<void>;
+  removeMany?: (txids: string[]) => Promise<void>;
+} = {}) {
+  return {
+    getAll: vi.fn(overrides.getAll ?? (async () => [])),
+    add: vi.fn(overrides.add ?? (async () => {})),
+    removeMany: vi.fn(overrides.removeMany ?? (async () => {})),
+  };
+}
 
 const baseConfig: ChainConfig = {
   network: 'testnet',
@@ -19,6 +32,7 @@ const baseConfig: ChainConfig = {
 
 const currentUtxo: Utxo = { txid: wallet.currentTx.txid, vout: wallet.currentTx.vout, satoshis: wallet.currentTx.satoshis };
 const fundingUtxo: Utxo = { txid: wallet.fundingTx.txid, vout: wallet.fundingTx.vout, satoshis: wallet.fundingTx.satoshis };
+const fundingUtxo2: Utxo = { txid: wallet.fundingTx2.txid, vout: wallet.fundingTx2.vout, satoshis: wallet.fundingTx2.satoshis };
 const decoyOneSatUtxo: Utxo = { txid: wallet.decoyOneSatTx.txid, vout: wallet.decoyOneSatTx.vout, satoshis: wallet.decoyOneSatTx.satoshis };
 
 const token: LicenseToken = {
@@ -35,6 +49,7 @@ function fakeProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {
       if (txid === wallet.currentTx.txid) return Promise.resolve(wallet.currentTx.hex);
       if (txid === wallet.fundingTx.txid) return Promise.resolve(wallet.fundingTx.hex);
       if (txid === wallet.decoyOneSatTx.txid) return Promise.resolve(wallet.decoyOneSatTx.hex);
+      if (txid === wallet.fundingTx2.txid) return Promise.resolve(wallet.fundingTx2.hex);
       return Promise.reject(new Error(`unexpected txid ${txid}`));
     }),
     broadcast: vi.fn().mockResolvedValue('d'.repeat(64)),
@@ -222,6 +237,7 @@ describe('transferLicenseToken', () => {
       config: baseConfig,
       eventBus,
       repository,
+      pendingSpendRepo: fakePendingSpendRepo(),
     });
 
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
@@ -233,6 +249,63 @@ describe('transferLicenseToken', () => {
       wallet.toAddress,
     );
     expect(received).toEqual([{ txid: 'd'.repeat(64), origin: token.origin, to: wallet.toAddress }]);
+  });
+
+  it('records the spent outpoints (token input and fee input) as a pending spend after broadcast', async () => {
+    const provider = fakeProvider();
+    const repository = fakeRepository();
+    const eventBus = createEventBus();
+    const pendingSpendRepo = fakePendingSpendRepo();
+
+    await transferLicenseToken({
+      holderKey: wallet.holderWif,
+      token,
+      toAddress: wallet.toAddress,
+      provider,
+      config: baseConfig,
+      eventBus,
+      repository,
+      pendingSpendRepo,
+    });
+
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txid: 'd'.repeat(64),
+        outpoints: [`${token.current.txid}:${token.current.vout}`, `${fundingUtxo.txid}:${fundingUtxo.vout}`],
+      }),
+    );
+  });
+
+  it("never reselects a fee outpoint the app's own unconfirmed transfer already spent (mw-b00z.11)", async () => {
+    const provider = fakeProvider({ getUtxos: vi.fn().mockResolvedValue([currentUtxo, fundingUtxo, fundingUtxo2]) });
+    const repository = fakeRepository();
+    const eventBus = createEventBus();
+    const pendingTxid = 'a'.repeat(64);
+    const pendingSpendRepo = fakePendingSpendRepo({
+      getAll: async () => [
+        { txid: pendingTxid, outpoints: [`${fundingUtxo.txid}:${fundingUtxo.vout}`], createdAt: new Date() },
+      ],
+    });
+
+    const result = await transferLicenseToken({
+      holderKey: wallet.holderWif,
+      token,
+      toAddress: wallet.toAddress,
+      provider,
+      config: baseConfig,
+      eventBus,
+      repository,
+      pendingSpendRepo,
+    });
+
+    expect(provider.broadcast).toHaveBeenCalledTimes(1);
+    expect(result.txid).toBe('d'.repeat(64));
+    expect(pendingSpendRepo.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outpoints: [`${token.current.txid}:${token.current.vout}`, `${fundingUtxo2.txid}:${fundingUtxo2.vout}`],
+      }),
+    );
   });
 
   it('never broadcasts when the token outpoint is absent from getUtxos', async () => {
@@ -249,6 +322,7 @@ describe('transferLicenseToken', () => {
         config: baseConfig,
         eventBus,
         repository,
+        pendingSpendRepo: fakePendingSpendRepo(),
       }),
     ).rejects.toThrow(/token already spent or not confirmed here/i);
 
