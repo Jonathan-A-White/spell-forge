@@ -240,6 +240,46 @@ describe('WhatsOnChainProvider', () => {
     expect((caught as Error).message).toContain('unexpected response shape');
   });
 
+  it('getTransactionHex retries a 404 and returns the hex once WhatsOnChain catches up, waiting via the injected delay', async () => {
+    const txid = 'a1b2c3d4';
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 404 }))
+      .mockResolvedValueOnce(new Response('', { status: 404 }))
+      .mockResolvedValueOnce(new Response('deadbeef00', { status: 200 }));
+    const delay = noopDelay();
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, delay);
+
+    const hex = await provider.getTransactionHex(txid);
+
+    expect(hex).toBe('deadbeef00');
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(delay).toHaveBeenCalledTimes(2);
+    expect(delay).toHaveBeenCalledWith(1000);
+  });
+
+  it('getTransactionHex throws a ChainError once a 404 persists past the retry window', async () => {
+    const txid = 'a1b2c3d4';
+    const fetchFn = vi.fn().mockImplementation(() => Promise.resolve(new Response('', { status: 404 })));
+    const delay = noopDelay();
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, delay);
+
+    await expect(provider.getTransactionHex(txid)).rejects.toThrow(/WhatsOnChain said 404/);
+    expect(fetchFn).toHaveBeenCalledTimes(15);
+    expect(delay).toHaveBeenCalledTimes(14);
+  });
+
+  it('getTransactionHex does not retry a non-404 error', async () => {
+    const txid = 'a1b2c3d4';
+    const fetchFn = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
+    const delay = noopDelay();
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, delay);
+
+    await expect(provider.getTransactionHex(txid)).rejects.toThrow(/WhatsOnChain said 500/);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(delay).not.toHaveBeenCalled();
+  });
+
   it('getUnconfirmedAddressHistory throws a clear ChainError naming the endpoint on an unexpected shape', async () => {
     const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ unexpected: 'shape' }));
     const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());

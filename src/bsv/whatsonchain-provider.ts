@@ -9,6 +9,15 @@ const MAX_ATTEMPTS = 3;
 const INITIAL_RETRY_DELAY_MS = 500;
 const MAX_ERROR_BODY_CHARS = 200;
 
+// WhatsOnChain's /tx/{txid}/hex index lags a few seconds behind /address/{addr}/unspent
+// after a broadcast, so a spend right after a mint or write can see a 404 on a txid whose
+// output is already spendable (observed live 2026-09-23, mw-b00z.6 and mw-b00z.12).
+const TX_HEX_NOT_FOUND_RETRY_DELAY_MS = 1000;
+const TX_HEX_NOT_FOUND_RETRY_TIMEOUT_MS = 15000;
+const TX_HEX_NOT_FOUND_MAX_ATTEMPTS = Math.ceil(
+  TX_HEX_NOT_FOUND_RETRY_TIMEOUT_MS / TX_HEX_NOT_FOUND_RETRY_DELAY_MS,
+);
+
 type FetchFn = typeof globalThis.fetch;
 type DelayFn = (ms: number) => Promise<void>;
 
@@ -95,9 +104,27 @@ export class WhatsOnChainProvider implements ChainProvider {
     throw new ChainError(`WhatsOnChain ${path} returned an unexpected response shape: ${bodyText}`);
   }
 
+  /**
+   * Retries a 404 for up to TX_HEX_NOT_FOUND_RETRY_TIMEOUT_MS: WhatsOnChain's hex index can
+   * lag its own unspent-list index by a few seconds right after broadcast (see the constants
+   * above). Any other status or error propagates immediately, same as before.
+   */
   async getTransactionHex(txid: string): Promise<string> {
-    const response = await this.request(`/tx/${txid.trim()}/hex`);
-    return (await response.text()).trim();
+    const path = `/tx/${txid.trim()}/hex`;
+
+    for (let attempt = 1; attempt <= TX_HEX_NOT_FOUND_MAX_ATTEMPTS; attempt++) {
+      try {
+        const response = await this.request(path);
+        return (await response.text()).trim();
+      } catch (error) {
+        const isRetryableNotFound = error instanceof ChainError && error.status === 404;
+        if (!isRetryableNotFound || attempt === TX_HEX_NOT_FOUND_MAX_ATTEMPTS) throw error;
+        await this.delay(TX_HEX_NOT_FOUND_RETRY_DELAY_MS);
+      }
+    }
+
+    // Unreachable: the loop above always returns or throws on its last attempt.
+    throw new ChainError(`WhatsOnChain ${path} kept 404ing`);
   }
 
   async broadcast(txHex: string): Promise<string> {
@@ -139,7 +166,7 @@ export class WhatsOnChainProvider implements ChainProvider {
       if (!response.ok) {
         const bodyText = (await response.text()).trim().slice(0, MAX_ERROR_BODY_CHARS);
         const suffix = bodyText ? `: ${bodyText}` : '';
-        throw new ChainError(`WhatsOnChain said ${response.status}${suffix}`);
+        throw new ChainError(`WhatsOnChain said ${response.status}${suffix}`, { status: response.status });
       }
 
       return response;
