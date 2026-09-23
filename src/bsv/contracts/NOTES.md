@@ -55,3 +55,57 @@ match it.
 - Assert messages name the rule they enforce; scrypt-ts reports them when the contract's
   TypeScript runs (`exec`), while the compiled script fails with an opaque interpreter
   error (see the test).
+
+# Fuel(C): from the prototype to spec v0.13 §3.7
+
+`fuel.ts` began as a copy of `prototype/fuelSingle.ts`, the size prototype behind spec
+§3.7's "Fuel `spend` (SINGLE)" row. This is the rule-by-rule diff between that prototype
+and spec v0.13 §3.2/§3.7's `spend`, with the line of `fuel.ts` that now enforces each
+(mw-yo97u.2). `consolidate` (Fuel) and `merge` (TopUp) are not written yet. Tests:
+`tests/unit/bsv-contracts-fuel.test.ts`.
+
+## `spend`, under a SIGHASH_SINGLE|FORKID (0x43) preimage
+
+| Check | Spec v0.13 | Enforced at `fuel.ts` | Prototype | What changed, and why |
+|-------|------------|-----------------------|-----------|-----------------------|
+| (1) `hash256(prevouts)` equals the preimage's `hashPrevouts` | §3.7 FB-1 needs the prevouts list, verified | scrypt-ts, wherever `this.prevouts` is read (lines 30–31); the list and the preimage are the hidden ABI arguments `__scrypt_ts_prevouts` and `__scrypt_ts_txPreimage` after `fuelValue` | present, the same way | Unchanged. The test proves it is in the compiled script: a forged list claiming the License at input 0 fails, and the same explicit-argument path with the real list verifies. |
+| (2) FB-1: `prevouts[0]` is `(T, 0)`, `T` the txid of the Fuel's own outpoint | §3.7 FB-1 (tightened v0.4) | line 30 | present | Unchanged. |
+| (3) the Fuel is input 1: `prevouts[1]` is its own outpoint | §3.7 `spend`, "the fuel input is at index 1" | line 31 | **absent** | **Added.** Under SINGLE the Fuel's input index picks the one output its preimage binds, so this also fixes that (4) reads output 1. Without it a Fuel at input 2 would bind output 2 instead (in a §4.3 write, the Data output). Costs 33 B of locking script. |
+| (4) output 1 is `Fuel(C)`, its own locking script unchanged, with value ≥ own value − `FEE_CAP` | §3.7 `spend`; §3.9 `FEE_CAP` 2,000 sat, compiled in | line 32 (value); line 33 (`hashOutputs` is exactly one output: `ctx.utxo.script`, the running script, at `fuelValue`) | present, `FEE_CAP = 1000n` as a plain static | `FEE_CAP` is **2,000** (§3.9, F49), and a `@prop()` static, the style of `license.ts`'s constants: still a compile-time constant, inlined as `d007`. Assert messages name what they check. |
+| no signature | §3.2: Fuel has no spending key | — | none | Unchanged: `spend` takes no `Sig`. |
+
+The class is `Fuel` (was `FuelSingle`); the artifact's contract name follows. Its only
+constructor prop is `collectionId`, so Fuel(C)'s script, and with it the License's
+`fuelScriptHash`, is per collection. There is no mutable state.
+
+## Why FB-1 needs the prevouts list as an argument
+
+A sighash preimage carries only `hashPrevouts`, the double SHA-256 of every input's
+outpoint, never the outpoints themselves. FB-1 is a statement about another input
+(`prevouts[0]` must be `(T, 0)`), so the unlocking script has to push the whole serialised
+list (36 B per input), and the contract hashes it and compares it to the preimage's
+`hashPrevouts` before trusting any entry. SIGHASH_SINGLE without ANYONECANPAY still
+commits to `hashPrevouts`, which is why the cheap preimage suffices. Check (3) reads the
+same list.
+
+## No circular hashes
+
+Fuel embeds only the collection id; it never embeds the License's script or its hash. Its
+`spend` requires output 1's script to be its own running locking script, unchanged, so a
+Fuel(C) output is byte-identical on every hop and `hash256` of it (the License's
+`fuelScriptHash`) stays valid for the token's whole life. The License's `fuelScriptHash` is
+a constructor prop (`license.ts` line 26): the License artifact's hex carries
+`<fuelScriptHash>`, so a changed Fuel script needs only a new value at mint, not a License
+recompile (though every License already minted pins the old hash).
+
+## Not enforced, and open
+
+- **Transaction version > 1** (§3.7 "Common") is not checked, as in the License.
+- **A Fuel spent without its License.** FB-1 trusts that `(T, 0)` is the License: every
+  license transaction puts it there (§3.7 invariant, §4.3). Fuel does not read input 0's
+  script; a `T` whose output 0 is not a License (a mint built otherwise) would leave its
+  Fuel spendable next to whatever `(T, 0)` is.
+- **What the License does not check.** In a §4.3 write, the License accepts output 1 at any
+  value and the Fuel at any input after 0; the Fuel alone refuses under-conservation and a
+  wrong input index (the test verifies input 0 passes in both). Output 1's script is
+  refused by both: by Fuel's check (4) and by the License's `fuelScriptHash`.

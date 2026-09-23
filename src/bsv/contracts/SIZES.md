@@ -39,6 +39,43 @@ and the record type; see `NOTES.md`). The write's unlocking script grew by 184 B
 136 B again inside the preimage, 36 B for the second input's outpoint in `prevouts`,
 and 12 B for the longer Data script.
 
+## Fuel(C), spec v0.13 §3.7 `spend` (mw-yo97u.2)
+
+Measured on the happy write `tests/unit/bsv-contracts-fuel.test.ts` builds
+(`tests/fixtures/bsv/fuel-contract.ts`): a §4.3 write whose input 0 is a real License and
+input 1 a real Fuel(C), both created by the same source transaction, reading
+`lockingScript.toBuffer().length`, input 1's and input 0's `script.toBuffer().length` and
+`tx.toBuffer().length`. The happy-path test asserts these numbers.
+
+| | Measured | Spec v0.13 | Prototype `FuelSingle`, measured here |
+|--|---------:|-----------:|--------------------------------------:|
+| `FEE_CAP`, as compiled | 2,000 sat (`d007`) | 2,000 sat (§3.9) | 1,000 sat |
+| Fuel locking script | 1,204 B | 1,171 B (§3.7) | 1,171 B |
+| Fuel `spend` unlocking script, prevouts 72 B (2 inputs) | 1,443 B | 1,374 B (§3.7) | 1,410 B |
+| The whole License + Fuel write, 200-byte payload | 13,341 B | ≈ 12.9 KB (§3.9, §6) | — |
+
+**Conditions**: 32-byte `collectionId`, two inputs (License, Fuel: a 72-byte `prevouts`),
+output 1 at own value − 1,290 sat. The unlocking script carries the Push TX preimage (which
+holds the 1,204-byte locking script), `prevouts` and `fuelValue`, so it grows with each.
+
+**Against the prototype.** Fuel's locking script is 33 B longer: check (3), "the Fuel is
+input 1" (`NOTES.md`); `FEE_CAP` 1,000 → 2,000 is the same two bytes. Compiled here and
+spent in the same two-input transaction, the prototype's unlocking script is 1,410 B; the
+spec's 1,374 B is that less 36 B, one outpoint of `prevouts`, so the spec's row appears to
+have been measured with a one-input `prevouts`. Fuel's 1,443 B is those 1,410 B plus the
+33 B of locking script inside the preimage.
+
+**The write, part by part** (13,341 B): input 0's License `write` unlocking script
+6,044 B (which carries Fuel's 1,204-byte script as output 1's argument), input 1's Fuel
+unlocking script 1,443 B, output 0 the License 4,307 B, output 1 Fuel 1,204 B, output 2
+the Data output 216 B, and 127 B of transaction framing. The spec's parts (5,828 + 1,374 +
+4,171 + 1,171 + a 204-byte Data output, with the same framing) sum to 12,875 B, ≈ 12.9 KB;
+the 466 B between are the License's §3.7 checks (136 B, twice: its locking script and its
+preimage), Fuel's check (3) (33 B, three times: its locking script, its preimage, the
+License's argument), the second outpoint in both `prevouts` lists (36 B, twice), the
+12-byte longer Data header (twice: output 2 and the License's argument), less one byte of
+DER signature. At 100 sat/kB it costs 1,334 sat: above `FEE_W` ≈ 1,290 sat, still under `FEE_CAP`.
+
 ## Real testnet transactions (mw-5wuz6.6)
 
 Measured on the real write and transfer built by `license-contract.ts`'s production
