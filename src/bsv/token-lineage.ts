@@ -7,11 +7,12 @@
 // discovery. An overlay indexer replaces this later without touching callers, since
 // everything here goes through the ChainProvider parameter.
 
-import { OP, Transaction, Utils } from '@bsv/sdk';
+import { OP, PublicKey, Transaction, Utils } from '@bsv/sdk';
 import type { LockingScript } from '@bsv/sdk';
 import type { ChainProvider } from './chain-provider';
 import type { AddressHistoryEntry } from '../contracts/types';
 import type { Outpoint } from './license-token';
+import { ownerPubKeyFromLicenseLockingScript } from './license-owner';
 import { decodeRecordPayload, findRecordsInTransaction } from './record';
 
 const TOKEN_OUTPUT_SATOSHIS = 1;
@@ -45,8 +46,8 @@ export interface FollowLicenseTokenParams {
   maxHops?: number;
 }
 
-/** Extracts the P2PKH address an output pays to, or null if it isn't a P2PKH output. */
-function addressFromLockingScript(script: LockingScript): string | null {
+/** The P2PKH address an output pays to, or null if it isn't a P2PKH output. */
+function p2pkhAddressFromLockingScript(script: LockingScript): string | null {
   const chunks = script.chunks;
   if (chunks.length !== 5) return null;
   if (chunks[0].op !== OP.OP_DUP || chunks[1].op !== OP.OP_HASH160) return null;
@@ -54,6 +55,20 @@ function addressFromLockingScript(script: LockingScript): string | null {
   const hash = chunks[2].data;
   if (!hash || hash.length !== 20) return null;
   return Utils.toBase58Check(hash, TESTNET_ADDRESS_PREFIX);
+}
+
+/**
+ * The holder an output's locking script names: a P2PKH's address, or a License's current
+ * owner (its state's ownerPubKey, read without depending on scrypt-ts) as the address that
+ * key controls — the same address a License token's own holderAddress field carries
+ * elsewhere (license-contract.ts). Null if the script is neither shape.
+ */
+function addressFromLockingScript(script: LockingScript): string | null {
+  const p2pkhAddress = p2pkhAddressFromLockingScript(script);
+  if (p2pkhAddress) return p2pkhAddress;
+  const ownerPubKeyHex = ownerPubKeyFromLicenseLockingScript(script.toHex());
+  if (!ownerPubKeyHex) return null;
+  return PublicKey.fromString(ownerPubKeyHex).toAddress('testnet');
 }
 
 /** Unconfirmed sorts first, then by height descending — same rule as scan-records.ts. */

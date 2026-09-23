@@ -97,6 +97,7 @@ export type {
 } from './license-contract';
 export { followLicenseToken } from './token-lineage';
 export type { LineageHop, LineageHopKind, FollowLicenseTokenResult, FollowLicenseTokenParams } from './token-lineage';
+export { ownerPubKeyFromLicenseLockingScript } from './license-owner';
 export { buildSendTransaction, sendSats } from './send-sats';
 export type {
   BuildSendTransactionParams,
