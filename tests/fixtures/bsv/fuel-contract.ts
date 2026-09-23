@@ -23,12 +23,25 @@ const strangerKey = bsv.PrivateKey.fromWIF(keys.stranger);
 
 export const COLLECTION_ID: ByteString = toByteString('11'.repeat(32));
 
-/** FEE_W, spec §3.9: the fee one write burns (≈ 12.9 KB × 100 sat/kB). */
-export const FEE_W = 1_290;
 export const FUEL_IN_SATOSHIS = 100_000;
 
 const SIGHASH_ALL_FORKID = bsv.crypto.Signature.SIGHASH_ALL | bsv.crypto.Signature.SIGHASH_FORKID;
 const SIGHASH_SINGLE_FORKID = bsv.crypto.Signature.SIGHASH_SINGLE | bsv.crypto.Signature.SIGHASH_FORKID;
+
+/** Fuel(C)'s FEE_CAP (spec §3.9), compiled into the artifact: the most one spend may burn. */
+export const FEE_CAP = Number(Fuel.FEE_CAP);
+
+/** The GorillaPool relay policy rate the spec cites for a write's cost (§3.9, §6): 100 sat/kB. */
+export const FEE_RATE_SAT_PER_KB = 100;
+
+/**
+ * FEE_W: what one write actually costs, derived from a real write's measured serialized
+ * size (below) at FEE_RATE_SAT_PER_KB — never typed in from the spec's ≈12.9 KB estimate.
+ * Output satoshis fields are fixed-width, so this placeholder value does not move the size
+ * the derivation measures (give or take a byte of DER noise in the License's ALL signature).
+ */
+const { sizes: measuredWrite } = await callFuel({ fuelOutSatoshis: FUEL_IN_SATOSHIS - 1 });
+export const FEE_W = Math.ceil((measuredWrite.txBytes / 1000) * FEE_RATE_SAT_PER_KB);
 
 export interface FuelScenario {
   /** Output 1's value; default own value − FEE_W. */

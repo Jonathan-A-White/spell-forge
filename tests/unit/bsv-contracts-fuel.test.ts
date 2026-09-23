@@ -5,7 +5,14 @@
 // The happy spend and the under-conservation, FB-1, wrong-output-1-script and Fuel-at-input-2
 // negatives are covered by tests/features/bsv/fuel-covenant.feature instead.
 import { describe, it, expect } from 'vitest';
-import { callFuel, fuelLockingScriptHex, fuelScriptHashHex, verifyInput } from '../fixtures/bsv/fuel-contract';
+import {
+  callFuel,
+  FEE_CAP,
+  FEE_RATE_SAT_PER_KB,
+  fuelLockingScriptHex,
+  fuelScriptHashHex,
+  verifyInput,
+} from '../fixtures/bsv/fuel-contract';
 
 const REFUSED = { success: false, error: expect.stringContaining('SCRIPT_ERR') };
 
@@ -14,6 +21,12 @@ describe('Fuel(C) covenant, spend (spec §3.7)', () => {
     const script = fuelLockingScriptHex();
     expect(script).toContain('20' + '11'.repeat(32));
     expect(fuelScriptHashHex()).toBe('7ba46c59bfc88ef4f8be195a548f4a308425e068ae3596b3018861154d92413e');
+  });
+
+  it('costs at most FEE_CAP: a real write, measured, times the configured rate — not a number typed in from the spec', async () => {
+    const call = await callFuel();
+    const measuredFee = Math.ceil((call.sizes.txBytes / 1000) * FEE_RATE_SAT_PER_KB);
+    expect(measuredFee).toBeLessThanOrEqual(FEE_CAP);
   });
 
   it('refuses a forged prevouts list claiming the License at input 0: hash256(prevouts) must equal hashPrevouts', async () => {
