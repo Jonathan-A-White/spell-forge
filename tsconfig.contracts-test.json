@@ -34,6 +34,8 @@
     "tests/unit/bsv-contracts-fuel.test.ts",
     "tests/fixtures/bsv/fuel-contract.ts",
     "tests/features/steps/license-covenant.steps.ts",
-    "tests/features/bsv/license-covenant.test.ts"
+    "tests/features/bsv/license-covenant.test.ts",
+    "tests/features/steps/fuel-covenant.steps.ts",
+    "tests/features/bsv/fuel-covenant.test.ts"
   ]
 }
