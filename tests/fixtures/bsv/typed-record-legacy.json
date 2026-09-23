@@ -1,0 +1,6 @@
+{
+  "comment": "A format-0x02 W record built by src/bsv/record.ts before mw-yo97u.1 added the §3.8 value-manifest field: protocol id, version, record type, payload — no manifest push. Captured so decodeTypedRecordScript keeps reading step 2's already-broadcast tokens.",
+  "recordType": "W",
+  "payload": { "kind": "write", "origin": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0", "text": "hi", "ts": "2026-09-23T00:00:00.000Z" },
+  "hex": "006a076e667467617465010201574c8a7b226b696e64223a227772697465222c226f726967696e223a22616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613a30222c2274657874223a226869222c227473223a22323032362d30392d32335430303a30303a30302e3030305a227d"
+}
