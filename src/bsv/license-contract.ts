@@ -54,6 +54,7 @@ import {
   type PendingSpendRepository,
 } from './pending-spends';
 import { encodeTypedRecordScript, type TypedRecordType } from './record';
+import { installProcessStub } from './process-stub';
 
 export type { LicenseState, LicenseVerifyResult } from './contracts/bridge/license-bridge-types';
 
@@ -125,8 +126,14 @@ const licenseBridgeLoaders = import.meta.glob<LicenseBridgeModule>('./contracts/
 const FUEL_BRIDGE_MODULE = './contracts/bridge/fuel-bridge.ts';
 const fuelBridgeLoaders = import.meta.glob<FuelBridgeModule>('./contracts/bridge/fuel-bridge.ts');
 
-const loadLicenseBridge = lazy(() => licenseBridgeLoaders[LICENSE_BRIDGE_MODULE]().then((module) => module.licenseBridge));
-const loadFuelBridge = lazy(() => fuelBridgeLoaders[FUEL_BRIDGE_MODULE]().then((module) => module.fuelBridge));
+const loadLicenseBridge = lazy(() => {
+  installProcessStub();
+  return licenseBridgeLoaders[LICENSE_BRIDGE_MODULE]().then((module) => module.licenseBridge);
+});
+const loadFuelBridge = lazy(() => {
+  installProcessStub();
+  return fuelBridgeLoaders[FUEL_BRIDGE_MODULE]().then((module) => module.fuelBridge);
+});
 
 /** The owner key, collection and Fuel script hash a License locking script carries. */
 export async function readLicenseState(lockingScriptHex: string): Promise<LicenseState> {
