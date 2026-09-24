@@ -55,6 +55,7 @@ import {
 } from './pending-spends';
 import { encodeTypedRecordScript, type TypedRecordType } from './record';
 import { installProcessStub } from './process-stub';
+import { installBufferStub } from './buffer-stub';
 
 export type { LicenseState, LicenseVerifyResult } from './contracts/bridge/license-bridge-types';
 
@@ -128,10 +129,12 @@ const fuelBridgeLoaders = import.meta.glob<FuelBridgeModule>('./contracts/bridge
 
 const loadLicenseBridge = lazy(() => {
   installProcessStub();
+  installBufferStub();
   return licenseBridgeLoaders[LICENSE_BRIDGE_MODULE]().then((module) => module.licenseBridge);
 });
 const loadFuelBridge = lazy(() => {
   installProcessStub();
+  installBufferStub();
   return fuelBridgeLoaders[FUEL_BRIDGE_MODULE]().then((module) => module.fuelBridge);
 });
 
