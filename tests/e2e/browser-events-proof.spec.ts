@@ -1,10 +1,12 @@
 // tests/e2e/browser-events-proof.spec.ts
 //
-// Proves mw-yo97u.12's fix against a real production build in a real browser: minting,
-// writing and transferring a License + Fuel token through the app's own BSV Debug screen
-// throws neither "process is not defined" (mw-yo97u.11) nor "Class extends value #<Object>
-// is not a constructor or null" (scrypt-ts's Provider extends Node's `events`, which Vite
-// externalizes to an empty module for the browser — mw-yo97u.12).
+// Proves mw-yo97u.11, .12 and .13's fixes against a real production build in a real browser:
+// minting, writing and transferring a License + Fuel token through the app's own BSV Debug
+// screen all complete, throwing none of "process is not defined" (mw-yo97u.11), "Class
+// extends value #<Object> is not a constructor or null" (scrypt-ts's Provider extends Node's
+// `events`, which Vite externalizes to an empty module for the browser — mw-yo97u.12), or
+// "Buffer is not defined" / a crash reading past a Buffer-shaped stand-in scryptlib's own
+// vendored 'buffer' copy didn't recognize (mw-yo97u.13).
 //
 // Builds dist/ itself (npx vite build) and serves it with `vite preview` on the same port
 // playwright.config.ts's baseURL points at, independent of that config's own (testnet-gated)
@@ -35,6 +37,7 @@ const NODE_BUILTIN_FAULT_PATTERNS = [
   /Class extends value/i,
   /is not a function/i,
   /is not defined/i,
+  /is not a constructor/i,
 ];
 
 async function waitForServer(url: string, timeoutMs: number): Promise<void> {
@@ -196,31 +199,23 @@ test.describe('browser build proof: minting a License + Fuel token in real Chrom
       const tokenEntry = page.getByTestId('bsv-token-entry').first();
       await expect(tokenEntry).toBeVisible();
 
-      // The two faults this story targets (mw-yo97u.11's "process is not defined" and
-      // mw-yo97u.12's "Class extends value #<Object> is not a constructor or null") are fixed
-      // at the point the License bridge chunk loads, which minting already proves above. A
-      // write or transfer additionally deserializes the License's locking script
-      // (spendableLicense -> readLockingScript), which — separately from either fault this
-      // story fixes — throws "Buffer is not defined" in this build: scrypt-ts's contract.js
-      // calls the bare global `Buffer.from(...)` (not a `require()`/import Vite's alias
-      // mechanism can intercept, and not in this story's authorized fs/path/os/crypto class of
-      // fix). So a write or transfer is attempted and reported here, not asserted to succeed;
-      // what IS asserted is that neither one fails with either of this story's two faults.
+      // A write or transfer additionally deserializes the License's locking script
+      // (spendableLicense -> readLockingScript), which is where mw-yo97u.13's fix (a
+      // globalThis.Buffer stand-in, src/bsv/buffer-stub.ts) applies; with all three of this
+      // epic's Node-builtin fixes in place, both must actually succeed, not merely avoid the
+      // fault patterns.
       async function attemptTokenAction(action: string, run: () => Promise<void>, txidLocator: ReturnType<Page['getByTestId']>) {
         const errorLocator = tokenEntry.locator('p.text-red-600');
         await run();
         await expect(txidLocator.or(errorLocator)).toBeVisible({ timeout: 15_000 });
-        if (await txidLocator.isVisible()) {
-          const txid = (await txidLocator.textContent())?.trim() ?? '';
-          expect(txid).toMatch(/^[0-9a-f]{64}$/);
-          console.log(`browser proof: ${action} succeeded, txid ${txid}`);
-        } else {
+        if (await errorLocator.isVisible()) {
           const message = (await errorLocator.textContent())?.trim() ?? '';
-          expect(message, `${action} must not fail with either fault this story fixes`).not.toMatch(
-            /process is not defined|Class extends value/i,
-          );
-          console.log(`browser proof: ${action} blocked by a separate, out-of-scope fault (reported, not fixed by mw-yo97u.12): ${message}`);
+          expect(message, `${action} must succeed, not fail with: ${message}`).toBe('');
+          return;
         }
+        const txid = (await txidLocator.textContent())?.trim() ?? '';
+        expect(txid, `${action} must produce a txid`).toMatch(/^[0-9a-f]{64}$/);
+        console.log(`browser proof: ${action} succeeded, txid ${txid}`);
       }
 
       // --- Write with token ---
