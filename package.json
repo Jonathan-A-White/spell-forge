@@ -32,6 +32,8 @@
     "bsv:contracts:build": "tsx scripts/bsv-contracts-build.ts",
     "bsv:contracts:check": "tsx scripts/bsv-contracts-check.ts",
     "bsv:rules:coverage": "tsx scripts/bsv-rules-coverage.ts",
+    "bsv:pack": "sh scripts/bsv-pack.sh",
+    "test:bsv:package": "sh scripts/check-bsv-package.sh",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b --noEmit"
   },
