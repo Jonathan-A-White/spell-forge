@@ -1,8 +1,42 @@
 import { describe, it, expect, vi } from 'vitest';
+import { LockingScript, OP, Transaction, UnlockingScript, Utils } from '@bsv/sdk';
 import { scanRecords } from '../../src/bsv/scan-records';
+import { PROTOCOL_ID, RECORD_VERSION_TYPED, encodeTypedRecordScript, type TypedRecordType } from '../../src/bsv/record';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { AddressHistoryEntry } from '../../src/contracts/types';
 import fixture from '../fixtures/bsv/scan-history.json';
+
+/** A one-input, one-output transaction whose only output is the given locking script. */
+function buildTxHexWithOutput(lockingScript: LockingScript): string {
+  const tx = new Transaction();
+  tx.addInput({
+    sourceTXID: '11'.repeat(32),
+    sourceOutputIndex: 0,
+    unlockingScript: new UnlockingScript(),
+    sequence: 0xffffffff,
+  });
+  tx.addOutput({ lockingScript, satoshis: 0 });
+  return tx.toHex();
+}
+
+/** A typed (format-0x02) record transaction, current layout: 5 pushes (with the empty value manifest). */
+function buildTypedRecordTxHex(recordType: TypedRecordType, payload: object): string {
+  const payloadBytes = Utils.toArray(JSON.stringify(payload), 'utf8');
+  return buildTxHexWithOutput(encodeTypedRecordScript(recordType, payloadBytes));
+}
+
+/** A legacy typed record transaction: 4 pushes, no value manifest push (step 2's tokens, mw-yo97u.1 era). */
+function buildLegacyTypedRecordTxHex(recordType: TypedRecordType, payload: object): string {
+  const payloadBytes = Utils.toArray(JSON.stringify(payload), 'utf8');
+  const script = new LockingScript()
+    .writeOpCode(OP.OP_FALSE)
+    .writeOpCode(OP.OP_RETURN)
+    .writeBin(PROTOCOL_ID)
+    .writeBin([RECORD_VERSION_TYPED])
+    .writeBin(Utils.toArray(recordType, 'utf8'))
+    .writeBin(payloadBytes);
+  return buildTxHexWithOutput(script);
+}
 
 const txHexByTxid: Record<string, string> = {
   [fixture.recordNewestTxid]: fixture.recordNewestTxHex,
@@ -209,5 +243,46 @@ describe('scanRecords', () => {
         satoshis: fixture.anchorSentSatoshis,
       },
     ]);
+  });
+
+  it.each([
+    ['M', { collection: 'col-1', holder: 'mHolderAddress' }] as const,
+    ['W', { text: 'hello from the License', ts: '2026-03-05T00:00:00.000Z' }] as const,
+    ['TR', { to: 'mNewOwnerAddress' }] as const,
+  ])('decodes a typed record of type %s into a history entry, not couldNotRead', async (recordType, payload) => {
+    const txid = '9'.repeat(64);
+    const txHex = buildTypedRecordTxHex(recordType, payload);
+    const provider = trackedProvider({
+      history: [{ txid, height: 700000 }],
+      hexByTxid: { [txid]: txHex },
+    });
+
+    const entries = await scanRecords(provider, fixture.anchorAddress);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).not.toHaveProperty('couldNotRead');
+    expect(entries[0]).toMatchObject({
+      txid,
+      vout: 0,
+      version: 0x02,
+      recordType,
+      height: 700000,
+    });
+    expect(entries[0]).toHaveProperty('payloadBytes');
+  });
+
+  it('decodes a legacy 4-push typed record (no value manifest push) the same as the current 5-push layout', async () => {
+    const txid = '8'.repeat(64);
+    const txHex = buildLegacyTypedRecordTxHex('W', { text: 'legacy write', ts: '2026-01-01T00:00:00.000Z' });
+    const provider = trackedProvider({
+      history: [{ txid, height: 700000 }],
+      hexByTxid: { [txid]: txHex },
+    });
+
+    const entries = await scanRecords(provider, fixture.anchorAddress);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).not.toHaveProperty('couldNotRead');
+    expect(entries[0]).toMatchObject({ txid, vout: 0, version: 0x02, recordType: 'W', height: 700000 });
   });
 });

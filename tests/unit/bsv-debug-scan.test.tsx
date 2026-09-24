@@ -1,10 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { Transaction, UnlockingScript, Utils } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
+import { encodeTypedRecordScript } from '../../src/bsv/record';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { AddressHistoryEntry } from '../../src/contracts/types';
 import fixture from '../fixtures/bsv/scan-history.json';
+
+/** A one-input, one-output transaction whose only output is a type-M (mint) typed record. */
+function buildTypedRecordTxHex(): string {
+  const payloadBytes = Utils.toArray(JSON.stringify({ collection: 'col-1', holder: 'mHolderAddress' }), 'utf8');
+  const tx = new Transaction();
+  tx.addInput({
+    sourceTXID: '11'.repeat(32),
+    sourceOutputIndex: 0,
+    unlockingScript: new UnlockingScript(),
+    sequence: 0xffffffff,
+  });
+  tx.addOutput({ lockingScript: encodeTypedRecordScript('M', payloadBytes), satoshis: 0 });
+  return tx.toHex();
+}
 
 const ANCHOR_ADDRESS_STORAGE_KEY = 'sf-bsv-anchor';
 
@@ -118,6 +134,25 @@ describe('BsvDebugScreen scan by anchor', () => {
     await waitFor(() => {
       expect(screen.getByText(`could not read (${fixture.foreignOpReturnReason})`)).toBeInTheDocument();
     });
+  });
+
+  it('renders a typed License-mint record as "License minted", not "could not read"', async () => {
+    localStorage.setItem(ANCHOR_ADDRESS_STORAGE_KEY, fixture.anchorAddress);
+    const txid = '9'.repeat(64);
+    const history: AddressHistoryEntry[] = [{ txid, height: 700000 }];
+    const provider = makeProvider({
+      getAddressHistory: vi.fn().mockResolvedValue(history),
+      getTransactionHex: vi.fn().mockResolvedValue(buildTypedRecordTxHex()),
+    });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('License minted')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/could not read/)).not.toBeInTheDocument();
   });
 
   it('shows "no records yet at this anchor" for an empty history', async () => {
