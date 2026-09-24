@@ -26,7 +26,7 @@ import {
   UnlockingScript,
   Utils,
 } from '@bsv/sdk';
-import type { EventBus, Utxo } from '../contracts/types';
+import type { EventBus, Utxo } from './types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
 import type {
@@ -121,20 +121,25 @@ function lazy<T>(load: () => Promise<T>): () => Promise<T> {
 
 // Lazy globs rather than bare import()s: Vite still gives the bridges (and scrypt-ts) their
 // own chunk, loaded on first use, but the app's tsc does not follow them into license.ts
-// and fuel.ts, whose legacy decorators only tsconfig.contracts-test.json compiles.
+// and fuel.ts, whose legacy decorators only tsconfig.contracts-test.json compiles. The
+// glob call itself is made inside the lazy() callback, not at module top level: as a
+// packaged dependency this module can be loaded somewhere Vite never transforms it (e.g.
+// a consumer's vitest run, which externalizes node_modules packages to Node's own ESM
+// loader, where `import.meta.glob` is simply undefined) — merely importing this module
+// must not evaluate it, only calling one of the exported builders may.
 const LICENSE_BRIDGE_MODULE = './contracts/bridge/license-bridge.ts';
-const licenseBridgeLoaders = import.meta.glob<LicenseBridgeModule>('./contracts/bridge/license-bridge.ts');
 const FUEL_BRIDGE_MODULE = './contracts/bridge/fuel-bridge.ts';
-const fuelBridgeLoaders = import.meta.glob<FuelBridgeModule>('./contracts/bridge/fuel-bridge.ts');
 
 const loadLicenseBridge = lazy(() => {
   installProcessStub();
   installBufferStub();
+  const licenseBridgeLoaders = import.meta.glob<LicenseBridgeModule>('./contracts/bridge/license-bridge.ts');
   return licenseBridgeLoaders[LICENSE_BRIDGE_MODULE]().then((module) => module.licenseBridge);
 });
 const loadFuelBridge = lazy(() => {
   installProcessStub();
   installBufferStub();
+  const fuelBridgeLoaders = import.meta.glob<FuelBridgeModule>('./contracts/bridge/fuel-bridge.ts');
   return fuelBridgeLoaders[FUEL_BRIDGE_MODULE]().then((module) => module.fuelBridge);
 });
 

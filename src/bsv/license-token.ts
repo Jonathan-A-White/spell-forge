@@ -3,7 +3,7 @@
 // shape and the origin bookkeeping every later phase builds on.
 
 import { P2PKH, PrivateKey, SatoshisPerKilobyte, Transaction, Utils } from '@bsv/sdk';
-import type { EventBus, Utxo } from '../contracts/types';
+import type { EventBus, Utxo } from './types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
 import {

@@ -10,7 +10,7 @@
 import { OP, PublicKey, Transaction, Utils } from '@bsv/sdk';
 import type { LockingScript } from '@bsv/sdk';
 import type { ChainProvider } from './chain-provider';
-import type { AddressHistoryEntry } from '../contracts/types';
+import type { AddressHistoryEntry } from './types';
 import type { Outpoint } from './license-token';
 import { ownerPubKeyFromLicenseLockingScript } from './license-owner';
 import { decodeRecordPayload, findRecordsInTransaction } from './record';

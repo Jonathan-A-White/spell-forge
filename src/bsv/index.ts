@@ -125,3 +125,5 @@ export type {
 } from './send-sats';
 export { FEE_CAP_SATOSHIS, MEASURED_WRITE_SIZE_BYTES, formatWritesLeftRange, readFuelValue, writesLeftRange } from './fuel-status';
 export type { FuelValue, WritesLeftRange } from './fuel-status';
+export type { Utxo, AddressHistoryEntry, BsvEvent, EventBus } from './types';
+export { EncryptedMessage } from '@bsv/sdk';

@@ -4,7 +4,7 @@
 // construct a specific provider (e.g. WhatsOnChain) at a call site. This keeps the
 // door open for a second provider to be consulted and compared later.
 
-import type { Utxo, AddressHistoryEntry } from '../contracts/types';
+import type { Utxo, AddressHistoryEntry } from './types';
 import type { ChainConfig } from './config';
 import { chainConfig } from './config';
 import { WhatsOnChainProvider } from './whatsonchain-provider';

@@ -2,7 +2,7 @@
 
 import type { ChainProvider } from './chain-provider';
 import type { ChainConfig } from './config';
-import type { Utxo, AddressHistoryEntry } from '../contracts/types';
+import type { Utxo, AddressHistoryEntry } from './types';
 import { ChainError } from './chain-error';
 
 const MAX_ATTEMPTS = 3;

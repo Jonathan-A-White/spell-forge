@@ -1,5 +1,7 @@
 // src/contracts/types.ts — the contract all modules implement against
 
+import type { BsvEvent } from '../bsv/types';
+
 // ─── Core Entities ─────────────────────────────────────────────
 
 export type ProfileStatus = 'active' | 'archived' | 'deleted';
@@ -468,11 +470,7 @@ export type AppEvent =
   | { type: 'profile:restored'; payload: { profileId: string } }
   | { type: 'profile:deleted'; payload: { profileId: string } }
   | { type: 'test:recorded'; payload: { testResult: TestResult; wordListId: string } }
-  | { type: 'bsv:record-written'; payload: { txid: string; origin?: string } }
-  | { type: 'bsv:record-read'; payload: { txid: string; recordCount: number } }
-  | { type: 'bsv:token-minted'; payload: { txid: string; origin: { txid: string; vout: number } } }
-  | { type: 'bsv:token-transferred'; payload: { txid: string; origin: { txid: string; vout: number }; to: string } }
-  | { type: 'bsv:sats-sent'; payload: { txid: string; toAddress: string; amountSats: number } };
+  | BsvEvent;
 
 export interface EventBus {
   emit(event: AppEvent): void;
@@ -495,17 +493,7 @@ export interface BsvWalletKey {
 
 // ─── BSV Chain Provider ─────────────────────────────────────
 
-export interface Utxo {
-  txid: string;
-  vout: number;
-  satoshis: number;
-  height?: number;   // 0 or undefined = unconfirmed
-}
-
-export interface AddressHistoryEntry {
-  txid: string;
-  height?: number;   // 0 or undefined = unconfirmed
-}
+export type { Utxo, AddressHistoryEntry } from '../bsv/types';
 
 /** Outpoints spent by a broadcast, remembered until WhatsOnChain confirms it or 24h pass. */
 export interface BsvPendingSpend {

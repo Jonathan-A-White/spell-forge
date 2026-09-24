@@ -2,7 +2,7 @@
 // still double-lists as unspent until it confirms (see mw-0ym9.14). Pure functions only —
 // persistence lives in bsvPendingSpendRepo.
 
-import type { Utxo } from '../contracts/types';
+import type { Utxo } from './types';
 
 export const PENDING_SPEND_TTL_MS = 24 * 60 * 60 * 1000;
 

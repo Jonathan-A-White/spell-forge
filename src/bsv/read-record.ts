@@ -2,7 +2,7 @@
 // Needs no key: any install can read any other install's transaction.
 
 import type { ChainProvider } from './chain-provider';
-import type { EventBus } from '../contracts/types';
+import type { EventBus } from './types';
 import { ChainError } from './chain-error';
 import { decodeRecordPayload, findRecordsInTransaction, type DecodedRecordPayload, type RecordInTransaction } from './record';
 

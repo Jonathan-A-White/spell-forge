@@ -8,7 +8,7 @@
 // callers (the screen included).
 
 import type { ChainProvider } from './chain-provider';
-import type { AddressHistoryEntry } from '../contracts/types';
+import type { AddressHistoryEntry } from './types';
 import {
   classifyPlainPayment,
   decodeRecordPayload,

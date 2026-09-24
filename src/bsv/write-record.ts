@@ -1,7 +1,7 @@
 // src/bsv/write-record.ts — Builds and broadcasts an 'nftgate' record transaction.
 
 import { P2PKH, PrivateKey, SatoshisPerKilobyte, Transaction } from '@bsv/sdk';
-import type { EventBus, Utxo } from '../contracts/types';
+import type { EventBus, Utxo } from './types';
 import type { ChainConfig } from './config';
 import type { ChainProvider } from './chain-provider';
 import { encodeRecordPayloadV1, encodeRecordScript, type RecordPayloadV1 } from './record';
