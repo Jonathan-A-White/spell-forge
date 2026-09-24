@@ -13,8 +13,10 @@ import {
   classifyPlainPayment,
   decodeRecordPayload,
   findRecordsInTransaction,
+  findTypedRecordsInTransaction,
   findUnreadableDataOutputs,
   type DecodedRecordPayload,
+  type TypedRecordType,
 } from './record';
 
 const DEFAULT_LIMIT = 50;
@@ -24,6 +26,16 @@ export interface ScanRecordFound {
   vout: number;
   version: number;
   decoded: DecodedRecordPayload;
+  height: number; // 0 = unconfirmed
+}
+
+/** A typed (format-0x02) record — a License mint, write or transfer (mw-yo97u.14). */
+export interface ScanRecordTyped {
+  txid: string;
+  vout: number;
+  version: number;
+  recordType: TypedRecordType;
+  payloadBytes: number[];
   height: number; // 0 = unconfirmed
 }
 
@@ -42,7 +54,7 @@ export interface ScanRecordPayment {
   satoshis: number;
 }
 
-export type ScanRecordEntry = ScanRecordFound | ScanRecordUnreadable | ScanRecordPayment;
+export type ScanRecordEntry = ScanRecordFound | ScanRecordTyped | ScanRecordUnreadable | ScanRecordPayment;
 
 export interface ScanRecordsOptions {
   limit?: number;
@@ -107,14 +119,25 @@ export async function scanRecords(
     try {
       const txHex = await provider.getTransactionHex(item.txid);
       const records = findRecordsInTransaction(txHex);
+      const typedRecords = findTypedRecordsInTransaction(txHex);
 
-      if (records.length > 0) {
+      if (records.length > 0 || typedRecords.length > 0) {
         for (const record of records) {
           entries.push({
             txid: item.txid,
             vout: record.vout,
             version: record.version,
             decoded: decodeRecordPayload(record.version, record.payloadBytes),
+            height,
+          });
+        }
+        for (const record of typedRecords) {
+          entries.push({
+            txid: item.txid,
+            vout: record.vout,
+            version: record.version,
+            recordType: record.recordType,
+            payloadBytes: record.payloadBytes,
             height,
           });
         }

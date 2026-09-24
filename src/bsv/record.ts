@@ -300,6 +300,23 @@ export function findRecordsInTransaction(txHex: string): RecordInTransaction[] {
   return records;
 }
 
+export interface TypedRecordInTransaction extends DecodedTypedRecordScript {
+  vout: number;
+}
+
+/** Finds every typed (format-0x02) nftgate record output in a transaction, each with its vout. */
+export function findTypedRecordsInTransaction(txHex: string): TypedRecordInTransaction[] {
+  const transaction = Transaction.fromHex(txHex);
+  const records: TypedRecordInTransaction[] = [];
+
+  transaction.outputs.forEach((output, vout) => {
+    const decoded = decodeTypedRecordScript(output.lockingScript);
+    if (decoded) records.push({ ...decoded, vout });
+  });
+
+  return records;
+}
+
 /** True for an unspendable data output: OP_RETURN alone, or the OP_FALSE OP_RETURN shape this protocol writes. */
 function isDataOutputScript(script: LockingScript): boolean {
   const chunks = script.chunks;
@@ -308,13 +325,25 @@ function isDataOutputScript(script: LockingScript): boolean {
   return chunks.length > 1 && chunks[0].op === OP.OP_FALSE && chunks[1].op === OP.OP_RETURN;
 }
 
-/** One short phrase for why a data output isn't a readable nftgate record. */
+/**
+ * One short phrase for why a data output isn't a readable nftgate record. The field-count
+ * check is version-specific — version 0x01 (plaintext) always has 3 pushes, version 0x02
+ * (typed) has 4 or 5 (see decodeTypedRecordScript) — so the reason names the version byte
+ * actually seen and the count expected for it, rather than a single hardcoded count.
+ */
 function describeUnreadableReason(script: LockingScript): string {
   const pushes = recordPushes(script);
   if (!pushes) return 'not a valid pushdata sequence';
   if (pushes.length === 0 || !isProtocolId(pushes[0])) return 'not an nftgate record';
-  if (pushes.length !== 3) return 'wrong number of fields for an nftgate record';
-  if (pushes[1].length !== 1) return 'version is not a single byte';
+  if (pushes.length < 2 || pushes[1].length !== 1) return 'version is not a single byte';
+
+  const version = pushes[1][0];
+  if (version === RECORD_VERSION_PLAINTEXT && pushes.length !== 3) {
+    return `wrong number of fields for a version ${version} nftgate record (saw ${pushes.length}, expected 3)`;
+  }
+  if (version === RECORD_VERSION_TYPED && pushes.length !== 4 && pushes.length !== 5) {
+    return `wrong number of fields for a version ${version} nftgate record (saw ${pushes.length}, expected 4 or 5)`;
+  }
   return 'unrecognized record shape';
 }
 
@@ -335,6 +364,7 @@ export function findUnreadableDataOutputs(txHex: string): UnreadableDataOutput[]
   transaction.outputs.forEach((output, vout) => {
     if (!isDataOutputScript(output.lockingScript)) return;
     if (decodeRecordScript(output.lockingScript)) return;
+    if (decodeTypedRecordScript(output.lockingScript)) return;
     found.push({ vout, reason: describeUnreadableReason(output.lockingScript) });
   });
 

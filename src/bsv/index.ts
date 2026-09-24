@@ -17,12 +17,14 @@ export {
   decodeRecordScript,
   decodeRecordPayload,
   findRecordsInTransaction,
+  findTypedRecordsInTransaction,
 } from './record';
 export type {
   RecordPayloadV1,
   DecodedRecordScript,
   DecodedRecordPayload,
   RecordInTransaction,
+  TypedRecordInTransaction,
   MintRecordPayload,
   TransferRecordPayload,
   WriteRecordPayload,
@@ -38,6 +40,7 @@ export { scanRecords } from './scan-records';
 export type {
   ScanRecordEntry,
   ScanRecordFound,
+  ScanRecordTyped,
   ScanRecordPayment,
   ScanRecordUnreadable,
   ScanRecordsOptions,

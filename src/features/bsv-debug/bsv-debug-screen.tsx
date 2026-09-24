@@ -12,7 +12,7 @@ import {
   reconcilePendingSpends,
   filterUtxosExcludingPending,
 } from '../../bsv';
-import type { ChainProvider, DecodedRecord, ScanRecordEntry } from '../../bsv';
+import type { ChainProvider, DecodedRecord, ScanRecordEntry, TypedRecordType } from '../../bsv';
 import { bsvWalletRepo, bsvPendingSpendRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
 import { TokenPanel } from './token-panel';
@@ -70,6 +70,18 @@ type ScanState =
 
 function shortTxid(txid: string): string {
   return `${txid.slice(0, 8)}…${txid.slice(-4)}`;
+}
+
+/** Labels for the History's typed (format-0x02) License records: mint, write, transfer. */
+function typedRecordLabel(recordType: TypedRecordType): string {
+  switch (recordType) {
+    case 'M':
+      return 'License minted';
+    case 'W':
+      return 'License written';
+    case 'TR':
+      return 'License transferred';
+  }
 }
 
 function copyToClipboard(text: string): void {
@@ -297,6 +309,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
                 {'payment' in entry && (
                   <p className="text-sf-text">{`${entry.satoshis.toLocaleString()} sat ${entry.direction}, not a record`}</p>
                 )}
+                {'recordType' in entry && <p className="break-words">{typedRecordLabel(entry.recordType)}</p>}
                 {'decoded' in entry && 'text' in entry.decoded && (
                   <>
                     <p className="break-words">{entry.decoded.text}</p>
