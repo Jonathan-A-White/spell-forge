@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "types": ["vite/client", "node"],
+    "declaration": true,
+    "outDir": "packages/bsv/dist",
+    "rootDir": "src/bsv",
+    "skipLibCheck": true,
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src/bsv/**/*.ts"],
+  "exclude": [
+    "src/bsv/contracts",
+    "src/bsv/node"
+  ]
+}

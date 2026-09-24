@@ -12,7 +12,7 @@ const RESTRICTED_BSV_CONTRACT_IMPORTS = [
 ]
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/bsv/contracts/prototype']),
+  globalIgnores(['dist', 'packages/*/dist', 'src/bsv/contracts/prototype']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

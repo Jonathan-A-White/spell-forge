@@ -36,3 +36,6 @@ dist-ssr
 
 # bsv-contracts-check.ts scratch compile dirs (src/bsv/node/contracts-toolchain.ts)
 src/bsv/contracts/.check-*
+
+# npm run bsv:pack output (scripts/bsv-pack.sh)
+packages/bsv/*.tgz

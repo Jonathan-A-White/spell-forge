@@ -1,0 +1,26 @@
+{
+  "name": "spell-forge-bsv",
+  "version": "0.1.0",
+  "description": "SpellForge's BSV chain layer (keys, WhatsOnChain provider, record encoding, License/Fuel contract-locked token builders) as an installable package.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./browser-events": {
+      "types": "./dist/browser-events.d.ts",
+      "import": "./dist/browser-events.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@bsv/sdk": "^2.2.0",
+    "scrypt-ts": "1.4.5"
+  }
+}
