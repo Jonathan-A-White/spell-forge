@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import { Transaction } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
@@ -32,7 +33,9 @@ function makeProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {
       { txid: wallet.fundingTx.txid, vout: wallet.fundingTx.vout, satoshis: wallet.fundingTx.satoshis },
     ]),
     getTransactionHex: vi.fn().mockResolvedValue(wallet.fundingTx.hex),
-    broadcast: vi.fn().mockResolvedValue('a'.repeat(64)),
+    // Acknowledges with the txid of the hex it was sent, as WhatsOnChain does: sendSats
+    // refuses an acknowledgement naming any other txid.
+    broadcast: vi.fn(async (txHex: string) => Transaction.fromHex(txHex).id('hex')),
     getAddressHistory: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -67,8 +70,9 @@ describe('BsvDebugScreen send sats', () => {
     fireEvent.click(sendButton);
     await flush();
 
-    expect(screen.getByTestId('bsv-send-txid')).toHaveTextContent('a'.repeat(64));
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
+    const [broadcastHex] = (provider.broadcast as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(screen.getByTestId('bsv-send-txid')).toHaveTextContent(Transaction.fromHex(broadcastHex).id('hex'));
   });
 
   it('disables Send when the entered amount is over the spendable balance', async () => {

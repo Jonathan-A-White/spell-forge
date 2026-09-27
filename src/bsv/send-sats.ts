@@ -9,12 +9,14 @@ import type { ChainProvider } from './chain-provider';
 import { isValidTestnetAddress } from './keys';
 import {
   outpointKey,
+  dedupeUtxosByOutpoint,
   selectFeeUtxos,
   reconcilePendingSpends,
   filterUtxosExcludingPending,
   describePendingShortfall,
   type PendingSpendRepository,
 } from './pending-spends';
+import { broadcastWithPendingSpend } from './broadcast';
 import type { Outpoint } from './license-token';
 
 const MIN_SEND_SATOSHIS = 2; // a 1-sat output is a token by this app's convention
@@ -52,7 +54,7 @@ export async function buildSendTransaction(params: BuildSendTransactionParams): 
     throw new Error('Amount must be at least 2 satoshis — a 1-satoshi output is a token by this app\'s convention');
   }
 
-  const eligibleUtxos = selectFeeUtxos(utxos, { exclude: excludeOutpoints ?? [] });
+  const eligibleUtxos = selectFeeUtxos(dedupeUtxosByOutpoint(utxos), { exclude: excludeOutpoints ?? [] });
   if (eligibleUtxos.length === 0) {
     throw new Error('No UTXOs available — fund this wallet before sending');
   }
@@ -110,8 +112,8 @@ export interface SendSatsResult {
 /**
  * Fetches the sender's UTXOs, reconciles them against the app's own pending spends so a
  * still-unconfirmed transaction's outpoints are never reselected (mw-b00z.10), builds,
- * signs, broadcasts once, records the spent outpoints as a pending spend, and emits
- * 'bsv:sats-sent'.
+ * signs, records the spent outpoints as a pending spend, broadcasts once (see
+ * broadcastWithPendingSpend), and emits 'bsv:sats-sent' with the locally computed txid.
  */
 export async function sendSats(params: SendSatsParams): Promise<SendSatsResult> {
   const { key, toAddress, amountSats, provider, config, eventBus, pendingSpendRepo, excludeOutpoints } = params;
@@ -133,12 +135,12 @@ export async function sendSats(params: SendSatsParams): Promise<SendSatsResult> 
     throw describePendingShortfall(error, rawUtxos, remaining);
   }
 
-  const txid = await provider.broadcast(built.hex);
-
-  await pendingSpendRepo.add({
-    txid,
+  const txid = await broadcastWithPendingSpend({
+    provider,
+    pendingSpendRepo,
+    hex: built.hex,
+    txid: built.txid,
     outpoints: built.spentOutpoints.map(outpointKey),
-    createdAt: new Date(),
   });
 
   eventBus.emit({ type: 'bsv:sats-sent', payload: { txid, toAddress, amountSats } });

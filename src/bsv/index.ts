@@ -49,6 +49,7 @@ export {
   outpointKey,
   reconcilePendingSpends,
   filterUtxosExcludingPending,
+  dedupeUtxosByOutpoint,
   selectFeeUtxos,
   describePendingShortfall,
   PENDING_SPEND_TTL_MS,

@@ -54,6 +54,25 @@ export function filterUtxosExcludingPending(
 }
 
 /**
+ * Collapses repeated outpoints to one entry, keeping the one with the greater height (the
+ * first seen on a tie) at the first one's position. WhatsOnChain's /unspent can list the
+ * same outpoint twice around the moment it confirms — once at height 0, once at its real
+ * height (observed live 2026-09-23) — and spending both copies gets the transaction
+ * rejected as "bad-txns-inputs-duplicate".
+ */
+export function dedupeUtxosByOutpoint<T extends { txid: string; vout: number; height?: number }>(utxos: T[]): T[] {
+  const byOutpoint = new Map<string, T>();
+  for (const utxo of utxos) {
+    const key = outpointKey(utxo);
+    const seen = byOutpoint.get(key);
+    if (!seen || (utxo.height ?? 0) > (seen.height ?? 0)) {
+      byOutpoint.set(key, utxo);
+    }
+  }
+  return [...byOutpoint.values()];
+}
+
+/**
  * Coin selection for paying a transaction's fee: never a 1-satoshi UTXO (that's a token,
  * not fee money — spending it as a plain input would burn its origin) and never a UTXO
  * this wallet already knows is a token by outpoint. Shared by writeRecord and the mint.
