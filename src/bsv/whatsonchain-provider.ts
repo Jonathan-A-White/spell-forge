@@ -4,6 +4,7 @@ import type { ChainProvider } from './chain-provider';
 import type { ChainConfig } from './config';
 import type { Utxo, AddressHistoryEntry } from './types';
 import { ChainError } from './chain-error';
+import { dedupeUtxosByOutpoint } from './pending-spends';
 
 const MAX_ATTEMPTS = 3;
 const INITIAL_RETRY_DELAY_MS = 500;
@@ -91,12 +92,16 @@ export class WhatsOnChainProvider implements ChainProvider {
     const path = `/address/${address.trim()}/unspent`;
     const body = await this.getJson<unknown>(path);
     const unspent = this.expectArray<WhatsOnChainUnspent>(path, body);
-    return unspent.map((u) => ({
-      txid: u.tx_hash,
-      vout: u.tx_pos,
-      satoshis: u.value,
-      height: u.height,
-    }));
+    // /unspent can list one outpoint twice around confirmation (height 0 and its real
+    // height); returned as-is, a builder would spend it twice ("bad-txns-inputs-duplicate").
+    return dedupeUtxosByOutpoint(
+      unspent.map((u) => ({
+        txid: u.tx_hash,
+        vout: u.tx_pos,
+        satoshis: u.value,
+        height: u.height,
+      })),
+    );
   }
 
   async getAddressHistory(address: string): Promise<AddressHistoryEntry[]> {

@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { P2PKH, Spend, Transaction } from '@bsv/sdk';
 import { buildRecordTransaction, writeRecord } from '../../src/bsv/write-record';
 import { encodeRecordScript, encodeRecordPayloadV1 } from '../../src/bsv/record';
+import { WhatsOnChainProvider } from '../../src/bsv/whatsonchain-provider';
+import { ChainError } from '../../src/bsv/chain-error';
 import { createEventBus } from '../../src/contracts/events';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
@@ -28,11 +30,22 @@ const utxo: Utxo = {
 
 const payload = { text: 'hello nftgate', ts: '2026-01-01T00:00:00.000Z' };
 
+/** A broadcast that acknowledges with the txid of the hex it was sent, as WhatsOnChain does. */
+function echoBroadcast() {
+  return vi.fn(async (txHex: string) => Transaction.fromHex(txHex).id('hex'));
+}
+
+/** The txid of the hex handed to provider.broadcast on its first call. */
+function broadcastTxid(provider: ChainProvider): string {
+  const [broadcastHex] = (provider.broadcast as ReturnType<typeof vi.fn>).mock.calls[0];
+  return Transaction.fromHex(broadcastHex).id('hex');
+}
+
 function fakeProvider(overrides: Partial<ChainProvider> = {}): ChainProvider {
   return {
     getUtxos: vi.fn().mockResolvedValue([utxo]),
     getTransactionHex: vi.fn().mockResolvedValue(wallet.sourceTx.hex),
-    broadcast: vi.fn().mockResolvedValue('f'.repeat(64)),
+    broadcast: echoBroadcast(),
     getAddressHistory: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -82,7 +95,7 @@ function multiSourceProvider(overrides: Partial<ChainProvider> = {}): ChainProvi
       if (txid === extraFunding.oneSatTx.txid) return Promise.resolve(extraFunding.oneSatTx.hex);
       throw new Error(`no fixture source tx for ${txid}`);
     }),
-    broadcast: vi.fn().mockResolvedValue('f'.repeat(64)),
+    broadcast: echoBroadcast(),
     getAddressHistory: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -230,10 +243,40 @@ describe('buildRecordTransaction', () => {
       }),
     ).rejects.toThrow(/not enough satoshis/i);
   });
+
+  it('reports as spentOutpoints exactly the inputs it spent, leaving out a 1-sat token UTXO it skipped', async () => {
+    const provider = multiSourceProvider();
+
+    const built = await buildRecordTransaction({
+      key: wallet.wif,
+      utxos: [oneSatUtxo, utxo],
+      payload,
+      config: baseConfig,
+      provider,
+    });
+
+    expect(Transaction.fromHex(built.hex).inputs.map((input) => input.sourceTXID)).toEqual([utxo.txid]);
+    expect(built.spentOutpoints).toEqual([{ txid: utxo.txid, vout: utxo.vout }]);
+  });
+
+  it('spends an outpoint the UTXO list repeats (WhatsOnChain around confirmation) as one input, never two (bad-txns-inputs-duplicate)', async () => {
+    const provider = fakeProvider();
+
+    const built = await buildRecordTransaction({
+      key: wallet.wif,
+      utxos: [{ ...utxo, height: 0 }, { ...utxo, height: 2432800 }],
+      payload,
+      config: baseConfig,
+      provider,
+    });
+
+    expect(Transaction.fromHex(built.hex).inputs).toHaveLength(1);
+    expect(built.spentOutpoints).toEqual([{ txid: utxo.txid, vout: utxo.vout }]);
+  });
 });
 
 describe('writeRecord', () => {
-  it('broadcasts exactly once and emits bsv:record-written with the txid the provider returned', async () => {
+  it("broadcasts exactly once and emits bsv:record-written with the transaction's own txid, as the provider acknowledged it", async () => {
     const provider = fakeProvider();
     const eventBus = createEventBus();
     const received: string[] = [];
@@ -254,8 +297,8 @@ describe('writeRecord', () => {
     expect(provider.broadcast).toHaveBeenCalledTimes(1);
     const [broadcastHex] = (provider.broadcast as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(typeof broadcastHex).toBe('string');
-    expect(result.txid).toBe('f'.repeat(64));
-    expect(received).toEqual(['f'.repeat(64)]);
+    expect(result.txid).toBe(broadcastTxid(provider));
+    expect(received).toEqual([broadcastTxid(provider)]);
   });
 
   it('never broadcasts when the build step refuses', async () => {
@@ -307,13 +350,12 @@ describe('writeRecord', () => {
 
     expect(pendingSpendRepo.removeMany).not.toHaveBeenCalled();
     expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
-    // Records the whole pending-filtered UTXO list (not just the fee inputs actually
-    // spent) as newly pending, matching the pre-existing screen-level convention.
+    // Records exactly the inputs spent as newly pending (see the 1-sat case below).
     expect(pendingSpendRepo.add.mock.calls[0][0].outpoints).toEqual([
       `${utxo.txid}:${utxo.vout}`,
       `${utxo3000.txid}:${utxo3000.vout}`,
     ]);
-    expect(result.txid).toBe('f'.repeat(64));
+    expect(result.txid).toBe(broadcastTxid(provider));
   });
 
   it('rejects before broadcast, naming the pending count, when the only non-pending UTXO is too small (mw-b00z.10)', async () => {
@@ -340,5 +382,156 @@ describe('writeRecord', () => {
 
     expect(provider.broadcast).not.toHaveBeenCalled();
     expect(pendingSpendRepo.add).not.toHaveBeenCalled();
+  });
+
+  it('records as pending only the outpoints it actually spent, never a 1-sat token UTXO it skipped', async () => {
+    const provider = multiSourceProvider();
+    const pendingSpendRepo = fakePendingSpendRepo();
+
+    await writeRecord({
+      key: wallet.wif,
+      utxos: [oneSatUtxo, utxo],
+      payload,
+      config: baseConfig,
+      provider,
+      eventBus: createEventBus(),
+      pendingSpendRepo,
+    });
+
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.add.mock.calls[0][0].outpoints).toEqual([`${utxo.txid}:${utxo.vout}`]);
+  });
+
+  it('reports success with the locally computed txid when a broadcast retried after a lost reply comes back "txn-already-known"', async () => {
+    let postCount = 0;
+    let postedHex = '';
+    const fetchFn = vi.fn(async (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const path = String(url);
+      if (path.endsWith(`/tx/${utxo.txid}/hex`)) return new Response(wallet.sourceTx.hex, { status: 200 });
+      if (path.endsWith('/tx/raw')) {
+        postCount += 1;
+        postedHex = (JSON.parse(init?.body as string) as { txhex: string }).txhex;
+        // The first POST reached WhatsOnChain but its reply never arrived (a browser sees
+        // that, like WhatsOnChain's CORS-less 429, as a rejected fetch), so the provider
+        // retries and the node answers that it already has this transaction.
+        if (postCount === 1) throw new TypeError('Failed to fetch');
+        return new Response('unexpected response code 500: 257: txn-already-known', { status: 400 });
+      }
+      throw new Error(`unexpected request ${path}`);
+    });
+    const provider = new WhatsOnChainProvider(baseConfig, fetchFn, vi.fn().mockResolvedValue(undefined));
+    const eventBus = createEventBus();
+    const received: string[] = [];
+    eventBus.on('bsv:record-written', (event) => {
+      if (event.type === 'bsv:record-written') received.push(event.payload.txid);
+    });
+    const pendingSpendRepo = fakePendingSpendRepo();
+
+    const result = await writeRecord({
+      key: wallet.wif,
+      utxos: [utxo],
+      payload,
+      config: baseConfig,
+      provider,
+      eventBus,
+      pendingSpendRepo,
+    });
+
+    const computedTxid = Transaction.fromHex(postedHex).id('hex');
+    expect(postCount).toBe(2);
+    expect(result.txid).toBe(computedTxid);
+    expect(received).toEqual([computedTxid]);
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.add.mock.calls[0][0]).toMatchObject({
+      txid: computedTxid,
+      outpoints: [`${utxo.txid}:${utxo.vout}`],
+    });
+    expect(pendingSpendRepo.removeMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses a broadcast acknowledged with a txid other than the transaction's own, keeping its inputs pending", async () => {
+    const provider = fakeProvider({ broadcast: vi.fn().mockResolvedValue('f'.repeat(64)) });
+    const eventBus = createEventBus();
+    const received: string[] = [];
+    eventBus.on('bsv:record-written', (event) => {
+      if (event.type === 'bsv:record-written') received.push(event.payload.txid);
+    });
+    const pendingSpendRepo = fakePendingSpendRepo();
+
+    await expect(
+      writeRecord({
+        key: wallet.wif,
+        utxos: [utxo],
+        payload,
+        config: baseConfig,
+        provider,
+        eventBus,
+        pendingSpendRepo,
+      }),
+    ).rejects.toThrow(/acknowledged txid f{64}, not this transaction's own/);
+
+    expect(received).toEqual([]);
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.add.mock.calls[0][0].txid).toBe(broadcastTxid(provider));
+    expect(pendingSpendRepo.removeMany).not.toHaveBeenCalled();
+  });
+
+  it('records the pending spend before broadcasting, and keeps it when the broadcast gets no reply', async () => {
+    const provider = fakeProvider({
+      broadcast: vi
+        .fn()
+        .mockRejectedValue(
+          new ChainError(
+            'Could not reach WhatsOnChain after 3 tries (offline, or rate-limited: its 429 reply carries no CORS header)',
+          ),
+        ),
+    });
+    const pendingSpendRepo = fakePendingSpendRepo();
+
+    await expect(
+      writeRecord({
+        key: wallet.wif,
+        utxos: [utxo],
+        payload,
+        config: baseConfig,
+        provider,
+        eventBus: createEventBus(),
+        pendingSpendRepo,
+      }),
+    ).rejects.toThrow(/could not reach whatsonchain/i);
+
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.add.mock.calls[0][0]).toMatchObject({
+      txid: broadcastTxid(provider),
+      outpoints: [`${utxo.txid}:${utxo.vout}`],
+    });
+    expect(pendingSpendRepo.add.mock.invocationCallOrder[0]).toBeLessThan(
+      (provider.broadcast as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0],
+    );
+    expect(pendingSpendRepo.removeMany).not.toHaveBeenCalled();
+  });
+
+  it('drops the pending spend again when the node definitively rejects the transaction', async () => {
+    const provider = fakeProvider({
+      broadcast: vi
+        .fn()
+        .mockRejectedValue(new ChainError('WhatsOnChain said 400: bad-txns-inputs-missingorspent', { status: 400 })),
+    });
+    const pendingSpendRepo = fakePendingSpendRepo();
+
+    await expect(
+      writeRecord({
+        key: wallet.wif,
+        utxos: [utxo],
+        payload,
+        config: baseConfig,
+        provider,
+        eventBus: createEventBus(),
+        pendingSpendRepo,
+      }),
+    ).rejects.toThrow('WhatsOnChain said 400: bad-txns-inputs-missingorspent');
+
+    expect(pendingSpendRepo.add).toHaveBeenCalledTimes(1);
+    expect(pendingSpendRepo.removeMany).toHaveBeenCalledWith([broadcastTxid(provider)]);
   });
 });

@@ -41,6 +41,29 @@ describe('WhatsOnChainProvider', () => {
     expect(String(requestedUrl)).toContain(`/address/${address}/unspent`);
   });
 
+  it('getUtxos lists an outpoint WhatsOnChain double-lists around confirmation only once, keeping the entry with the greater height', async () => {
+    // Observed live 2026-09-23: /unspent listed a freshly-confirmed outpoint twice, once at
+    // height 0 and once at its real height. Spending both copies is rejected by the node as
+    // "bad-txns-inputs-duplicate". Covers both orders the two copies can arrive in.
+    const [first, second] = unspentFixture;
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse([
+        { ...first, height: 0 },
+        second,
+        { ...first, height: 2432800 },
+        { ...second, height: 0 },
+      ]),
+    );
+    const provider = new WhatsOnChainProvider(testConfig, fetchFn, noopDelay());
+
+    const utxos = await provider.getUtxos(address);
+
+    expect(utxos).toEqual([
+      { txid: first.tx_hash, vout: 0, satoshis: 600, height: 2432800 },
+      { txid: second.tx_hash, vout: 1, satoshis: 400, height: 2432700 },
+    ]);
+  });
+
   it('retries once after a 429 then returns the result on 200, waiting via the injected delay', async () => {
     const fetchFn = vi
       .fn()
