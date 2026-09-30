@@ -28,7 +28,11 @@ Why:
   moved wrap keys to P-256 precisely so that no curve implementation has to be shipped on the
   most sensitive path. WebCrypto has every primitive needed: ECDH on P-256 (`deriveBits`),
   HKDF-SHA256, AES-256-GCM and SHA-256.
-- Wrap private keys can live as non-extractable `CryptoKey`s after derivation.
+- Wrap private keys can be imported as non-extractable `CryptoKey`s for ECDH once derived. This
+  hardens the key at rest in a `CryptoKey` only: the scalar `d` itself is computed in the JS heap
+  during derivation (HKDF output, `BigInt` reduction, the PKCS#8 bytes), so script running in the
+  page could read it at that moment. Wrap keys are non-spending (R4.2.14), so a leak grants
+  read access only.
 - The one gap is computing a public key from a raw scalar: WebCrypto has no scalar
   multiplication, and a JWK import with `d` but no `x`, `y` is refused (Node 20: "Invalid
   keyData"). It is covered by importing the scalar as **PKCS#8 without the optional public
@@ -88,11 +92,15 @@ d   = ( OKM as a 384-bit big-endian integer  mod  (n − 1) ) + 1
 Q   = d·G on P-256
 ```
 
-**Seed (IKM).** The party's seed is the byte string its seed-only restore starts from: the root
-secret that R4.2.1 calls the holder root key. Where that is a BRC-42 root private key, the seed
-is its 32-byte big-endian encoding; a longer seed (for example a 64-byte BIP-39 seed) is used
-as is. **Minimum 32 bytes**; a shorter seed is refused (`seed-too-short`). HKDF accepts any
-length, so there is no maximum.
+**Seed (IKM).** The input is the holder's **32-byte root private key**: the root secret that
+R4.2.1 calls the holder root key (the BRC-42 root private key, which a seed-only restore, §4.7,
+starts from), as its 32-byte big-endian encoding. **Exactly 32 bytes** (Governor's decision,
+mw-jeswf, 2026-09-30). A BIP-39 seed (64 bytes) is **not** the input, and neither is a BRC-42
+child key (an `o/<i>` owner key, say): the wrap and reader keys are derived from the root, never
+from something derived from it. A shorter input is refused (`seed-too-short`), a longer one is
+refused (`seed-wrong-length`); the library checks this in `deriveWrapKeyPair` and
+`deriveReaderKeyPair`. (HKDF itself would accept any length; the pin is ours, so that every
+implementation derives the same keys from the same root.)
 
 **Salt.** ASCII `nftgate-p256` (12 bytes), hex `6e6674676174652d70323536`. It separates this
 derivation from any other use of the same seed (BRC-42 does not use HKDF at all).
@@ -144,8 +152,10 @@ carries no extra version byte.
 A key is accepted only if it is 65 bytes, starts with `0x04`, `X < p`, `Y < p` and
 `Y² = X³ − 3X + b (mod p)`; otherwise it is refused (`not-p256-public-key`).
 
-Vector `holder A w/0` (more in the fixture's `derivation`, including the issuer reader key and a
-64-byte seed):
+Vector `holder A w/0` (more in the fixture's `derivation`, including the issuer reader key; the
+fixture also keeps a `64-byte seed w/7` entry, which only checks the Node reference's HKDF and
+scalar reduction on a longer input. It is not a valid input: the library refuses it with
+`seed-wrong-length`):
 
 ```
 seed        = 0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20
@@ -217,12 +227,17 @@ proves the key, not only the context.
    verify → `authentication-failed`. A wrap opened with the wrong recipient key fails here,
    because both `Z` and the info differ.
 
-**A wrap to a secp256k1 key is malformed** (R4.2.14, AC-4.2.14-1). A wrapper refuses to build a
-wrap whose recipient key is not a 65-byte P-256 point (`not-p256-public-key`), and a reader
-refuses a record that declares such a key as a wrap key, for the same reason: a secp256k1 key
-in the 33-byte compressed form owner keys use fails on length and prefix; an uncompressed
-secp256k1 point fails the P-256 curve equation (WebCrypto's `importKey('raw', …, P-256)`
-rejects it too). A wrap whose ephemeral key is a secp256k1 point is refused at step 4.
+**A wrap to a secp256k1 key is malformed** (R4.2.14: "a wrap addressed to a secp256k1 key is
+malformed"). A wrapper refuses to build a wrap whose recipient key is not a 65-byte P-256 point
+(`not-p256-public-key`). A reader that finds a wrap declared to a secp256k1 key treats that wrap
+as **missing**, not as grounds to refuse the record: the reader shows "access pending" for that
+epoch (AC-4.2.13-1: a wrap addressed to the owner key instead "is treated as missing, producing
+'access pending'"), and the rest of the record is still read. The test is the same as above: a
+secp256k1 key in the 33-byte compressed form owner keys use fails on length and prefix; an
+uncompressed secp256k1 point fails the P-256 curve equation (WebCrypto's
+`importKey('raw', …, P-256)` rejects it too). A wrap whose ephemeral key is a secp256k1 point is
+refused at step 4 of opening, as any wrap that does not open: to the reader it is a wrap it
+cannot open, so it too counts as missing.
 
 Vector `k0 to holder A w/0` (more in the fixture's `wrap`, including one to the issuer reader
 key; the fixture also gives `Z`, the info and `K` for each):
@@ -257,7 +272,8 @@ payload = 0x01 ‖ nonce ‖ C ‖ T
 backward link. Uses of the same key are separated by their AAD label.
 
 **Nonce.** 12 bytes, fresh from a CSPRNG for every payload. Random 96-bit nonces are safe for up
-to 2³² messages under one key (NIST SP 800-38D §8.3), far beyond one epoch's writes.
+to 2³² messages under one key (NIST SP 800-38D §8.3); that budget is shared, see "Open points"
+below.
 
 **AAD**, 50 bytes for `W`:
 
@@ -312,13 +328,51 @@ payload   = 01
 ## Negative vectors
 
 The fixture's `negative` list gives each input with its expected refusal: a 31-byte seed
-(`seed-too-short`); a wrap to secp256k1's generator G, uncompressed and 33-byte compressed
+(`seed-too-short`; the library also refuses a 64-byte or 33-byte seed with `seed-wrong-length`, tested in `tests/unit/bsv-epoch-crypto.test.ts`); a wrap to secp256k1's generator G, uncompressed and 33-byte compressed
 (`not-p256-public-key`); a wrap with a tampered tag, a tampered ciphertext, or opened with the
 wrong recipient key (`authentication-failed`); a wrap with version byte `0x02`
 (`unknown-version`); a wrap whose ephemeral key is a secp256k1 point (`not-p256-public-key`); a
 125-byte wrap (`malformed-length`); a `W` payload with a tampered tag, opened under another
 `c(e)`, as another record type, or under the wrong `k(e)` (`authentication-failed`); a payload
 with version byte `0x02` (`unknown-version`); a 28-byte payload (`malformed-length`).
+
+## Sizes against the spec's estimates
+
+The spec's cost figures were written before the wire formats were pinned. The pinned sizes are:
+
+| Item | Pinned | Spec's estimate |
+|------|-------:|-----------------|
+| One wrap (§3) | **126 B** (1 + 65 + 12 + 32 + 16) | "~110 B per wrap" (§6, Rotation Record) |
+| A P-256 public key in a record (§2) | **65 B** | "≈ 33 B per transfer" (§6, Key separation) |
+| `W` payload overhead (§4) | 29 B + plaintext | — |
+
+Recomputed (the spec is the Governor's and is not edited here; its figures need restating at its
+next revision):
+
+- **A rotation costs about 15% more per holder**: 126 B against 110 B per wrap. At the §6 policy
+  of 100 sat/kB a wrap costs about 12.6 sat.
+- **`WRAP_MAX`** (spec §3 parameters, 1,000,000 B "≈ 9,000 wraps"): 1,000,000 / 126 = 7,936, so
+  **≈ 7,900 wraps** per payment-funded transaction (the 9,000 figure is 1,000,000 / 110 = 9,090,
+  rounded down).
+- **Gift rotation under `FEE_CAP`**: the spec's "≈ 90 wraps per transaction" is the wrap-byte
+  budget 90 × 110 B = 9,900 B; the same budget holds 9,900 / 126 = 78.6, so **≈ 78 wraps** (fixed
+  transaction overhead unchanged). The issuer's reader-key wrap is one of them (R4.2.3), so that
+  is about 77 other holders.
+- **Key separation per transfer**: the wrap key declared in `M` / `TR` is the 65-byte
+  uncompressed point, **65 B** against "≈ 33 B"; 32 B more per transfer. Nothing per write, as
+  before. The same 65 B applies to the reader key carried in `G` and `K`. (This figure is the
+  key alone; any field framing is pinned with the records.)
+
+## Open points
+
+- **One nonce budget per epoch.** §3.4 uses `k(e)` directly as the AES-256-GCM key for `W`
+  payloads (§4), for the backward link `L(e)` and for the merge `MG`, each with a random 12-byte
+  nonce. Random-nonce GCM is bounded at 2³² invocations **per key** (NIST SP 800-38D §8.3), so
+  those uses share one 2³²-message budget per epoch, not one each. It is far above any realistic
+  epoch's writes, but it is one budget; the pinned `L(e)` and `MG` formats (below) must count
+  against it, and a client must not exceed it (rotation resets it).
+- **Non-extractable keys.** The non-extractable claim in the library-choice section is limited
+  to the imported `CryptoKey`: the scalar is in the JS heap while it is derived.
 
 ## Not pinned yet
 
