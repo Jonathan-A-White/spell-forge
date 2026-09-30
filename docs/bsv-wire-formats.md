@@ -325,6 +325,43 @@ payload   = 01
             10c0b5166bee9b000a9ec8dc4d7d757a       (48-byte ciphertext, then the tag: 77 bytes)
 ```
 
+## 5. The records that carry them today (mw-jeswf.3)
+
+Every new format-`0x02` Data output (`src/bsv/record.ts`, `encodeTypedRecordScript`) is six
+pushes after `OP_FALSE OP_RETURN`:
+
+| Push | Field | Bytes |
+|-----:|-------|-------|
+| 1 | protocol id | 7, ASCII `nftgate` |
+| 2 | format version | 1, `0x02` |
+| 3 | record type (§3.8 field 2) | its ASCII name: `M`, `W`, `TR` |
+| 4 | `c(e)` (§3.8 field 3) | 32 |
+| 5 | value manifest (§3.8 field 4) | 1, `0x00` (empty) |
+| 6 | payload (§3.8 field 5) | see below |
+
+The License contract reads only bytes 0–10 and the record type from byte 12
+(`src/bsv/contracts/NOTES.md`), so field 3 changes nothing it checks. The decoder still reads
+the two layouts before it, with no commitment: five pushes (type, manifest, payload;
+mw-yo97u.1) and four (type, payload; step 2).
+
+Payloads (`src/bsv/gated-records.ts`), binary fields as lowercase hex inside the JSON:
+
+- **`M`**: `c(0)` in field 3; UTF-8 JSON `{"collection", "holder", "wrapKey", "wrap"}`:
+  `wrapKey` the holder's 65-byte wrap public key (§2), `wrap` the 126-byte wrap of `k(0)` to it
+  (§3). `k(0)` is fresh from `crypto.getRandomValues` and leaves the mint only inside the wrap.
+  No stamp yet (§3.10 is not pinned).
+- **`W`**: `c(0)` in field 3; the §4 payload, plaintext `{"text", "ts"}`. The 10 KB payload cap
+  applies to these bytes, the ciphertext.
+- **`TR`**: `c(0)` in field 3, copied from the token's `M`; UTF-8 JSON `{"to"}` and **no wrap to
+  the recipient** (a stand-in until rotation: the recipient cannot write or read under `k(0)`
+  until a wrap reaches it).
+
+A token whose `M` carries no commitment or wrap was minted before gated reading: it is refused a
+write and a transfer ("minted before gated reading").
+
+**Stand-in wrap key.** Until a holder has a seed-based root key (§2), the seed is the 32-byte
+private key of the holder's WIF, index 0 (`deriveStandInWrapKeyPair`).
+
 ## Negative vectors
 
 The fixture's `negative` list gives each input with its expected refusal: a 31-byte seed
@@ -384,6 +421,6 @@ next revision):
 - **The stamp serialization** (§3.10): the byte format of `n_C`, the record type, the prevouts
   and `bound`, and the ECDSA signature encoding, pinned with the issuer stamp (`M`, `IW2`, `K`,
   `B`, `V`).
-- The layout of the records that carry these structures (how many wraps a rotation carries and
-  in what order, where the wrap public key sits in `M` and `TR`), and §3.8 field 3 in
-  `src/bsv/record.ts`: pinned by the stories that build those records.
+- The layout of the rotation records that carry these structures (how many wraps a rotation
+  carries and in what order) and the wrap to the recipient in `TR`: pinned by the stories that
+  build those records. `M`, `W`, `TR` today and §3.8 field 3 are pinned in §5 below.
