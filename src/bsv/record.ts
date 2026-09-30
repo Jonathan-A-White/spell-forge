@@ -164,20 +164,33 @@ function decodeValueManifest(bytes: number[]): ValueManifestEntry[] | null {
 export interface DecodedTypedRecordScript {
   version: number;
   recordType: TypedRecordType;
+  /** §3.8 field 3, the 32-byte epoch commitment c(e); null for a layout from before it (4 or 5 pushes). */
+  commitment: number[] | null;
   manifest: ValueManifestEntry[];
   payloadBytes: number[];
 }
 
+/** §3.8 field 3: c(e) = SHA-256("nftgate-epoch" ‖ k(e)), docs/bsv-wire-formats.md §1. */
+const EPOCH_COMMITMENT_BYTES = 32;
+
 /**
- * Builds a format-0x02 Data output: OP_FALSE OP_RETURN <'nftgate'> <0x02> <record type>
- * <value manifest> <payload>. The License contract reads bytes 0-10 as the fixed prefix and
- * the record type as a push of its ASCII name from byte 12 (`01 57` for W, `02 54 52` for
- * TR; see src/bsv/contracts/NOTES.md), which is what writeBin emits here — unaffected by the
- * manifest push, which comes after the record type. §3.8 field 3 (epoch commitment) is not
- * built yet, so the manifest push (field 4) sits directly after the record type; field 5
- * (the typed payload) follows it, one opaque push, and carries no license origin (R4.3.4).
+ * Builds a format-0x02 Data output, 6 pushes (mw-jeswf.3): OP_FALSE OP_RETURN <'nftgate'>
+ * <0x02> <record type> <epoch commitment c(e)> <value manifest> <payload>. The License
+ * contract reads bytes 0-10 as the fixed prefix and the record type as a push of its ASCII
+ * name from byte 12 (`01 57` for W, `02 54 52` for TR; see src/bsv/contracts/NOTES.md), which
+ * is what writeBin emits here; everything after the record type (§3.8 fields 3-5) is opaque
+ * to it. Field 3 is the 32-byte commitment of the epoch key the record uses (or creates);
+ * field 4 the value manifest, empty; field 5 the typed payload, one opaque push, which carries
+ * no license origin (R4.3.4). Throws over the 10 KB payload cap (for W: on the ciphertext).
  */
-export function encodeTypedRecordScript(recordType: TypedRecordType, payloadBytes: number[]): LockingScript {
+export function encodeTypedRecordScript(
+  recordType: TypedRecordType,
+  commitment: Uint8Array | number[],
+  payloadBytes: number[],
+): LockingScript {
+  if (commitment.length !== EPOCH_COMMITMENT_BYTES) {
+    throw new Error(`The epoch commitment (§3.8 field 3) must be ${EPOCH_COMMITMENT_BYTES} bytes, got ${commitment.length}`);
+  }
   if (payloadBytes.length > MAX_PAYLOAD_BYTES) {
     throw new Error(`Record payload is ${payloadBytes.length} bytes, over the ${MAX_PAYLOAD_BYTES}-byte cap`);
   }
@@ -188,20 +201,22 @@ export function encodeTypedRecordScript(recordType: TypedRecordType, payloadByte
     .writeBin(PROTOCOL_ID)
     .writeBin([RECORD_VERSION_TYPED])
     .writeBin(Utils.toArray(recordType, 'utf8'))
+    .writeBin(Array.from(commitment))
     .writeBin(EMPTY_VALUE_MANIFEST_BYTES)
     .writeBin(payloadBytes);
 }
 
 /**
  * Decodes a format-0x02 Data output of a known record type, or null for anything else.
- * Reads two layouts: 5 pushes (protocol, version, type, manifest, payload — this writer's
- * layout since mw-yo97u.1) and 4 pushes (protocol, version, type, payload — step 2's tokens,
- * minted before the manifest field existed, when no restricted input ever needed one). Both
- * come back with `manifest: []`; nothing here needs to tell the two layouts apart once decoded.
+ * Reads three layouts: 6 pushes (protocol, version, type, commitment, manifest, payload — this
+ * writer's layout since mw-jeswf.3), 5 pushes (protocol, version, type, manifest, payload —
+ * mw-yo97u.1's, before the commitment) and 4 pushes (protocol, version, type, payload — step
+ * 2's tokens, before the manifest). The two older layouts come back with `commitment: null`;
+ * all three with `manifest: []`.
  */
 export function decodeTypedRecordScript(script: string | LockingScript): DecodedTypedRecordScript | null {
   const pushes = recordPushes(script);
-  if (!pushes || (pushes.length !== 4 && pushes.length !== 5)) return null;
+  if (!pushes || pushes.length < 4 || pushes.length > 6) return null;
 
   const [protocolBytes, versionBytes, typeBytes] = pushes;
   if (!isProtocolId(protocolBytes)) return null;
@@ -209,11 +224,13 @@ export function decodeTypedRecordScript(script: string | LockingScript): Decoded
   const recordType = TYPED_RECORD_TYPES.find((type) => type === Utils.toUTF8(typeBytes));
   if (!recordType) return null;
 
-  const manifest = pushes.length === 5 ? decodeValueManifest(pushes[3]) : [];
+  const commitment = pushes.length === 6 ? pushes[3] : null;
+  if (commitment && commitment.length !== EPOCH_COMMITMENT_BYTES) return null;
+  const manifest = pushes.length >= 5 ? decodeValueManifest(pushes[pushes.length - 2]) : [];
   if (!manifest) return null;
   const payloadBytes = pushes[pushes.length - 1];
 
-  return { version: versionBytes[0], recordType, manifest, payloadBytes };
+  return { version: versionBytes[0], recordType, commitment, manifest, payloadBytes };
 }
 
 export interface MintRecordPayload {
@@ -328,7 +345,7 @@ function isDataOutputScript(script: LockingScript): boolean {
 /**
  * One short phrase for why a data output isn't a readable nftgate record. The field-count
  * check is version-specific — version 0x01 (plaintext) always has 3 pushes, version 0x02
- * (typed) has 4 or 5 (see decodeTypedRecordScript) — so the reason names the version byte
+ * (typed) has 4, 5 or 6 (see decodeTypedRecordScript) — so the reason names the version byte
  * actually seen and the count expected for it, rather than a single hardcoded count.
  */
 function describeUnreadableReason(script: LockingScript): string {
@@ -341,8 +358,8 @@ function describeUnreadableReason(script: LockingScript): string {
   if (version === RECORD_VERSION_PLAINTEXT && pushes.length !== 3) {
     return `wrong number of fields for a version ${version} nftgate record (saw ${pushes.length}, expected 3)`;
   }
-  if (version === RECORD_VERSION_TYPED && pushes.length !== 4 && pushes.length !== 5) {
-    return `wrong number of fields for a version ${version} nftgate record (saw ${pushes.length}, expected 4 or 5)`;
+  if (version === RECORD_VERSION_TYPED && (pushes.length < 4 || pushes.length > 6)) {
+    return `wrong number of fields for a version ${version} nftgate record (saw ${pushes.length}, expected 4, 5 or 6)`;
   }
   return 'unrecognized record shape';
 }

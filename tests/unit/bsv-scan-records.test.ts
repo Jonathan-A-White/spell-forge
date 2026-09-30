@@ -19,10 +19,10 @@ function buildTxHexWithOutput(lockingScript: LockingScript): string {
   return tx.toHex();
 }
 
-/** A typed (format-0x02) record transaction, current layout: 5 pushes (with the empty value manifest). */
+/** A typed (format-0x02) record transaction, current layout: 6 pushes (epoch commitment, empty value manifest). */
 function buildTypedRecordTxHex(recordType: TypedRecordType, payload: object): string {
   const payloadBytes = Utils.toArray(JSON.stringify(payload), 'utf8');
-  return buildTxHexWithOutput(encodeTypedRecordScript(recordType, payloadBytes));
+  return buildTxHexWithOutput(encodeTypedRecordScript(recordType, new Array(32).fill(0xc0), payloadBytes));
 }
 
 /** A legacy typed record transaction: 4 pushes, no value manifest push (step 2's tokens, mw-yo97u.1 era). */

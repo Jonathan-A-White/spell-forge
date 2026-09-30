@@ -18,7 +18,7 @@ describeFeature(feature, ({ Scenario }) => {
   Scenario('AC-4.3.4-1: a Data output is written with the empty manifest field in order', ({ Given, Then }) => {
     const ctx: RecordManifestContext = {};
     Given('a type-W record encoded with a short payload', () => givenShortPayloadRecord(ctx));
-    Then('the script carries protocol id, version, type, empty manifest, then the payload, in that order', () =>
+    Then('the script carries protocol id, version, type, epoch commitment, empty manifest, then the payload, in that order', () =>
       thenScriptCarriesFieldsInOrder(ctx),
     );
   });

@@ -18,7 +18,7 @@ function buildTypedRecordTxHex(): string {
     unlockingScript: new UnlockingScript(),
     sequence: 0xffffffff,
   });
-  tx.addOutput({ lockingScript: encodeTypedRecordScript('M', payloadBytes), satoshis: 0 });
+  tx.addOutput({ lockingScript: encodeTypedRecordScript('M', new Array(32).fill(0xc0), payloadBytes), satoshis: 0 });
   return tx.toHex();
 }
 

@@ -7,6 +7,9 @@ import { Utils } from '@bsv/sdk';
 import { decodeTypedRecordScript, encodeTypedRecordScript } from '../../../src/bsv/record';
 import type { LockingScript } from '@bsv/sdk';
 
+/** A fixed §3.8 field 3 (the epoch commitment c(e), 32 bytes), written before the manifest since mw-jeswf.3. */
+const COMMITMENT = new Array<number>(32).fill(0xc0);
+
 export interface RecordManifestContext {
   payloadBytes?: number[];
   script?: LockingScript;
@@ -15,7 +18,7 @@ export interface RecordManifestContext {
 
 export function givenShortPayloadRecord(ctx: RecordManifestContext): void {
   ctx.payloadBytes = Utils.toArray('payload', 'utf8'); // 7 bytes: a single-byte push length
-  ctx.script = encodeTypedRecordScript('W', ctx.payloadBytes);
+  ctx.script = encodeTypedRecordScript('W', COMMITMENT, ctx.payloadBytes);
 }
 
 export function givenTypeWRecord(ctx: RecordManifestContext): void {
@@ -23,7 +26,7 @@ export function givenTypeWRecord(ctx: RecordManifestContext): void {
     JSON.stringify({ kind: 'write', origin: 'bb'.repeat(32) + ':0', text: 'hello', ts: '2026-09-23T00:00:00.000Z' }),
     'utf8',
   );
-  ctx.script = encodeTypedRecordScript('W', ctx.payloadBytes);
+  ctx.script = encodeTypedRecordScript('W', COMMITMENT, ctx.payloadBytes);
 }
 
 export function whenScriptIsDecoded(ctx: RecordManifestContext): void {
@@ -34,14 +37,15 @@ export function thenScriptCarriesFieldsInOrder(ctx: RecordManifestContext): void
   const hex = (ctx.script as LockingScript).toHex();
   const prefix = '006a076e667467617465' + '0102'; // OP_FALSE OP_RETURN push7'nftgate' push1(version=0x02)
   const typePush = '0157'; // push1 'W'
+  const commitmentPush = '20' + 'c0'.repeat(32); // push32: the epoch commitment (§3.8 field 3)
   const manifestPush = '0100'; // push1: a single zero byte — the empty manifest (0 entries)
   const payloadBytes = ctx.payloadBytes as number[];
   const payloadPush = payloadBytes.length.toString(16).padStart(2, '0') + Buffer.from(payloadBytes).toString('hex');
-  expect(hex).toBe(prefix + typePush + manifestPush + payloadPush);
+  expect(hex).toBe(prefix + typePush + commitmentPush + manifestPush + payloadPush);
 }
 
 export function thenRecordHasVersionTypeAndEmptyManifest(ctx: RecordManifestContext): void {
-  expect(ctx.decoded).toMatchObject({ version: 2, recordType: 'W', manifest: [] });
+  expect(ctx.decoded).toMatchObject({ version: 2, recordType: 'W', commitment: COMMITMENT, manifest: [] });
 }
 
 export function thenPayloadRoundTrips(ctx: RecordManifestContext): void {
