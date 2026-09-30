@@ -128,3 +128,35 @@ export { FEE_CAP_SATOSHIS, MEASURED_WRITE_SIZE_BYTES, formatWritesLeftRange, rea
 export type { FuelValue, WritesLeftRange } from './fuel-status';
 export type { Utxo, AddressHistoryEntry, BsvEvent, EventBus } from './types';
 export { EncryptedMessage } from '@bsv/sdk';
+export {
+  EPOCH_KEY_BYTES,
+  COMMITMENT_BYTES,
+  P256_PUBLIC_KEY_BYTES,
+  P256_PRIVATE_KEY_BYTES,
+  MIN_SEED_BYTES,
+  WRAP_VERSION,
+  WRAP_BYTES,
+  PAYLOAD_VERSION,
+  PAYLOAD_OVERHEAD_BYTES,
+  EpochCryptoError,
+  generateEpochKey,
+  epochCommitment,
+  deriveWrapKeyPair,
+  deriveReaderKeyPair,
+  isP256PublicKey,
+  wrapHkdfInfo,
+  wrapEpochKey,
+  unwrapEpochKey,
+  payloadAad,
+  encryptPayload,
+  decryptPayload,
+  encodeWritePlaintext,
+} from './epoch-crypto';
+export type {
+  EpochCryptoRefusal,
+  P256KeyPair,
+  WrapEpochKeyOptions,
+  EncryptPayloadOptions,
+  EncryptPayloadParams,
+  DecryptPayloadParams,
+} from './epoch-crypto';
