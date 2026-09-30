@@ -8,11 +8,20 @@ import type { BsvWalletKey } from '../../src/contracts/types';
 import type { LicenseToken } from '../../src/bsv/license-token';
 import wallet from '../fixtures/bsv/license-token-mint-wallet.json';
 
-const { mintContractLicenseTokenMock } = vi.hoisted(() => ({ mintContractLicenseTokenMock: vi.fn() }));
+const { mintContractLicenseTokenMock, deviceWrapKey } = vi.hoisted(() => ({
+  mintContractLicenseTokenMock: vi.fn(),
+  deviceWrapKey: { privateKey: new Uint8Array(32).fill(1), publicKey: new Uint8Array(65).fill(4) },
+}));
 
+// The device's wrap key (mw-jeswf.3) is a real WebCrypto derivation, which settles on Node's
+// thread pool rather than on the fake timers flush() drains: a fixed pair stands in for it.
 vi.mock('../../src/bsv', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/bsv')>();
-  return { ...actual, mintContractLicenseToken: mintContractLicenseTokenMock };
+  return {
+    ...actual,
+    mintContractLicenseToken: mintContractLicenseTokenMock,
+    deriveStandInWrapKeyPair: vi.fn().mockResolvedValue(deviceWrapKey),
+  };
 });
 
 // See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup, the balance
@@ -139,6 +148,7 @@ describe('BsvDebugScreen mint token', () => {
     expect(mintContractLicenseTokenMock).toHaveBeenCalledTimes(1);
     const call = mintContractLicenseTokenMock.mock.calls[0][0];
     expect(call.issuerKey).toBe(wallet.issuerWif);
+    expect(call.holderWrapPubKey).toBe(deviceWrapKey.publicKey);
     expect(provider.broadcast).not.toHaveBeenCalled();
     expect(screen.getByText(new RegExp(`origin ${'d'.repeat(64)}:0`))).toBeInTheDocument();
     expect(screen.getByText(/lock license/)).toBeInTheDocument();

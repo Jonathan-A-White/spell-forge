@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   chainConfig,
+  deriveStandInWrapKeyPair,
   followLicenseToken,
   formatWritesLeftRange,
   isValidCompressedPublicKeyHex,
@@ -142,6 +143,7 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
         mintLock === 'license'
           ? await mintContractLicenseToken({
               issuerKey: wallet.material,
+              holderWrapPubKey: (await deriveStandInWrapKeyPair(wallet.material)).publicKey,
               provider,
               config: chainConfig,
               eventBus,
@@ -217,6 +219,7 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
               holderKey: wallet.material,
               token,
               payload,
+              wrapPrivateKey: (await deriveStandInWrapKeyPair(wallet.material)).privateKey,
               provider,
               config: chainConfig,
               eventBus,

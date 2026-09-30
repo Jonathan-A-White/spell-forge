@@ -21,12 +21,15 @@ import {
   mintOwnersLicense,
   utxoOf,
   wallet,
+  wrapKeyOf,
 } from '../fixtures/bsv/license-contract-chain';
 
 let mint: BuiltContractTransaction;
+let ownerWrapPubKey: Uint8Array;
 
 beforeAll(async () => {
   mint = await mintOwnersLicense();
+  ownerWrapPubKey = (await wrapKeyOf(wallet.owner.wif)).publicKey;
 });
 
 function mintWithFuel(mintFuelSatoshis: number | undefined): Promise<BuiltContractTransaction> {
@@ -34,6 +37,7 @@ function mintWithFuel(mintFuelSatoshis: number | undefined): Promise<BuiltContra
     issuerKey: wallet.owner.wif,
     utxos: [utxoOf(wallet.mintFundingTx)],
     holderPubKey: wallet.owner.pubKey,
+    holderWrapPubKey: ownerWrapPubKey,
     mintFuelSatoshis,
     config,
     provider: fakeChain(),
@@ -62,6 +66,7 @@ describe('buildContractMintTransaction', () => {
       issuerKey: wallet.owner.wif,
       utxos: [utxoOf(wallet.decoyOneSatTx), utxoOf(wallet.mintFundingTx)],
       holderPubKey: wallet.owner.pubKey,
+      holderWrapPubKey: ownerWrapPubKey,
       mintFuelSatoshis: MINT_FUEL,
       config,
       provider: fakeChain(),
@@ -102,6 +107,7 @@ describe('buildContractMintTransaction', () => {
         issuerKey: wallet.owner.wif,
         utxos: [utxoOf(wallet.mintFundingTx)],
         holderPubKey: wallet.owner.address,
+        holderWrapPubKey: ownerWrapPubKey,
         mintFuelSatoshis: MINT_FUEL,
         config,
         provider: fakeChain(),
@@ -125,6 +131,7 @@ describe('mintContractLicenseToken', () => {
     });
     const token = await mintContractLicenseToken({
       issuerKey: wallet.owner.wif,
+      holderWrapPubKey: ownerWrapPubKey,
       provider,
       config: { ...config, mintFuelSatoshis: 12_345 },
       eventBus: createEventBus(),
@@ -144,6 +151,7 @@ describe('mintContractLicenseToken', () => {
     });
     await mintContractLicenseToken({
       issuerKey: wallet.owner.wif,
+      holderWrapPubKey: ownerWrapPubKey,
       provider,
       config: chainConfig,
       eventBus: createEventBus(),
@@ -158,6 +166,7 @@ describe('mintContractLicenseToken', () => {
     await expect(
       mintContractLicenseToken({
         issuerKey: wallet.owner.wif,
+        holderWrapPubKey: ownerWrapPubKey,
         provider,
         config,
         eventBus: createEventBus(),

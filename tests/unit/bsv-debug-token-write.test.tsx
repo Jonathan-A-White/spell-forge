@@ -9,11 +9,20 @@ import type { BsvWalletKey } from '../../src/contracts/types';
 import type { LicenseToken } from '../../src/bsv/license-token';
 import wallet from '../fixtures/bsv/license-token-transfer-wallet.json';
 
-const { writeWithContractTokenMock } = vi.hoisted(() => ({ writeWithContractTokenMock: vi.fn() }));
+const { writeWithContractTokenMock, deviceWrapKey } = vi.hoisted(() => ({
+  writeWithContractTokenMock: vi.fn(),
+  deviceWrapKey: { privateKey: new Uint8Array(32).fill(1), publicKey: new Uint8Array(65).fill(4) },
+}));
 
+// The device's wrap key (mw-jeswf.3) is a real WebCrypto derivation, which settles on Node's
+// thread pool rather than on the fake timers flush() drains: a fixed pair stands in for it.
 vi.mock('../../src/bsv', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/bsv')>();
-  return { ...actual, writeWithContractToken: writeWithContractTokenMock };
+  return {
+    ...actual,
+    writeWithContractToken: writeWithContractTokenMock,
+    deriveStandInWrapKeyPair: vi.fn().mockResolvedValue(deviceWrapKey),
+  };
 });
 
 // See tests/unit/bsv-debug-balance.test.tsx: drains the wallet lookup, the balance
@@ -124,6 +133,7 @@ describe('BsvDebugScreen write with token', () => {
     expect(screen.getByText('b'.repeat(64))).toBeInTheDocument();
     expect(writeWithContractTokenMock).toHaveBeenCalledTimes(1);
     expect(writeWithContractTokenMock.mock.calls[0][0].token.lock).toBe('license');
+    expect(writeWithContractTokenMock.mock.calls[0][0].wrapPrivateKey).toBe(deviceWrapKey.privateKey);
     expect(provider.broadcast).not.toHaveBeenCalled();
   });
 

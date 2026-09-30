@@ -13,6 +13,11 @@
 // and pays the fee from it: output 1 = own − fee, no holder coin on a write. A step 2 token
 // (mw-5wuz6.3), whose License binds a P2PKH stand-in to the holder, keeps the stand-in path:
 // funding inputs at 1 and later, the stand-in carrying the change.
+//
+// Gated records (mw-jeswf.3): every Data output carries §3.8 field 3, c(0). The mint makes a
+// fresh k(0) and wraps it to the holder's P-256 wrap key in its M record; a write unwraps k(0)
+// with the writer's wrap private key and encrypts its W payload under it; a transfer carries
+// c(0) and no wrap (a stand-in until rotation). The bytes are gated-records.ts's.
 
 import {
   Hash,
@@ -53,7 +58,14 @@ import {
   type PendingSpendEntry,
   type PendingSpendRepository,
 } from './pending-spends';
-import { encodeTypedRecordScript, type TypedRecordType } from './record';
+import { encodeTypedRecordScript } from './record';
+import {
+  deriveStandInWrapKeyPair,
+  gatedMintRecordScript,
+  gatedWriteRecordScript,
+  mintCommitment,
+  tokenMintRecord,
+} from './gated-records';
 import { installProcessStub } from './process-stub';
 import { installBufferStub } from './buffer-stub';
 
@@ -395,6 +407,13 @@ export interface BuildContractMintTransactionParams {
   utxos: Utxo[];
   holderPubKey: string; // the owner key the License locks to (compressed, hex)
   /**
+   * The holder's P-256 wrap public key, 65 bytes uncompressed (docs/bsv-wire-formats.md §2):
+   * the M record carries it and a wrap of k(0) to it (R4.1.6). Required: optional in the type
+   * only so callers written before gated reading still compile; a mint without it is refused,
+   * and a secp256k1 key is refused as malformed (EpochCryptoError 'not-p256-public-key').
+   */
+  holderWrapPubKey?: Uint8Array;
+  /**
    * MINT_FUEL: output 1's satoshis, exactly. Refused with InvalidMintFuelError when unset
    * or under 2 × FEE_CAP. The app passes config.mintFuelSatoshis.
    */
@@ -419,11 +438,12 @@ function assertMintFuel(mintFuelSatoshis: number | undefined, fuelBridge: FuelBr
 /**
  * Builds a signed mint (spec §4.1): [0] a 1-sat License owned by holderPubKey, whose
  * fuelScriptHash is hash256 of Fuel(C); [1] Fuel(C) with exactly MINT_FUEL sat; [2] a
- * type-M Data output; [3] the issuer's change. Funding inputs only; never a 1-satoshi UTXO
- * (spec R4.1.1), so output 0 is a fresh origin.
+ * type-M Data output carrying c(0) and a wrap of a fresh k(0) to holderWrapPubKey; [3] the
+ * issuer's change. Funding inputs only; never a 1-satoshi UTXO (spec R4.1.1), so output 0 is
+ * a fresh origin. k(0) is neither returned nor kept (R4.2.8).
  */
 export async function buildContractMintTransaction(params: BuildContractMintTransactionParams): Promise<BuiltContractTransaction> {
-  const { issuerKey, utxos, holderPubKey, mintFuelSatoshis, config, provider } = params;
+  const { issuerKey, utxos, holderPubKey, holderWrapPubKey, mintFuelSatoshis, config, provider } = params;
 
   const fuelBridge = await loadFuelBridge();
   const mintFuel = assertMintFuel(mintFuelSatoshis, fuelBridge);
@@ -436,6 +456,10 @@ export async function buildContractMintTransaction(params: BuildContractMintTran
   const issuer = PrivateKey.fromWif(issuerKey);
   const holder = parsePublicKey(holderPubKey, 'holder');
   const holderAddress = holder.toAddress(config.network);
+  if (holderWrapPubKey === undefined) {
+    throw new Error("Cannot mint: the holder's wrap public key is required (the M record carries a wrap of k(0) to it)");
+  }
+  const mintRecord = await gatedMintRecordScript({ collectionId: config.collectionId, holderAddress, holderWrapPublicKey: holderWrapPubKey });
   const fuelScript = LockingScript.fromHex(fuelBridge.lockingScript(collectionIdHex(config)));
 
   const bridge = await loadLicenseBridge();
@@ -451,10 +475,7 @@ export async function buildContractMintTransaction(params: BuildContractMintTran
   await addFundingInputs(transaction, eligibleUtxos, issuer, provider);
   transaction.addOutput({ lockingScript: licenseScript, satoshis: TOKEN_OUTPUT_SATOSHIS });
   transaction.addOutput({ lockingScript: fuelScript, satoshis: mintFuel });
-  transaction.addOutput({
-    lockingScript: encodeTypedRecordScript('M', jsonBytes({ collection: config.collectionId, holder: holderAddress })),
-    satoshis: 0,
-  });
+  transaction.addOutput({ lockingScript: mintRecord, satoshis: 0 });
   transaction.addOutput({ lockingScript: new P2PKH().lock(issuer.toAddress(config.network)), change: true });
 
   await transaction.fee(new SatoshisPerKilobyte(config.feeRateSatPerKb));
@@ -765,8 +786,24 @@ function built(transaction: Transaction, spentOutpoints: Outpoint[], token: Lice
   return { transaction, hex: transaction.toHex(), txid, spentOutpoints, token: { ...token, current: { txid, vout: 0 } } };
 }
 
-function typedRecord(recordType: TypedRecordType, value: object): LockingScript {
-  return encodeTypedRecordScript(recordType, jsonBytes(value)); // throws over the 10 KB payload cap
+/**
+ * The gated W Data output for a write of token: its M record (from the License's own source
+ * transaction when the token has not moved since its mint, else fetched from token.origin),
+ * k(0) unwrapped with wrapPrivateKey (by default the stand-in wrap key of holderWif), payload
+ * encrypted under it. Refuses a pre-gating token ('minted before gated reading') and a key
+ * that cannot open the wrap.
+ */
+async function gatedWriteScript(
+  token: LicenseToken,
+  license: SpendableLicense,
+  holderWif: string,
+  wrapPrivateKey: Uint8Array | undefined,
+  payload: RecordWithTokenPayload,
+  provider: ChainProvider,
+): Promise<LockingScript> {
+  const mint = await tokenMintRecord(token.origin, { txid: token.current.txid, transaction: license.sourceTransaction }, provider);
+  const key = wrapPrivateKey ?? (await deriveStandInWrapKeyPair(holderWif)).privateKey;
+  return gatedWriteRecordScript(mint, key, { text: payload.text, ts: payload.ts });
 }
 
 export interface BuildContractTokenRecordTransactionParams {
@@ -775,6 +812,11 @@ export interface BuildContractTokenRecordTransactionParams {
   /** The holder's coin, for a step 2 token only: a License + Fuel token's write pays from its Fuel, with no holder coin. */
   feeUtxos?: Utxo[];
   payload: RecordWithTokenPayload;
+  /**
+   * The writer's 32-byte P-256 wrap private key, which must open the wrap in the token's M
+   * record. Defaults to the stand-in wrap key of holderKey (deriveStandInWrapKeyPair).
+   */
+  wrapPrivateKey?: Uint8Array;
   config: ChainConfig;
   provider: ChainProvider;
 }
@@ -784,7 +826,7 @@ async function buildContractWrite(
   params: Omit<BuildContractTokenRecordTransactionParams, 'feeUtxos'>,
   feeUtxos: FeeUtxoSource,
 ): Promise<BuiltContractTransaction> {
-  const { holderKey, token, payload, config, provider } = params;
+  const { holderKey, token, payload, wrapPrivateKey, config, provider } = params;
   assertTokenLock(token, 'license');
 
   const bridges = await loadBridgesFor(token);
@@ -796,7 +838,7 @@ async function buildContractWrite(
     holderKey: key,
     token,
     output0: LockingScript.fromHex(bridges.license.nextLockingScript(license.lockingScriptHex)),
-    dataScript: typedRecord('W', { text: payload.text, ts: payload.ts }),
+    dataScript: await gatedWriteScript(token, license, holderKey, wrapPrivateKey, payload, provider),
     payments: [],
     config,
     provider,
@@ -816,9 +858,10 @@ async function buildContractWrite(
 /**
  * Builds a signed write-with-token through the License's `write`: input 0 spends
  * token.current; exactly three outputs: the License recreated to the same owner, the Fuel,
- * a type-W Data output. A License + Fuel token spends its Fuel at input 1 and pays the fee
- * from it (feeUtxos unused); a step 2 token funds the write from feeUtxos, the stand-in
- * taking the change. Refuses a token not locked by 'license' with TokenLockMismatchError and
+ * a type-W Data output carrying c(0) and { text, ts } encrypted under k(0), which the
+ * writer's wrap key unwraps from the token's M record. A License + Fuel token spends its Fuel
+ * at input 1 and pays the fee from it (feeUtxos unused); a step 2 token funds the write from
+ * feeUtxos, the stand-in taking the change. A token minted before gated reading is refused. Refuses a token not locked by 'license' with TokenLockMismatchError and
  * one minted under another artifact with ContractVersionMismatchError, and checks the built
  * spend locally.
  */
@@ -834,6 +877,8 @@ export interface BuildContractSpendVariantParams {
   token: LicenseToken;
   feeUtxos: Utxo[];
   payload: RecordWithTokenPayload;
+  /** As BuildContractTokenRecordTransactionParams.wrapPrivateKey: opens the token's k(0) for the W. */
+  wrapPrivateKey?: Uint8Array;
   /** Exercises rule (d): the key that actually signs input 0, when it differs from holderKey. */
   signerKey?: string;
   /** Exercises rule (c): the owner key baked into output 0's rebuilt state, when it differs from holderKey's own. */
@@ -869,6 +914,7 @@ export async function buildContractSpendVariant(params: BuildContractSpendVarian
     token,
     feeUtxos,
     payload,
+    wrapPrivateKey,
     signerKey,
     output0OwnerPubKeyHex,
     outputSatoshis,
@@ -902,7 +948,7 @@ export async function buildContractSpendVariant(params: BuildContractSpendVarian
     token,
     output0: LockingScript.fromHex(bridges.license.nextLockingScript(license.lockingScriptHex, output0OwnerPubKeyHex)),
     outputSatoshis,
-    dataScript: typedRecord('W', { text: payload.text, ts: payload.ts }),
+    dataScript: await gatedWriteScript(token, license, holderKey, wrapPrivateKey, payload, provider),
     payments: extraOutputs,
     config,
     provider,
@@ -965,13 +1011,15 @@ async function buildContractTransfer(
   const newOwner = parsePublicKey(toPubKey, 'recipient');
   const toAddress = newOwner.toAddress(config.network);
   const license = await spendableLicense(bridges, token, key, config, provider);
+  // TR carries the current c(0) and no wrap to the recipient: a stand-in until rotation (§3.6).
+  const mint = await tokenMintRecord(token.origin, { txid: token.current.txid, transaction: license.sourceTransaction }, provider);
   const spend = {
     method: 'transfer' as const,
     bridge: bridges.license,
     holderKey: key,
     token,
     output0: LockingScript.fromHex(bridges.license.nextLockingScript(license.lockingScriptHex, newOwner.toString())),
-    dataScript: typedRecord('TR', { to: toAddress }),
+    dataScript: encodeTypedRecordScript('TR', mintCommitment(mint), jsonBytes({ to: toAddress })),
     payments,
     newOwnerPubKeyHex: newOwner.toString(),
     config,
@@ -993,9 +1041,10 @@ async function buildContractTransfer(
 /**
  * Builds a signed transfer through the License's `transfer`: input 0 spends token.current;
  * outputs: the License recreated to toPubKey, the Fuel, a type-TR Data output naming the
- * buyer's address, then any payments. A License + Fuel token spends its Fuel at input 1 and
- * pays the fee from it; feeUtxos then fund only the payments (inputs 2+, the change after
- * the payments). A step 2 token funds the fee from feeUtxos, the stand-in taking the
+ * buyer's address and carrying c(0) (no wrap to the buyer yet), then any payments. A token
+ * minted before gated reading, whose M record has no c(0), is refused. A License + Fuel token
+ * spends its Fuel at input 1 and pays the fee from it; feeUtxos then fund only the payments
+ * (inputs 2+, the change after the payments). A step 2 token funds the fee from feeUtxos, the stand-in taking the
  * seller's change. Refuses a token not locked by 'license' with TokenLockMismatchError and
  * one minted under another artifact with ContractVersionMismatchError, and checks the built
  * spend locally.
@@ -1009,6 +1058,8 @@ export async function buildContractTransferTransaction(
 
 export interface MintContractLicenseTokenParams {
   issuerKey: string; // issuer WIF; single-install: also the holder, so the License locks to this key's own pubkey
+  /** The holder's (single-install: this device's own) 65-byte P-256 wrap public key; the M record wraps k(0) to it. */
+  holderWrapPubKey: Uint8Array;
   provider: ChainProvider;
   /** Its mintFuelSatoshis is the mint's MINT_FUEL: the mint is refused while it is unset. */
   config: ChainConfig;
@@ -1024,7 +1075,7 @@ export interface MintContractLicenseTokenParams {
  * contract-lock counterpart to mintLicenseToken.
  */
 export async function mintContractLicenseToken(params: MintContractLicenseTokenParams): Promise<LicenseToken> {
-  const { issuerKey, provider, config, eventBus, pendingSpendRepo } = params;
+  const { issuerKey, holderWrapPubKey, provider, config, eventBus, pendingSpendRepo } = params;
 
   const issuer = PrivateKey.fromWif(issuerKey);
   const issuerAddress = issuer.toAddress(config.network);
@@ -1044,6 +1095,7 @@ export async function mintContractLicenseToken(params: MintContractLicenseTokenP
       issuerKey,
       utxos,
       holderPubKey,
+      holderWrapPubKey,
       mintFuelSatoshis: config.mintFuelSatoshis,
       config,
       provider,
@@ -1094,6 +1146,8 @@ export interface WriteWithContractTokenParams {
   holderKey: string; // current owner's WIF
   token: LicenseToken;
   payload: RecordWithTokenPayload;
+  /** The writer's (this device's own) 32-byte P-256 wrap private key; it must open the wrap in the token's M record. */
+  wrapPrivateKey: Uint8Array;
   provider: ChainProvider;
   config: ChainConfig;
   eventBus: EventBus;
@@ -1108,19 +1162,20 @@ export interface WriteWithContractTokenResult {
 /**
  * Writes a record through the License's `write`, broadcasts once, records the spend, moves
  * the repository's current outpoint, and emits 'bsv:record-written'. A License + Fuel token
- * pays from its Fuel, so only token.current's transaction is fetched; a step 2 token also
+ * pays from its Fuel, so only token.current's transaction is fetched, and token.origin's for
+ * its M record once the token has moved since its mint; a step 2 token also
  * fetches the holder's fee UTXOs, reconciled against pending spends (mw-b00z.11). The
  * screen's contract-lock counterpart to writeWithToken.
  */
 export async function writeWithContractToken(params: WriteWithContractTokenParams): Promise<WriteWithContractTokenResult> {
-  const { holderKey, token, payload, provider, config, eventBus, repository, pendingSpendRepo } = params;
+  const { holderKey, token, payload, wrapPrivateKey, provider, config, eventBus, repository, pendingSpendRepo } = params;
 
   const holderAddress = PrivateKey.fromWif(holderKey).toAddress(config.network);
   const feeUtxos = holderFeeUtxos(holderAddress, provider, pendingSpendRepo);
 
   let writeBuilt: BuiltContractTransaction;
   try {
-    writeBuilt = await buildContractWrite({ holderKey, token, payload, config, provider }, feeUtxos.load);
+    writeBuilt = await buildContractWrite({ holderKey, token, payload, wrapPrivateKey, config, provider }, feeUtxos.load);
   } catch (error) {
     throw feeUtxos.describe(error);
   }

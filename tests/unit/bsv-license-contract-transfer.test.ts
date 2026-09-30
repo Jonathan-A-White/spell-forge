@@ -28,6 +28,7 @@ import {
   mintOwnersStandInLicense,
   utxoOf,
   wallet,
+  wrapKeyOf,
 } from '../fixtures/bsv/license-contract-chain';
 
 const VERIFIED = { success: true, error: '' };
@@ -127,16 +128,32 @@ describe('buildContractTransferTransaction, a License + Fuel token', () => {
   });
 
   it('lets the buyer write next, fee from the same Fuel: Fuel(C) binds no key', async () => {
+    // TR carries no wrap to the buyer until rotation (mw-jeswf.3), so the only wrap of k(0) is
+    // the M record's, to the minting owner's wrap key: the buyer writes with that one here.
+    // What this checks is the covenants' side: the License and Fuel accept the new owner.
     const buyerWrite = await buildContractTokenRecordTransaction({
       holderKey: wallet.buyer.wif,
       token: transfer.token,
       payload: { text: 'mine now', ts: '2026-09-23T00:00:00.000Z' },
+      wrapPrivateKey: (await wrapKeyOf(wallet.owner.wif)).privateKey,
       config,
       provider: fakeChain([mint.transaction, transfer.transaction]),
     });
     expect(buyerWrite.transaction.inputs).toHaveLength(2);
     expect(await verifyLicenseInput(buyerWrite.transaction, 0)).toEqual(VERIFIED);
     expect(await verifyFuelInput(buyerWrite.transaction, 1)).toEqual(VERIFIED);
+  });
+
+  it('refuses the buyer’s write with its own wrap key, readably: until rotation no wrap of k(0) is addressed to it', async () => {
+    await expect(
+      buildContractTokenRecordTransaction({
+        holderKey: wallet.buyer.wif,
+        token: transfer.token,
+        payload: { text: 'mine now', ts: '2026-09-23T00:00:00.000Z' },
+        config,
+        provider: fakeChain([mint.transaction, transfer.transaction]),
+      }),
+    ).rejects.toThrow("This wrap key cannot open the token's epoch key (authentication-failed)");
   });
 
   it('refuses a token minted under another License artifact with ContractVersionMismatchError, fetching nothing', async () => {

@@ -5,7 +5,7 @@
 // and later; a token minted under another License artifact is refused. Every built write is
 // verified locally against the committed artifacts (scrypt-ts's interpreter; no network).
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { P2PKH, Transaction, Utils } from '@bsv/sdk';
+import { P2PKH, Transaction } from '@bsv/sdk';
 import {
   buildContractSpendVariant,
   buildContractTokenRecordTransaction,
@@ -19,6 +19,7 @@ import type { BuiltContractTransaction, BuildContractSpendVariantParams } from '
 import { buildTokenRecordTransaction, TokenLockMismatchError } from '../../src/bsv/license-token';
 import type { LicenseToken } from '../../src/bsv/license-token';
 import { decodeTypedRecordScript } from '../../src/bsv/record';
+import { fetchTokenWraps, readGatedWrite } from '../../src/bsv/gated-records';
 import { createEventBus } from '../../src/contracts/events';
 import {
   ARTIFACT_MD5,
@@ -31,6 +32,7 @@ import {
   mintOwnersStandInLicense,
   utxoOf,
   wallet,
+  wrapKeyOf,
 } from '../fixtures/bsv/license-contract-chain';
 
 const payload = { text: 'hello covenant', ts: '2026-09-23T00:00:00.000Z' };
@@ -87,7 +89,10 @@ describe('buildContractTokenRecordTransaction, a License + Fuel token', () => {
     expect(outputs[2].satoshis).toBe(0);
     const record = decodeTypedRecordScript(outputs[2].lockingScript);
     expect(record).toMatchObject({ version: 2, recordType: 'W', manifest: [] });
-    expect(JSON.parse(Utils.toUTF8(record!.payloadBytes))).toEqual(payload);
+    // The payload is encrypted under k(0) since mw-jeswf.3: the holder's wrap key reads it back.
+    const wraps = await fetchTokenWraps(mint.token.origin, fakeChain([mint.transaction]));
+    const wrapPrivateKey = (await wrapKeyOf(wallet.owner.wif)).privateKey;
+    expect(await readGatedWrite({ record: record!, wraps, wrapPrivateKey })).toMatchObject({ readable: true, ...payload });
   });
 
   // Both covenants' local verify (License at input 0, Fuel at input 1, against the committed
@@ -333,6 +338,7 @@ describe('writeWithContractToken, a License + Fuel token', () => {
       holderKey: wallet.owner.wif,
       token: mint.token,
       payload,
+      wrapPrivateKey: (await wrapKeyOf(wallet.owner.wif)).privateKey,
       provider,
       config,
       eventBus: createEventBus(),
@@ -342,7 +348,14 @@ describe('writeWithContractToken, a License + Fuel token', () => {
 
     expect(provider.getUtxos).not.toHaveBeenCalled();
     expect(provider.getTransactionHex).toHaveBeenCalledTimes(1);
-    expect(txid).toBe(write.txid);
+    // The W payload's nonce is fresh on every build (mw-jeswf.3), so the txid is not write's:
+    // the broadcast write spends the same License and Fuel.
+    const broadcast = Transaction.fromHex(vi.mocked(provider.broadcast).mock.calls[0][0]);
+    expect(broadcast.id('hex')).toBe(txid);
+    expect(broadcast.inputs.map((input) => [input.sourceTXID, input.sourceOutputIndex])).toEqual([
+      [mint.txid, 0],
+      [mint.txid, 1],
+    ]);
     expect(pendingSpendRepo.add).toHaveBeenCalledWith(
       expect.objectContaining({ txid, outpoints: [`${mint.txid}:0`, `${mint.txid}:1`] }),
     );
@@ -357,6 +370,7 @@ describe('writeWithContractToken, a License + Fuel token', () => {
       holderKey: wallet.owner.wif,
       token: standInMint.token,
       payload,
+      wrapPrivateKey: (await wrapKeyOf(wallet.owner.wif)).privateKey,
       provider,
       config,
       eventBus: createEventBus(),
@@ -364,6 +378,11 @@ describe('writeWithContractToken, a License + Fuel token', () => {
       pendingSpendRepo: { getAll: vi.fn().mockResolvedValue([]), add: vi.fn(), removeMany: vi.fn() },
     });
     expect(provider.getUtxos).toHaveBeenCalledWith(wallet.owner.address);
-    expect(txid).toBe(standInWrite.txid);
+    // A fresh W nonce on every build (mw-jeswf.3): the same inputs as standInWrite, not its txid.
+    const broadcast = Transaction.fromHex(vi.mocked(provider.broadcast).mock.calls[0][0]);
+    expect(broadcast.id('hex')).toBe(txid);
+    expect(broadcast.inputs.map((input) => [input.sourceTXID, input.sourceOutputIndex])).toEqual(
+      standInWrite.transaction.inputs.map((input) => [input.sourceTXID, input.sourceOutputIndex]),
+    );
   });
 });

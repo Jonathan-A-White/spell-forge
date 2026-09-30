@@ -6,6 +6,7 @@ import { bsvWalletRepo, bsvTokenRepo } from '../../src/data/repositories';
 import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
 import { buildMintTransaction } from '../../src/bsv/license-token';
 import { buildContractMintTransaction } from '../../src/bsv/license-contract';
+import { deriveStandInWrapKeyPair } from '../../src/bsv/gated-records';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { ChainConfig } from '../../src/bsv/config';
 import type { BsvWalletKey, Utxo } from '../../src/contracts/types';
@@ -165,6 +166,7 @@ describe('BsvDebugScreen token history', () => {
       issuerKey: ISSUER_WIF,
       utxos: [issuerFunding.utxo],
       holderPubKey,
+      holderWrapPubKey: (await deriveStandInWrapKeyPair(HOLDER_WIF)).publicKey,
       mintFuelSatoshis: 10_000,
       config,
       provider: {

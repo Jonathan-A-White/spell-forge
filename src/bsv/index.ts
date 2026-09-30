@@ -114,6 +114,26 @@ export type {
   LicenseState,
   LicenseVerifyResult,
 } from './license-contract';
+export {
+  PreGatingTokenError,
+  WrapKeyRefusedError,
+  deriveStandInWrapKeyPair,
+  gatedMintRecordScript,
+  gatedWriteRecordScript,
+  decodeMintRecord,
+  fetchMintRecord,
+  mintRecordWraps,
+  fetchTokenWraps,
+  readGatedWrite,
+} from './gated-records';
+export type {
+  GatedMintRecordParams,
+  TokenMintRecord,
+  KnownWrap,
+  GatedReadRefusal,
+  GatedReadResult,
+  ReadGatedWriteParams,
+} from './gated-records';
 export { followLicenseToken } from './token-lineage';
 export type { LineageHop, LineageHopKind, FollowLicenseTokenResult, FollowLicenseTokenParams } from './token-lineage';
 export { ownerPubKeyFromLicenseLockingScript } from './license-owner';

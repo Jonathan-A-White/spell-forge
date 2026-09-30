@@ -5,6 +5,8 @@
 // covenant (§3.7, whose rules are covered by the §4.3/§4.4 ACs below, and which has
 // no AC ids of its own) and its lifecycle sections §4.1 (mint), §4.3 (write), §4.4
 // (transfer) — i.e. every AC id matching `AC-4.(1|3|4).*`. `npm run bsv:rules:coverage`.
+// It first lists every §9 AC id, in scope or not (AC-4.2.14-1, say), that a feature file does
+// tag: those are covered (mw-jeswf.3).
 // Always exits 0: this reports a coverage gap, it doesn't gate the build on one.
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -14,17 +16,19 @@ const SPEC_PATH = join(import.meta.dirname, '../docs/bsv-nft-gated-app-spec.md')
 const FEATURES_DIR = join(import.meta.dirname, '../tests/features');
 const IN_SCOPE_SUBSECTIONS = ['1', '3', '4'];
 
-function inScopeAcIds(): string[] {
+/** Every AC id §9 of the spec defines, with its §4 subsection number. */
+function specAcIds(): { id: string; subsection: string }[] {
   const spec = readFileSync(SPEC_PATH, 'utf-8');
   const acSectionStart = spec.indexOf('## 9. Acceptance criteria');
   if (acSectionStart < 0) throw new Error('Could not find "## 9. Acceptance criteria" in the spec.');
   const acSection = spec.slice(acSectionStart);
-  const ids: string[] = [];
-  for (const match of acSection.matchAll(/^- \*\*(AC-4\.(\d+)\.\d+-\d+)\b/gm)) {
-    const [, id, subsection] = match;
-    if (IN_SCOPE_SUBSECTIONS.includes(subsection)) ids.push(id);
-  }
-  return ids;
+  return [...acSection.matchAll(/^- \*\*(AC-4\.(\d+)\.\d+-\d+)\b/gm)].map(([, id, subsection]) => ({ id, subsection }));
+}
+
+function inScopeAcIds(): string[] {
+  return specAcIds()
+    .filter(({ subsection }) => IN_SCOPE_SUBSECTIONS.includes(subsection))
+    .map(({ id }) => id);
 }
 
 function findFeatureFiles(dir: string): string[] {
@@ -48,6 +52,12 @@ function run(): void {
   const inScope = inScopeAcIds();
   const tagged = taggedAcIds();
   const uncovered = inScope.filter((id) => !tagged.has(id));
+  const covered = specAcIds()
+    .map(({ id }) => id)
+    .filter((id) => tagged.has(id));
+
+  console.log(`Covered: ${covered.length} §9 acceptance criteria are tagged on a scenario under tests/features/:`);
+  for (const id of covered) console.log(`  covered ${id}`);
 
   console.log(`In-scope §9 acceptance criteria (§3.7, §4.1, §4.3, §4.4): ${inScope.length}`);
   if (uncovered.length === 0) {

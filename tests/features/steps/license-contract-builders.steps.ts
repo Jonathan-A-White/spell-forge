@@ -92,10 +92,10 @@ export function thenOutput2IsTypeMData(ctx: LicenseBuilderContext): void {
   expect(outputs[2].satoshis).toBe(0);
   const record = decodeTypedRecordScript(outputs[2].lockingScript);
   expect(record).toMatchObject({ version: 2, recordType: 'M', manifest: [] });
-  expect(JSON.parse(Utils.toUTF8(record!.payloadBytes))).toEqual({
-    collection: config.collectionId,
-    holder: wallet.owner.address,
-  });
+  const mintPayload = JSON.parse(Utils.toUTF8(record!.payloadBytes));
+  expect(mintPayload).toMatchObject({ collection: config.collectionId, holder: wallet.owner.address });
+  // Since mw-jeswf.3 it also carries the holder's wrap key and a wrap of k(0) (tests/unit/bsv-gated-records.test.ts).
+  expect(Object.keys(mintPayload)).toEqual(['collection', 'holder', 'wrapKey', 'wrap']);
 }
 
 export function thenOutput3IsIssuerChange(ctx: LicenseBuilderContext): void {
