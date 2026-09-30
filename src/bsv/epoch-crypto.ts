@@ -25,7 +25,8 @@ export const EPOCH_KEY_BYTES = 32;
 export const COMMITMENT_BYTES = 32;
 export const P256_PUBLIC_KEY_BYTES = 65; // SEC 1 uncompressed: 0x04 ‖ X ‖ Y
 export const P256_PRIVATE_KEY_BYTES = 32;
-export const MIN_SEED_BYTES = 32;
+/** The seed is the holder's 32-byte root private key (R4.2.1); not a BIP-39 seed, not a BRC-42 child key. */
+export const SEED_BYTES = 32;
 export const WRAP_VERSION = 0x01;
 export const WRAP_BYTES = 126; // 0x01 ‖ E (65) ‖ nonce (12) ‖ ciphertext (32) ‖ tag (16)
 export const PAYLOAD_VERSION = 0x01;
@@ -45,6 +46,7 @@ const ECDH_P256 = { name: 'ECDH', namedCurve: 'P-256' } as const;
 /** Why an operation was refused. The first ten are the doc's and the fixture's refusals. */
 export type EpochCryptoRefusal =
   | 'seed-too-short'
+  | 'seed-wrong-length'
   | 'invalid-private-key'
   | 'not-p256-public-key'
   | 'invalid-epoch-key'
@@ -321,9 +323,15 @@ export async function epochCommitment(epochKey: Uint8Array): Promise<Uint8Array>
  * d = (OKM mod (n − 1)) + 1; Q = d·G, read back from crypto.subtle.
  */
 async function deriveP256KeyPair(seed: Uint8Array, info: string): Promise<P256KeyPair> {
-  if (!(seed instanceof Uint8Array) || seed.length < MIN_SEED_BYTES) {
+  if (!(seed instanceof Uint8Array) || seed.length < SEED_BYTES) {
     const got = seed instanceof Uint8Array ? seed.length : 0;
-    throw new EpochCryptoError('seed-too-short', `the seed is ${got} bytes; at least ${MIN_SEED_BYTES} are needed`);
+    throw new EpochCryptoError('seed-too-short', `the seed is ${got} bytes; exactly ${SEED_BYTES} are needed`);
+  }
+  if (seed.length !== SEED_BYTES) {
+    throw new EpochCryptoError(
+      'seed-wrong-length',
+      `the seed is ${seed.length} bytes; exactly ${SEED_BYTES} are needed (the holder root private key, not a BIP-39 seed)`,
+    );
   }
   const okm = await hkdf(seed, DERIVE_SALT, ascii(info), DERIVE_OKM_BITS);
   const privateKey = toBytes32((toBigInt(okm) % (P256_N - 1n)) + 1n);

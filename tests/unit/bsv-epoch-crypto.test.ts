@@ -12,6 +12,7 @@ import type { NegativeVector, WireVectors } from '../../src/bsv/node/wire-vector
 import {
   EPOCH_KEY_BYTES,
   EpochCryptoError,
+  SEED_BYTES,
   PAYLOAD_OVERHEAD_BYTES,
   WRAP_BYTES,
   decryptPayload,
@@ -105,7 +106,9 @@ describe('epoch crypto: every positive vector reproduced byte for byte', () => {
     expect(hex(await epochCommitment(bytes(vector.epochKey)))).toBe(vector.commitment);
   });
 
-  it.each(vectors.derivation)('derivation $name', async (vector) => {
+  // The fixture's 64-byte seed vector is a KDF check of the reference only: the library takes
+  // exactly the 32-byte root private key (see 'the seed is exactly 32 bytes' below).
+  it.each(vectors.derivation.filter((vector) => vector.seed.length === 2 * SEED_BYTES))('derivation $name', async (vector) => {
     const wrapIndex = /^2-nftgate wrap-w\/(\d+)$/.exec(vector.info);
     const reader = /^2-nftgate reader-([0-9a-f]{32})$/.exec(vector.info);
     const pair = wrapIndex
@@ -196,6 +199,18 @@ describe('epoch crypto: every negative vector refused with its typed error', () 
     ).toBe('malformed-length');
   });
 
+  it('the seed is exactly 32 bytes: a 64-byte or 16-byte input is refused, 32 accepted', async () => {
+    const nonce = hex(randomBytes(16));
+    for (const length of [64, 33, 16, 31, 0]) {
+      const expected = length < 32 ? 'seed-too-short' : 'seed-wrong-length';
+      expect((await refusalOf(() => deriveWrapKeyPair(randomBytes(length), 0))).refusal, `wrap, ${length} bytes`).toBe(expected);
+      expect((await refusalOf(() => deriveReaderKeyPair(randomBytes(length), nonce))).refusal, `reader, ${length} bytes`).toBe(expected);
+    }
+    const seed = randomBytes(32);
+    expect(isP256PublicKey((await deriveWrapKeyPair(seed, 0)).publicKey)).toBe(true);
+    expect(isP256PublicKey((await deriveReaderKeyPair(seed, nonce)).publicKey)).toBe(true);
+  });
+
   it('a random wrap or payload with one flipped byte is refused, never opened', async () => {
     const pair = await deriveWrapKeyPair(randomBytes(32), 0);
     const epochKey = generateEpochKey();
@@ -226,7 +241,7 @@ describe('epoch crypto: random round trips', () => {
   });
 
   it.each(Array.from({ length: 8 }, (_, i) => i))('round trip %i: wrap/unwrap, encrypt/decrypt, c(e) preserved', async (i) => {
-    const holder = await deriveWrapKeyPair(randomBytes(32 + i), i);
+    const holder = await deriveWrapKeyPair(randomBytes(32), i);
     const other = await deriveWrapKeyPair(randomBytes(32), i);
     const epochKey = generateEpochKey();
     const commitment = await epochCommitment(epochKey);
@@ -261,7 +276,7 @@ describe('epoch crypto: random round trips', () => {
 
 describe('epoch crypto: agrees with the Node reference', () => {
   it.each(Array.from({ length: 24 }, (_, i) => i))('agreement case %i', async (i) => {
-    const seed = randomBytes(32 + (i % 3) * 16);
+    const seed = randomBytes(32);
     const context = `seed ${hex(seed)}, index ${i}`;
 
     // Derivation: wrap key w/i and a reader key.
