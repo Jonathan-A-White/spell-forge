@@ -102,6 +102,35 @@ comfortably under `FEE_CAP` (2,000 sat) and far under the fixture's 100-sat/kB e
 at input 0 and the Fuel at input 1, with no holder coin input at all — the fee is paid
 entirely from the Fuel's own value, output 1 landing at 9,986 sat (own − 14) on the write.
 
+## Real testnet transactions with gated records (mw-jeswf.4)
+
+Measured on the real gated mint and write built by the same production builders
+(`buildContractMintTransaction` with holderA's stand-in wrap public key,
+`buildContractTokenRecordTransaction` with holderA's wrap private key) and broadcast against
+WhatsOnChain testnet by `tests/testnet/gated-reading.testnet.test.ts` (`npm run
+test:bsv:testnet`): mint `bc3e8e1417d2d55443b4595c881e50928324a098e2a38fff9c8c3c8d7cffb462`,
+write `d2e25ce95e380c0656267a8f895058b7ffb464cf2828284d0f0938f2b762df1c`. Read back from
+the chain: `outputs[2].lockingScript.toBinary().length` for each Data output, the write's
+`toBinary().length`, and (total input satoshis − total output satoshis) for the fee. Beside
+the Fuel(C) run's figures above (mw-yo97u.5, before gating):
+
+| | Gated (mw-jeswf.4) | Fuel(C) run, before gating (mw-yo97u.5) |
+|--|---------:|---------:|
+| M Data output (output 2 of the mint) | 550 B | — |
+| W Data output (output 2 of the write) | 163 B | — |
+| The whole write tx, full size | 13,223 B | 13,105 B |
+| Write fee actually paid | 14 sat | 14 sat |
+| Mint tx, full size / fee paid | 6,428 B / 7 sat | — |
+
+**Conditions**: `MINT_FUEL` 10,000 sat, `feeRateSatPerKb` 1. The M payload is 498 B of JSON
+(`collection`, `holder`, the 65-byte `wrapKey` and the 126-byte `wrap`, both as hex); the
+other 52 B are the header and c(0)'s 32-byte push. The W payload is 112 B: an 83-byte
+`{ text, ts }` plaintext (a 40-character text) plus 29 B of encryption (version byte, 12-byte
+nonce, 16-byte tag); the other 51 B are the header and c(0). The write's input 0 (the
+License `write` unlocking script) is 5,986 B, input 1 (Fuel) 1,440 B; output 1 landed at
+9,986 sat (own − 14), as before. At 1 sat/kB the 118 extra bytes of the write cost nothing
+extra.
+
 ## Real testnet transactions (mw-5wuz6.6)
 
 Measured on the real write and transfer built by `license-contract.ts`'s production
