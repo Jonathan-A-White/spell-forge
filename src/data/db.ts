@@ -16,6 +16,7 @@ import type {
   TestResult,
   BsvWalletKey,
   BsvPendingSpend,
+  PhotoImport,
 } from '../contracts/types';
 import type { LicenseToken } from '../bsv/license-token';
 
@@ -41,6 +42,7 @@ class SpellForgeDB extends Dexie {
   bsvWallet!: Table<BsvWalletKey, string>;
   bsvPendingSpends!: Table<BsvPendingSpend, string>;
   bsvTokens!: Table<BsvTokenRow, [string, number]>;
+  photoImports!: Table<PhotoImport, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -255,6 +257,29 @@ class SpellForgeDB extends Dexie {
             if (!row.lock) row.lock = 'p2pkh';
           }),
       );
+
+    // v13: photoImports table — a photo of a word list waiting for the factory's answer
+    // (mw-z361n.4), kept so a parent who leaves the app finds the list filled on return.
+    this.version(13).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+      bsvWallet: 'id',
+      bsvPendingSpends: 'txid',
+      bsvTokens: '[origin.txid+origin.vout], mintedAt',
+      photoImports: 'id, listId, status, [listId+status]',
+    });
   }
 }
 

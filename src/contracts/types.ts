@@ -57,6 +57,28 @@ export interface WordList {
   archived: boolean;
 }
 
+/** How far a photo import has got: sent to the factory and awaited, read by it, read by the device, or neither could. */
+export type PhotoImportStatus = 'reading' | 'factory' | 'device' | 'failed';
+
+/** A photo of a word list on its way into a list (mw-z361n.4); survives the app closing. */
+export interface PhotoImport {
+  id: string;
+  listId: string;
+  profileId: string;
+  /** The grist's txid, seq and mill: set once the factory has the photo. */
+  txid?: string;
+  seq?: number;
+  mill?: string;
+  /** The photo as stored for the device read; deleted once the import settles. */
+  photo?: ArrayBuffer;
+  mime: string;
+  language: string;
+  sentAt: Date;
+  /** After this the device reads the photo itself. */
+  deadline: Date;
+  status: PhotoImportStatus;
+}
+
 export interface Word {
   id: string;
   listId: string;
