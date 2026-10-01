@@ -5,6 +5,7 @@ import type { WordList, Word, WordStats, WordLearningProgress, TestResult } from
 import { computeProgressPercent } from '../../core/mastery';
 import { QrShare } from './qr-share';
 import { PdfExportDialog } from './pdf-export-dialog';
+import { usePhotoImportStatus } from './photo-import';
 
 interface WordListsViewProps {
   wordLists: WordList[];
@@ -175,6 +176,7 @@ export function WordListsView({
                             <> · Test: {new Date(list.testDate).toLocaleDateString()}</>
                           )}
                         </p>
+                        <PhotoImportNote listId={list.id} />
                       </div>
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                         {(() => {
@@ -456,6 +458,18 @@ export function WordListsView({
       )}
     </div>
   );
+}
+
+/** What a list's newest photo import is doing: reading, or (until the list is next saved) read on the device. */
+function PhotoImportNote({ listId }: { listId: string }) {
+  const status = usePhotoImportStatus(listId);
+  if (status === 'reading') {
+    return <p role="status" className="text-xs text-sf-primary mt-0.5">Reading your photo...</p>;
+  }
+  if (status === 'device') {
+    return <p role="status" className="text-xs text-sf-muted mt-0.5">Read on this device</p>;
+  }
+  return null;
 }
 
 type HealthCategory = 'mastered' | 'familiar' | 'learning' | 'new';
