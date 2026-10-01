@@ -1,0 +1,16 @@
+{
+  "grind": 1,
+  "app": "spellforge",
+  "kind": "word-list",
+  "versions": ["1"],
+  "model": "sonnet",
+  "effort": "medium",
+  "instructions": "grinds/word-list.md",
+  "answerSchema": "grinds/word-list-answer-1.schema.json",
+  "attachments": {
+    "min": 1,
+    "max": 4,
+    "mime": ["image/jpeg", "image/png", "image/webp"],
+    "maxBytes": 4194304
+  }
+}

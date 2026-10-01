@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Word List Answer 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["words"],
+  "properties": {
+    "words": {
+      "description": "The words to practise, in reading order, one entry per word or short phrase as written. Empty when nothing is readable.",
+      "type": "array",
+      "maxItems": 200,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "confidence": {
+      "description": "How sure the answer is of the words overall, 0 (not at all) to 1 (certain).",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "notes": {
+      "description": "One plain sentence for the parent: any doubt, or why no words were read.",
+      "type": "string"
+    }
+  }
+}
