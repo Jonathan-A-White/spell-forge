@@ -59,7 +59,7 @@ import { useTtsDebug } from './audio/tts-debug-state';
 import { useDebugMode, DebugOverlay } from './debug';
 import { createOcrManager } from './ocr';
 import { addWordsToList } from './features/word-lists/add-words';
-import { startPhotoImportQueue } from './features/word-lists/photo-import';
+import { forgetSettledPhotoImports, startPhotoImportQueue, useOnPhotoImportSettled } from './features/word-lists/photo-import';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
 import { themeEngine } from './themes';
@@ -374,6 +374,9 @@ function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [refreshListData]);
 
+  // A photo import that settles has landed its words: reload the lists so they show.
+  useOnPhotoImportSettled(() => void refreshListData());
+
   // Navigate back through browser history instead of hardcoding destinations.
   // Performs cleanup for the current view before navigating.
   const goBack = useCallback(() => {
@@ -412,6 +415,8 @@ function App() {
 
         // Add words that are new
         await addWordsToList({ listId: editingList.id, profileId: activeProfile.id, words });
+        // Saving ends a photo import's 'Read on this device' note.
+        await forgetSettledPhotoImports(editingList.id);
 
         setEditingList(null);
       } else {
@@ -434,6 +439,27 @@ function App() {
       setView('word-lists');
     },
     [activeProfile, editingList, refreshListData],
+  );
+
+  // The editor's first photo for a new list: the list is saved with no words, and the editor goes on editing it.
+  const handleCreatePhotoList = useCallback(
+    async (name: string, testDate: Date | null, language: string): Promise<WordList> => {
+      if (!activeProfile) throw new Error('No profile is open.');
+      const list = await wordListRepo.create({
+        profileId: activeProfile.id,
+        name,
+        language,
+        testDate,
+        createdAt: new Date(),
+        source: 'camera',
+        active: true,
+        archived: false,
+      });
+      setEditingList(list);
+      await refreshListData();
+      return list;
+    },
+    [activeProfile, refreshListData],
   );
 
   const handleDeleteList = useCallback(
@@ -1007,7 +1033,8 @@ function App() {
           list={editingList}
           existingWords={editWords}
           ocrManager={ocrManager}
-          importFilterPhrases={activeProfile?.importFilterWords}
+          profileId={activeProfile?.id}
+          onCreateList={handleCreatePhotoList}
           onSave={handleSaveList}
           onCancel={goBack}
         />

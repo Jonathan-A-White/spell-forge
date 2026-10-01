@@ -1,21 +1,26 @@
 // src/features/word-lists/list-editor.tsx — Word list CRUD UI with multilingual support
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { WordList } from '../../contracts/types';
+import { wordRepo } from '../../data/repositories';
 import type { OcrManager } from '../../ocr';
-import { filterImportWords } from '../../ocr';
 import { getAllLanguages, getLanguageConfig, DEFAULT_LANGUAGE } from '../../i18n/language-registry.ts';
+import { normalizeWords } from './add-words';
+import { startPhotoImport, usePhotoImportStatus } from './photo-import';
 
 interface ListEditorProps {
   list?: WordList | null;
   existingWords: string[];
   ocrManager?: OcrManager | null;
-  importFilterPhrases?: string[];
+  /** Whose list this is; a photo import needs it. */
+  profileId?: string;
+  /** Saves a new list with no words yet, so a photo has a list to fill; the editor goes on editing it. */
+  onCreateList?: (name: string, testDate: Date | null, language: string) => Promise<WordList>;
   onSave: (name: string, words: string[], testDate: Date | null, source?: WordList['source'], language?: string) => void;
   onCancel: () => void;
 }
 
-export function ListEditor({ list, existingWords, ocrManager, importFilterPhrases, onSave, onCancel }: ListEditorProps) {
+export function ListEditor({ list, existingWords, ocrManager, profileId, onCreateList, onSave, onCancel }: ListEditorProps) {
   const [name, setName] = useState(list?.name ?? '');
   const [language, setLanguage] = useState<string>(list?.language ?? DEFAULT_LANGUAGE);
   const [wordsText, setWordsText] = useState(existingWords.join('\n'));
@@ -23,9 +28,19 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
     list?.testDate ? formatDate(list.testDate) : '',
   );
   const [usedCamera, setUsedCamera] = useState(false);
-  const [ocrStatus, setOcrStatus] = useState<'idle' | 'processing' | 'error'>('idle');
-  const [ocrError, setOcrError] = useState('');
+  const [starting, setStarting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [createdList, setCreatedList] = useState<WordList | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // The list a photo fills: this one, or the one saved for the first photo of a new list.
+  const savedList = list ?? createdList;
+  const importStatus = usePhotoImportStatus(savedList?.id);
+  const reading = starting || importStatus === 'reading';
+  // Words the editor has shown: what it opened with, then each word it appended from an import.
+  const seenWords = useRef(new Set(normalizeWords(existingWords)));
+  // A failed read is told only to the parent who just picked the photo, not to one who comes back later.
+  const [pickedPhoto, setPickedPhoto] = useState(false);
 
   const langConfig = getLanguageConfig(language);
   const ocrAvailable = ocrManager && langConfig.hasOCR;
@@ -42,49 +57,60 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
     onSave(name.trim(), words, testDate ? new Date(testDate) : null, source, language);
   }, [name, wordsText, testDate, usedCamera, language, onSave]);
 
+  /** Appends the words an import has landed in the saved list, once each, after whatever the parent has typed. */
+  const absorbLandedWords = useCallback(async (listId: string) => {
+    const rows = await wordRepo.getByListId(listId);
+    rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.text.localeCompare(b.text));
+    const landed = rows.map((w) => w.text).filter((text) => !seenWords.current.has(text));
+    if (landed.length === 0) return;
+    landed.forEach((text) => seenWords.current.add(text));
+    setWordsText((current) => {
+      const typed = new Set(normalizeWords(current.split(/[\n,]+/)));
+      const fresh = landed.filter((text) => !typed.has(text));
+      if (fresh.length === 0) return current;
+      const existing = current.trim();
+      return existing ? `${existing}\n${fresh.join('\n')}` : fresh.join('\n');
+    });
+  }, []);
+
   const handlePhotoSelected = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !ocrManager) return;
+    const input = e.target;
+    if (!file || !ocrManager || !profileId) return;
 
-    setOcrStatus('processing');
-    setOcrError('');
+    setStarting(true);
+    setImportError('');
+    setPickedPhoto(true);
 
     try {
-      const result = await ocrManager.extractWords(file);
-
-      if (result.words.length === 0) {
-        setOcrStatus('error');
-        setOcrError('No words found. Try a clearer photo.');
-        return;
+      // A new list is saved first, so there is something for the words to land in.
+      let target = savedList;
+      if (!target) {
+        if (!onCreateList) return;
+        target = await onCreateList(name.trim() || photoListName(new Date()), testDate ? new Date(testDate) : null, language);
+        setCreatedList(target);
+        // The field shows the name the list was saved under, so Save works once the words land.
+        setName(target.name);
       }
-
-      // Apply import filter to auto-exclude heading words
-      const filteredWords = importFilterPhrases?.length
-        ? filterImportWords(result.words, importFilterPhrases)
-        : result.words;
-
-      if (filteredWords.length === 0) {
-        setOcrStatus('error');
-        setOcrError('No words found after filtering. Try a clearer photo.');
-        return;
-      }
-
-      // Append OCR words to existing text
-      const existing = wordsText.trim();
-      const newWords = filteredWords.join('\n');
-      setWordsText(existing ? `${existing}\n${newWords}` : newWords);
       setUsedCamera(true);
-      setOcrStatus('idle');
+      await startPhotoImport({ listId: target.id, profileId, file, language }, { ocrManager });
+      await absorbLandedWords(target.id);
     } catch (err) {
-      setOcrStatus('error');
-      setOcrError(err instanceof Error ? err.message : 'Failed to read image');
+      setImportError(err instanceof Error ? err.message : 'Failed to read image');
+    } finally {
+      setStarting(false);
+      // Reset input so the same file can be re-selected
+      input.value = '';
     }
+  }, [ocrManager, profileId, savedList, onCreateList, name, testDate, language, absorbLandedWords]);
 
-    // Reset input so the same file can be re-selected
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, [ocrManager, wordsText, importFilterPhrases]);
+  // Words that land while the editor is open, once the import stops reading.
+  const wasReading = useRef(false);
+  useEffect(() => {
+    const isReading = importStatus === 'reading';
+    if (wasReading.current && !isReading && savedList) void absorbLandedWords(savedList.id);
+    wasReading.current = isReading;
+  }, [importStatus, savedList, absorbLandedWords]);
 
   const wordCount = wordsText
     .split(/[\n,]+/)
@@ -189,7 +215,7 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
               <button
                 type="button"
                 onClick={() => ocrAvailable && fileInputRef.current?.click()}
-                disabled={ocrStatus === 'processing' || !ocrAvailable}
+                disabled={reading || !ocrAvailable}
                 className={`inline-flex items-center gap-1.5 text-sm disabled:cursor-not-allowed ${
                   ocrAvailable
                     ? 'text-sf-primary hover:underline disabled:opacity-50'
@@ -199,7 +225,7 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
                 data-testid="camera-import-btn"
               >
                 <CameraIcon />
-                {ocrStatus === 'processing'
+                {reading
                   ? 'Reading...'
                   : ocrAvailable
                     ? 'Import from photo'
@@ -208,15 +234,27 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
             )}
           </div>
 
-          {ocrAvailable && ocrStatus === 'idle' && (
+          {ocrAvailable && !reading && (
             <p className="text-xs text-sf-muted mb-2">
               Tip: Lay the list flat in good light and fill the frame with the words — any rotation is fine.
             </p>
           )}
 
-          {ocrStatus === 'error' && (
+          {reading && (
+            <p role="status" className="bg-sf-surface border border-sf-border rounded-lg px-3 py-2 mb-2 text-sm text-sf-secondary">
+              Reading your photo...
+            </p>
+          )}
+
+          {importStatus === 'device' && !reading && (
+            <p role="status" className="text-xs text-sf-muted mb-2">
+              Read on this device
+            </p>
+          )}
+
+          {(importError || (importStatus === 'failed' && pickedPhoto)) && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 text-sm text-red-700">
-              {ocrError}
+              {importError || 'No words found. Try a clearer photo.'}
             </div>
           )}
 
@@ -245,6 +283,13 @@ export function ListEditor({ list, existingWords, ocrManager, importFilterPhrase
       </div>
     </div>
   );
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** The name a list gets when the parent picks a photo before typing one, e.g. 'Photo list 1 Oct'. */
+function photoListName(date: Date): string {
+  return `Photo list ${date.getDate()} ${MONTHS[date.getMonth()]}`;
 }
 
 function formatDate(date: Date): string {
