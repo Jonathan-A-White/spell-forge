@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/testnet/**/*.test.ts'],
+    // One file at a time: every file spends from the same three harness addresses, and two
+    // at once would race for the same UTXOs.
+    fileParallelism: false,
     testTimeout: 5 * 60 * 1000,
     hookTimeout: 5 * 60 * 1000,
   },

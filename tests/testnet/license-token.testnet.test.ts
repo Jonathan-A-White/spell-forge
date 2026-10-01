@@ -29,7 +29,14 @@ import {
 } from '../../src/bsv/license-contract';
 import type { BuildContractSpendVariantParams } from '../../src/bsv/license-contract';
 import { followLicenseToken } from '../../src/bsv/token-lineage';
-import { requireFundedHarness, withPacing, pollForUtxo } from '../../src/bsv/node/testnet-e2e-helpers';
+import {
+  getSpendableUtxos,
+  requireFundedHarness,
+  withPacing,
+  pollForUtxo,
+  waitForTransactionHex,
+} from '../../src/bsv/node/testnet-e2e-helpers';
+import { deriveStandInWrapKeyPair } from '../../src/bsv/gated-records';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { PendingSpendRepository } from '../../src/bsv/pending-spends';
 import type { Utxo } from '../../src/contracts/types';
@@ -54,33 +61,6 @@ function noopPendingSpendRepo(): PendingSpendRepository {
     async add() {},
     async removeMany() {},
   };
-}
-
-/**
- * WhatsOnChain's /tx/{txid}/hex indexes a broadcast slightly after /address/{addr}/unspent
- * lists it — observed live 2026-09-23 (a 404 from getTransactionHex on a txid whose output
- * pollForUtxo had already confirmed as unspent seconds earlier). Every builder here fetches
- * the token's current outpoint by hex before spending it, so wait for that specifically too.
- */
-async function waitForTransactionHex(
-  provider: Pick<ChainProvider, 'getTransactionHex'>,
-  txid: string,
-  intervalMs = 3000,
-  timeoutMs = 60000,
-): Promise<void> {
-  const maxAttempts = Math.max(1, Math.floor(timeoutMs / intervalMs));
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      await provider.getTransactionHex(txid);
-      return;
-    } catch (error) {
-      lastError = error;
-      if (attempt < maxAttempts) await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
-  }
-  const reason = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(`Timed out after ${timeoutMs}ms waiting for WhatsOnChain to serve /tx/${txid}/hex: ${reason}`);
 }
 
 async function waitUntilReady(
@@ -139,7 +119,7 @@ function withSpentTracking(provider: ChainProvider): { provider: ChainProvider; 
   const wrapped: ChainProvider = {
     ...provider,
     getUtxos: async (address: string) => {
-      const utxos = await provider.getUtxos(address);
+      const utxos = await getSpendableUtxos(provider, address);
       const seen = new Set<string>();
       return utxos.filter((u) => {
         const key = outpointKey(u);
@@ -306,6 +286,9 @@ describe('testnet license token e2e', () => {
     const FEE_CAP = 2_000; // Fuel(C)'s FEE_CAP, spec §3.9
     const holderAPubKeyHex = PrivateKey.fromWif(harness.holderA.entry.wif).toPublicKey().toString();
     const holderBPubKeyHex = PrivateKey.fromWif(harness.holderB.entry.wif).toPublicKey().toString();
+    // Since gated reading (mw-jeswf.3) the M record wraps k(0) to the holder's wrap key; the
+    // writes below default to holderA's stand-in wrap key, so the mint wraps to the same one.
+    const holderAWrapPubKey = (await deriveStandInWrapKeyPair(harness.holderA.entry.wif)).publicKey;
 
     // --- Mint: issuer -> holder A, a genuinely different party (buildContractMintTransaction
     // directly: mintContractLicenseToken only mints to the issuer's own key). ---
@@ -314,6 +297,7 @@ describe('testnet license token e2e', () => {
       issuerKey: harness.issuer.entry.wif,
       utxos: issuerUtxos,
       holderPubKey: holderAPubKeyHex,
+      holderWrapPubKey: holderAWrapPubKey,
       mintFuelSatoshis: MINT_FUEL,
       config: chainConfig,
       provider,
