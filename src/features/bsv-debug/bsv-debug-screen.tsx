@@ -17,6 +17,8 @@ import { bsvWalletRepo, bsvPendingSpendRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
 import { TokenPanel } from './token-panel';
 import { SendPanel } from './send-panel';
+import { readGatedWrites } from './gated-read';
+import type { GatedWriteEntry, ReadAs } from './gated-read';
 import type { BsvWalletKey, EventBus, Utxo } from '../../contracts/types';
 import { createEventBus } from '../../contracts';
 
@@ -59,7 +61,7 @@ type WriteState =
 type ReadState =
   | { status: 'idle' }
   | { status: 'reading' }
-  | { status: 'done'; records: DecodedRecord[] }
+  | { status: 'done'; records: DecodedRecord[]; gatedWrites: GatedWriteEntry[] }
   | { status: 'error'; message: string };
 
 type ScanState =
@@ -100,6 +102,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
   const [writeState, setWriteState] = useState<WriteState>({ status: 'idle' });
   const [readTxid, setReadTxid] = useState('');
   const [readState, setReadState] = useState<ReadState>({ status: 'idle' });
+  const [readAs, setReadAs] = useState<ReadAs>('device');
   const [scanState, setScanState] = useState<ScanState>({ status: 'idle' });
   const provider = useMemo(() => chainProvider ?? createChainProvider(), [chainProvider]);
   const bus = useMemo(() => eventBus ?? createEventBus(), [eventBus]);
@@ -213,7 +216,13 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
     setReadState({ status: 'reading' });
     try {
       const result = await readRecordByTxid(provider, readTxid.trim(), bus);
-      setReadState({ status: 'done', records: result.records });
+      const gatedWrites = await readGatedWrites({
+        txHex: result.txHex,
+        provider,
+        readAs,
+        walletWif: wallet ? wallet.material : null,
+      });
+      setReadState({ status: 'done', records: result.records, gatedWrites });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not read transaction';
       setReadState({ status: 'error', message });
@@ -348,6 +357,31 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
             className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text font-mono px-3 py-2 text-sm"
             style={{ minHeight: 'var(--sf-tap-target-size)' }}
           />
+          <fieldset className="flex items-center gap-4 text-sm">
+            <legend className="text-sf-muted text-sm">Read as</legend>
+            <label htmlFor="bsv-read-as-device" className="flex items-center gap-1 text-sf-text">
+              <input
+                id="bsv-read-as-device"
+                type="radio"
+                name="bsv-read-as"
+                value="device"
+                checked={readAs === 'device'}
+                onChange={() => setReadAs('device')}
+              />
+              This device
+            </label>
+            <label htmlFor="bsv-read-as-other" className="flex items-center gap-1 text-sf-text">
+              <input
+                id="bsv-read-as-other"
+                type="radio"
+                name="bsv-read-as"
+                value="other"
+                checked={readAs === 'other'}
+                onChange={() => setReadAs('other')}
+              />
+              A different key
+            </label>
+          </fieldset>
           <button
             onClick={handleRead}
             disabled={!canRead}
@@ -356,7 +390,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
           >
             {readState.status === 'reading' ? 'Reading…' : 'Read'}
           </button>
-          {readState.status === 'done' && readState.records.length === 0 && (
+          {readState.status === 'done' && readState.records.length === 0 && readState.gatedWrites.length === 0 && (
             <p className="text-sf-text">no nftgate record in this transaction</p>
           )}
           {readState.status === 'done' &&
@@ -388,6 +422,20 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
                 )}
                 {'unsupportedVersion' in record.decodedPayload && (
                   <p className="text-sf-muted">{`Unsupported record version ${record.decodedPayload.unsupportedVersion}`}</p>
+                )}
+              </div>
+            ))}
+          {readState.status === 'done' &&
+            readState.gatedWrites.map(({ vout, result }) => (
+              <div key={`gated-${vout}`} className="text-sf-text">
+                <p className="text-sf-muted text-sm">{`vout ${vout} · version 2 · W`}</p>
+                {result.readable ? (
+                  <>
+                    <p data-testid="bsv-read-text" className="break-words">{result.text}</p>
+                    <p className="text-sf-muted text-sm">{result.ts}</p>
+                  </>
+                ) : (
+                  <p className="text-red-600">{result.message}</p>
                 )}
               </div>
             ))}

@@ -14,6 +14,8 @@ export interface DecodedRecord extends RecordInTransaction {
 
 export interface ReadRecordResult {
   txid: string;
+  /** The transaction's hex as the provider returned it, for a caller that reads its typed records too. */
+  txHex: string;
   records: DecodedRecord[];
 }
 
@@ -51,5 +53,5 @@ export async function readRecordByTxid(
 
   eventBus.emit({ type: 'bsv:record-read', payload: { txid: trimmedTxid, recordCount: records.length } });
 
-  return { txid: trimmedTxid, records };
+  return { txid: trimmedTxid, txHex, records };
 }
