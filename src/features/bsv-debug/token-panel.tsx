@@ -377,6 +377,11 @@ export function TokenPanel({ wallet, hasBalance, provider, eventBus }: TokenPane
                 className="rounded-lg border border-sf-border-strong bg-sf-surface text-sf-text px-3 py-2 text-sm"
                 rows={2}
               />
+              {!isLicenseLock && (
+                <p data-testid="bsv-token-write-plaintext-note" className="text-sf-muted text-sm">
+                  This write is plaintext: anyone can read it.
+                </p>
+              )}
               <button
                 onClick={() => handleWriteWithToken(token)}
                 disabled={!canWriteWithToken}

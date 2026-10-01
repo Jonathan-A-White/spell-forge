@@ -11,6 +11,7 @@ import {
   scanRecords,
   reconcilePendingSpends,
   filterUtxosExcludingPending,
+  RECORD_VERSION_PLAINTEXT,
 } from '../../bsv';
 import type { ChainProvider, DecodedRecord, ScanRecordEntry, TypedRecordType } from '../../bsv';
 import { bsvWalletRepo, bsvPendingSpendRepo } from '../../data/repositories';
@@ -397,6 +398,11 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
             readState.records.map((record) => (
               <div key={record.vout} className="text-sf-text">
                 <p className="text-sf-muted text-sm">{`vout ${record.vout} · version ${record.version}`}</p>
+                {record.version === RECORD_VERSION_PLAINTEXT && (
+                  <p data-testid="bsv-read-plaintext-note" className="text-sf-muted text-sm">
+                    plaintext: any key reads this
+                  </p>
+                )}
                 {'kind' in record.decodedPayload && (
                   <>
                     <p className="text-sf-muted text-sm">{`kind ${record.decodedPayload.kind}`}</p>

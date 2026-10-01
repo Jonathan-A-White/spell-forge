@@ -72,6 +72,26 @@ describe('BsvDebugScreen read by txid', () => {
     expect(screen.getByText(txFixture.writePayload.ts)).toBeInTheDocument();
   });
 
+  it.each([
+    ['bsv-read-as-device', 'This device'],
+    ['bsv-read-as-other', 'A different key'],
+  ])('labels a version 1 record plaintext, any key reads it, under Read as %s', async (radioId, label) => {
+    await bsvWalletRepo.save(storedKey);
+    const provider = makeProvider({ getTransactionHex: vi.fn().mockResolvedValue(txFixture.writeTxHex) });
+
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
+
+    fireEvent.click(await screen.findByRole('radio', { name: label }));
+    expect(document.getElementById(radioId)).toBeChecked();
+    fireEvent.change(await screen.findByLabelText('Read by txid'), { target: { value: 'a'.repeat(64) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Read' }));
+
+    const note = await screen.findByTestId('bsv-read-plaintext-note');
+    expect(note.textContent).toMatch(/plaintext/);
+    expect(note.textContent).toMatch(/any key/);
+    expect(screen.getByText(txFixture.writePayload.text)).toBeInTheDocument();
+  });
+
   it('shows "no nftgate record in this transaction" for a transaction with no record', async () => {
     await bsvWalletRepo.save(storedKey);
     const provider = makeProvider({ getTransactionHex: vi.fn().mockResolvedValue(txFixture.noRecordTxHex) });

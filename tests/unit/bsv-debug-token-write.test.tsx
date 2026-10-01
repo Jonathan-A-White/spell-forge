@@ -137,6 +137,31 @@ describe('BsvDebugScreen write with token', () => {
     expect(provider.broadcast).not.toHaveBeenCalled();
   });
 
+  it('says a P2PKH token\'s write is plaintext readable by anyone, before any write', async () => {
+    await bsvWalletRepo.save(storedKey);
+    await bsvTokenRepo.put(token);
+
+    vi.useFakeTimers();
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={makeProvider()} />);
+    await flush();
+
+    const note = screen.getByTestId('bsv-token-write-plaintext-note');
+    expect(note.textContent).toMatch(/plaintext/);
+    expect(note.textContent).toMatch(/anyone/);
+  });
+
+  it('does not show the plaintext warning on a license-locked token\'s write box', async () => {
+    await bsvWalletRepo.save(storedKey);
+    await bsvTokenRepo.put({ ...token, lock: 'license', artifact: 'fake-artifact-md5' });
+
+    vi.useFakeTimers();
+    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={makeProvider()} />);
+    await flush();
+
+    expect(screen.getByText(/lock license/)).toBeInTheDocument();
+    expect(screen.queryByTestId('bsv-token-write-plaintext-note')).not.toBeInTheDocument();
+  });
+
   it('disables Write with token when there is no text', async () => {
     await bsvWalletRepo.save(storedKey);
     await bsvTokenRepo.put(token);

@@ -80,11 +80,14 @@ describe('BsvDebugScreen gated read', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Read' }));
     await waitFor(() => expect(screen.getByTestId('bsv-read-text')).toHaveTextContent('hello gated'), SLOW);
     expect(screen.queryByText(/^cannot read/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bsv-read-plaintext-note')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bsv-token-write-plaintext-note')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('A different key'));
     fireEvent.click(screen.getByRole('button', { name: 'Read' }));
     await waitFor(() => expect(screen.getByText(/^cannot read/)).toBeInTheDocument(), SLOW);
     expect(screen.queryByTestId('bsv-read-text')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bsv-read-plaintext-note')).not.toBeInTheDocument();
   }, 120_000);
 
   it("shows the library's 'minted before gated reading' message when a pre-gating token is written", async () => {
