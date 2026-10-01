@@ -58,6 +58,8 @@ import { TtsDebugOverlay } from './audio/tts-debug-overlay';
 import { useTtsDebug } from './audio/tts-debug-state';
 import { useDebugMode, DebugOverlay } from './debug';
 import { createOcrManager } from './ocr';
+import { addWordsToList } from './features/word-lists/add-words';
+import { startPhotoImportQueue } from './features/word-lists/photo-import';
 import { rewardTracker, monsterCollection } from './features/rewards';
 import { MonsterStable } from './features/rewards/monster-stable';
 import { themeEngine } from './themes';
@@ -95,6 +97,10 @@ const ocrManager = createOcrManager();
 
 function App() {
   const [view, setView] = useState<AppView>('loading');
+
+  // Photo imports waiting on the factory: one pass now, on 'online', and every 20 s while any waits.
+  useEffect(() => startPhotoImportQueue({ ocrManager }), []);
+
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [archivedProfiles, setArchivedProfiles] = useState<Profile[]>([]);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
@@ -395,7 +401,6 @@ function App() {
 
         // Diff words: remove deleted, add new, keep existing
         const existingWords = await wordRepo.getByListId(editingList.id);
-        const existingTexts = new Set(existingWords.map((w) => w.text));
         const newTexts = new Set(words);
 
         // Delete words that were removed
@@ -406,40 +411,7 @@ function App() {
         }
 
         // Add words that are new
-        for (const wordText of words) {
-          if (!existingTexts.has(wordText)) {
-            const word: Word = {
-              id: uuidv4(),
-              listId: editingList.id,
-              profileId: activeProfile.id,
-              text: wordText,
-              phonemes: [],
-              syllables: [],
-              patterns: [],
-              imageUrl: null,
-              imageCached: false,
-              createdAt: new Date(),
-            };
-            await wordRepo.create(word);
-
-            await statsRepo.create({
-              wordId: word.id,
-              profileId: activeProfile.id,
-              lastAsked: null,
-              timesAsked: 0,
-              timesWrong: 0,
-              timesStruggledRight: 0,
-              timesEasyRight: 0,
-              consecutiveCorrect: 0,
-              consecutiveWrong: 0,
-              longestCorrectStreak: 0,
-              currentBucket: 'new',
-              nextReviewDate: new Date(),
-              difficultyScore: 0.5,
-              techniqueHistory: [],
-            });
-          }
-        }
+        await addWordsToList({ listId: editingList.id, profileId: activeProfile.id, words });
 
         setEditingList(null);
       } else {
@@ -455,40 +427,7 @@ function App() {
           archived: false,
         });
 
-        for (const wordText of words) {
-          const word: Word = {
-            id: uuidv4(),
-            listId: list.id,
-            profileId: activeProfile.id,
-            text: wordText,
-            phonemes: [],
-            syllables: [],
-            patterns: [],
-            imageUrl: null,
-            imageCached: false,
-            createdAt: new Date(),
-          };
-          await wordRepo.create(word);
-
-          const stats: WordStats = {
-            id: uuidv4(),
-            wordId: word.id,
-            profileId: activeProfile.id,
-            lastAsked: null,
-            timesAsked: 0,
-            timesWrong: 0,
-            timesStruggledRight: 0,
-            timesEasyRight: 0,
-            consecutiveCorrect: 0,
-            consecutiveWrong: 0,
-            longestCorrectStreak: 0,
-            currentBucket: 'new',
-            nextReviewDate: new Date(),
-            difficultyScore: 0.5,
-            techniqueHistory: [],
-          };
-          await statsRepo.create(stats);
-        }
+        await addWordsToList({ listId: list.id, profileId: activeProfile.id, words });
       }
 
       await refreshListData();
