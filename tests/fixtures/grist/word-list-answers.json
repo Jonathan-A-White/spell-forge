@@ -1,0 +1,23 @@
+{
+  "valid": [
+    { "name": "plain list", "answer": { "words": ["because", "friend", "light"] } },
+    { "name": "spanish with accents", "answer": { "words": ["canción", "niño", "pingüino"], "confidence": 0.9 } },
+    { "name": "short phrases and proper noun", "answer": { "words": ["ice cream", "London"], "confidence": 0, "notes": "The last word is smudged." } },
+    { "name": "nothing readable", "answer": { "words": [], "notes": "The photo is too dark to read." } },
+    { "name": "confidence of one", "answer": { "words": ["tricky"], "confidence": 1 } }
+  ],
+  "invalid": [
+    { "name": "no words", "answer": { "confidence": 0.5 } },
+    { "name": "empty object", "answer": {} },
+    { "name": "words is not an array", "answer": { "words": "because friend" } },
+    { "name": "a number in words", "answer": { "words": ["because", 7] } },
+    { "name": "an empty string in words", "answer": { "words": ["because", ""] } },
+    { "name": "an extra field", "answer": { "words": ["because"], "language": "en" } },
+    { "name": "confidence above one", "answer": { "words": ["because"], "confidence": 2 } },
+    { "name": "confidence below zero", "answer": { "words": ["because"], "confidence": -0.1 } },
+    { "name": "confidence is a string", "answer": { "words": ["because"], "confidence": "high" } },
+    { "name": "notes is not a string", "answer": { "words": ["because"], "notes": 3 } },
+    { "name": "null", "answer": null },
+    { "name": "an array", "answer": ["because"] }
+  ]
+}
