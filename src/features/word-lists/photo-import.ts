@@ -3,7 +3,7 @@
 // answer, after which the device's Tesseract reads the same photo. Words land straight in the list.
 // Resumable: everything a pass needs is in the photoImports table, never in memory.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { liveQuery } from 'dexie';
 import { PrivateKey } from '@bsv/sdk';
 import { v4 as uuidv4 } from 'uuid';
@@ -256,4 +256,29 @@ export function usePhotoImportStatus(listId: string | null | undefined): PhotoIm
   }, [listId]);
 
   return listId ? status : null;
+}
+
+/** Calls `onSettled` each time the number of imports still reading drops: words have landed, so lists should reload. */
+export function useOnPhotoImportSettled(onSettled: () => void): void {
+  const latest = useRef(onSettled);
+  useEffect(() => {
+    latest.current = onSettled;
+  }, [onSettled]);
+
+  useEffect(() => {
+    let reading: number | undefined;
+    const subscription = liveQuery(() => db.photoImports.where('status').equals('reading').count()).subscribe({
+      next: (count) => {
+        if (reading !== undefined && count < reading) latest.current();
+        reading = count;
+      },
+      error: () => undefined,
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+}
+
+/** Drops a list's settled imports, and with them the 'Read on this device' note: called when the list is saved. */
+export async function forgetSettledPhotoImports(listId: string): Promise<void> {
+  await db.photoImports.where('listId').equals(listId).filter((row) => row.status !== 'reading').delete();
 }

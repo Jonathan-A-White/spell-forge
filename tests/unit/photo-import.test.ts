@@ -14,6 +14,7 @@ import type { GristAnswer, ReadAnswerResult } from '../../src/grist';
 import type { WordListAnswer } from '../../src/grist';
 import {
   PHOTO_IMPORT_DEADLINE_MS,
+  forgetSettledPhotoImports,
   pollPhotoImports,
   startPhotoImport,
   startPhotoImportQueue,
@@ -352,5 +353,31 @@ describe('the queue the app starts', () => {
     await vi.advanceTimersByTimeAsync(20_000);
     await calls(deps, 1);
     stop();
+  });
+});
+
+describe('forgetSettledPhotoImports', () => {
+  const row = (id: string, listId: string, status: 'reading' | 'factory' | 'device' | 'failed') => ({
+    id,
+    listId,
+    profileId: 'p',
+    mime: 'image/jpeg',
+    language: 'en',
+    sentAt: T0,
+    deadline: minutes(2),
+    status,
+  });
+
+  it("drops a list's settled imports, and only that list's, leaving one still reading", async () => {
+    await db.photoImports.bulkAdd([
+      row('a', 'list-a', 'device'),
+      row('b', 'list-a', 'failed'),
+      row('c', 'list-a', 'reading'),
+      row('d', 'list-b', 'device'),
+    ]);
+
+    await forgetSettledPhotoImports('list-a');
+
+    expect((await db.photoImports.toArray()).map((r) => r.id).sort()).toEqual(['c', 'd']);
   });
 });
