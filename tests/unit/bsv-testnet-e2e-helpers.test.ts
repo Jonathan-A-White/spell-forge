@@ -1,5 +1,6 @@
 // tests/unit/bsv-testnet-e2e-helpers.test.ts — Harness-reading, pacing and polling
 // helpers for the testnet e2e, tested against fakes only (never the network).
+// Fixture transactions are built offline with @bsv/sdk.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -7,7 +8,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestnetKeyFile, readTestnetKeyFile } from '../../src/bsv/node/testnet-keys';
 import type { TestnetKeyEntry } from '../../src/bsv/node/testnet-keys';
-import { requireFundedHarness, withPacing, pollForUtxo } from '../../src/bsv/node/testnet-e2e-helpers';
+import { LockingScript, Transaction, UnlockingScript } from '@bsv/sdk';
+import {
+  requireFundedHarness,
+  withPacing,
+  pollForUtxo,
+  waitForTransactionHex,
+  getSpendableUtxos,
+} from '../../src/bsv/node/testnet-e2e-helpers';
 import type { ChainProvider } from '../../src/bsv/chain-provider';
 import type { Utxo } from '../../src/contracts/types';
 
@@ -177,5 +185,88 @@ describe('pollForUtxo', () => {
     await assertion;
 
     expect(getUtxos).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('waitForTransactionHex', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('resolves once the provider serves the hex, after earlier 404s', async () => {
+    vi.useFakeTimers();
+    const getTransactionHex = vi
+      .fn<(txid: string) => Promise<string>>()
+      .mockRejectedValueOnce(new Error('404'))
+      .mockRejectedValueOnce(new Error('404'))
+      .mockResolvedValueOnce('00');
+
+    const promise = waitForTransactionHex({ getTransactionHex }, 'abc', 10, 100);
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(getTransactionHex).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects naming the txid and the last error once the deadline passes', async () => {
+    vi.useFakeTimers();
+    const getTransactionHex = vi.fn<(txid: string) => Promise<string>>().mockRejectedValue(new Error('404 not found'));
+
+    const promise = waitForTransactionHex({ getTransactionHex }, 'never', 10, 30);
+    const assertion = expect(promise).rejects.toThrow(/Timed out after 30ms waiting for WhatsOnChain to serve \/tx\/never\/hex: 404 not found/);
+    await vi.runAllTimersAsync();
+    await assertion;
+
+    expect(getTransactionHex).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('getSpendableUtxos', () => {
+  const funding = 'aa'.repeat(32);
+  const other = 'bb'.repeat(32);
+
+  /** A mempool transaction spending funding:0, so WhatsOnChain's /unspent may still list funding:0. */
+  function spenderOf(txid: string, vout: number): Transaction {
+    const tx = new Transaction();
+    tx.addInput({ sourceTXID: txid, sourceOutputIndex: vout, unlockingScript: new UnlockingScript(), sequence: 0xffffffff });
+    tx.addOutput({ lockingScript: new LockingScript(), satoshis: 0 });
+    return tx;
+  }
+
+  function provider(utxos: Utxo[], pending: Transaction[]): Pick<
+    ChainProvider,
+    'getUtxos' | 'getTransactionHex' | 'getUnconfirmedAddressHistory'
+  > {
+    const byTxid = new Map(pending.map((tx) => [tx.id('hex'), tx]));
+    return {
+      getUtxos: vi.fn(() => Promise.resolve(utxos)),
+      getUnconfirmedAddressHistory: vi.fn(() => Promise.resolve(pending.map((tx) => ({ txid: tx.id('hex'), height: 0 })))),
+      getTransactionHex: vi.fn((txid: string) => Promise.resolve(byTxid.get(txid)!.toHex())),
+    };
+  }
+
+  it('drops an outpoint that a transaction still in the address\'s mempool history spends', async () => {
+    const utxos = [
+      { txid: funding, vout: 0, satoshis: 5000 },
+      { txid: other, vout: 1, satoshis: 7000 },
+    ];
+    const result = await getSpendableUtxos(provider(utxos, [spenderOf(funding, 0)]), 'addr');
+    expect(result).toEqual([{ txid: other, vout: 1, satoshis: 7000 }]);
+  });
+
+  it('lists an outpoint listed twice only once', async () => {
+    const utxos = [
+      { txid: other, vout: 1, satoshis: 7000 },
+      { txid: other, vout: 1, satoshis: 7000 },
+    ];
+    const result = await getSpendableUtxos(provider(utxos, []), 'addr');
+    expect(result).toEqual([{ txid: other, vout: 1, satoshis: 7000 }]);
+  });
+
+  it('keeps every listed outpoint when the provider has no mempool history route', async () => {
+    const utxos = [{ txid: funding, vout: 0, satoshis: 5000 }];
+    const { getUtxos, getTransactionHex } = provider(utxos, [spenderOf(funding, 0)]);
+    const result = await getSpendableUtxos({ getUtxos, getTransactionHex }, 'addr');
+    expect(result).toEqual(utxos);
   });
 });
