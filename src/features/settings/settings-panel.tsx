@@ -5,6 +5,7 @@ import type { AccessibilitySettings, LearningStrategy } from '../../contracts/ty
 import { PRESETS, type NamedPreset } from '../../accessibility/presets';
 import { ImportFilterSettings } from './import-filter-settings';
 import { APP_VERSION } from '../../version';
+import { DeviceKeySection } from '../device-key';
 import { useBsvDebugMode } from '../bsv-debug/bsv-debug-flag';
 
 const BSV_DEBUG_TAP_WINDOW_MS = 3000;
@@ -369,6 +370,9 @@ export function SettingsPanel({
             </div>
           </section>
         )}
+
+        {/* This device's key: always shown, not gated on debug mode */}
+        <DeviceKeySection />
 
         {/* Send Feedback */}
         {onSendFeedback && (
