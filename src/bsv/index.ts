@@ -1,6 +1,6 @@
 export { chainConfig } from './config';
 export type { ChainConfig } from './config';
-export { generateTestnetKey, isValidCompressedPublicKeyHex, isValidTestnetAddress } from './keys';
+export { generateTestnetKey, publicKeyHexFromWif, isValidCompressedPublicKeyHex, isValidTestnetAddress } from './keys';
 export type { GeneratedKey } from './keys';
 export { createChainProvider } from './chain-provider';
 export type { ChainProvider } from './chain-provider';

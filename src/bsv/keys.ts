@@ -23,6 +23,11 @@ export function generateTestnetKey(): GeneratedKey {
   };
 }
 
+/** The compressed public key hex (66 chars, 02/03 prefix) of a WIF private key: what an issuer mints a License to. */
+export function publicKeyHexFromWif(wif: string): string {
+  return PrivateKey.fromWif(wif).toPublicKey().toString();
+}
+
 /** True if `address` base58check-decodes to a testnet P2PKH address. */
 export function isValidTestnetAddress(address: string): boolean {
   try {

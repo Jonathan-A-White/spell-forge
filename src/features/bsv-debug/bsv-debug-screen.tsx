@@ -16,6 +16,7 @@ import {
 import type { ChainProvider, DecodedRecord, ScanRecordEntry, TypedRecordType } from '../../bsv';
 import { bsvWalletRepo, bsvPendingSpendRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
+import { DevicePublicKey } from './device-public-key';
 import { TokenPanel } from './token-panel';
 import { SendPanel } from './send-panel';
 import { readGatedWrites } from './gated-read';
@@ -471,6 +472,8 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
               className="w-48 h-48"
               dangerouslySetInnerHTML={{ __html: generateQrSvg(wallet.address, 192) }}
             />
+
+            <DevicePublicKey wif={wallet.material} />
 
             <div className="flex flex-col gap-2">
               {balance.status === 'loading' && <p className="text-sf-muted">Loading balance…</p>}
