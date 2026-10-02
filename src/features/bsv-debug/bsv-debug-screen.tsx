@@ -1,11 +1,9 @@
 // src/features/bsv-debug/bsv-debug-screen.tsx — Hidden BSV debug screen (phase 1).
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import {
   chainConfig,
   createChainProvider,
-  generateTestnetKey,
   writeRecord,
   readRecordByTxid,
   scanRecords,
@@ -16,7 +14,7 @@ import {
 import type { ChainProvider, DecodedRecord, ScanRecordEntry, TypedRecordType } from '../../bsv';
 import { bsvWalletRepo, bsvPendingSpendRepo } from '../../data/repositories';
 import { generateQrSvg } from '../settings/qr-code';
-import { DevicePublicKey } from './device-public-key';
+import { DevicePublicKey, createDeviceKey } from '../device-key';
 import { TokenPanel } from './token-panel';
 import { SendPanel } from './send-panel';
 import { readGatedWrites } from './gated-read';
@@ -166,16 +164,7 @@ export function BsvDebugScreen({ onBack, chainProvider, eventBus }: BsvDebugScre
   }, [wallet?.address]);
 
   async function handleGenerate() {
-    const generated = generateTestnetKey();
-    const key: BsvWalletKey = {
-      id: uuidv4(),
-      kind: 'wif',
-      network: generated.network,
-      material: generated.material,
-      address: generated.address,
-      createdAt: new Date(),
-    };
-    await bsvWalletRepo.save(key);
+    const key = await createDeviceKey();
     setWallet(key);
     setShowPrivateKey(false);
   }

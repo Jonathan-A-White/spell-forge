@@ -1,4 +1,4 @@
-// src/features/bsv-debug/device-public-key.tsx — This device's public key (hex, Copy, QR) for the issuer.
+// src/features/device-key/device-public-key.tsx — This device's public key (hex, Copy, QR) for the issuer.
 
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
