@@ -66,6 +66,7 @@ import { MonsterStable } from './features/rewards/monster-stable';
 import { themeEngine } from './themes';
 import { exportProfile, importProfile, parseExportJson } from './data/import-export';
 import { countMasteredWords } from './core/mastery';
+import { presetToSettings } from './accessibility/presets';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -693,11 +694,8 @@ function App() {
   const handlePresetApply = useCallback(
     async (preset: NamedPreset) => {
       if (!activeProfile) return;
-      // Keep the current contrast mode when applying a preset (unless preset specifies high-contrast)
-      const newSettings = validateSettings({
-        ...preset.settings,
-        contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : activeProfile.settings.contrastMode,
-      });
+      // Keeps the current contrast mode and tutor strictness (see presetToSettings)
+      const newSettings = presetToSettings(preset, activeProfile.settings);
       applySettings(newSettings);
       const updated = { ...activeProfile, settings: newSettings };
       await profileRepo.update(updated.id, { settings: newSettings });

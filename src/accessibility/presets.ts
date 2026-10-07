@@ -65,3 +65,15 @@ export function getPreset(name: string): NamedPreset | undefined {
   const lower = name.toLowerCase();
   return PRESETS.find((p) => p.name.toLowerCase() === lower);
 }
+
+/**
+ * The settings a profile gets when a preset is applied: the preset's look, the profile's current contrast mode
+ * (unless the preset names one) and the profile's own tutor strictness, which no preset owns.
+ */
+export function presetToSettings(preset: NamedPreset, current: AccessibilitySettings): AccessibilitySettings {
+  return validateSettings({
+    ...preset.settings,
+    contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : current.contrastMode,
+    tutorStrictness: current.tutorStrictness,
+  });
+}
