@@ -12,3 +12,4 @@ export { testResultRepo } from './test-result-repo';
 export { bsvWalletRepo } from './bsv-wallet-repo';
 export { bsvPendingSpendRepo } from './bsv-pending-spend-repo';
 export { bsvTokenRepo } from './bsv-token-repository';
+export { tutorRepo } from './tutor-repo';

@@ -17,6 +17,9 @@ import type {
   BsvWalletKey,
   BsvPendingSpend,
   PhotoImport,
+  TutorSession,
+  TutorTurn,
+  TutorBlob,
 } from '../contracts/types';
 import type { LicenseToken } from '../bsv/license-token';
 
@@ -43,6 +46,9 @@ class SpellForgeDB extends Dexie {
   bsvPendingSpends!: Table<BsvPendingSpend, string>;
   bsvTokens!: Table<BsvTokenRow, [string, number]>;
   photoImports!: Table<PhotoImport, string>;
+  tutorSessions!: Table<TutorSession, string>;
+  tutorTurns!: Table<TutorTurn, string>;
+  tutorBlobs!: Table<TutorBlob, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -279,6 +285,32 @@ class SpellForgeDB extends Dexie {
       bsvPendingSpends: 'txid',
       bsvTokens: '[origin.txid+origin.vout], mintedAt',
       photoImports: 'id, listId, status, [listId+status]',
+    });
+
+    // v14: tutorSessions, tutorTurns and tutorBlobs — the tutor's raw record (mw-bhvxcn.6): a session, each
+    // turn in it (found by its txid when the answer comes), and the photos and recordings the turns carry.
+    this.version(14).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+      bsvWallet: 'id',
+      bsvPendingSpends: 'txid',
+      bsvTokens: '[origin.txid+origin.vout], mintedAt',
+      photoImports: 'id, listId, status, [listId+status]',
+      tutorSessions: 'id, profileId, [profileId+startedAt], status',
+      tutorTurns: 'id, sessionId, [sessionId+index], txid, status',
+      tutorBlobs: 'id',
     });
   }
 }

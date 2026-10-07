@@ -524,6 +524,130 @@ export interface BsvPendingSpend {
   createdAt: Date;
 }
 
+// ─── Tutor (sf-tutor) ─────────────────────────────────────────
+
+export type TutorStrictness = 'meaning-gated' | 'precision';
+export type TutorMode = 'problem-in' | 'reading' | 'math';
+export type TutorSessionStatus = 'active' | 'ended';
+export type TutorTurnStatus = 'sending' | 'waiting' | 'answered' | 'refused' | 'failed' | 'stale';
+export type TutorAttachmentKind = 'problem' | 'work' | 'audio';
+
+/** One word of a scorer's reading result (the mill's scorer contract). */
+export interface ReadingWord {
+  text: string;
+  expected_phonemes: string[];
+  produced_phonemes: string[];
+  error: 'none' | 'omission' | 'insertion' | 'mispronunciation' | 'hesitation';
+  accuracy: number;
+  self_corrected: boolean;
+}
+
+/** What one scoring engine heard of a clip. */
+export interface ReadingResult {
+  engine: string;
+  words: ReadingWord[];
+  accuracy: number;
+  seconds: number;
+}
+
+/** The scorers' results for one reading, by engine; both travel to the grist and stay in the record. */
+export interface TutorReadingResult {
+  azure?: ReadingResult;
+  local?: ReadingResult;
+}
+
+/** An earlier turn, compact, so the grist knows what has been tried. */
+export interface TutorHistoryEntry {
+  mode: TutorMode;
+  action?: TutorAnswerAction;
+  prompt_to_child?: string;
+  child_answer?: string;
+}
+
+/** App -> AI: the input of one tutor turn (design 4). Photos and audio travel as attachments. */
+export interface TutorRequest {
+  mode: TutorMode;
+  strictness: TutorStrictness;
+  target_text?: string;
+  reading_result?: TutorReadingResult;
+  child_answer?: string;
+  /** True when a photo of the child's work is attached. */
+  work_photo?: boolean;
+  session_history: TutorHistoryEntry[];
+}
+
+export type TutorAnswerAction =
+  | 'continue'
+  | 'reread_word'
+  | 'reread_sentence'
+  | 'sound_out'
+  | 'math_probe'
+  | 'confirm_answer'
+  | 'encourage'
+  | 'done';
+
+/** AI -> App: grinds/tutor-turn.answer.schema.json. Never the answer to the problem in a field the child sees. */
+export interface TutorAnswer {
+  action: TutorAnswerAction;
+  focus_words: { word: string; chunks: string[] }[];
+  prompt_to_child: string;
+  layer_diagnosis: 'reading' | 'math' | 'both' | 'none';
+  math_diagnosis?: { where_wrong: string; gap: string; method: string };
+  target_text?: string;
+  problem_kind?: 'word' | 'plain';
+  notes_for_parent?: string;
+  recommendations_for_parent?: { what: string; why: string; where: string }[];
+  teaching_method?: string;
+}
+
+/** The mill's verdict on one tutor turn, as the app applies it. */
+export type TutorTurnResult =
+  | { status: 'answered'; answer: TutorAnswer }
+  | { status: 'refused' | 'failed'; reason: string };
+
+export interface TutorSession {
+  id: string;
+  profileId: string;
+  startedAt: Date;
+  endedAt?: Date;
+  strictness: TutorStrictness;
+  problemKind?: 'word' | 'plain';
+  targetText?: string;
+  status: TutorSessionStatus;
+}
+
+export interface TutorTurn {
+  id: string;
+  sessionId: string;
+  /** 1-based, in the order turns were added to the session. */
+  index: number;
+  mode: TutorMode;
+  sentAt: Date;
+  answeredAt?: Date;
+  /** The grist's txid, seq and mill: set once the factory has the turn. */
+  txid?: string;
+  seq?: number;
+  mill?: string;
+  request: TutorRequest;
+  attachments: { kind: TutorAttachmentKind; blobId: string }[];
+  readingResult?: TutorReadingResult;
+  answer?: TutorAnswer;
+  /** Why a turn was refused or failed. */
+  failureReason?: string;
+  /** The child moved past this turn while it waited: its answer is kept but never shown (status stale). */
+  movedOn?: boolean;
+  status: TutorTurnStatus;
+}
+
+/** A photo or a recording kept for the session's raw record. */
+export interface TutorBlob {
+  id: string;
+  bytes: ArrayBuffer;
+  mime: string;
+  name?: string;
+  createdAt: Date;
+}
+
 // ─── Sync Queue ───────────────────────────────────────────────
 
 export interface SyncQueueItem {
