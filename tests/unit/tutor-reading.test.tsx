@@ -249,7 +249,7 @@ describe('the answer, by action', () => {
     expect(screen.queryByRole('button', { name: 'Read the word' })).not.toBeInTheDocument();
     // not "Nice reading" yet: the whole problem has still to be read
     expect(screen.queryByText('Nice reading')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Now the maths' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Now the math' })).not.toBeInTheDocument();
     expect(say).not.toHaveBeenCalledWith('Yes, that word.');
 
     await readIt();
@@ -308,12 +308,12 @@ describe('the answer, by action', () => {
     expect(screen.queryByText('Thinking about your reading...')).not.toBeInTheDocument();
   });
 
-  it("continue: 'Nice reading', and 'Now the maths' ends the reading loop", async () => {
+  it("continue: 'Nice reading', and 'Now the math' ends the reading loop", async () => {
     await answered({ action: 'continue' });
     expect(await screen.findByText('Nice reading', undefined, { timeout: 3000 })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Now the maths' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Now the math' }));
     expect(screen.queryByRole('button', { name: 'Read it' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Now the maths' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Now the math' })).not.toBeInTheDocument();
   });
 
   it('keeps the reading result of both engines when the answer echoes it', async () => {
