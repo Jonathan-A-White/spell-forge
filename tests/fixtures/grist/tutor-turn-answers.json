@@ -34,12 +34,23 @@
       }
     },
     {
+      "name": "a handwriting rewrite request, with no maths diagnosis yet",
+      "answer": {
+        "action": "rewrite",
+        "focus_words": [],
+        "prompt_to_child": "Your 3s face the other way: the bumps should point right. Write them again, then take a new photo.",
+        "layer_diagnosis": "none",
+        "notes_for_parent": "The 3s in his work were written backwards, so I asked for a neat rewrite before checking the sum.",
+        "teaching_method": "a kind tip about one thing"
+      }
+    },
+    {
       "name": "the smallest answer",
       "answer": { "action": "done", "focus_words": [], "prompt_to_child": "Well done.", "layer_diagnosis": "none" }
     }
   ],
   "invalid": [
-    { "name": "an action that is not one of the eight", "answer": { "action": "give_answer", "focus_words": [], "prompt_to_child": "It is 7.", "layer_diagnosis": "math" } },
+    { "name": "an action that is not one of the nine", "answer": { "action": "give_answer", "focus_words": [], "prompt_to_child": "It is 7.", "layer_diagnosis": "math" } },
     { "name": "no prompt_to_child", "answer": { "action": "continue", "focus_words": [], "layer_diagnosis": "none" } },
     { "name": "an extra field", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "none", "the_answer": "7" } },
     { "name": "a layer_diagnosis outside reading, math, both, none", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "spelling" } },

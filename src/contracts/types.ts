@@ -586,6 +586,7 @@ export type TutorAnswerAction =
   | 'math_probe'
   | 'confirm_answer'
   | 'encourage'
+  | 'rewrite'
   | 'done';
 
 /** AI -> App: grinds/tutor-turn.answer.schema.json. Never the answer to the problem in a field the child sees. */
