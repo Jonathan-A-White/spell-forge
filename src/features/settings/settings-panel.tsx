@@ -7,6 +7,7 @@ import { ImportFilterSettings } from './import-filter-settings';
 import { APP_VERSION } from '../../version';
 import { DeviceKeySection } from '../device-key';
 import { useBsvDebugMode } from '../bsv-debug/bsv-debug-flag';
+import { useTutorFlagSwitch } from '../../debug/debug-state';
 
 const BSV_DEBUG_TAP_WINDOW_MS = 3000;
 const BSV_DEBUG_TAPS_REQUIRED = 7;
@@ -75,6 +76,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [bsvDebugEnabled, toggleBsvDebug] = useBsvDebugMode();
+  const [tutorOn, toggleTutor] = useTutorFlagSwitch();
   const bsvTapCountRef = useRef(0);
   const bsvLastTapRef = useRef(0);
 
@@ -396,89 +398,117 @@ export function SettingsPanel({
         )}
 
         {/* Developer Settings */}
-        {(onToggleTtsDebug || onToggleDebugMode || bsvDebugEnabled) && (
-          <section>
-            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
-              Developer
-            </h2>
-            <div className="space-y-2">
-              {bsvDebugEnabled && (
-                <button
-                  onClick={onOpenBsvDebug}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
-                >
-                  <div className="text-left flex-1">
-                    <p className="font-bold text-sm text-sf-text">BSV Debug</p>
-                  </div>
-                </button>
-              )}
-              {onToggleDebugMode && (
-                <button
-                  onClick={onToggleDebugMode}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
-                    debugModeEnabled
-                      ? 'border-sf-primary bg-sf-surface shadow-md'
-                      : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
-                  }`}
-                  aria-pressed={debugModeEnabled}
-                >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
-                    debugModeEnabled
-                      ? 'bg-sf-primary text-sf-primary-text'
-                      : 'bg-sf-track text-sf-muted'
+        <section>
+          <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+            Developer
+          </h2>
+          <div className="space-y-2">
+            {bsvDebugEnabled && (
+              <button
+                onClick={onOpenBsvDebug}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
+              >
+                <div className="text-left flex-1">
+                  <p className="font-bold text-sm text-sf-text">BSV Debug</p>
+                </div>
+              </button>
+            )}
+            {onToggleDebugMode && (
+              <button
+                onClick={onToggleDebugMode}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                  debugModeEnabled
+                    ? 'border-sf-primary bg-sf-surface shadow-md'
+                    : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                }`}
+                aria-pressed={debugModeEnabled}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
+                  debugModeEnabled
+                    ? 'bg-sf-primary text-sf-primary-text'
+                    : 'bg-sf-track text-sf-muted'
+                }`}>
+                  <BugIcon />
+                </div>
+                <div className="text-left flex-1">
+                  <p className={`font-bold text-sm ${
+                    debugModeEnabled ? 'text-sf-heading' : 'text-sf-text'
                   }`}>
-                    <BugIcon />
+                    Debug Mode
+                  </p>
+                  <p className="text-xs text-sf-muted">Show tap targets, click log, and element info</p>
+                </div>
+                {debugModeEnabled && (
+                  <div className="text-sf-primary">
+                    <CheckIcon />
                   </div>
-                  <div className="text-left flex-1">
-                    <p className={`font-bold text-sm ${
-                      debugModeEnabled ? 'text-sf-heading' : 'text-sf-text'
-                    }`}>
-                      Debug Mode
-                    </p>
-                    <p className="text-xs text-sf-muted">Show tap targets, click log, and element info</p>
-                  </div>
-                  {debugModeEnabled && (
-                    <div className="text-sf-primary">
-                      <CheckIcon />
-                    </div>
-                  )}
-                </button>
+                )}
+              </button>
+            )}
+            <button
+              onClick={toggleTutor}
+              className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                tutorOn
+                  ? 'border-sf-primary bg-sf-surface shadow-md'
+                  : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+              }`}
+              aria-pressed={tutorOn}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
+                tutorOn
+                  ? 'bg-sf-primary text-sf-primary-text'
+                  : 'bg-sf-track text-sf-muted'
+              }`}>
+                <TerminalIcon />
+              </div>
+              <div className="text-left flex-1">
+                <p className={`font-bold text-sm ${
+                  tutorOn ? 'text-sf-heading' : 'text-sf-text'
+                }`}>
+                  Tutor (preview)
+                </p>
+                <p className="text-xs text-sf-muted">Show the Tutor tile on Home</p>
+              </div>
+              {tutorOn && (
+                <div className="text-sf-primary">
+                  <CheckIcon />
+                </div>
               )}
-              {onToggleTtsDebug && (
-                <button
-                  onClick={onToggleTtsDebug}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
-                    ttsDebugEnabled
-                      ? 'border-sf-primary bg-sf-surface shadow-md'
-                      : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
-                  }`}
-                  aria-pressed={ttsDebugEnabled}
-                >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
-                    ttsDebugEnabled
-                      ? 'bg-sf-primary text-sf-primary-text'
-                      : 'bg-sf-track text-sf-muted'
+            </button>
+            {onToggleTtsDebug && (
+              <button
+                onClick={onToggleTtsDebug}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                  ttsDebugEnabled
+                    ? 'border-sf-primary bg-sf-surface shadow-md'
+                    : 'border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover'
+                }`}
+                aria-pressed={ttsDebugEnabled}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
+                  ttsDebugEnabled
+                    ? 'bg-sf-primary text-sf-primary-text'
+                    : 'bg-sf-track text-sf-muted'
+                }`}>
+                  <TerminalIcon />
+                </div>
+                <div className="text-left flex-1">
+                  <p className={`font-bold text-sm ${
+                    ttsDebugEnabled ? 'text-sf-heading' : 'text-sf-text'
                   }`}>
-                    <TerminalIcon />
+                    TTS Debug Log
+                  </p>
+                  <p className="text-xs text-sf-muted">Show speech synthesis diagnostics on screen</p>
+                </div>
+                {ttsDebugEnabled && (
+                  <div className="text-sf-primary">
+                    <CheckIcon />
                   </div>
-                  <div className="text-left flex-1">
-                    <p className={`font-bold text-sm ${
-                      ttsDebugEnabled ? 'text-sf-heading' : 'text-sf-text'
-                    }`}>
-                      TTS Debug Log
-                    </p>
-                    <p className="text-xs text-sf-muted">Show speech synthesis diagnostics on screen</p>
-                  </div>
-                  {ttsDebugEnabled && (
-                    <div className="text-sf-primary">
-                      <CheckIcon />
-                    </div>
-                  )}
-                </button>
-              )}
-            </div>
-          </section>
-        )}
+                )}
+              </button>
+            )}
+          </div>
+        </section>
 
         <button
           type="button"

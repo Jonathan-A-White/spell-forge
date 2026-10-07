@@ -53,3 +53,27 @@ export function useTutorFlag(): boolean {
   const [on] = useState(isTutorFlagOn);
   return on;
 }
+
+/** Persist the Tutor flag. */
+export function setTutorFlag(on: boolean): void {
+  try {
+    localStorage.setItem(TUTOR_FLAG_STORAGE_KEY, on ? '1' : '0');
+  } catch {
+    // localStorage may be unavailable in some contexts
+  }
+}
+
+/** Hook that returns [on, toggle] for the Tutor flag, for the Settings switch. */
+export function useTutorFlagSwitch(): [boolean, () => void] {
+  const [on, setOn] = useState(isTutorFlagOn);
+
+  const toggle = useCallback(() => {
+    setOn((prev) => {
+      const next = !prev;
+      setTutorFlag(next);
+      return next;
+    });
+  }, []);
+
+  return [on, toggle];
+}
