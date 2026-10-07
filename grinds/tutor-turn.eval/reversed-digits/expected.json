@@ -1,0 +1,22 @@
+{
+  "about": "his work photo, '24 + 9 = 33' with both 3s written backwards: a rewrite request that names the 3s and asks for a new photo, with no maths diagnosis yet",
+  "action": "rewrite",
+  "layer_diagnosis": "none",
+  "answer_must_not_appear": [
+    "15",
+    "fifteen"
+  ],
+  "no_math_diagnosis": true,
+  "prompt_mentions_each": [
+    [
+      "3",
+      "three"
+    ],
+    [
+      "photo",
+      "picture"
+    ]
+  ],
+  "notes_required": true,
+  "prompt_max_chars": 400
+}
