@@ -48,6 +48,22 @@ export const tutorRepo = {
     return db.tutorSessions.get(id);
   },
 
+  /** The profile's newest session that has not ended, if any: what a reload picks back up. */
+  async getActiveSession(profileId: string): Promise<TutorSession | undefined> {
+    const sessions = await db.tutorSessions.where('profileId').equals(profileId).toArray();
+    return sessions
+      .filter((s) => s.status === 'active')
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())[0];
+  },
+
+  /** The problem the session is about, as read off the photo or as the child corrected it. */
+  async setProblem(id: string, problem: { targetText: string; problemKind?: 'word' | 'plain' }): Promise<void> {
+    await db.tutorSessions.update(id, {
+      targetText: problem.targetText,
+      ...(problem.problemKind ? { problemKind: problem.problemKind } : {}),
+    });
+  },
+
   async endSession(id: string, at: Date = new Date()): Promise<void> {
     await db.tutorSessions.update(id, { status: 'ended', endedAt: at });
   },
@@ -83,6 +99,36 @@ export const tutorRepo = {
         status: 'sending',
       };
       await db.tutorTurns.add(turn);
+      return turn;
+    });
+  },
+
+  /**
+   * The child's own correction of the problem: a problem-in turn that is answered the moment it is made, by him
+   * and not by the grist (no txid, no answer, request.target_text is his text). Turns still out before it are
+   * moved past, and the session's problem becomes his text.
+   */
+  async addCorrection(params: { sessionId: string; strictness: TutorStrictness; text: string }): Promise<TutorTurn> {
+    return db.transaction('rw', db.tutorTurns, db.tutorSessions, async () => {
+      const turns = await db.tutorTurns.where('sessionId').equals(params.sessionId).toArray();
+      const index = turns.reduce((max, t) => Math.max(max, t.index), 0) + 1;
+      for (const turn of turns) {
+        if (isOut(turn)) await db.tutorTurns.update(turn.id, { movedOn: true });
+      }
+      const now = new Date();
+      const turn: TutorTurn = {
+        id: uuidv4(),
+        sessionId: params.sessionId,
+        index,
+        mode: 'problem-in',
+        sentAt: now,
+        answeredAt: now,
+        request: { mode: 'problem-in', strictness: params.strictness, target_text: params.text, session_history: [] },
+        attachments: [],
+        status: 'answered',
+      };
+      await db.tutorTurns.add(turn);
+      await db.tutorSessions.update(params.sessionId, { targetText: params.text });
       return turn;
     });
   },

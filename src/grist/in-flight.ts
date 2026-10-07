@@ -34,13 +34,13 @@ export class GristInFlight {
     this.deps = deps;
   }
 
-  /** Passes on load, every 5 s and on `online`. Returns the function that stops all three. */
-  start(): () => void {
+  /** Passes on load, every 5 s (or `intervalMs`) and on `online`. Returns the function that stops all three. */
+  start(intervalMs: number = TUTOR_POLL_INTERVAL_MS): () => void {
     const run = () => {
       void this.pass();
     };
     run();
-    const timer = setInterval(run, TUTOR_POLL_INTERVAL_MS);
+    const timer = setInterval(run, intervalMs);
     window.addEventListener('online', run);
     return () => {
       clearInterval(timer);
