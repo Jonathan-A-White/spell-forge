@@ -1,0 +1,380 @@
+{
+  "mode": "reading",
+  "strictness": "precision",
+  "target_text": "There are 24 pencils in a box. A teacher shares them equally between 4 tables. How many pencils does each table get?",
+  "reading_result": {
+    "azure": {
+      "engine": "azure",
+      "words": [
+        {
+          "text": "There",
+          "expected_phonemes": ["dh", "eh", "r"],
+          "produced_phonemes": ["dh", "eh", "r"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "are",
+          "expected_phonemes": ["aa", "r"],
+          "produced_phonemes": ["aa", "r"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "24",
+          "expected_phonemes": ["t", "w", "eh", "n", "t", "iy", "f", "ao", "r"],
+          "produced_phonemes": ["t", "w", "eh", "n", "t", "iy", "f", "ao", "r"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "pencils",
+          "expected_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "produced_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "in",
+          "expected_phonemes": ["ih", "n"],
+          "produced_phonemes": ["ih", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "a",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "box",
+          "expected_phonemes": ["b", "aa", "k", "s"],
+          "produced_phonemes": ["b", "aa", "k", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "A",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "teacher",
+          "expected_phonemes": ["t", "iy", "ch", "er"],
+          "produced_phonemes": ["t", "iy", "ch", "er"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "shares",
+          "expected_phonemes": ["sh", "eh", "r", "z"],
+          "produced_phonemes": ["sh", "eh", "r", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "them",
+          "expected_phonemes": ["dh", "eh", "m"],
+          "produced_phonemes": ["dh", "eh", "m"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "equally",
+          "expected_phonemes": ["iy", "k", "w", "ah", "l", "iy"],
+          "produced_phonemes": ["iy", "k", "w", "ah", "l", "iy"],
+          "error": "none",
+          "accuracy": 88,
+          "self_corrected": false
+        },
+        {
+          "text": "between",
+          "expected_phonemes": ["b", "ih", "t", "w", "iy", "n"],
+          "produced_phonemes": ["b", "ih", "t", "w", "iy", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "4",
+          "expected_phonemes": ["f", "ao", "r"],
+          "produced_phonemes": ["f", "ao", "r"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "tables",
+          "expected_phonemes": ["t", "ey", "b", "ah", "l", "z"],
+          "produced_phonemes": ["t", "ey", "b", "ah", "l", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "pencils",
+          "expected_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "produced_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "does",
+          "expected_phonemes": ["d", "ah", "z"],
+          "produced_phonemes": ["d", "ah", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "each",
+          "expected_phonemes": ["iy", "ch"],
+          "produced_phonemes": ["iy", "ch"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "table",
+          "expected_phonemes": ["t", "ey", "b", "ah", "l"],
+          "produced_phonemes": ["t", "ey", "b", "ah", "l"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "get",
+          "expected_phonemes": ["g", "eh", "t"],
+          "produced_phonemes": ["g", "eh", "t"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 96,
+      "seconds": 11
+    },
+    "local": {
+      "engine": "local",
+      "words": [
+        {
+          "text": "There",
+          "expected_phonemes": ["dh", "eh", "r"],
+          "produced_phonemes": ["dh", "eh", "r"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "are",
+          "expected_phonemes": ["aa", "r"],
+          "produced_phonemes": ["aa", "r"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "24",
+          "expected_phonemes": ["t", "w", "eh", "n", "t", "iy", "f", "ao", "r"],
+          "produced_phonemes": ["t", "w", "eh", "n", "t", "iy", "f", "ao", "r"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "pencils",
+          "expected_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "produced_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "in",
+          "expected_phonemes": ["ih", "n"],
+          "produced_phonemes": ["ih", "n"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "a",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "box",
+          "expected_phonemes": ["b", "aa", "k", "s"],
+          "produced_phonemes": ["b", "aa", "k", "s"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "A",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "teacher",
+          "expected_phonemes": ["t", "iy", "ch", "er"],
+          "produced_phonemes": ["t", "iy", "ch", "er"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "shares",
+          "expected_phonemes": ["sh", "eh", "r", "z"],
+          "produced_phonemes": ["sh", "eh", "r", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "them",
+          "expected_phonemes": ["dh", "eh", "m"],
+          "produced_phonemes": ["dh", "eh", "m"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "equally",
+          "expected_phonemes": ["iy", "k", "w", "ah", "l", "iy"],
+          "produced_phonemes": ["iy", "k", "w", "l", "iy"],
+          "error": "mispronunciation",
+          "accuracy": 48,
+          "self_corrected": false
+        },
+        {
+          "text": "between",
+          "expected_phonemes": ["b", "ih", "t", "w", "iy", "n"],
+          "produced_phonemes": ["b", "ih", "t", "w", "iy", "n"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "4",
+          "expected_phonemes": ["f", "ao", "r"],
+          "produced_phonemes": ["f", "ao", "r"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "tables",
+          "expected_phonemes": ["t", "ey", "b", "ah", "l", "z"],
+          "produced_phonemes": ["t", "ey", "b", "ah", "l", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "pencils",
+          "expected_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "produced_phonemes": ["p", "eh", "n", "s", "ah", "l", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "does",
+          "expected_phonemes": ["d", "ah", "z"],
+          "produced_phonemes": ["d", "ah", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "each",
+          "expected_phonemes": ["iy", "ch"],
+          "produced_phonemes": ["iy", "ch"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "table",
+          "expected_phonemes": ["t", "ey", "b", "ah", "l"],
+          "produced_phonemes": ["t", "ey", "b", "ah", "l"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "get",
+          "expected_phonemes": ["g", "eh", "t"],
+          "produced_phonemes": ["g", "eh", "t"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 91,
+      "seconds": 11
+    }
+  },
+  "session_history": [
+    {
+      "mode": "problem-in",
+      "action": "continue",
+      "prompt_to_child": "Here is your problem. Read it out loud when you are ready."
+    }
+  ]
+}

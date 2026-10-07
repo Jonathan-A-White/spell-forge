@@ -1,0 +1,7 @@
+{
+  "about": "a clean read under precision; the local scorer flags one word that azure heard right: continue, and say so in the notes",
+  "action": "continue",
+  "layer_diagnosis": "none",
+  "answer_must_not_appear": ["6", "six"],
+  "notes_required": true
+}

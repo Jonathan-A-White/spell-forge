@@ -1,0 +1,7 @@
+{
+  "about": "the work photo shows the smaller digit taken from the bigger in each column: a maths probe on regrouping",
+  "action": "math_probe",
+  "layer_diagnosis": "math",
+  "answer_must_not_appear": ["27", "twenty-seven"],
+  "gap_mentions_any": ["regroup", "borrow", "exchang", "trade", "trading", "smaller", "bigger", "larger", "ones", "swap", "rename"]
+}

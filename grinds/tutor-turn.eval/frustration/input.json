@@ -1,0 +1,188 @@
+{
+  "mode": "reading",
+  "strictness": "meaning-gated",
+  "target_text": "A gardener plants 6 rows of carrots with 5 carrots in each row. How many carrots are there altogether?",
+  "reading_result": {
+    "azure": {
+      "engine": "azure",
+      "words": [
+        {
+          "text": "A",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "gardener",
+          "expected_phonemes": ["g", "aa", "r", "d", "ah", "n", "er"],
+          "produced_phonemes": ["g", "aa", "r", "d", "ah", "n"],
+          "error": "mispronunciation",
+          "accuracy": 52,
+          "self_corrected": false
+        },
+        {
+          "text": "plants",
+          "expected_phonemes": ["p", "l", "ae", "n", "t", "s"],
+          "produced_phonemes": ["p", "l", "ae", "n", "t", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "6",
+          "expected_phonemes": ["s", "ih", "k", "s"],
+          "produced_phonemes": ["s", "ih", "k", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "rows",
+          "expected_phonemes": ["r", "ow", "z"],
+          "produced_phonemes": ["r", "ow", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "of",
+          "expected_phonemes": ["ah", "v"],
+          "produced_phonemes": ["ah", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "carrots",
+          "expected_phonemes": ["k", "ae", "r", "ah", "t", "s"],
+          "produced_phonemes": ["k", "ae", "r", "ah", "t", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "with",
+          "expected_phonemes": ["w", "ih", "dh"],
+          "produced_phonemes": ["w", "ih", "dh"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "5",
+          "expected_phonemes": ["f", "ay", "v"],
+          "produced_phonemes": ["f", "ay", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "carrots",
+          "expected_phonemes": ["k", "ae", "r", "ah", "t", "s"],
+          "produced_phonemes": ["k", "ae", "r", "ah", "t", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "in",
+          "expected_phonemes": ["ih", "n"],
+          "produced_phonemes": ["ih", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "each",
+          "expected_phonemes": ["iy", "ch"],
+          "produced_phonemes": ["iy", "ch"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "row",
+          "expected_phonemes": ["r", "ow"],
+          "produced_phonemes": ["r", "ow"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "carrots",
+          "expected_phonemes": ["k", "ae", "r", "ah", "t", "s"],
+          "produced_phonemes": ["k", "ae", "r", "ah", "t", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "are",
+          "expected_phonemes": ["aa", "r"],
+          "produced_phonemes": ["aa", "r"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "there",
+          "expected_phonemes": ["dh", "eh", "r"],
+          "produced_phonemes": ["dh", "eh", "r"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "altogether",
+          "expected_phonemes": ["ao", "l", "t", "ah", "g", "eh", "dh", "er"],
+          "produced_phonemes": ["ao", "l", "t", "ah", "g", "eh", "dh", "er"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 94,
+      "seconds": 14
+    }
+  },
+  "session_history": [
+    {
+      "mode": "problem-in",
+      "action": "continue",
+      "prompt_to_child": "Here is your problem. Read it out loud when you are ready."
+    },
+    {
+      "mode": "reading",
+      "action": "reread_word",
+      "prompt_to_child": "Look at the first word after A. Read it in parts: gar, den, er."
+    },
+    {
+      "mode": "reading",
+      "action": "reread_word",
+      "prompt_to_child": "Nearly! There is one more part at the end. Read it in parts again: gar, den, er."
+    },
+    {
+      "mode": "reading",
+      "action": "reread_word",
+      "prompt_to_child": "Put your finger under each part as you read it: gar, den, er."
+    }
+  ]
+}

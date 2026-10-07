@@ -1,0 +1,8 @@
+{
+  "about": "'chapter' for 'character' changes who the problem is about, under meaning-gated: reread the word in chunks, without saying it",
+  "action": "reread_word",
+  "layer_diagnosis": "reading",
+  "answer_must_not_appear": ["7", "seven"],
+  "focus_word": { "word": "character", "min_chunks": 2 },
+  "prompt_must_not_say": ["character"]
+}

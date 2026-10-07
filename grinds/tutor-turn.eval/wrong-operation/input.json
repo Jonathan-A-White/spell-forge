@@ -1,0 +1,171 @@
+{
+  "mode": "math",
+  "strictness": "meaning-gated",
+  "target_text": "A boy had 15 stickers. He gave 6 to his friend. How many stickers does he have left?",
+  "reading_result": {
+    "azure": {
+      "engine": "azure",
+      "words": [
+        {
+          "text": "A",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "boy",
+          "expected_phonemes": ["b", "oy"],
+          "produced_phonemes": ["b", "oy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "had",
+          "expected_phonemes": ["hh", "ae", "d"],
+          "produced_phonemes": ["hh", "ae", "d"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "15",
+          "expected_phonemes": ["f", "ih", "f", "t", "iy", "n"],
+          "produced_phonemes": ["f", "ih", "f", "t", "iy", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "stickers",
+          "expected_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "produced_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "He",
+          "expected_phonemes": ["hh", "iy"],
+          "produced_phonemes": ["hh", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "gave",
+          "expected_phonemes": ["g", "ey", "v"],
+          "produced_phonemes": ["g", "ey", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "6",
+          "expected_phonemes": ["s", "ih", "k", "s"],
+          "produced_phonemes": ["s", "ih", "k", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "to",
+          "expected_phonemes": ["t", "uw"],
+          "produced_phonemes": ["t", "uw"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "his",
+          "expected_phonemes": ["hh", "ih", "z"],
+          "produced_phonemes": ["hh", "ih", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "friend",
+          "expected_phonemes": ["f", "r", "eh", "n", "d"],
+          "produced_phonemes": ["f", "r", "eh", "n", "d"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "stickers",
+          "expected_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "produced_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "does",
+          "expected_phonemes": ["d", "ah", "z"],
+          "produced_phonemes": ["d", "ah", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "he",
+          "expected_phonemes": ["hh", "iy"],
+          "produced_phonemes": ["hh", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "have",
+          "expected_phonemes": ["hh", "ae", "v"],
+          "produced_phonemes": ["hh", "ae", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "left",
+          "expected_phonemes": ["l", "eh", "f", "t"],
+          "produced_phonemes": ["l", "eh", "f", "t"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 96,
+      "seconds": 7
+    }
+  },
+  "child_answer": "21",
+  "session_history": [
+    {
+      "mode": "problem-in",
+      "action": "continue",
+      "prompt_to_child": "Here is your problem. Read it out loud when you are ready."
+    },
+    {
+      "mode": "reading",
+      "action": "continue",
+      "prompt_to_child": "Lovely reading. Now work it out and tell me your answer."
+    }
+  ]
+}

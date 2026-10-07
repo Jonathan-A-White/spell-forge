@@ -1,0 +1,380 @@
+{
+  "mode": "reading",
+  "strictness": "meaning-gated",
+  "target_text": "The main character in the story has 12 stickers. She gives 5 of them away. How many stickers does she have left?",
+  "reading_result": {
+    "azure": {
+      "engine": "azure",
+      "words": [
+        {
+          "text": "The",
+          "expected_phonemes": ["dh", "ah"],
+          "produced_phonemes": ["dh", "ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "main",
+          "expected_phonemes": ["m", "ey", "n"],
+          "produced_phonemes": ["m", "ey", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "character",
+          "expected_phonemes": ["k", "ae", "r", "ah", "k", "t", "er"],
+          "produced_phonemes": ["ch", "ae", "p", "t", "er"],
+          "error": "mispronunciation",
+          "accuracy": 31,
+          "self_corrected": false
+        },
+        {
+          "text": "in",
+          "expected_phonemes": ["ih", "n"],
+          "produced_phonemes": ["ih", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "the",
+          "expected_phonemes": ["dh", "ah"],
+          "produced_phonemes": ["dh", "ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "story",
+          "expected_phonemes": ["s", "t", "ao", "r", "iy"],
+          "produced_phonemes": ["s", "t", "ao", "r", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "has",
+          "expected_phonemes": ["hh", "ae", "z"],
+          "produced_phonemes": ["hh", "ae", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "12",
+          "expected_phonemes": ["t", "w", "eh", "l", "v"],
+          "produced_phonemes": ["t", "w", "eh", "l", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "stickers",
+          "expected_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "produced_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "She",
+          "expected_phonemes": ["sh", "iy"],
+          "produced_phonemes": ["sh", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "gives",
+          "expected_phonemes": ["g", "ih", "v", "z"],
+          "produced_phonemes": ["g", "ih", "v", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "5",
+          "expected_phonemes": ["f", "ay", "v"],
+          "produced_phonemes": ["f", "ay", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "of",
+          "expected_phonemes": ["ah", "v"],
+          "produced_phonemes": ["ah", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "them",
+          "expected_phonemes": ["dh", "eh", "m"],
+          "produced_phonemes": ["dh", "eh", "m"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "away",
+          "expected_phonemes": ["ah", "w", "ey"],
+          "produced_phonemes": ["ah", "w", "ey"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "stickers",
+          "expected_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "produced_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "does",
+          "expected_phonemes": ["d", "ah", "z"],
+          "produced_phonemes": ["d", "ah", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "she",
+          "expected_phonemes": ["sh", "iy"],
+          "produced_phonemes": ["sh", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "have",
+          "expected_phonemes": ["hh", "ae", "v"],
+          "produced_phonemes": ["hh", "ae", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "left",
+          "expected_phonemes": ["l", "eh", "f", "t"],
+          "produced_phonemes": ["l", "eh", "f", "t"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 93,
+      "seconds": 10
+    },
+    "local": {
+      "engine": "local",
+      "words": [
+        {
+          "text": "The",
+          "expected_phonemes": ["dh", "ah"],
+          "produced_phonemes": ["dh", "ah"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "main",
+          "expected_phonemes": ["m", "ey", "n"],
+          "produced_phonemes": ["m", "ey", "n"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "character",
+          "expected_phonemes": ["k", "ae", "r", "ah", "k", "t", "er"],
+          "produced_phonemes": ["ch", "ae", "p", "t", "er"],
+          "error": "mispronunciation",
+          "accuracy": 38,
+          "self_corrected": false
+        },
+        {
+          "text": "in",
+          "expected_phonemes": ["ih", "n"],
+          "produced_phonemes": ["ih", "n"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "the",
+          "expected_phonemes": ["dh", "ah"],
+          "produced_phonemes": ["dh", "ah"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "story",
+          "expected_phonemes": ["s", "t", "ao", "r", "iy"],
+          "produced_phonemes": ["s", "t", "ao", "r", "iy"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "has",
+          "expected_phonemes": ["hh", "ae", "z"],
+          "produced_phonemes": ["hh", "ae", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "12",
+          "expected_phonemes": ["t", "w", "eh", "l", "v"],
+          "produced_phonemes": ["t", "w", "eh", "l", "v"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "stickers",
+          "expected_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "produced_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "She",
+          "expected_phonemes": ["sh", "iy"],
+          "produced_phonemes": ["sh", "iy"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "gives",
+          "expected_phonemes": ["g", "ih", "v", "z"],
+          "produced_phonemes": ["g", "ih", "v", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "5",
+          "expected_phonemes": ["f", "ay", "v"],
+          "produced_phonemes": ["f", "ay", "v"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "of",
+          "expected_phonemes": ["ah", "v"],
+          "produced_phonemes": ["ah", "v"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "them",
+          "expected_phonemes": ["dh", "eh", "m"],
+          "produced_phonemes": ["dh", "eh", "m"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "away",
+          "expected_phonemes": ["ah", "w", "ey"],
+          "produced_phonemes": ["ah", "w", "ey"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "stickers",
+          "expected_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "produced_phonemes": ["s", "t", "ih", "k", "er", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "does",
+          "expected_phonemes": ["d", "ah", "z"],
+          "produced_phonemes": ["d", "ah", "z"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "she",
+          "expected_phonemes": ["sh", "iy"],
+          "produced_phonemes": ["sh", "iy"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "have",
+          "expected_phonemes": ["hh", "ae", "v"],
+          "produced_phonemes": ["hh", "ae", "v"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "left",
+          "expected_phonemes": ["l", "eh", "f", "t"],
+          "produced_phonemes": ["l", "eh", "f", "t"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 91,
+      "seconds": 10
+    }
+  },
+  "session_history": [
+    {
+      "mode": "problem-in",
+      "action": "continue",
+      "prompt_to_child": "Here is your problem. Read it out loud when you are ready."
+    }
+  ]
+}

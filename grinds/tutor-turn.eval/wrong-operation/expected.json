@@ -1,0 +1,7 @@
+{
+  "about": "read right, then added when the story takes away: a maths probe that names the gap",
+  "action": "math_probe",
+  "layer_diagnosis": "math",
+  "answer_must_not_appear": ["9", "nine"],
+  "gap_mentions_any": ["operation", "subtract", "take away", "take-away", "taking away", "added", "adding", "addition", "plus", "minus", "fewer", "less"]
+}

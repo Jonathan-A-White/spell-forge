@@ -1,0 +1,197 @@
+{
+  "mode": "reading",
+  "strictness": "meaning-gated",
+  "target_text": "A girl puts 8 shells in the bucket and finds 6 more on the sand. How many shells does she have now?",
+  "reading_result": {
+    "azure": {
+      "engine": "azure",
+      "words": [
+        {
+          "text": "A",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "girl",
+          "expected_phonemes": ["g", "er", "l"],
+          "produced_phonemes": ["g", "er", "l"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "puts",
+          "expected_phonemes": ["p", "uh", "t", "s"],
+          "produced_phonemes": ["p", "uh", "t", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "8",
+          "expected_phonemes": ["ey", "t"],
+          "produced_phonemes": ["ey", "t"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "shells",
+          "expected_phonemes": ["sh", "eh", "l", "z"],
+          "produced_phonemes": ["sh", "eh", "l", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "in",
+          "expected_phonemes": ["ih", "n"],
+          "produced_phonemes": ["ih", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "the",
+          "expected_phonemes": ["dh", "ah"],
+          "produced_phonemes": [],
+          "error": "omission",
+          "accuracy": 0,
+          "self_corrected": false
+        },
+        {
+          "text": "bucket",
+          "expected_phonemes": ["b", "ah", "k", "ah", "t"],
+          "produced_phonemes": ["b", "ah", "k", "ah", "t"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "and",
+          "expected_phonemes": ["ae", "n", "d"],
+          "produced_phonemes": ["ae", "n", "d"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "finds",
+          "expected_phonemes": ["f", "ay", "n", "d", "z"],
+          "produced_phonemes": ["f", "ay", "n", "d", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "6",
+          "expected_phonemes": ["s", "ih", "k", "s"],
+          "produced_phonemes": ["s", "ih", "k", "s"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "more",
+          "expected_phonemes": ["m", "ao", "r"],
+          "produced_phonemes": ["m", "ao", "r"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "on",
+          "expected_phonemes": ["aa", "n"],
+          "produced_phonemes": ["aa", "n"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "the",
+          "expected_phonemes": ["dh", "ah"],
+          "produced_phonemes": ["dh", "ah"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "sand",
+          "expected_phonemes": ["s", "ae", "n", "d"],
+          "produced_phonemes": ["s", "ae", "n", "d"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "shells",
+          "expected_phonemes": ["sh", "eh", "l", "z"],
+          "produced_phonemes": ["sh", "eh", "l", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "does",
+          "expected_phonemes": ["d", "ah", "z"],
+          "produced_phonemes": ["d", "ah", "z"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "she",
+          "expected_phonemes": ["sh", "iy"],
+          "produced_phonemes": ["sh", "iy"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "have",
+          "expected_phonemes": ["hh", "ae", "v"],
+          "produced_phonemes": ["hh", "ae", "v"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        },
+        {
+          "text": "now",
+          "expected_phonemes": ["n", "aw"],
+          "produced_phonemes": ["n", "aw"],
+          "error": "none",
+          "accuracy": 96,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 92,
+      "seconds": 8
+    }
+  },
+  "session_history": [
+    {
+      "mode": "problem-in",
+      "action": "continue",
+      "prompt_to_child": "Here is your problem. Read it out loud when you are ready."
+    }
+  ]
+}

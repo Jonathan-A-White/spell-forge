@@ -1,0 +1,7 @@
+{
+  "about": "a dropped 'the' is a misread: under precision, reread that word",
+  "action": "reread_word",
+  "layer_diagnosis": "reading",
+  "answer_must_not_appear": ["14", "fourteen"],
+  "focus_word": { "word": "the", "min_chunks": 1 }
+}

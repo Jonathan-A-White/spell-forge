@@ -1,0 +1,8 @@
+{
+  "about": "three chunked rereads of the same word have failed: encourage, briefly, with a different method",
+  "action": "encourage",
+  "layer_diagnosis": "reading",
+  "answer_must_not_appear": ["30", "thirty"],
+  "teaching_method_required": true,
+  "prompt_max_chars": 240
+}

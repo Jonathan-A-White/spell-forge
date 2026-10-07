@@ -1,0 +1,196 @@
+{
+  "mode": "math",
+  "strictness": "meaning-gated",
+  "target_text": "A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?",
+  "reading_result": {
+    "local": {
+      "engine": "local",
+      "words": [
+        {
+          "text": "A",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "library",
+          "expected_phonemes": ["l", "ay", "b", "r", "eh", "r", "iy"],
+          "produced_phonemes": ["l", "ay", "b", "r", "eh", "r", "iy"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "had",
+          "expected_phonemes": ["hh", "ae", "d"],
+          "produced_phonemes": ["hh", "ae", "d"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "52",
+          "expected_phonemes": ["f", "ih", "f", "t", "iy", "t", "uw"],
+          "produced_phonemes": ["f", "ih", "f", "t", "iy", "t", "uw"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "books",
+          "expected_phonemes": ["b", "uh", "k", "s"],
+          "produced_phonemes": ["b", "uh", "k", "s"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "on",
+          "expected_phonemes": ["aa", "n"],
+          "produced_phonemes": ["aa", "n"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "a",
+          "expected_phonemes": ["ah"],
+          "produced_phonemes": ["ah"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "shelf",
+          "expected_phonemes": ["sh", "eh", "l", "f"],
+          "produced_phonemes": ["sh", "eh", "l", "f"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "Children",
+          "expected_phonemes": ["ch", "ih", "l", "d", "r", "ah", "n"],
+          "produced_phonemes": ["ch", "ih", "l", "d", "r", "ah", "n"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "borrowed",
+          "expected_phonemes": ["b", "aa", "r", "ow", "d"],
+          "produced_phonemes": ["b", "aa", "r", "ow", "d"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "25",
+          "expected_phonemes": ["t", "w", "eh", "n", "t", "iy", "f", "ay", "v"],
+          "produced_phonemes": ["t", "w", "eh", "n", "t", "iy", "f", "ay", "v"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "of",
+          "expected_phonemes": ["ah", "v"],
+          "produced_phonemes": ["ah", "v"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "them",
+          "expected_phonemes": ["dh", "eh", "m"],
+          "produced_phonemes": ["dh", "eh", "m"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "How",
+          "expected_phonemes": ["hh", "aw"],
+          "produced_phonemes": ["hh", "aw"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "many",
+          "expected_phonemes": ["m", "eh", "n", "iy"],
+          "produced_phonemes": ["m", "eh", "n", "iy"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "books",
+          "expected_phonemes": ["b", "uh", "k", "s"],
+          "produced_phonemes": ["b", "uh", "k", "s"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "are",
+          "expected_phonemes": ["aa", "r"],
+          "produced_phonemes": ["aa", "r"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "left",
+          "expected_phonemes": ["l", "eh", "f", "t"],
+          "produced_phonemes": ["l", "eh", "f", "t"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "on",
+          "expected_phonemes": ["aa", "n"],
+          "produced_phonemes": ["aa", "n"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "the",
+          "expected_phonemes": ["dh", "ah"],
+          "produced_phonemes": ["dh", "ah"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        },
+        {
+          "text": "shelf",
+          "expected_phonemes": ["sh", "eh", "l", "f"],
+          "produced_phonemes": ["sh", "eh", "l", "f"],
+          "error": "none",
+          "accuracy": 93,
+          "self_corrected": false
+        }
+      ],
+      "accuracy": 93,
+      "seconds": 9
+    }
+  },
+  "child_answer": "33",
+  "work_photo": true,
+  "session_history": [
+    {
+      "mode": "problem-in",
+      "action": "continue",
+      "prompt_to_child": "Here is your problem. Read it out loud when you are ready."
+    },
+    {
+      "mode": "reading",
+      "action": "continue",
+      "prompt_to_child": "Great reading. Work it out on paper, then take a photo of your working."
+    }
+  ]
+}
