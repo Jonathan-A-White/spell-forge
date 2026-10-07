@@ -132,8 +132,8 @@ describe('hold to read', () => {
     expect(sent.files?.[0].name).toBe('reading-1.webm');
     expect(Array.from(sent.files?.[0].bytes ?? [])).toEqual([9, 8, 7]);
 
-    // waiting: 'Listening...' with seconds
-    expect(await screen.findByText('Listening...')).toBeInTheDocument();
+    // waiting: 'Thinking about your reading...' with seconds
+    expect(await screen.findByText('Thinking about your reading...')).toBeInTheDocument();
     expect(screen.getByText(/^\d+ seconds?$/)).toBeInTheDocument();
 
     // kept: the turn holds the audio blob
@@ -244,7 +244,7 @@ describe('the answer, by action', () => {
     expect(await screen.findByText('Good try. Have another go.', undefined, { timeout: 3000 })).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('Good try. Have another go.'));
     expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
-    expect(screen.queryByText('Listening...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Thinking about your reading...')).not.toBeInTheDocument();
   });
 
   it("continue: 'Nice reading', and 'Now the maths' ends the reading loop", async () => {
@@ -323,8 +323,8 @@ describe('the reread loop', () => {
     expect(screen.queryByText('LATE PROMPT')).not.toBeInTheDocument();
     expect(document.querySelectorAll('mark')).toHaveLength(0);
     expect(say).not.toHaveBeenCalledWith('LATE PROMPT');
-    // the second reading is still being listened to
-    expect(screen.getByText('Listening...')).toBeInTheDocument();
+    // the second reading is still being answered
+    expect(screen.getByText('Thinking about your reading...')).toBeInTheDocument();
     expect(within(document.body).getByRole('button', { name: 'Read it' })).toBeInTheDocument();
   });
 });

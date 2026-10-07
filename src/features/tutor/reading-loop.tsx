@@ -1,5 +1,5 @@
 // src/features/tutor/reading-loop.tsx — The read-aloud turn (mw-bhvxcn.9), under the problem the Tutor screen shows:
-// hold 'Read it' to record, let go to send the clip with the target text, wait ('Listening...'), then the answer
+// hold 'Read it' to record, let go to send the clip with the target text, wait ('Thinking about your reading...'), then the answer
 // rendered by its action: the focus words lit in the text and broken into chunks, the prompt shown and spoken,
 // and 'Read it' offered again until the grist says the reading is clear. Everything shown comes from the turns.
 
@@ -265,7 +265,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
 
       {latest && waiting && (
         <div role="status" className="text-center space-y-1">
-          <p className="text-sf-heading font-bold text-2xl">Listening...</p>
+          <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
           <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
         </div>
       )}
