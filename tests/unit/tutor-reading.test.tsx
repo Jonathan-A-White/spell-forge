@@ -244,6 +244,9 @@ describe('the answer, by action', () => {
     factory.answers.set('direct:2', { answer: { status: 'answered', answer: reading({ action: 'continue', prompt_to_child: 'Yes, that word.' }) }, next: 3 });
 
     expect(await screen.findByText(PROBLEM, undefined, { timeout: 3000 })).toBeInTheDocument();
+    // mw-eezwdm: the line says what the screen waits for, whatever the model said
+    expect(screen.getByText('Now read the whole problem again.')).toBeInTheDocument();
+    expect(say).toHaveBeenCalledWith('Now read the whole problem again.');
     expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
     expect(screen.queryByTestId('reread-word')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Read the word' })).not.toBeInTheDocument();
@@ -257,6 +260,26 @@ describe('the answer, by action', () => {
     expect(factory.sends[2].input).toMatchObject({ mode: 'reading', target_text: PROBLEM });
     factory.answers.set('direct:3', { answer: { status: 'answered', answer: reading({ action: 'continue' }) }, next: 4 });
     expect(await screen.findByText('Nice reading', undefined, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it("never shows the model's 'solve' line once the word is cleared: it asks him to read the whole problem again", async () => {
+    const { factory, say } = await answered({
+      action: 'reread_word',
+      focus_words: [{ word: 'character', chunks: ['char', 'ac', 'ter'] }],
+    });
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read the word' }, { timeout: 3000 }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Let go/ })).toBeInTheDocument());
+    fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
+    await waitFor(() => expect(factory.sends).toHaveLength(2));
+    const solve = "Great job! You looked at each sound in that last word. Now let's solve the problem.";
+    factory.answers.set('direct:2', { answer: { status: 'answered', answer: reading({ action: 'continue', prompt_to_child: solve }) }, next: 3 });
+
+    expect(await screen.findByText('Now read the whole problem again.', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText(PROBLEM)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
+    expect(screen.queryByText(/solve/i)).not.toBeInTheDocument();
+    expect(say).toHaveBeenCalledWith('Now read the whole problem again.');
+    expect(say).not.toHaveBeenCalledWith(solve);
   });
 
   it('keeps the word on screen when the next answer to the word reread is encouragement', async () => {

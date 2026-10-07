@@ -44,6 +44,8 @@ is right without repeating the number.
 ## The actions
 
 - `continue`: the turn is good enough; the app moves on (from reading to solving, or to the next problem).
+  A `continue` to a reading of the reread word is not the end of the reading: the app brings the whole problem
+  back and he reads it again. Ask him to read the whole problem again, never to solve it.
 - `reread_word`: one word that matters was misread or skipped. Put it in `focus_words` with its chunks and
   ask him to read it again.
 - `sound_out`: he got stuck on a word (a long hesitation, or only broken pieces, no whole attempt). Put it

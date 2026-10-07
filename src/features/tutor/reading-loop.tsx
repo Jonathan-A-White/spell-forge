@@ -103,6 +103,9 @@ function rereadState(turns: TutorTurn[]): { word?: string; chunks: string[]; cle
   return { word, chunks, cleared };
 }
 
+/** Said and shown once a reread word is cleared: the screen waits for the whole problem, never for solving (mw-eezwdm). */
+const WORD_CLEARED_LINE = 'Now read the whole problem again.';
+
 export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMaths }: ReadingLoopProps) {
   const [holding, setHolding] = useState(false);
   const [heldMs, setHeldMs] = useState(0);
@@ -141,7 +144,8 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     if (latest?.status !== 'answered' || !latest.answer || spoken.current?.has(latest.id)) return;
     spoken.current?.add(latest.id);
     if (latest.answer.action !== 'continue') say(latest.answer.prompt_to_child);
-  }, [latest, say]);
+    else if (reread.cleared) say(WORD_CLEARED_LINE);
+  }, [latest, say, reread]);
 
   const sendClip = useCallback(
     async (recording: Recording) => {
@@ -331,7 +335,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         </div>
       )}
 
-      {answer && wordCleared && <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>}
+      {answer && wordCleared && <p className="text-sf-heading text-xl">{WORD_CLEARED_LINE}</p>}
 
       {answer && !finished && !wordCleared && (
         <div className="space-y-3">
