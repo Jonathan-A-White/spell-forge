@@ -1,0 +1,20 @@
+{
+  "grind": 1,
+  "app": "spellforge",
+  "kind": "tutor-turn",
+  "versions": ["1"],
+  "model": "opus",
+  "effort": "high",
+  "instructions": "grinds/tutor-turn.instructions.md",
+  "answerSchema": "grinds/tutor-turn.answer.schema.json",
+  "attachments": {
+    "min": 0,
+    "max": 3,
+    "mime": ["image/jpeg", "image/png", "image/webp", "audio/webm", "audio/ogg", "audio/mp4"],
+    "maxBytes": 8388608
+  },
+  "scoring": {
+    "audio": true,
+    "target_field": "target_text"
+  }
+}

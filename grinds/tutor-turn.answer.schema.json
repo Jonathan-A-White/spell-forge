@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tutor Turn Answer 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "focus_words", "prompt_to_child", "layer_diagnosis"],
+  "properties": {
+    "action": {
+      "description": "What the app does next.",
+      "type": "string",
+      "enum": ["continue", "reread_word", "reread_sentence", "sound_out", "math_probe", "confirm_answer", "encourage", "done"]
+    },
+    "focus_words": {
+      "description": "The words the child should look at, each broken into chunks. Empty when no word is in focus.",
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["word", "chunks"],
+        "properties": {
+          "word": { "type": "string", "minLength": 1 },
+          "chunks": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "prompt_to_child": {
+      "description": "What the child is told, in words he can read and hear. Never the answer to the problem.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "layer_diagnosis": {
+      "description": "Where the trouble is on this turn.",
+      "type": "string",
+      "enum": ["reading", "math", "both", "none"]
+    },
+    "math_diagnosis": {
+      "description": "For a maths turn: where it went wrong, the gap behind it, and the method that would close it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["where_wrong", "gap", "method"],
+      "properties": {
+        "where_wrong": { "type": "string", "minLength": 1 },
+        "gap": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "minLength": 1 }
+      }
+    },
+    "target_text": {
+      "description": "Mode problem-in: the problem read off the photo, as written.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "problem_kind": {
+      "description": "Mode problem-in: a word problem or a plain sum.",
+      "type": "string",
+      "enum": ["word", "plain"]
+    },
+    "notes_for_parent": {
+      "description": "A plain note for the parent about this turn.",
+      "type": "string"
+    },
+    "recommendations_for_parent": {
+      "description": "Things the child could do to strengthen what is weak.",
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["what", "why", "where"],
+        "properties": {
+          "what": { "type": "string", "minLength": 1 },
+          "why": { "type": "string", "minLength": 1 },
+          "where": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "teaching_method": {
+      "description": "The teaching method chosen for this child on this turn.",
+      "type": "string"
+    }
+  }
+}

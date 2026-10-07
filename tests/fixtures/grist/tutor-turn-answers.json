@@ -1,0 +1,52 @@
+{
+  "valid": [
+    {
+      "name": "a reread of one misread word, chunked",
+      "answer": {
+        "action": "reread_word",
+        "focus_words": [{ "word": "character", "chunks": ["char", "ac", "ter"] }],
+        "prompt_to_child": "That one is a tricky word. Let's say it in three parts: char, ac, ter.",
+        "layer_diagnosis": "reading",
+        "teaching_method": "chunking"
+      }
+    },
+    {
+      "name": "the problem read off a photo",
+      "answer": {
+        "action": "continue",
+        "focus_words": [],
+        "prompt_to_child": "Here is your problem. Read it out loud when you are ready.",
+        "layer_diagnosis": "none",
+        "target_text": "Anna has 3 apples and buys 4 more. How many apples does she have now?",
+        "problem_kind": "word"
+      }
+    },
+    {
+      "name": "a maths diagnosis with parent notes and recommendations",
+      "answer": {
+        "action": "math_probe",
+        "focus_words": [],
+        "prompt_to_child": "Look at the ones column again. What do you do when it makes ten?",
+        "layer_diagnosis": "math",
+        "math_diagnosis": { "where_wrong": "the carried ten was left out", "gap": "regrouping in addition", "method": "place-value blocks" },
+        "notes_for_parent": "Adds each column on its own and forgets the carry.",
+        "recommendations_for_parent": [{ "what": "Add with ten-frames", "why": "makes the carried ten visible", "where": "a kitchen table, five minutes a day" }]
+      }
+    },
+    {
+      "name": "the smallest answer",
+      "answer": { "action": "done", "focus_words": [], "prompt_to_child": "Well done.", "layer_diagnosis": "none" }
+    }
+  ],
+  "invalid": [
+    { "name": "an action that is not one of the eight", "answer": { "action": "give_answer", "focus_words": [], "prompt_to_child": "It is 7.", "layer_diagnosis": "math" } },
+    { "name": "no prompt_to_child", "answer": { "action": "continue", "focus_words": [], "layer_diagnosis": "none" } },
+    { "name": "an extra field", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "none", "the_answer": "7" } },
+    { "name": "a layer_diagnosis outside reading, math, both, none", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "spelling" } },
+    { "name": "a focus word with no chunks", "answer": { "action": "reread_word", "focus_words": [{ "word": "character" }], "prompt_to_child": "Again.", "layer_diagnosis": "reading" } },
+    { "name": "a problem_kind that is not word or plain", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "none", "problem_kind": "riddle" } },
+    { "name": "a math_diagnosis missing its gap", "answer": { "action": "math_probe", "focus_words": [], "prompt_to_child": "Look again.", "layer_diagnosis": "math", "math_diagnosis": { "where_wrong": "the carry", "method": "blocks" } } },
+    { "name": "a recommendation that is a bare string", "answer": { "action": "done", "focus_words": [], "prompt_to_child": "Done.", "layer_diagnosis": "none", "recommendations_for_parent": ["practise"] } },
+    { "name": "not an object", "answer": ["continue"] }
+  ]
+}
