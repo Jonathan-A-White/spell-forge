@@ -5,7 +5,7 @@ import type { ReadingResult, TutorAnswer, TutorReadingResult } from '../contract
 
 export const TUTOR_TURN_GRIND = { app: 'spellforge', kind: 'tutor-turn', v: '1' } as const;
 
-const ACTIONS = ['continue', 'reread_word', 'reread_sentence', 'sound_out', 'math_probe', 'confirm_answer', 'encourage', 'done'];
+const ACTIONS = ['continue', 'reread_word', 'reread_sentence', 'sound_out', 'math_probe', 'confirm_answer', 'encourage', 'rewrite', 'done'];
 const LAYERS = ['reading', 'math', 'both', 'none'];
 const PROBLEM_KINDS = ['word', 'plain'];
 const ALLOWED_KEYS = new Set([

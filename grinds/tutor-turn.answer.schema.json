@@ -8,7 +8,7 @@
     "action": {
       "description": "What the app does next.",
       "type": "string",
-      "enum": ["continue", "reread_word", "reread_sentence", "sound_out", "math_probe", "confirm_answer", "encourage", "done"]
+      "enum": ["continue", "reread_word", "reread_sentence", "sound_out", "math_probe", "confirm_answer", "encourage", "rewrite", "done"]
     },
     "focus_words": {
       "description": "The words the child should look at, each broken into chunks. Empty when no word is in focus.",

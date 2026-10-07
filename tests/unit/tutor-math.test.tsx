@@ -219,6 +219,16 @@ describe('the answer, by action', () => {
     expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
   });
 
+  it('rewrite: the tip spoken, no maths diagnosis shown, and the boxes ready for a new photo', async () => {
+    const prompt = 'Your 3s face the other way. Write them again, then take a new photo.';
+    const { say } = await answered({ action: 'rewrite', math_diagnosis: undefined, layer_diagnosis: 'none', prompt_to_child: prompt });
+    expect(await screen.findByText(prompt, undefined, { timeout: 3000 })).toBeInTheDocument();
+    await waitFor(() => expect(say).toHaveBeenCalledWith(prompt));
+    expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Photo of your work' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+  });
+
   it("confirm_answer: \"That's it\" and the method used", async () => {
     const { say } = await answered({ action: 'confirm_answer', prompt_to_child: 'You got it by counting on.', layer_diagnosis: 'none' });
     expect(await screen.findByText("That's it", undefined, { timeout: 3000 })).toBeInTheDocument();

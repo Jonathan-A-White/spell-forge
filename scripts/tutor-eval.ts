@@ -28,6 +28,10 @@ export interface Expected {
   prompt_must_not_say?: string[];
   /** math_diagnosis must be present, and its where_wrong or gap must mention one of these. */
   gap_mentions_any?: string[];
+  /** math_diagnosis must be absent: the maths is not judged yet (a handwriting rewrite comes first). */
+  no_math_diagnosis?: boolean;
+  /** prompt_to_child must mention at least one of each group (a substring, any case). */
+  prompt_mentions_each?: string[][];
   notes_required?: boolean;
   teaching_method_required?: boolean;
   prompt_max_chars?: number;
@@ -118,6 +122,12 @@ export function checkAnswer(answer: unknown, expected: Expected): string[] {
     if (!d) problems.push('no math_diagnosis');
     else if (!expected.gap_mentions_any.some((m) => `${d.where_wrong} ${d.gap}`.toLowerCase().includes(m.toLowerCase()))) {
       problems.push(`math_diagnosis names none of: ${expected.gap_mentions_any.join(', ')}`);
+    }
+  }
+  if (expected.no_math_diagnosis && answer.math_diagnosis) problems.push('math_diagnosis is there, but the handwriting comes first');
+  for (const group of expected.prompt_mentions_each ?? []) {
+    if (!group.some((m) => answer.prompt_to_child.toLowerCase().includes(m.toLowerCase()))) {
+      problems.push(`prompt_to_child mentions none of: ${group.join(', ')}`);
     }
   }
   if (expected.notes_required && !answer.notes_for_parent?.trim()) problems.push('no notes_for_parent');
