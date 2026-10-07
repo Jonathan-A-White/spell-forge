@@ -6,6 +6,7 @@ import { countMasteredWords, computeProgressPercent } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
 import { monsterCollection } from '../rewards';
 import { themeEngine } from '../../themes';
+import { useTutorFlag } from '../../debug/debug-state';
 
 const THEME_ICONS: Record<string, string> = {
   'dragon-forge': '\u{1F409}',   // dragon
@@ -28,7 +29,7 @@ interface HomeScreenProps {
   coinBalance: CoinBalance | null;
   learningProgress: WordLearningProgress[];
   gradeGoal?: number;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history' | 'practice-calendar', wordFilter?: Set<string>) => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history' | 'practice-calendar' | 'tutor', wordFilter?: Set<string>) => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -46,6 +47,7 @@ export function HomeScreen({
   onSwitchProfile,
   hasMultipleProfiles,
 }: HomeScreenProps) {
+  const tutorOn = useTutorFlag();
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
   const activeListIds = new Set(activeLists.map((l) => l.id));
   const activeWords = allWords.filter((w) => activeListIds.has(w.listId));
@@ -250,6 +252,18 @@ export function HomeScreen({
             />
           </div>
 
+          {/* Tutor — only while the sf-tutor flag is on */}
+          {tutorOn && (
+            <NavCard
+              title="Tutor"
+              subtitle="Help with a problem"
+              icon={<TutorIcon />}
+              onClick={() => onNavigate('tutor')}
+              accent="from-indigo-500/20 to-sky-500/10"
+              iconColor="text-indigo-500"
+            />
+          )}
+
           {/* My Words — combined word lists + add words */}
           <button
             onClick={() => onNavigate('word-lists')}
@@ -385,6 +399,14 @@ function GamesIcon() {
       <rect x="13" y="2" width="9" height="9" rx="1" />
       <rect x="2" y="13" width="9" height="9" rx="1" />
       <path d="M17.5 13v9M13 17.5h9" />
+    </svg>
+  );
+}
+
+function TutorIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }
