@@ -43,7 +43,7 @@ export interface ReadingLoopProps {
   deps: TutorDeps;
   /** "That's not it": offered while nothing has been read yet. */
   onRetype: () => void;
-  /** 'Now the maths': the reading is clear and he moves on. */
+  /** 'Now the math': the reading is clear and he moves on. */
   onMaths: () => void;
 }
 
@@ -327,7 +327,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
       {answer && finished && (
         <div role="status" className="space-y-3">
           <p className="text-sf-heading font-bold text-2xl">Nice reading</p>
-          <button type="button" onClick={onMaths} className={PRIMARY} style={TAP}>Now the maths</button>
+          <button type="button" onClick={onMaths} className={PRIMARY} style={TAP}>Now the math</button>
         </div>
       )}
 

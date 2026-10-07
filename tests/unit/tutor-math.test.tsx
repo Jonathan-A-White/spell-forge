@@ -52,7 +52,7 @@ async function setup(over: Partial<TutorDeps> = {}, opts: { clickMaths?: boolean
   const deps: TutorDeps = { sendGrist: factory.sendGrist, read: factory.read, getKey: async () => key, shrink, pollIntervalMs: 20, say, ...over };
   const onBack = vi.fn();
   render(<TutorScreen profile={profile} onBack={onBack} deps={deps} />);
-  if (opts.clickMaths !== false) fireEvent.click(await screen.findByRole('button', { name: 'Now the maths' }));
+  if (opts.clickMaths !== false) fireEvent.click(await screen.findByRole('button', { name: 'Now the math' }));
   return { session, factory, say, shrink, onBack };
 }
 
@@ -289,7 +289,7 @@ describe('Stop for now', () => {
 
   it('is there during the reading too, and ends the session', async () => {
     const { session } = await setup({}, { clickMaths: false });
-    await screen.findByRole('button', { name: 'Now the maths' });
+    await screen.findByRole('button', { name: 'Now the math' });
     fireEvent.click(screen.getByRole('button', { name: 'Stop for now' }));
     await waitFor(async () => expect((await tutorRepo.getSession(session.id))?.status).toBe('ended'));
     expect((await tutorRepo.getSession(session.id))?.endedAt).toBeInstanceOf(Date);

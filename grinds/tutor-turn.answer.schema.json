@@ -36,7 +36,7 @@
       "enum": ["reading", "math", "both", "none"]
     },
     "math_diagnosis": {
-      "description": "For a maths turn: where it went wrong, the gap behind it, and the method that would close it.",
+      "description": "For a math turn: where it went wrong, the gap behind it, and the method that would close it.",
       "type": "object",
       "additionalProperties": false,
       "required": ["where_wrong", "gap", "method"],
