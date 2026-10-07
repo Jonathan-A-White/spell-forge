@@ -24,6 +24,8 @@ export interface Expected {
   answer_must_not_appear: string[];
   /** A word that must be in focus_words, with at least this many chunks. */
   focus_word?: { word: string; min_chunks: number };
+  /** Words that must all be in focus_words, in this (reading) order: every misread that counts, none let pass. */
+  focus_words_in_order?: string[];
   /** Words prompt_to_child must not say (the word the child is to decode). */
   prompt_must_not_say?: string[];
   /** math_diagnosis must be present, and its where_wrong or gap must mention one of these. */
@@ -113,6 +115,16 @@ export function checkAnswer(answer: unknown, expected: Expected): string[] {
     const focus = answer.focus_words.find((f) => f.word.toLowerCase() === word.toLowerCase());
     if (!focus) problems.push(`"${word}" is not in focus_words`);
     else if (focus.chunks.length < min_chunks) problems.push(`"${word}" has ${focus.chunks.length} chunks, expected ${min_chunks} or more`);
+  }
+  if (expected.focus_words_in_order) {
+    const want = expected.focus_words_in_order.map((w) => w.toLowerCase());
+    const got = answer.focus_words.map((f) => f.word.toLowerCase());
+    const missing = want.filter((w) => !got.includes(w));
+    for (const w of missing) problems.push(`"${w}" is not in focus_words`);
+    const kept = got.filter((w) => want.includes(w));
+    if (missing.length === 0 && kept.join('|') !== want.join('|')) {
+      problems.push(`focus_words should list ${want.join(', ')} in that order, got ${kept.join(', ')}`);
+    }
   }
   for (const said of words(answer.prompt_to_child, expected.prompt_must_not_say ?? [])) {
     problems.push(`prompt_to_child says "${said}"`);

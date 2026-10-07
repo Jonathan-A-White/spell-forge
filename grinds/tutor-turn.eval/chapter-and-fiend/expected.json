@@ -1,0 +1,9 @@
+{
+  "about": "'chapter' for 'character' and 'fiend' for 'friend' each change who the problem is about, under meaning-gated: both words go in focus_words, in reading order, as one reread_word (the app walks him through them one at a time), neither said",
+  "action": "reread_word",
+  "layer_diagnosis": "reading",
+  "answer_must_not_appear": ["7", "seven"],
+  "focus_word": { "word": "character", "min_chunks": 2 },
+  "focus_words_in_order": ["character", "friend"],
+  "prompt_must_not_say": ["character", "friend"]
+}
