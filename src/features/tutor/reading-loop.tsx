@@ -1,9 +1,12 @@
 // src/features/tutor/reading-loop.tsx — The read-aloud turn (mw-bhvxcn.9), under the problem the Tutor screen shows:
 // hold 'Read it' to record, let go to send the clip with the target text, wait ('Thinking about your reading...'), then the answer
 // rendered by its action: the focus words lit in the text and broken into chunks, the prompt shown and spoken,
-// and 'Read it' offered again until the grist says the reading is clear. Everything shown comes from the turns.
+// and 'Read it' offered again until the grist says the reading is clear. A reread_word answer narrows the screen to the
+// one missed word (big, its parts, a one-line tip, 'Say it again', 'Read the word'); the clips then carry that word as their
+// target text until a 'continue' answer says the word is clear, when the whole problem returns with 'Read it' (mw-ke5k7i).
+// Everything shown comes from the turns.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ReadingRecorder, sayWord } from '../../audio';
 import type { HoldRecorder, Recording } from '../../audio';
@@ -73,12 +76,41 @@ function chunksOf(focus: TutorAnswer['focus_words'][number]): string[] {
   return focus.chunks.length > 0 ? focus.chunks : splitSyllables(focus.word);
 }
 
+/**
+ * The word a reread has narrowed the screen to, from the answers the child has seen, in order: a reread_word answer
+ * sets it, encouragement keeps it, a 'continue' to a reading of that word clears it (`cleared`), anything else drops it.
+ */
+function rereadState(turns: TutorTurn[]): { word?: string; chunks: string[]; cleared: boolean } {
+  let word: string | undefined;
+  let chunks: string[] = [];
+  let cleared = false;
+  for (const turn of [...turns].sort((a, b) => a.index - b.index)) {
+    if (turn.status !== 'answered' || !turn.answer) continue;
+    const { action, focus_words } = turn.answer;
+    cleared = false;
+    if (action === 'reread_word' && focus_words.length > 0) {
+      word = focus_words[0].word;
+      chunks = chunksOf(focus_words[0]);
+    } else if (action === 'encourage') {
+      // the word stays until he reads it clearly
+    } else if (action === 'continue' && word !== undefined && turn.request.target_text === word) {
+      word = undefined;
+      cleared = true;
+    } else {
+      word = undefined;
+    }
+  }
+  return { word, chunks, cleared };
+}
+
 export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMaths }: ReadingLoopProps) {
   const [holding, setHolding] = useState(false);
   const [heldMs, setHeldMs] = useState(0);
   const [message, setMessage] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
   const hold = useRef<{ recorder: HoldRecorder; startedAt: number; started: boolean; released: boolean } | null>(null);
+  const reread = useMemo(() => rereadState(turns), [turns]);
+  const rereadWord = reread.word;
   const depsRef = useRef(deps);
   useEffect(() => {
     depsRef.current = deps;
@@ -118,12 +150,12 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         return;
       }
       try {
-        await sendReading({ session, targetText, recording }, depsRef.current);
+        await sendReading({ session, targetText: rereadWord ?? targetText, recording }, depsRef.current);
       } catch (error) {
         setMessage(error instanceof TutorUserError ? error.message : SEND_FAILED);
       }
     },
-    [session, targetText],
+    [session, targetText, rereadWord],
   );
 
   const finish = useCallback(
@@ -189,12 +221,14 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   const action = answer?.action;
   const sentence = action === 'reread_sentence';
   const wordFocus = action === 'reread_word' || action === 'sound_out';
-  const finished = action === 'continue';
+  const wordCleared = action === 'continue' && reread.cleared;
+  const finished = action === 'continue' && !wordCleared;
+  const rereading = rereadWord !== undefined;
 
   const readButton = (
     <button
       type="button"
-      aria-label={holding ? 'Let go to send' : 'Read it'}
+      aria-label={holding ? 'Let go to send' : rereading ? 'Read the word' : 'Read it'}
       onPointerDown={(e: ReactPointerEvent<HTMLButtonElement>) => {
         try {
           e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -223,11 +257,52 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
           <span data-testid="recording-dot" aria-hidden="true" className="inline-block w-4 h-4 rounded-full bg-white animate-pulse" />
           <span>{seconds(heldMs)}</span>
         </span>
+      ) : rereading ? (
+        'Read the word'
       ) : (
         'Read it'
       )}
     </button>
   );
+
+  if (rereading) {
+    // the tip stays up while the next reading is out
+    const tip = answer ?? [...turns].filter((t) => t.status === 'answered' && t.answer).sort((a, b) => b.index - a.index)[0]?.answer;
+    return (
+      <div className="space-y-4">
+        <div className="text-center space-y-2">
+          <p data-testid="reread-word" className="text-sf-heading font-bold break-words" style={{ ...LARGE_TEXT, fontSize: 'calc(var(--sf-font-size) * 2.5)' }}>
+            {rereadWord}
+          </p>
+          <p data-testid="focus-chunks" className="text-sf-heading font-bold" style={LARGE_TEXT}>
+            {reread.chunks.join(' · ')}
+          </p>
+        </div>
+
+        {tip && (
+          <div className="space-y-3">
+            <p className="text-sf-heading text-lg line-clamp-1">{tip.prompt_to_child}</p>
+            <button type="button" onClick={() => say(tip.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>
+          </div>
+        )}
+
+        {latest && waiting && (
+          <div role="status" className="text-center space-y-1">
+            <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
+            <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
+          </div>
+        )}
+
+        {(latest?.status === 'failed' || latest?.status === 'refused') && (
+          <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that reading.'}</p>
+        )}
+
+        {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
+
+        {readButton}
+      </div>
+    );
+  }
 
   const focusWords = answer?.focus_words ?? [];
   return (
@@ -256,7 +331,9 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         </div>
       )}
 
-      {answer && !finished && (
+      {answer && wordCleared && <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>}
+
+      {answer && !finished && !wordCleared && (
         <div className="space-y-3">
           <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>
           <button type="button" onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>

@@ -91,8 +91,8 @@ async function setup(over: Partial<TutorDeps> = {}) {
 }
 
 /** Holds the button and lets go. */
-async function readIt() {
-  const button = await screen.findByRole('button', { name: 'Read it' });
+async function readIt(name = 'Read it') {
+  const button = await screen.findByRole('button', { name });
   fireEvent.pointerDown(button);
   await waitFor(() => expect(screen.getByRole('button', { name: /Let go/ })).toBeInTheDocument());
   fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
@@ -195,22 +195,83 @@ describe('the answer, by action', () => {
     return ctx;
   }
 
-  it('reread_word: the focus word highlighted in the text, its chunks below, the prompt shown and spoken', async () => {
+  it('reread_word: only the missed word, big, with its parts, a one-line tip, Say it again and one Read the word button', async () => {
     const { say } = await answered({
       action: 'reread_word',
       focus_words: [{ word: 'character', chunks: ['char', 'ac', 'ter'] }],
       prompt_to_child: 'Look at this word, one chunk at a time.',
     });
-    const mark = await screen.findByText('character', { selector: 'mark' }, { timeout: 3000 });
-    expect(mark).toBeInTheDocument();
-    expect(document.querySelectorAll('mark')).toHaveLength(1);
+    expect(await screen.findByTestId('reread-word', undefined, { timeout: 3000 })).toHaveTextContent('character');
+    // the whole problem and the highlight are gone
+    expect(screen.queryByText(PROBLEM)).not.toBeInTheDocument();
+    expect(document.querySelectorAll('mark')).toHaveLength(0);
     expect(screen.getByText('char · ac · ter')).toBeInTheDocument();
-    expect(screen.getByText('Look at this word, one chunk at a time.')).toBeInTheDocument();
+    const tip = screen.getByText('Look at this word, one chunk at a time.');
+    expect(tip.className).toMatch(/line-clamp-1/);
     await waitFor(() => expect(say).toHaveBeenCalledWith('Look at this word, one chunk at a time.'));
-    expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
+    // one primary button, labelled Read the word; no 'Read it'
+    expect(screen.getByRole('button', { name: 'Read the word' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Read it' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Say it again' }));
     await waitFor(() => expect(say).toHaveBeenCalledTimes(2));
+  });
+
+  it('sends the clip for a word reread with the one word as its target text', async () => {
+    const { factory, session } = await answered({
+      action: 'reread_word',
+      focus_words: [{ word: 'character', chunks: ['char', 'ac', 'ter'] }],
+    });
+    await screen.findByRole('button', { name: 'Read the word' }, { timeout: 3000 });
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Read the word' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Let go/ })).toBeInTheDocument());
+    fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
+    await waitFor(() => expect(factory.sends).toHaveLength(2));
+    expect(factory.sends[1].input).toMatchObject({ mode: 'reading', target_text: 'character' });
+    const turns = await tutorRepo.listTurns(session.id);
+    expect(turns.filter((t) => t.mode === 'reading').map((t) => t.request.target_text)).toEqual([PROBLEM, 'character']);
+  });
+
+  it('brings the whole problem back with Read it once the word is read clearly, and the next reading is of the whole problem', async () => {
+    const { factory, say } = await answered({
+      action: 'reread_word',
+      focus_words: [{ word: 'character', chunks: ['char', 'ac', 'ter'] }],
+    });
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read the word' }, { timeout: 3000 }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Let go/ })).toBeInTheDocument());
+    fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
+    await waitFor(() => expect(factory.sends).toHaveLength(2));
+    factory.answers.set('direct:2', { answer: { status: 'answered', answer: reading({ action: 'continue', prompt_to_child: 'Yes, that word.' }) }, next: 3 });
+
+    expect(await screen.findByText(PROBLEM, undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
+    expect(screen.queryByTestId('reread-word')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Read the word' })).not.toBeInTheDocument();
+    // not "Nice reading" yet: the whole problem has still to be read
+    expect(screen.queryByText('Nice reading')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Now the maths' })).not.toBeInTheDocument();
+    expect(say).not.toHaveBeenCalledWith('Yes, that word.');
+
+    await readIt();
+    await waitFor(() => expect(factory.sends).toHaveLength(3));
+    expect(factory.sends[2].input).toMatchObject({ mode: 'reading', target_text: PROBLEM });
+    factory.answers.set('direct:3', { answer: { status: 'answered', answer: reading({ action: 'continue' }) }, next: 4 });
+    expect(await screen.findByText('Nice reading', undefined, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('keeps the word on screen when the next answer to the word reread is encouragement', async () => {
+    const { factory } = await answered({
+      action: 'reread_word',
+      focus_words: [{ word: 'character', chunks: ['char', 'ac', 'ter'] }],
+    });
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read the word' }, { timeout: 3000 }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Let go/ })).toBeInTheDocument());
+    fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
+    await waitFor(() => expect(factory.sends).toHaveLength(2));
+    factory.answers.set('direct:2', { answer: { status: 'answered', answer: reading({ action: 'encourage', prompt_to_child: 'Nearly. Once more.' }) }, next: 3 });
+    expect(await screen.findByText('Nearly. Once more.', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByTestId('reread-word')).toHaveTextContent('character');
+    expect(screen.getByRole('button', { name: 'Read the word' })).toBeInTheDocument();
   });
 
   it('sound_out is shown like reread_word', async () => {
@@ -221,7 +282,7 @@ describe('the answer, by action', () => {
 
   it('falls back to the syllabifier when the grist gives no chunks', async () => {
     await answered({ action: 'reread_word', focus_words: [{ word: 'character', chunks: [] }] });
-    await screen.findByText('character', { selector: 'mark' }, { timeout: 3000 });
+    await screen.findByTestId('reread-word', undefined, { timeout: 3000 });
     const shown = screen.getByTestId('focus-chunks').textContent ?? '';
     expect(shown.replace(/\s/g, '').replace(/·/g, '')).toBe('character');
     expect(shown).toContain('·');
@@ -292,7 +353,7 @@ describe('the reread loop', () => {
     });
     await screen.findByText('Try that word again.', undefined, { timeout: 3000 });
 
-    await readIt();
+    await readIt('Read the word');
     await waitFor(() => expect(factory.sends).toHaveLength(2));
     expect(factory.sends[1].files?.[0].name).toBe('reading-2.webm');
     expect(factory.sends[1].input).toMatchObject({
