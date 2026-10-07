@@ -36,6 +36,7 @@
     "bsv:pack": "sh scripts/bsv-pack.sh",
     "test:bsv:package": "sh scripts/check-bsv-package.sh",
     "test:e2e": "playwright test",
+    "tutor:eval": "tsx scripts/tutor-eval.ts",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
