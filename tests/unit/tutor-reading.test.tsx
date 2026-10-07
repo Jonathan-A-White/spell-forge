@@ -282,6 +282,93 @@ describe('the answer, by action', () => {
     expect(say).not.toHaveBeenCalledWith(solve);
   });
 
+  describe('several misreads: one word at a time, then the whole problem again (mw-7wyn4s)', () => {
+    const TWO = [
+      { word: 'character', chunks: ['char', 'ac', 'ter'] },
+      { word: 'apples', chunks: ['ap', 'ples'] },
+    ];
+
+    /** Reads once more (the button named `name`), and has the factory answer that send with `answer`. */
+    async function readAndAnswer(
+      ctx: Awaited<ReturnType<typeof answered>>,
+      name: string,
+      answer: Partial<TutorAnswer>,
+    ) {
+      const sends = ctx.factory.sends.length;
+      await readIt(name);
+      await waitFor(() => expect(ctx.factory.sends).toHaveLength(sends + 1));
+      ctx.factory.answers.set(`direct:${sends + 1}`, { answer: { status: 'answered', answer: reading(answer) }, next: sends + 2 });
+    }
+
+    it('walks him through each word in turn, then asks for the whole problem again, and only a clear whole reading moves on', async () => {
+      const ctx = await answered({ action: 'reread_word', focus_words: TWO, prompt_to_child: 'Look at this word, one chunk at a time.' });
+      const { factory, say } = ctx;
+
+      // the first word, alone
+      expect(await screen.findByTestId('reread-word', undefined, { timeout: 3000 })).toHaveTextContent('character');
+      expect(screen.getByText('char · ac · ter')).toBeInTheDocument();
+      expect(screen.queryByText(PROBLEM)).not.toBeInTheDocument();
+
+      // read clearly: the second word, alone, with its own parts and the app's own line
+      await readAndAnswer(ctx, 'Read the word', { action: 'continue', prompt_to_child: 'Yes, that word. Now solve it.' });
+      await waitFor(() => expect(screen.getByTestId('reread-word')).toHaveTextContent('apples'), { timeout: 3000 });
+      expect(screen.getByText('ap · ples')).toBeInTheDocument();
+      expect(screen.getByText('Now this word.')).toBeInTheDocument();
+      expect(say).toHaveBeenCalledWith('Now this word.');
+      expect(screen.queryByText(/solve/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(PROBLEM)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Read the word' })).toBeInTheDocument();
+
+      // the second word's clip carries that word
+      await readAndAnswer(ctx, 'Read the word', { action: 'continue' });
+      expect(factory.sends[2].input).toMatchObject({ mode: 'reading', target_text: 'apples' });
+
+      // both clear: the whole problem, a line to read it again, 'Read it'; not yet 'Now the math'
+      expect(await screen.findByText(PROBLEM, undefined, { timeout: 3000 })).toBeInTheDocument();
+      expect(screen.getByText('Now read the whole problem again.')).toBeInTheDocument();
+      expect(say).toHaveBeenCalledWith('Now read the whole problem again.');
+      expect(screen.queryByTestId('reread-word')).not.toBeInTheDocument();
+      expect(screen.queryByText('Nice reading')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Now the math' })).not.toBeInTheDocument();
+
+      // a clear whole reading moves on
+      await readAndAnswer(ctx, 'Read it', { action: 'continue' });
+      expect(factory.sends[3].input).toMatchObject({ mode: 'reading', target_text: PROBLEM });
+      expect(await screen.findByText('Nice reading', undefined, { timeout: 3000 })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Now the math' })).toBeInTheDocument();
+    });
+
+    it('keeps the word until it is clear, then goes on to the next', async () => {
+      const ctx = await answered({ action: 'reread_word', focus_words: TWO });
+      await screen.findByTestId('reread-word', undefined, { timeout: 3000 });
+      await readAndAnswer(ctx, 'Read the word', { action: 'encourage', prompt_to_child: 'Nearly. Once more.' });
+      expect(await screen.findByText('Nearly. Once more.', undefined, { timeout: 3000 })).toBeInTheDocument();
+      expect(screen.getByTestId('reread-word')).toHaveTextContent('character');
+      await readAndAnswer(ctx, 'Read the word', { action: 'continue' });
+      await waitFor(() => expect(screen.getByTestId('reread-word')).toHaveTextContent('apples'), { timeout: 3000 });
+    });
+
+    it('starts the loop again when the new whole reading has misreads', async () => {
+      const ctx = await answered({ action: 'reread_word', focus_words: TWO });
+      await screen.findByTestId('reread-word', undefined, { timeout: 3000 });
+      await readAndAnswer(ctx, 'Read the word', { action: 'continue' });
+      await waitFor(() => expect(screen.getByTestId('reread-word')).toHaveTextContent('apples'), { timeout: 3000 });
+      await readAndAnswer(ctx, 'Read the word', { action: 'continue' });
+      await screen.findByText('Now read the whole problem again.', undefined, { timeout: 3000 });
+
+      // the whole problem read again, one word still wrong
+      await readAndAnswer(ctx, 'Read it', { action: 'reread_word', focus_words: [TWO[1]], prompt_to_child: 'Look at this one.' });
+      await waitFor(() => expect(screen.getByTestId('reread-word')).toHaveTextContent('apples'), { timeout: 3000 });
+      expect(screen.getByText('Look at this one.')).toBeInTheDocument();
+      expect(screen.queryByText('Nice reading')).not.toBeInTheDocument();
+
+      await readAndAnswer(ctx, 'Read the word', { action: 'continue' });
+      expect(await screen.findByText('Now read the whole problem again.', undefined, { timeout: 3000 })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Now the math' })).not.toBeInTheDocument();
+    });
+  });
+
   it('keeps the word on screen when the next answer to the word reread is encouragement', async () => {
     const { factory } = await answered({
       action: 'reread_word',

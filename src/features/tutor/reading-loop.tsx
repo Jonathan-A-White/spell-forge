@@ -4,6 +4,8 @@
 // and 'Read it' offered again until the grist says the reading is clear. A reread_word answer narrows the screen to the
 // one missed word (big, its parts, a one-line tip, 'Say it again', 'Read the word'); the clips then carry that word as their
 // target text until a 'continue' answer says the word is clear, when the whole problem returns with 'Read it' (mw-ke5k7i).
+// With several focus words the screen walks through them in order, one word at a time, before the whole problem returns;
+// a new whole reading with misreads starts the walk again, and only a clear whole reading ends the loop (mw-7wyn4s).
 // Everything shown comes from the turns.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -76,32 +78,70 @@ function chunksOf(focus: TutorAnswer['focus_words'][number]): string[] {
   return focus.chunks.length > 0 ? focus.chunks : splitSyllables(focus.word);
 }
 
+/** What the reread screen is on, from the answers the child has seen, in order. */
+interface RereadState {
+  /** The word the screen is narrowed to. */
+  word?: string;
+  chunks: string[];
+  /** The one-line tip under the word: the answer's own line, or the app's when the word was reached by clearing the one before. */
+  tip?: string;
+  /** The latest answer cleared a word and the next one is up (`word`). */
+  advanced: boolean;
+  /** The latest answer cleared the last word: the whole problem returns. */
+  cleared: boolean;
+}
+
 /**
- * The word a reread has narrowed the screen to, from the answers the child has seen, in order: a reread_word answer
- * sets it, encouragement keeps it, a 'continue' to a reading of that word clears it (`cleared`), anything else drops it.
+ * A reread_word answer to a whole reading queues all its focus words, in order, and the screen narrows to the first.
+ * Encouragement keeps the word; a 'continue' to a reading of that word clears it and brings up the next one, or, after the
+ * last, the whole problem again (`cleared`); anything else drops the queue. A reread_word answer to a word reading only
+ * refreshes that word's parts and tip: the queue is the app's.
  */
-function rereadState(turns: TutorTurn[]): { word?: string; chunks: string[]; cleared: boolean } {
-  let word: string | undefined;
-  let chunks: string[] = [];
+function rereadState(turns: TutorTurn[]): RereadState {
+  let queue: TutorAnswer['focus_words'] = [];
+  let at = 0;
+  let tip: string | undefined;
+  let advanced = false;
   let cleared = false;
+  const current = () => (at < queue.length ? queue[at] : undefined);
   for (const turn of [...turns].sort((a, b) => a.index - b.index)) {
     if (turn.status !== 'answered' || !turn.answer) continue;
-    const { action, focus_words } = turn.answer;
+    const { action, focus_words, prompt_to_child } = turn.answer;
+    const word = current();
+    const ofWord = word !== undefined && turn.request.target_text === word.word;
+    advanced = false;
     cleared = false;
-    if (action === 'reread_word' && focus_words.length > 0) {
-      word = focus_words[0].word;
-      chunks = chunksOf(focus_words[0]);
+    if (action === 'reread_word' && focus_words.length > 0 && !ofWord) {
+      queue = focus_words;
+      at = 0;
+      tip = prompt_to_child;
+    } else if (action === 'reread_word' && word) {
+      const again = focus_words.find((f) => f.word.toLowerCase() === word.word.toLowerCase());
+      if (again) queue = queue.map((f, i) => (i === at ? again : f));
+      tip = prompt_to_child;
     } else if (action === 'encourage') {
-      // the word stays until he reads it clearly
-    } else if (action === 'continue' && word !== undefined && turn.request.target_text === word) {
-      word = undefined;
-      cleared = true;
+      if (word) tip = prompt_to_child;
+    } else if (action === 'continue' && ofWord) {
+      at += 1;
+      if (current()) {
+        advanced = true;
+        tip = NEXT_WORD_LINE;
+      } else {
+        queue = [];
+        at = 0;
+        cleared = true;
+      }
     } else {
-      word = undefined;
+      queue = [];
+      at = 0;
     }
   }
-  return { word, chunks, cleared };
+  const word = current();
+  return { word: word?.word, chunks: word ? chunksOf(word) : [], tip: word ? tip : undefined, advanced, cleared };
 }
+
+/** Said and shown when the next of several misread words is up: the app's line, not the model's (it answered about the word before). */
+const NEXT_WORD_LINE = 'Now this word.';
 
 /** Said and shown once a reread word is cleared: the screen waits for the whole problem, never for solving (mw-eezwdm). */
 const WORD_CLEARED_LINE = 'Now read the whole problem again.';
@@ -145,6 +185,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     spoken.current?.add(latest.id);
     if (latest.answer.action !== 'continue') say(latest.answer.prompt_to_child);
     else if (reread.cleared) say(WORD_CLEARED_LINE);
+    else if (reread.advanced) say(NEXT_WORD_LINE);
   }, [latest, say, reread]);
 
   const sendClip = useCallback(
@@ -271,7 +312,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
 
   if (rereading) {
     // the tip stays up while the next reading is out
-    const tip = answer ?? [...turns].filter((t) => t.status === 'answered' && t.answer).sort((a, b) => b.index - a.index)[0]?.answer;
+    const tip = reread.tip;
     return (
       <div className="space-y-4">
         <div className="text-center space-y-2">
@@ -285,8 +326,8 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
 
         {tip && (
           <div className="space-y-3">
-            <p className="text-sf-heading text-lg line-clamp-1">{tip.prompt_to_child}</p>
-            <button type="button" onClick={() => say(tip.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>
+            <p className="text-sf-heading text-lg line-clamp-1">{tip}</p>
+            <button type="button" onClick={() => say(tip)} className={SECONDARY} style={TAP}>Say it again</button>
           </div>
         )}
 
