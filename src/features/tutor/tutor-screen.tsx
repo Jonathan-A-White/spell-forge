@@ -7,6 +7,7 @@ import { liveQuery } from 'dexie';
 import type { Profile, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { profileRepo, tutorRepo } from '../../data/repositories';
 import { GristInFlight } from '../../grist';
+import { ReadingLoop } from './reading-loop';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
 
@@ -191,8 +192,15 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     body = (
       <div className="space-y-4">
         <p className="text-sf-muted text-sm">{answeredKind === 'plain' ? 'A plain problem' : answeredKind === 'word' ? 'A word problem' : 'Your problem'}</p>
-        <p className="text-sf-heading whitespace-pre-wrap" style={LARGE_TEXT}>{answeredText}</p>
-        <button onClick={() => setRetyping(answeredText)} className={SECONDARY} style={TAP}>That&apos;s not it</button>
+        {session && (
+          <ReadingLoop
+            session={session}
+            targetText={answeredText}
+            turns={snapshot.turns.filter((t) => t.mode === 'reading' && t.index > current.index)}
+            deps={deps}
+            onRetype={() => setRetyping(answeredText)}
+          />
+        )}
       </div>
     );
   } else if (current) {

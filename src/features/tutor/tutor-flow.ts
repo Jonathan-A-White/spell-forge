@@ -3,13 +3,15 @@
 // comes back out of the tutorTurns table, never from here, so a reload loses nothing.
 
 import { PrivateKey } from '@bsv/sdk';
-import type { TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
+import type { HoldRecorder, Recording } from '../../audio';
+import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { bsvWalletRepo, tutorRepo } from '../../data/repositories';
 import {
   GristLimitError,
   GristOffline,
   GristUnlicensed,
   TUTOR_TURN_GRIND,
+  gristFileFromBlob,
   sendGrist,
   shrinkPhoto,
 } from '../../grist';
@@ -25,6 +27,10 @@ export interface TutorDeps {
   /** How often waiting turns are read; the grist client's own 5 s when absent. */
   pollIntervalMs?: number;
   now?: () => Date;
+  /** The recorder behind 'Read it'; `onLimit` gets the clip when the 60 s cap stops it. The real recorder when absent. */
+  createRecorder?: (onLimit: (recording: Recording) => void) => HoldRecorder;
+  /** Speaks a sentence aloud; the app's own speech when absent. */
+  say?: (text: string) => Promise<void>;
 }
 
 export type ProblemSource = { kind: 'text'; text: string } | { kind: 'photo'; file: Blob };
@@ -44,6 +50,8 @@ const NO_KEY = "This device has no key yet. Open Settings and tap \"This device'
 const OFFLINE = 'The tutor cannot be reached right now. Check the internet and try again.';
 const NOT_SENT = 'The problem could not be sent. You can try again.';
 const CUT_OFF = 'The problem did not get sent. You can try again.';
+const READING_NOT_SENT = 'Your reading could not be sent. You can try again.';
+const READING_CUT_OFF = 'Your reading did not get sent. You can try again.';
 
 /** The device's own key, from its wallet; none when no wallet has been made yet. */
 export async function deviceKey(): Promise<PrivateKey | undefined> {
@@ -56,10 +64,10 @@ export async function deviceKey(): Promise<PrivateKey | undefined> {
   }
 }
 
-function sayWhy(error: unknown): string {
+function sayWhy(error: unknown, otherwise: string = NOT_SENT): string {
   if (error instanceof GristOffline) return OFFLINE;
   if (error instanceof GristUnlicensed || error instanceof GristLimitError) return error.message;
-  return NOT_SENT;
+  return otherwise;
 }
 
 /**
@@ -119,11 +127,73 @@ export async function sendProblem(
   return session;
 }
 
+/** The file extension a recording's mime gives: audio/webm -> webm. */
+const extensionOf = (mime: string) => mime.split('/')[1]?.split(';')[0] || 'webm';
+
+/**
+ * What has been tried so far, compact, for the grist: the reading and maths turns whose answers the child saw.
+ * A stale answer was never shown to him, so it is not part of what he has been told.
+ */
+export function sessionHistory(turns: TutorTurn[]): TutorHistoryEntry[] {
+  return turns
+    .filter((turn) => turn.mode !== 'problem-in' && turn.status === 'answered' && turn.answer)
+    .map((turn) => ({
+      mode: turn.mode,
+      action: (turn.answer as NonNullable<TutorTurn['answer']>).action,
+      prompt_to_child: (turn.answer as NonNullable<TutorTurn['answer']>).prompt_to_child,
+      ...(turn.request.child_answer ? { child_answer: turn.request.child_answer } : {}),
+    }));
+}
+
+/**
+ * Sends one reading: the clip as a reading turn with the target text, kept (audio blob and all) in the session.
+ * Any turn still out is moved past first, so its answer, when it comes, is kept and marked stale. The clip is
+ * named reading-<n>.<ext>, n counting this session's readings from 1. A send that fails leaves the turn 'failed'
+ * with the reason; a missing key throws a TutorUserError before anything is stored.
+ */
+export async function sendReading(
+  params: { session: TutorSession; targetText: string; recording: Recording },
+  deps: TutorDeps = {},
+): Promise<TutorTurn> {
+  const key = await (deps.getKey ?? deviceKey)();
+  if (!key) throw new TutorUserError(NO_KEY);
+
+  const { session, recording } = params;
+  const turns = await tutorRepo.listTurns(session.id);
+  const readings = turns.filter((turn) => turn.mode === 'reading').length;
+  const name = `reading-${readings + 1}.${extensionOf(recording.mime)}`;
+  const file = await gristFileFromBlob(recording.blob, name);
+
+  const request: TutorRequest = {
+    mode: 'reading',
+    strictness: session.strictness,
+    target_text: params.targetText,
+    session_history: sessionHistory(turns),
+  };
+  const stored = await tutorRepo.putBlob({ bytes: new Uint8Array(file.bytes).buffer, mime: file.mime, name });
+  await tutorRepo.moveOn(session.id, turns.reduce((max, t) => Math.max(max, t.index), 0));
+  const turn = await tutorRepo.addTurn({
+    sessionId: session.id,
+    mode: 'reading',
+    request,
+    attachments: [{ kind: 'audio', blobId: stored.id }],
+    sentAt: (deps.now ?? (() => new Date()))(),
+  });
+
+  try {
+    const sent = await (deps.sendGrist ?? sendGrist)({ key, files: [file], input: request, header: TUTOR_TURN_GRIND, fetchImpl: deps.fetchImpl });
+    await tutorRepo.markSent(turn.id, sent);
+  } catch (error) {
+    await tutorRepo.markFailed(turn.id, sayWhy(error, READING_NOT_SENT));
+  }
+  return turn;
+}
+
 /** Fails the turns a closed app left half-sent, so a reload never waits on them for ever. */
 export async function failHalfSent(turns: TutorTurn[], now: Date = new Date()): Promise<void> {
   for (const turn of turns) {
     if (turn.status === 'sending' && now.getTime() - turn.sentAt.getTime() >= HALF_SENT_MS) {
-      await tutorRepo.markFailed(turn.id, CUT_OFF);
+      await tutorRepo.markFailed(turn.id, turn.mode === 'reading' ? READING_CUT_OFF : CUT_OFF);
     }
   }
 }
