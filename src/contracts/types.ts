@@ -43,6 +43,8 @@ export interface AccessibilitySettings {
   dailyGoalMinutes: number;
   tapTargetSize: number;     // 48-72px
   learningStrategy: LearningStrategy;
+  /** The Tutor's strictness this child last chose (sf-tutor); absent means 'meaning-gated'. */
+  tutorStrictness?: TutorStrictness;
 }
 
 export interface WordList {

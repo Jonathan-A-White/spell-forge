@@ -36,3 +36,20 @@ export function useDebugMode(): [boolean, () => void] {
 
   return [enabled, toggle];
 }
+
+export const TUTOR_FLAG_STORAGE_KEY = 'sf-tutor';
+
+/** Read the persisted Tutor flag; off unless it was switched on. */
+export function isTutorFlagOn(): boolean {
+  try {
+    return localStorage.getItem(TUTOR_FLAG_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Hook that returns whether the Tutor flag (sf-tutor) is on. */
+export function useTutorFlag(): boolean {
+  const [on] = useState(isTutorFlagOn);
+  return on;
+}

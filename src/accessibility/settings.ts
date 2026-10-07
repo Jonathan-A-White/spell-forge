@@ -14,6 +14,7 @@ const FONT_WEIGHT_VALUES: Record<AccessibilitySettings['fontWeight'], number> = 
 const VALID_FONT_WEIGHTS = new Set<string>(['normal', 'bold', 'extra-bold']);
 const VALID_CONTRAST_MODES = new Set<string>(['light', 'dark', 'high-contrast']);
 const VALID_LEARNING_STRATEGIES = new Set<string>(['wave', 'easy-to-hard', 'hard-to-easy', 'random']);
+const VALID_TUTOR_STRICTNESS = new Set<string>(['meaning-gated', 'precision']);
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -45,6 +46,9 @@ export function validateSettings(raw: Partial<AccessibilitySettings>): Accessibi
     learningStrategy: VALID_LEARNING_STRATEGIES.has(base.learningStrategy)
       ? base.learningStrategy
       : DEFAULT_SETTINGS.learningStrategy,
+    ...(base.tutorStrictness && VALID_TUTOR_STRICTNESS.has(base.tutorStrictness)
+      ? { tutorStrictness: base.tutorStrictness }
+      : {}),
   };
 }
 
