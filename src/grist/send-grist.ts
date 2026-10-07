@@ -1,4 +1,4 @@
-// src/grist/send-grist.ts — Send a grist: seal and upload the photos, then deliver the sealed request to the
+// src/grist/send-grist.ts — Send a grist: seal and upload the photos and recordings, then deliver the sealed request to the
 // mill as a section 1 record of class 'grist' (docs/protocol.md §19, reference: millwright's gristsend.go).
 
 import { PrivateKey, PublicKey, Utils } from '@bsv/sdk';
@@ -16,20 +16,28 @@ export interface GristHeader {
   effort?: string;
 }
 
-export interface GristPhoto {
+/** A file that travels with a grist: a photo, or a recording. `name` is sent when there is one. */
+export interface GristFile {
   bytes: Uint8Array;
   mime: string;
+  name?: string;
 }
+
+export type GristPhoto = GristFile;
 
 export interface GristAttachment {
   hash: string;
   size: number;
   mime: string;
+  name?: string;
 }
 
 export interface SendGristParams {
   key: PrivateKey;
-  photos: GristPhoto[];
+  /** Photos and recordings, in the order the grind should see them. */
+  files?: GristFile[];
+  /** Photos only; the word-list import's older field, sent before `files`. */
+  photos?: GristFile[];
   /** The app's request, in the app's own schema; the mill hands it to the grind as data. */
   input: unknown;
   header: GristHeader;
@@ -42,32 +50,60 @@ export interface SentGrist {
   mill: string;
 }
 
-/** The grind's limits (protocol §19; grinds/word-list.json). */
+/** The limits a grist may be sent under (protocol §19; grinds/word-list.json, grinds/tutor-turn.json). */
 export const GRIST_MAX_PHOTOS = 4;
 export const GRIST_MAX_PHOTO_BYTES = 4_194_304;
 export const GRIST_MIMES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'];
+export const GRIST_MAX_AUDIO_BYTES = 8_388_608;
+export const GRIST_AUDIO_MIMES: readonly string[] = ['audio/webm', 'audio/ogg', 'audio/mp4'];
 
-function checkPhotos(photos: GristPhoto[]): void {
-  if (photos.length > GRIST_MAX_PHOTOS) {
-    throw new GristLimitError(`A grist carries at most ${GRIST_MAX_PHOTOS} photos, not ${photos.length}.`);
+/** A mime type without its parameters ('audio/webm;codecs=opus' -> 'audio/webm'), lowercase. */
+export function baseMime(mime: string): string {
+  return mime.split(';')[0].trim().toLowerCase();
+}
+
+/** A Blob as a GristFile: its bytes, its mime (codec suffix dropped), and the name when one is given. */
+export async function gristFileFromBlob(blob: Blob, name?: string): Promise<GristFile> {
+  const buffer =
+    typeof blob.arrayBuffer === 'function'
+      ? await blob.arrayBuffer()
+      : await new Promise<ArrayBuffer>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as ArrayBuffer);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsArrayBuffer(blob);
+        });
+  return { bytes: new Uint8Array(buffer), mime: baseMime(blob.type), ...(name ? { name } : {}) };
+}
+
+function checkFiles(files: GristFile[]): void {
+  if (files.length > GRIST_MAX_PHOTOS) {
+    throw new GristLimitError(`A grist carries at most ${GRIST_MAX_PHOTOS} files, not ${files.length}.`);
   }
-  for (const photo of photos) {
-    if (!GRIST_MIMES.includes(photo.mime)) {
-      throw new GristLimitError(`A photo of type ${photo.mime || 'unknown'} cannot be read: use a JPEG, PNG or WebP.`);
-    }
-    if (photo.bytes.length > GRIST_MAX_PHOTO_BYTES) {
-      throw new GristLimitError(`A photo of ${photo.bytes.length} bytes is over the ${GRIST_MAX_PHOTO_BYTES} a grist may carry.`);
+  for (const file of files) {
+    const mime = baseMime(file.mime);
+    if (GRIST_AUDIO_MIMES.includes(mime)) {
+      if (file.bytes.length > GRIST_MAX_AUDIO_BYTES) {
+        throw new GristLimitError(`A recording of ${file.bytes.length} bytes is over the ${GRIST_MAX_AUDIO_BYTES} a grist may carry.`);
+      }
+    } else if (GRIST_MIMES.includes(mime)) {
+      if (file.bytes.length > GRIST_MAX_PHOTO_BYTES) {
+        throw new GristLimitError(`A photo of ${file.bytes.length} bytes is over the ${GRIST_MAX_PHOTO_BYTES} a grist may carry.`);
+      }
+    } else {
+      throw new GristLimitError(`A file of type ${mime || 'unknown'} cannot be read: use a JPEG, PNG or WebP photo, or a WebM, Ogg or MP4 recording.`);
     }
   }
 }
 
 /**
  * Sends one grist. Everything that needs no network is checked first; then the mill's key is asked for, every
- * photo is sealed to it and uploaded (a failed upload sends nothing), and the sealed request is delivered.
+ * file is sealed to it and uploaded (a failed upload sends nothing), and the sealed request is delivered.
  */
 export async function sendGrist(params: SendGristParams): Promise<SentGrist> {
-  const { key, photos, input, header } = params;
-  checkPhotos(photos);
+  const { key, input, header } = params;
+  const files = [...(params.photos ?? []), ...(params.files ?? [])];
+  checkFiles(files);
   const api = posternApi(key, params.fetchImpl);
 
   const { mill } = await api.me();
@@ -75,9 +111,9 @@ export async function sendGrist(params: SendGristParams): Promise<SentGrist> {
   const millKey = PublicKey.fromString(mill);
 
   const attachments: GristAttachment[] = [];
-  for (const photo of photos) {
-    const { hash, size } = await api.uploadBlob(Uint8Array.from(sealBytes(photo.bytes, key, millKey)));
-    attachments.push({ hash, size, mime: photo.mime });
+  for (const file of files) {
+    const { hash, size } = await api.uploadBlob(Uint8Array.from(sealBytes(file.bytes, key, millKey)));
+    attachments.push({ hash, size, mime: baseMime(file.mime), ...(file.name ? { name: file.name } : {}) });
   }
 
   const plaintext = JSON.stringify({ grist: header, input, attachments });
