@@ -42,6 +42,8 @@ async function seedWallet(): Promise<{ wallet: BsvWalletKey; publicKeyHex: strin
 }
 
 beforeEach(async () => {
+  // Creating a key calls GET /api/me in the background; tests never touch the network.
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })));
   localStorage.clear();
   await db.delete();
   await db.open();
@@ -49,6 +51,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
