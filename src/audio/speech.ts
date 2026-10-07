@@ -116,7 +116,8 @@ interface SpeakStrategy {
 
 /**
  * Attempt to speak via Web Speech API.  Returns true if onend fired
- * (success), false if onerror/timeout fired.
+ * (success), false if onerror fired or the utterance never started within
+ * TIMEOUT_MS.
  */
 function trySpeak(
   text: string,
@@ -163,7 +164,14 @@ function trySpeak(
       }
     };
 
+    // The timeout only guards an utterance that never starts (stuck engine).
+    // Once onstart fires, a long utterance may legitimately speak for longer
+    // than TIMEOUT_MS, so only onend / onerror settle it.
     const timeout = setTimeout(() => finish('timeout', false), TIMEOUT_MS);
+    utterance.onstart = () => {
+      clearTimeout(timeout);
+      dbg('trySpeak() onstart');
+    };
     utterance.onend = () => finish('onend', true);
     utterance.onerror = (ev) => {
       const err = (ev as SpeechSynthesisErrorEvent).error ?? 'unknown';

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AudioManagerImpl } from '../../src/audio/manager.ts';
 
 // ─── Mock SpeechSynthesisUtterance ───────────────────────────
@@ -7,6 +7,7 @@ class MockUtterance {
   text: string;
   rate = 1;
   voice: SpeechSynthesisVoice | null = null;
+  onstart: ((ev: Event) => void) | null = null;
   onend: ((ev: Event) => void) | null = null;
   onerror: ((ev: Event) => void) | null = null;
   constructor(text: string) {
@@ -108,6 +109,90 @@ describe('sayThenSpell', () => {
     expect(mockSynth.speak).toHaveBeenCalledOnce();
     const utterance = vi.mocked(mockSynth.speak).mock.calls[0][0] as unknown as MockUtterance;
     expect(utterance.text).toBe('hi,,,, h, i');
+  });
+});
+
+describe('long utterances (the tutor read-aloud)', () => {
+  const voices = [
+    { name: 'A', lang: 'en-US', default: true, localService: true },
+    { name: 'B', lang: 'en-GB', default: false, localService: true },
+  ] as SpeechSynthesisVoice[];
+
+  async function freshSpeech() {
+    vi.resetModules();
+    return await import('../../src/audio/speech.ts');
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(mockSynth.getVoices).mockReturnValue(voices);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('speaks once and never cancels when an utterance has started and runs 25 s before onend', async () => {
+    vi.mocked(mockSynth.speak).mockImplementation(((u: MockUtterance) => {
+      setTimeout(() => u.onstart?.(new Event('start')), 10);
+      setTimeout(() => u.onend?.(new Event('end')), 25_000);
+    }) as unknown as SpeechSynthesis['speak']);
+
+    const { sayWord } = await freshSpeech();
+    let resolved = false;
+    const p = sayWord('a long tutor message').then(() => {
+      resolved = true;
+    });
+
+    await vi.advanceTimersByTimeAsync(24_000);
+    expect(resolved).toBe(false);
+    expect(mockSynth.speak).toHaveBeenCalledOnce();
+    expect(mockSynth.cancel).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    await p;
+    expect(resolved).toBe(true);
+    expect(mockSynth.speak).toHaveBeenCalledOnce();
+    expect(mockSynth.cancel).not.toHaveBeenCalled();
+  });
+
+  it('still fails a started utterance that errors, and retries', async () => {
+    let calls = 0;
+    vi.mocked(mockSynth.speak).mockImplementation(((u: MockUtterance) => {
+      calls++;
+      const n = calls;
+      setTimeout(() => u.onstart?.(new Event('start')), 10);
+      setTimeout(() => (n === 1 ? u.onerror?.(new Event('error')) : u.onend?.(new Event('end'))), 100);
+    }) as unknown as SpeechSynthesis['speak']);
+
+    const { sayWord } = await freshSpeech();
+    const p = sayWord('hello');
+    await vi.advanceTimersByTimeAsync(5_000);
+    await p;
+    expect(mockSynth.speak).toHaveBeenCalledTimes(2);
+    expect(mockSynth.cancel).toHaveBeenCalled();
+  });
+
+  it('still times out an utterance that never starts, and retries with the next voice', async () => {
+    let calls = 0;
+    vi.mocked(mockSynth.speak).mockImplementation(((u: MockUtterance) => {
+      calls++;
+      if (calls === 1) return; // engine stuck: no onstart, no onend
+      setTimeout(() => u.onstart?.(new Event('start')), 10);
+      setTimeout(() => u.onend?.(new Event('end')), 50);
+    }) as unknown as SpeechSynthesis['speak']);
+
+    const { sayWord } = await freshSpeech();
+    const p = sayWord('hello');
+
+    await vi.advanceTimersByTimeAsync(9_000);
+    expect(mockSynth.speak).toHaveBeenCalledOnce();
+    expect(mockSynth.cancel).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    await p;
+    expect(mockSynth.cancel).toHaveBeenCalled();
+    expect(mockSynth.speak).toHaveBeenCalledTimes(2);
   });
 });
 
