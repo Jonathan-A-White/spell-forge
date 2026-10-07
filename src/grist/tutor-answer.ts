@@ -1,7 +1,7 @@
 // The tutor-turn grind (grinds/tutor-turn.json): what the mill is asked, and the shape of what comes back.
 // isTutorAnswer matches grinds/tutor-turn.answer.schema.json; the unit test holds the two together.
 
-import type { TutorAnswer } from '../contracts/types';
+import type { ReadingResult, TutorAnswer, TutorReadingResult } from '../contracts/types';
 
 export const TUTOR_TURN_GRIND = { app: 'spellforge', kind: 'tutor-turn', v: '1' } as const;
 
@@ -51,4 +51,26 @@ export function isTutorAnswer(value: unknown): value is TutorAnswer {
     if (!recommendations.every((r) => isStrings(r, ['what', 'why', 'where']))) return false;
   }
   return true;
+}
+
+function isReadingResultOf(value: unknown): value is ReadingResult {
+  return (
+    isObject(value) &&
+    typeof value.engine === 'string' &&
+    Array.isArray(value.words) &&
+    typeof value.accuracy === 'number' &&
+    typeof value.seconds === 'number'
+  );
+}
+
+/**
+ * The scorers' results an answer echoes: each engine that scored (an engine that failed is `{error}` and is
+ * dropped), nothing else. Undefined when no engine's result is there.
+ */
+export function pickReadingResult(value: unknown): TutorReadingResult | undefined {
+  if (!isObject(value)) return undefined;
+  const picked: TutorReadingResult = {};
+  if (isReadingResultOf(value.azure)) picked.azure = value.azure;
+  if (isReadingResultOf(value.local)) picked.local = value.local;
+  return picked.azure || picked.local ? picked : undefined;
 }

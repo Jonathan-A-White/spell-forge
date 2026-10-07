@@ -18,7 +18,7 @@ export interface GristGrind {
 
 /** The mill's verdict on one grist. `answered` carries an answer already checked; the others say why not. */
 export type GristAnswer<T> =
-  | { status: 'answered'; answer: T; grind?: GristGrind }
+  | { status: 'answered'; answer: T; grind?: GristGrind; readingResult?: unknown }
   | { status: 'refused' | 'failed'; reason: string; grind?: GristGrind };
 
 export interface ReadAnswerParams<T> {
@@ -67,7 +67,13 @@ function verdict<T>(plaintext: Record<string, unknown>, isAnswer: (value: unknow
   switch (plaintext.status) {
     case 'answered':
       return isAnswer(plaintext.answer)
-        ? { status: 'answered', answer: plaintext.answer, ...withGrind }
+        ? {
+            status: 'answered',
+            answer: plaintext.answer,
+            ...withGrind,
+            // the scorers' results, when the mill echoes them beside the answer
+            ...(isObject(plaintext.reading_result) ? { readingResult: plaintext.reading_result } : {}),
+          }
         : { status: 'failed', reason: NOT_USABLE, ...withGrind };
     case 'refused':
       return { status: 'refused', reason, ...withGrind };

@@ -604,7 +604,7 @@ export interface TutorAnswer {
 
 /** The mill's verdict on one tutor turn, as the app applies it. */
 export type TutorTurnResult =
-  | { status: 'answered'; answer: TutorAnswer }
+  | { status: 'answered'; answer: TutorAnswer; readingResult?: TutorReadingResult }
   | { status: 'refused' | 'failed'; reason: string };
 
 export interface TutorSession {
@@ -633,6 +633,8 @@ export interface TutorTurn {
   request: TutorRequest;
   attachments: { kind: TutorAttachmentKind; blobId: string }[];
   readingResult?: TutorReadingResult;
+  /** A reading turn whose answer echoed no scorer result: the grist's own notes on the reading, kept in its place. */
+  readingNotes?: string;
   answer?: TutorAnswer;
   /** Why a turn was refused or failed. */
   failureReason?: string;

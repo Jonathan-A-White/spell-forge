@@ -186,7 +186,17 @@ export const tutorRepo = {
       if (result.status === 'answered') {
         const session = await db.tutorSessions.get(turn.sessionId);
         const passed = turn.movedOn === true || session?.status === 'ended';
-        next = { ...turn, status: passed ? 'stale' : 'answered', answer: result.answer, answeredAt: at };
+        next = {
+          ...turn,
+          status: passed ? 'stale' : 'answered',
+          answer: result.answer,
+          answeredAt: at,
+          // a reading turn keeps what the scorers said; failing that, what the grist said about the reading
+          ...(turn.mode === 'reading' && result.readingResult ? { readingResult: result.readingResult } : {}),
+          ...(turn.mode === 'reading' && !result.readingResult && result.answer.notes_for_parent
+            ? { readingNotes: result.answer.notes_for_parent }
+            : {}),
+        };
       } else {
         next = { ...turn, status: result.status, failureReason: result.reason, answeredAt: at };
       }

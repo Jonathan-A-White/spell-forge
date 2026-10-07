@@ -8,7 +8,7 @@ import type { TutorAnswer, TutorTurn, TutorTurnResult } from '../contracts/types
 import { tutorRepo } from '../data/repositories/tutor-repo';
 import { readAnswer } from './read-answer';
 import type { ReadAnswerParams, ReadAnswerResult } from './read-answer';
-import { isTutorAnswer } from './tutor-answer';
+import { isTutorAnswer, pickReadingResult } from './tutor-answer';
 
 /** How often a pass runs while the app is open. A pass with nothing waiting asks the network nothing. */
 export const TUTOR_POLL_INTERVAL_MS = 5_000;
@@ -79,9 +79,10 @@ export class GristInFlight {
         fetchImpl: this.deps.fetchImpl,
       });
       if (!('pending' in result)) {
+        const readingResult = result.answer.status === 'answered' ? pickReadingResult(result.answer.readingResult) : undefined;
         const verdict: TutorTurnResult =
           result.answer.status === 'answered'
-            ? { status: 'answered', answer: result.answer.answer }
+            ? { status: 'answered', answer: result.answer.answer, ...(readingResult ? { readingResult } : {}) }
             : { status: result.answer.status, reason: result.answer.reason };
         await tutorRepo.applyAnswer(turn.txid as string, verdict, now());
         return;

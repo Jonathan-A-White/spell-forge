@@ -429,6 +429,16 @@ describe('readAnswer', () => {
     });
   });
 
+  it('hands on the scorers\' reading_result when the mill echoes one beside the answer (mw-bhvxcn.9)', async () => {
+    const { server, read, answered } = setup();
+    const readingResult = { local: { engine: 'local', words: [], accuracy: 80, seconds: 1.5 }, azure: { error: 'refused' } };
+    server.inject({
+      payload: answered({ re: GRIST_TXID, status: 'answered', answer: { words: ['a'] }, reading_result: readingResult }),
+      signer: server.mill,
+    });
+    expect(await read()).toMatchObject({ answer: { status: 'answered', readingResult } });
+  });
+
   it('accepts a record with no signer', async () => {
     const { server, read, answered } = setup();
     server.inject({ payload: answered({ re: GRIST_TXID, status: 'answered', answer: { words: ['a'] } }) });
