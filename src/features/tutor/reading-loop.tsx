@@ -40,6 +40,8 @@ export interface ReadingLoopProps {
   deps: TutorDeps;
   /** "That's not it": offered while nothing has been read yet. */
   onRetype: () => void;
+  /** 'Now the maths': the reading is clear and he moves on. */
+  onMaths: () => void;
 }
 
 const seconds = (ms: number) => {
@@ -71,11 +73,10 @@ function chunksOf(focus: TutorAnswer['focus_words'][number]): string[] {
   return focus.chunks.length > 0 ? focus.chunks : splitSyllables(focus.word);
 }
 
-export function ReadingLoop({ session, targetText, turns, deps, onRetype }: ReadingLoopProps) {
+export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMaths }: ReadingLoopProps) {
   const [holding, setHolding] = useState(false);
   const [heldMs, setHeldMs] = useState(0);
   const [message, setMessage] = useState('');
-  const [mathsStarted, setMathsStarted] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const hold = useRef<{ recorder: HoldRecorder; startedAt: number; started: boolean; released: boolean } | null>(null);
   const depsRef = useRef(deps);
@@ -228,15 +229,6 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype }: Read
     </button>
   );
 
-  if (mathsStarted) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sf-heading whitespace-pre-wrap" style={LARGE_TEXT}>{targetText}</p>
-        <p className="text-sf-muted">The maths comes next.</p>
-      </div>
-    );
-  }
-
   const focusWords = answer?.focus_words ?? [];
   return (
     <div className="space-y-4">
@@ -260,7 +252,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype }: Read
       {answer && finished && (
         <div role="status" className="space-y-3">
           <p className="text-sf-heading font-bold text-2xl">Nice reading</p>
-          <button type="button" onClick={() => setMathsStarted(true)} className={PRIMARY} style={TAP}>Now the maths</button>
+          <button type="button" onClick={onMaths} className={PRIMARY} style={TAP}>Now the maths</button>
         </div>
       )}
 

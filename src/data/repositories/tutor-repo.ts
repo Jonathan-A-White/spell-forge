@@ -56,6 +56,12 @@ export const tutorRepo = {
       .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())[0];
   },
 
+  /** Every session the profile has had, newest first: the Sessions list. Nothing is ever deleted. */
+  async listSessions(profileId: string): Promise<TutorSession[]> {
+    const sessions = await db.tutorSessions.where('profileId').equals(profileId).toArray();
+    return sessions.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+  },
+
   /** The problem the session is about, as read off the photo or as the child corrected it. */
   async setProblem(id: string, problem: { targetText: string; problemKind?: 'word' | 'plain' }): Promise<void> {
     await db.tutorSessions.update(id, {

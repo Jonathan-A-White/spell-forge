@@ -52,6 +52,9 @@ const NOT_SENT = 'The problem could not be sent. You can try again.';
 const CUT_OFF = 'The problem did not get sent. You can try again.';
 const READING_NOT_SENT = 'Your reading could not be sent. You can try again.';
 const READING_CUT_OFF = 'Your reading did not get sent. You can try again.';
+const MATH_NOT_SENT = 'Your answer could not be sent. You can try again.';
+const MATH_CUT_OFF = 'Your answer did not get sent. You can try again.';
+const NOTHING_TO_SEND = 'Type your answer or take a photo of your work first.';
 
 /** The device's own key, from its wallet; none when no wallet has been made yet. */
 export async function deviceKey(): Promise<PrivateKey | undefined> {
@@ -189,11 +192,70 @@ export async function sendReading(
   return turn;
 }
 
+/**
+ * Sends one maths turn: the child's typed answer and/or a photo of his work, with the problem as the target text.
+ * Any turn still out is moved past first (its answer, when it comes, is kept and marked stale). The photo is
+ * shrunk and named work-<n>.jpg, n counting this session's maths turns from 1. With neither an answer nor a
+ * photo, or with no key, a TutorUserError is thrown before anything is stored; a send that fails leaves the turn
+ * 'failed' with the reason. Returns the turn as it stands once sent or failed.
+ */
+export async function sendMath(
+  params: { session: TutorSession; targetText: string; answer?: string; photo?: Blob },
+  deps: TutorDeps = {},
+): Promise<TutorTurn> {
+  const answer = params.answer?.trim() ?? '';
+  if (!answer && !params.photo) throw new TutorUserError(NOTHING_TO_SEND);
+  const key = await (deps.getKey ?? deviceKey)();
+  if (!key) throw new TutorUserError(NO_KEY);
+
+  const { session } = params;
+  const turns = await tutorRepo.listTurns(session.id);
+  const name = `work-${turns.filter((turn) => turn.mode === 'math').length + 1}.jpg`;
+  let photo: GristPhoto | undefined;
+  if (params.photo) {
+    try {
+      photo = { ...(await (deps.shrink ?? shrinkPhoto)(params.photo)), name };
+    } catch (error) {
+      throw new TutorUserError(error instanceof GristLimitError ? error.message : 'This photo could not be used. Try another one.');
+    }
+  }
+
+  const request: TutorRequest = {
+    mode: 'math',
+    strictness: session.strictness,
+    target_text: params.targetText,
+    ...(answer ? { child_answer: answer } : {}),
+    ...(photo ? { work_photo: true } : {}),
+    session_history: sessionHistory(turns),
+  };
+  const attachments: { kind: 'work'; blobId: string }[] = [];
+  if (photo) {
+    const stored = await tutorRepo.putBlob({ bytes: new Uint8Array(photo.bytes).buffer, mime: photo.mime, name });
+    attachments.push({ kind: 'work', blobId: stored.id });
+  }
+  await tutorRepo.moveOn(session.id, turns.reduce((max, t) => Math.max(max, t.index), 0));
+  const turn = await tutorRepo.addTurn({
+    sessionId: session.id,
+    mode: 'math',
+    request,
+    attachments,
+    sentAt: (deps.now ?? (() => new Date()))(),
+  });
+
+  try {
+    const sent = await (deps.sendGrist ?? sendGrist)({ key, files: photo ? [photo] : undefined, input: request, header: TUTOR_TURN_GRIND, fetchImpl: deps.fetchImpl });
+    await tutorRepo.markSent(turn.id, sent);
+  } catch (error) {
+    await tutorRepo.markFailed(turn.id, sayWhy(error, MATH_NOT_SENT));
+  }
+  return (await tutorRepo.getTurn(turn.id)) ?? turn;
+}
+
 /** Fails the turns a closed app left half-sent, so a reload never waits on them for ever. */
 export async function failHalfSent(turns: TutorTurn[], now: Date = new Date()): Promise<void> {
   for (const turn of turns) {
     if (turn.status === 'sending' && now.getTime() - turn.sentAt.getTime() >= HALF_SENT_MS) {
-      await tutorRepo.markFailed(turn.id, turn.mode === 'reading' ? READING_CUT_OFF : CUT_OFF);
+      await tutorRepo.markFailed(turn.id, turn.mode === 'reading' ? READING_CUT_OFF : turn.mode === 'math' ? MATH_CUT_OFF : CUT_OFF);
     }
   }
 }
