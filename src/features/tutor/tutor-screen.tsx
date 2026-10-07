@@ -7,7 +7,9 @@ import { liveQuery } from 'dexie';
 import type { Profile, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { profileRepo, tutorRepo } from '../../data/repositories';
 import { GristInFlight } from '../../grist';
+import { MathLoop } from './math-loop';
 import { ReadingLoop } from './reading-loop';
+import { SessionList, SessionRecord } from './session-record';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
 
@@ -23,6 +25,10 @@ interface Snapshot {
   session: TutorSession | undefined;
   turns: TutorTurn[];
 }
+
+type View = { kind: 'tutor' } | { kind: 'sessions' } | { kind: 'record'; sessionId: string };
+
+const STOPPED = 'Stopped for now. Your work is kept.';
 
 const STRICTNESS: { value: TutorStrictness; label: string; hint: string }[] = [
   { value: 'meaning-gated', label: 'Meaning first', hint: 'Help with the words that get in the way of the meaning.' },
@@ -56,6 +62,10 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
   const [problemError, setProblemError] = useState('');
   const [retyping, setRetyping] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [view, setView] = useState<View>({ kind: 'tutor' });
+  const [mathsStarted, setMathsStarted] = useState(false);
+  /** What the session ended on (its closing line), kept on screen: the ended session is no longer the active one. */
+  const [farewell, setFarewell] = useState<string | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const depsRef = useRef(deps);
   useEffect(() => {
@@ -142,25 +152,57 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     setRetyping(null);
   }, [session]);
 
+  const stopForNow = useCallback(async () => {
+    if (!session) return;
+    setFarewell(STOPPED);
+    await tutorRepo.endSession(session.id);
+  }, [session]);
+
+  const startAnother = useCallback(() => {
+    setFarewell(null);
+    setMathsStarted(false);
+  }, []);
+
   const applyCorrection = useCallback(async () => {
     if (!session || !retyping?.trim()) return;
     await tutorRepo.addCorrection({ sessionId: session.id, strictness: session.strictness, text: retyping.trim() });
     setRetyping(null);
   }, [session, retyping]);
 
+  const goBack = () => {
+    if (view.kind === 'record') setView({ kind: 'sessions' });
+    else if (view.kind === 'sessions') setView({ kind: 'tutor' });
+    else onBack();
+  };
+
   const header = (
     <div className="bg-sf-surface border-b border-sf-border px-4 py-3">
       <div className="max-w-lg md:max-w-4xl mx-auto flex items-center gap-3">
-        <button onClick={onBack} className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover" aria-label="Go back">
+        <button onClick={goBack} className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover" aria-label="Go back">
           <span aria-hidden="true">&larr;</span>
         </button>
         <h1 className="text-xl font-bold text-sf-heading">Tutor</h1>
+        {view.kind === 'tutor' && (
+          <button onClick={() => setView({ kind: 'sessions' })} className={`${SECONDARY} ml-auto`} style={TAP}>Sessions</button>
+        )}
       </div>
     </div>
   );
 
+  const mathTurns = snapshot && current ? snapshot.turns.filter((t) => t.mode === 'math' && t.index > current.index) : [];
+
   let body: React.ReactNode;
-  if (!snapshot) {
+  if (farewell !== null) {
+    body = (
+      <div role="status" className="space-y-4 py-6">
+        <p className="text-sf-heading font-bold text-2xl">{farewell}</p>
+        <div className="flex flex-wrap gap-3">
+          <button onClick={startAnother} className={PRIMARY} style={TAP}>Start another</button>
+          <button onClick={() => setView({ kind: 'sessions' })} className={SECONDARY} style={TAP}>Sessions</button>
+        </div>
+      </div>
+    );
+  } else if (!snapshot) {
     body = <p className="text-sf-muted">Loading...</p>;
   } else if (current && waiting) {
     const seconds = Math.max(0, Math.floor((nowMs - current.sentAt.getTime()) / 1000));
@@ -192,15 +234,18 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     body = (
       <div className="space-y-4">
         <p className="text-sf-muted text-sm">{answeredKind === 'plain' ? 'A plain problem' : answeredKind === 'word' ? 'A word problem' : 'Your problem'}</p>
-        {session && (
+        {session && (mathsStarted || mathTurns.length > 0 ? (
+          <MathLoop session={session} targetText={answeredText} turns={mathTurns} deps={deps} onFinished={setFarewell} />
+        ) : (
           <ReadingLoop
             session={session}
             targetText={answeredText}
             turns={snapshot.turns.filter((t) => t.mode === 'reading' && t.index > current.index)}
             deps={deps}
             onRetype={() => setRetyping(answeredText)}
+            onMaths={() => setMathsStarted(true)}
           />
-        )}
+        ))}
       </div>
     );
   } else if (current) {
@@ -282,10 +327,25 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     );
   }
 
+  const stop = session && farewell === null && retyping === null && (
+    <button onClick={() => void stopForNow()} className={`${SECONDARY} mt-6`} style={TAP}>Stop for now</button>
+  );
+
   return (
     <div className="min-h-screen bg-sf-bg">
       {header}
-      <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-5">{body}</div>
+      <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-5">
+        {view.kind === 'sessions' ? (
+          <SessionList profileId={profile.id} onOpen={(sessionId) => setView({ kind: 'record', sessionId })} />
+        ) : view.kind === 'record' ? (
+          <SessionRecord sessionId={view.sessionId} />
+        ) : (
+          <>
+            {body}
+            {stop}
+          </>
+        )}
+      </div>
     </div>
   );
 }
