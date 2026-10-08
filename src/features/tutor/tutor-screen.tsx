@@ -12,6 +12,7 @@ import { GristInFlight } from '../../grist';
 import { MathLoop } from './math-loop';
 import { ParentGate } from './parent-gate';
 import { ReadingLoop } from './reading-loop';
+import { Waiting } from './pictures';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
 import type { ProblemSource, TutorDeps } from './tutor-flow';
 import { tutorSayFor } from './tutor-voice';
@@ -51,18 +52,6 @@ const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-headi
 /** The newest problem-in turn: the one that says what the problem is. */
 function currentProblemTurn(turns: TutorTurn[]): TutorTurn | undefined {
   return turns.filter((t) => t.mode === 'problem-in').sort((a, b) => b.index - a.index)[0];
-}
-
-/** The waiting picture: a spinner and the seconds, no sentence to read. */
-function Waiting({ seconds }: { seconds?: number }) {
-  return (
-    <div role="status" aria-label="Reading the problem" className="flex flex-col items-center py-10 gap-3 text-sf-heading">
-      <svg aria-hidden="true" viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="motion-safe:animate-spin">
-        <path d="M12 3a9 9 0 1 0 9 9" />
-      </svg>
-      {seconds !== undefined && <p className="text-sf-muted text-xl">{`${seconds} second${seconds === 1 ? '' : 's'}`}</p>}
-    </div>
-  );
 }
 
 export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: TutorScreenProps) {
@@ -221,9 +210,9 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     body = <p className="text-sf-muted">Loading...</p>;
   } else if (current && waiting) {
     const seconds = Math.max(0, Math.floor((nowMs - current.sentAt.getTime()) / 1000));
-    body = <Waiting seconds={seconds} />;
+    body = <Waiting label="Reading the problem" seconds={seconds} />;
   } else if (!current && sending) {
-    body = <Waiting />;
+    body = <Waiting label="Reading the problem" />;
   } else if (current && answeredText && retyping !== null) {
     body = (
       <div className="space-y-3">

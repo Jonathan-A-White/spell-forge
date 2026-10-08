@@ -98,6 +98,14 @@ async function readIt(name = 'Read it') {
   fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
 }
 
+/** The waiting state is a picture and the seconds: nothing in it a child has to read. */
+async function expectWaitingPicture() {
+  const waiting = await screen.findByRole('status', { name: 'Waiting' });
+  expect(waiting.textContent).toMatch(/^(\d+ seconds?)?$/);
+  expect(waiting.querySelector('svg')).not.toBeNull();
+  expect(screen.queryByText(/thinking|checking/i)).not.toBeInTheDocument();
+}
+
 beforeEach(async () => {
   await db.delete();
   await db.open();
@@ -132,9 +140,8 @@ describe('hold to read', () => {
     expect(sent.files?.[0].name).toBe('reading-1.webm');
     expect(Array.from(sent.files?.[0].bytes ?? [])).toEqual([9, 8, 7]);
 
-    // waiting: 'Thinking about your reading...' with seconds
-    expect(await screen.findByText('Thinking about your reading...')).toBeInTheDocument();
-    expect(screen.getByText(/^\d+ seconds?$/)).toBeInTheDocument();
+    // waiting: a picture with the seconds, and no sentence
+    await expectWaitingPicture();
 
     // kept: the turn holds the audio blob
     const turns = await tutorRepo.listTurns(session.id);
@@ -328,7 +335,7 @@ describe('push to talk (mw-kuy7rx.5)', () => {
     const { factory, say } = await setup();
     await readIt();
     await waitFor(() => expect(factory.sends).toHaveLength(1));
-    await screen.findByText('Thinking about your reading...');
+    await expectWaitingPicture();
 
     // he presses again, and the reply to the first reading arrives while he holds
     fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
@@ -377,6 +384,20 @@ describe('the answer, by action', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Say it again' }));
     await waitFor(() => expect(say).toHaveBeenCalledTimes(2));
+  });
+
+  it('speaks each prompt once on arrival, and Say it again (an icon, no words) replays it', async () => {
+    const prompt = 'Look at this word, one chunk at a time.';
+    const { say } = await answered({ action: 'reread_word', focus_words: [{ word: 'character', chunks: ['char', 'ac', 'ter'] }], prompt_to_child: prompt });
+    await screen.findByTestId('reread-word', undefined, { timeout: 3000 });
+    await waitFor(() => expect(say).toHaveBeenCalledWith(prompt));
+    await new Promise((r) => setTimeout(r, 100));
+    expect((say.mock.calls as unknown[][]).filter(([line]) => line === prompt)).toHaveLength(1);
+    const again = screen.getByRole('button', { name: 'Say it again' });
+    expect(again.textContent).toBe('');
+    expect(again.querySelector('svg')).not.toBeNull();
+    fireEvent.click(again);
+    await waitFor(() => expect((say.mock.calls as unknown[][]).filter(([line]) => line === prompt)).toHaveLength(2));
   });
 
   it('sends the clip for a word reread with the one word as its target text', async () => {
@@ -577,7 +598,7 @@ describe('the answer, by action', () => {
     expect(await screen.findByText('Good try. Have another go.', undefined, { timeout: 3000 })).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('Good try. Have another go.'));
     expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
-    expect(screen.queryByText('Thinking about your reading...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Waiting' })).not.toBeInTheDocument();
   });
 
   it("continue: 'Nice reading', and 'Now the math' ends the reading loop", async () => {
@@ -657,7 +678,7 @@ describe('the reread loop', () => {
     expect(document.querySelectorAll('mark')).toHaveLength(0);
     expect(say).not.toHaveBeenCalledWith('LATE PROMPT');
     // the second reading is still being answered
-    expect(screen.getByText('Thinking about your reading...')).toBeInTheDocument();
+    await expectWaitingPicture();
     expect(within(document.body).getByRole('button', { name: 'Read it' })).toBeInTheDocument();
   });
 });

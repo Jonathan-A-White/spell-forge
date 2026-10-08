@@ -56,7 +56,14 @@ async function setup(over: Partial<TutorDeps> = {}, opts: { clickMaths?: boolean
   return { session, factory, say, shrink, onBack };
 }
 
-const typeAnswer = async (value: string) => fireEvent.change(await screen.findByLabelText('Your answer'), { target: { value } });
+const typeAnswer = async (value: string) => fireEvent.change(await screen.findByLabelText('Answer'), { target: { value } });
+/** The waiting state is a picture and the seconds: nothing in it a child has to read. */
+async function expectWaitingPicture() {
+  const waiting = await screen.findByRole('status', { name: 'Waiting' });
+  expect(waiting.textContent).toMatch(/^(\d+ seconds?)?$/);
+  expect(waiting.querySelector('svg')).not.toBeNull();
+  expect(screen.queryByText(/thinking|checking/i)).not.toBeInTheDocument();
+}
 const send = () => fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 const pickPhoto = async (name = 'IMG_1.jpg') => {
   const input = (await screen.findByTestId('tutor-work-photo-input')) as HTMLInputElement;
@@ -73,10 +80,10 @@ afterEach(() => {
 });
 
 describe('sending a maths turn', () => {
-  it("opens on 'Your answer' and 'Photo of your work' once the reading is clear", async () => {
+  it("opens on 'Answer' and 'Photo' once the reading is clear", async () => {
     await setup();
-    expect(await screen.findByLabelText('Your answer')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Photo of your work' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Answer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Photo' })).toBeInTheDocument();
     expect(screen.getByText(MATH_PROBLEM)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Read it' })).not.toBeInTheDocument();
   });
@@ -96,7 +103,7 @@ describe('sending a maths turn', () => {
       session_history: [{ mode: 'reading', action: 'continue', prompt_to_child: 'That was clear.' }],
     });
     expect(sent.files).toBeUndefined();
-    expect(await screen.findByText('Checking...')).toBeInTheDocument();
+    await expectWaitingPicture();
     const turn = (await tutorRepo.listTurns(session.id)).find((t) => t.mode === 'math');
     expect(turn).toMatchObject({ status: 'waiting', txid: 'direct:1', request: { child_answer: '8' } });
   });
@@ -105,7 +112,7 @@ describe('sending a maths turn', () => {
     const { factory, session, shrink } = await setup();
     await typeAnswer('8');
     await pickPhoto();
-    expect(await screen.findByText('Photo ready: IMG_1.jpg')).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Photo ready' })).toBeInTheDocument();
     send();
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     expect(shrink).toHaveBeenCalledTimes(1);
@@ -153,7 +160,7 @@ describe('sending a maths turn', () => {
 
   it('has nothing to send until there is an answer or a photo: Send is off and sendMath refuses', async () => {
     const { factory, session } = await setup();
-    await screen.findByLabelText('Your answer');
+    await screen.findByLabelText('Answer');
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
     await typeAnswer('   ');
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
@@ -174,7 +181,7 @@ describe('sending a maths turn', () => {
     await typeAnswer('8');
     send();
     expect(await screen.findByText('Your answer could not be sent. You can try again.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Your answer')).toHaveValue('8');
+    expect(screen.getByLabelText('Answer')).toHaveValue('8');
     expect(factory.sends).toHaveLength(0);
   });
 });
@@ -193,7 +200,7 @@ describe('the answer, by action', () => {
     const { say } = await answered({});
     expect(await screen.findByText('Look at what Anna starts with. What happens when she buys more?', undefined, { timeout: 3000 })).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('Look at what Anna starts with. What happens when she buys more?'));
-    expect(screen.queryByLabelText('Your answer')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Answer')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
     expect(screen.queryByText('What to look at')).not.toBeInTheDocument();
     const shown = document.body.textContent ?? '';
@@ -202,7 +209,32 @@ describe('the answer, by action', () => {
     expect(shown).not.toContain('counting on from the bigger number');
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByLabelText('Your answer')).toHaveValue('');
+    expect(await screen.findByLabelText('Answer')).toHaveValue('');
+  });
+
+  it('speaks the prompt once on arrival, and Say it again (an icon, no words) replays it', async () => {
+    const prompt = 'Look at what Anna starts with. What happens when she buys more?';
+    const { say } = await answered({});
+    await screen.findByText(prompt, undefined, { timeout: 3000 });
+    await waitFor(() => expect(say).toHaveBeenCalledWith(prompt));
+    await new Promise((r) => setTimeout(r, 100));
+    expect((say.mock.calls as unknown[][]).filter(([line]) => line === prompt)).toHaveLength(1);
+    const again = screen.getByRole('button', { name: 'Say it again' });
+    expect(again.textContent).toBe('');
+    expect(again.querySelector('svg')).not.toBeNull();
+    fireEvent.click(again);
+    expect((say.mock.calls as unknown[][]).filter(([line]) => line === prompt)).toHaveLength(2);
+  });
+
+  it('cuts the labels to an icon and a word', async () => {
+    await setup();
+    const label = await screen.findByText('Answer', { selector: 'label' });
+    expect(label.querySelector('svg')).not.toBeNull();
+    for (const name of ['Photo', 'Send']) {
+      const button = screen.getByRole('button', { name });
+      expect(button.textContent).toBe(name);
+      expect(button.querySelector('svg')).not.toBeNull();
+    }
   });
 
   it('no-answer guard: the screen never shows the answer to the problem', async () => {
@@ -218,7 +250,7 @@ describe('the answer, by action', () => {
     const { say } = await answered({ action: 'encourage', math_diagnosis: undefined, prompt_to_child: 'Good try. Have another go.' });
     expect(await screen.findByText('Good try. Have another go.', undefined, { timeout: 3000 })).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('Good try. Have another go.'));
-    expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+    expect(screen.getByLabelText('Answer')).toBeInTheDocument();
   });
 
   it('rewrite: the tip spoken, no maths diagnosis shown, and the boxes ready for a new photo', async () => {
@@ -227,8 +259,8 @@ describe('the answer, by action', () => {
     expect(await screen.findByText(prompt, undefined, { timeout: 3000 })).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith(prompt));
     expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Photo of your work' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Photo' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Answer')).toBeInTheDocument();
   });
 
   it("confirm_answer: \"That's it\" and the prompt to him, not the method or its heading", async () => {
@@ -249,7 +281,7 @@ describe('the answer, by action', () => {
     await waitFor(() => expect(say).toHaveBeenCalledWith('Lovely work today. See you next time.'));
     await waitFor(async () => expect((await tutorRepo.getSession(session.id))?.endedAt).toBeInstanceOf(Date));
     expect((await tutorRepo.getSession(session.id))?.status).toBe('ended');
-    expect(screen.queryByLabelText('Your answer')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Answer')).not.toBeInTheDocument();
     // and he can begin again
     fireEvent.click(screen.getByRole('button', { name: 'Start another' }));
     expect(await screen.findByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
@@ -262,7 +294,7 @@ describe('the answer, by action', () => {
     await waitFor(() => expect(ctx.factory.sends).toHaveLength(1));
     ctx.factory.answers.set('direct:1', { answer: { status: 'failed', reason: 'The maths check was not working.' }, next: 2 });
     expect(await screen.findByText('The maths check was not working.', undefined, { timeout: 3000 })).toBeInTheDocument();
-    expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+    expect(screen.getByLabelText('Answer')).toBeInTheDocument();
   });
 
   it('keeps an answer that arrives after he stopped, marks it stale, and never shows it', async () => {
@@ -303,7 +335,7 @@ describe('Stop for now', () => {
     await waitFor(async () => expect((await tutorRepo.getSession(session.id))?.endedAt).toBeInstanceOf(Date));
     expect((await tutorRepo.getSession(session.id))?.status).toBe('ended');
     expect(await screen.findByText('Stopped for now. Your work is kept.')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Your answer')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Answer')).not.toBeInTheDocument();
   });
 
   it('is there during the reading too, and ends the session', async () => {
@@ -338,7 +370,7 @@ describe('a reload', () => {
     await db.open();
     document.body.innerHTML = '';
     render(<TutorScreen profile={profile} onBack={vi.fn()} deps={{ getKey: async () => key, read: async () => ({ pending: true, next: 1 }), pollIntervalMs: 20 }} />);
-    expect(await screen.findByText('Checking...')).toBeInTheDocument();
+    await expectWaitingPicture();
     expect(screen.queryByRole('button', { name: 'Read it' })).not.toBeInTheDocument();
   });
 });

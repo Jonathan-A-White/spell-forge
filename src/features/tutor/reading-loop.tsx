@@ -1,5 +1,5 @@
 // src/features/tutor/reading-loop.tsx — The read-aloud turn (mw-bhvxcn.9), under the problem the Tutor screen shows:
-// hold 'Read it' to record, let go to send the clip with the target text, wait ('Thinking about your reading...'), then the answer
+// hold 'Read it' to record, let go to send the clip with the target text, wait (a picture and the seconds), then the answer
 // rendered by its action: the focus words lit in the text and broken into chunks, the prompt shown and spoken,
 // and 'Read it' offered again until the grist says the reading is clear. A reread_word answer narrows the screen to the
 // one missed word (big, its parts, a one-line tip, 'Say it again', 'Read the word'); the clips then carry that word as their
@@ -23,6 +23,7 @@ import { hapticError, hapticReady, hapticRelease } from '../../core/haptics';
 import { splitSyllables } from '../../core/phonics';
 import { sendReading, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
+import { SayAgainButton, Waiting } from './pictures';
 import { tutorSayFor } from './tutor-voice';
 
 /** A press shorter than this is a tap, not a reading. */
@@ -427,16 +428,11 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
             {tip && (
               <div className="space-y-3">
                 <p className="text-sf-heading text-lg line-clamp-1">{tip}</p>
-                <button type="button" onClick={() => say(tip)} className={SECONDARY} style={TAP}>Say it again</button>
+                <SayAgainButton onClick={() => say(tip)} className={SECONDARY} style={TAP} />
               </div>
             )}
 
-            {latest && waiting && (
-              <div role="status" className="text-center space-y-1">
-                <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
-                <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
-              </div>
-            )}
+            {latest && waiting && <Waiting label="Waiting" seconds={Math.max(0, Math.floor((nowMs - latest.sentAt.getTime()) / 1000))} />}
 
             {(latest?.status === 'failed' || latest?.status === 'refused') && (
               <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that reading.'}</p>
@@ -488,16 +484,11 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
           {answer && !finished && !wordCleared && (
             <div className="space-y-3">
               <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>
-              <button type="button" onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>
+              <SayAgainButton onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP} />
             </div>
           )}
 
-          {latest && waiting && (
-            <div role="status" className="text-center space-y-1">
-              <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
-              <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
-            </div>
-          )}
+          {latest && waiting && <Waiting label="Waiting" seconds={Math.max(0, Math.floor((nowMs - latest.sentAt.getTime()) / 1000))} />}
 
           {(latest?.status === 'failed' || latest?.status === 'refused') && (
             <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that reading.'}</p>
