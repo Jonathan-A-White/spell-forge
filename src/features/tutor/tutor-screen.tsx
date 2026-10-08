@@ -12,7 +12,7 @@ import { GristInFlight } from '../../grist';
 import { MathLoop } from './math-loop';
 import { ParentGate } from './parent-gate';
 import { ReadingLoop } from './reading-loop';
-import { Waiting } from './pictures';
+import { SayAgainButton, Waiting } from './pictures';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
 import type { ProblemSource, TutorDeps } from './tutor-flow';
 import { tutorSayFor } from './tutor-voice';
@@ -154,6 +154,28 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     sayStart();
   }, [onStartScreen, sayStart]);
 
+  // A photo the tutor turned away (answered, no problem in it): the tutor's own words say why, spoken once as they
+  // arrive; a turn already answered when the screen opened is not spoken again.
+  const turnedAway = current?.status === 'answered' && !answeredText ? current.answer?.prompt_to_child?.trim() || undefined : undefined;
+  const turnedAwayId = turnedAway ? current?.id : undefined;
+  const spokenTurnedAway = useRef<string | null | undefined>(undefined);
+  const sayTurnedAway = useCallback(() => {
+    if (!turnedAway) return;
+    const speak = depsRef.current.say ?? tutorSayFor(profile.id);
+    void Promise.resolve(speak(turnedAway)).catch(() => undefined);
+  }, [turnedAway, profile.id]);
+
+  useEffect(() => {
+    if (!snapshot) return;
+    if (spokenTurnedAway.current === undefined) {
+      spokenTurnedAway.current = turnedAwayId ?? null;
+      return;
+    }
+    if (!turnedAway || !turnedAwayId || spokenTurnedAway.current === turnedAwayId) return;
+    spokenTurnedAway.current = turnedAwayId;
+    sayTurnedAway();
+  }, [snapshot, turnedAway, turnedAwayId, sayTurnedAway]);
+
   const startOver = useCallback(async () => {
     if (session) await tutorRepo.endSession(session.id);
     setRetyping(null);
@@ -252,12 +274,15 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
   } else if (current) {
     const reason =
       current.status === 'answered' || current.status === 'stale'
-        ? 'The tutor could not read a problem there.'
+        ? (turnedAway ?? 'The tutor could not read a problem there.')
         : (current.failureReason ?? 'The tutor could not read the problem.');
     body = (
       <div className="space-y-4">
         <p role="alert" className="text-sf-heading text-lg">{reason}</p>
-        <button onClick={() => void startOver()} className={PRIMARY} style={TAP}>Try again</button>
+        <div className="flex gap-3">
+          <button onClick={() => void startOver()} className={PRIMARY} style={TAP}>Try again</button>
+          {turnedAway && <SayAgainButton onClick={sayTurnedAway} className={SECONDARY} style={TAP} />}
+        </div>
       </div>
     );
   } else {

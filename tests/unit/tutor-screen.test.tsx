@@ -385,3 +385,80 @@ describe('TutorScreen: a reload', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
+
+describe('TutorScreen: a photo turned away (mw-kuy7rx.17)', () => {
+  const TURNED_AWAY = 'Thanks for the photo! This page is a story to read, not a math problem. Take a new photo.';
+  const FIXED_LINE = 'The tutor could not read a problem there.';
+
+  /** A photo problem-in turn (no typed text) put straight into the given state. */
+  async function seedPhotoTurn(over: Partial<import('../../src/contracts').TutorTurn>) {
+    const session = await tutorRepo.createSession({ profileId: profile.id, strictness: 'meaning-gated' });
+    const turn = await tutorRepo.addTurn({
+      sessionId: session.id,
+      mode: 'problem-in',
+      request: { mode: 'problem-in', strictness: 'meaning-gated', session_history: [] },
+    });
+    await db.tutorTurns.put({ ...turn, ...over });
+  }
+
+  const noProblem = (over: Partial<TutorAnswer> = {}) =>
+    answer({ action: 'encourage', target_text: undefined, problem_kind: undefined, prompt_to_child: TURNED_AWAY, ...over });
+
+  it('shows the tutor’s own prompt_to_child, with Try again, when an answered photo has no problem in it', async () => {
+    const factory = fakeFactory();
+    await renderScreen(factory);
+    await screen.findByRole('button', { name: 'Take a photo' });
+    fireEvent.change(screen.getByTestId('tutor-photo-input'), { target: { files: [photoFile()] } });
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+    factory.answers.set('direct:1', { answer: { status: 'answered', answer: noProblem() }, next: 2 });
+
+    expect(await screen.findByRole('alert', undefined, { timeout: 3000 })).toHaveTextContent(TURNED_AWAY);
+    expect(screen.queryByText(FIXED_LINE)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('speaks that prompt once as it arrives, and again on Say it again', async () => {
+    const factory = fakeFactory();
+    const say = vi.fn(async () => undefined);
+    await renderScreen(factory, { say });
+    await screen.findByRole('button', { name: 'Take a photo' });
+    say.mockClear();
+    fireEvent.change(screen.getByTestId('tutor-photo-input'), { target: { files: [photoFile()] } });
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+    factory.answers.set('direct:1', { answer: { status: 'answered', answer: noProblem() }, next: 2 });
+
+    await screen.findByText(TURNED_AWAY, undefined, { timeout: 3000 });
+    await waitFor(() => expect(say).toHaveBeenCalledWith(TURNED_AWAY));
+    expect(say).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Say it again' }));
+    expect(say).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not speak it again when the screen opens on a turn already answered', async () => {
+    await seedPhotoTurn({ status: 'answered', answer: noProblem() });
+    const say = vi.fn(async () => undefined);
+    await renderScreen(fakeFactory(), { say });
+    expect(await screen.findByText(TURNED_AWAY)).toBeInTheDocument();
+    expect(say).not.toHaveBeenCalled();
+  });
+
+  it('keeps the fixed line for an answered turn whose prompt_to_child is empty', async () => {
+    await seedPhotoTurn({ status: 'answered', answer: noProblem({ prompt_to_child: '   ' }) });
+    await renderScreen(fakeFactory());
+    expect(await screen.findByRole('alert')).toHaveTextContent(FIXED_LINE);
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('keeps the fixed line for a stale turn, whatever its kept answer said', async () => {
+    await seedPhotoTurn({ status: 'stale', answer: noProblem() });
+    await renderScreen(fakeFactory());
+    expect(await screen.findByRole('alert')).toHaveTextContent(FIXED_LINE);
+    expect(screen.queryByText(TURNED_AWAY)).not.toBeInTheDocument();
+  });
+
+  it('still shows a failed turn’s failureReason', async () => {
+    await seedPhotoTurn({ status: 'failed', failureReason: 'The factory did not answer in time.' });
+    await renderScreen(fakeFactory());
+    expect(await screen.findByRole('alert')).toHaveTextContent('The factory did not answer in time.');
+  });
+});
