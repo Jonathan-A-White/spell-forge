@@ -1,8 +1,10 @@
 // src/features/tutor/parent-screen.tsx — The Grown-ups screen, behind the PIN gate (parent-gate.tsx): 'This week'
 // and 'Sessions' are filled (mw-kuy7rx.3), a session line opens its page (mw-kuy7rx.4), 'Tutor settings' is
-// filled (mw-kuy7rx.8) and so is 'Notes for the tutor' (mw-kuy7rx.11); 'Ask the tutor' is still to come.
+// filled (mw-kuy7rx.8), and so are 'Notes for the tutor' (mw-kuy7rx.11) and 'Ask the tutor' (mw-kuy7rx.13).
 
 import { useState } from 'react';
+import { AskTheTutor } from './ask-the-tutor';
+import type { ParentAskDeps } from './parent-ask-flow';
 import { ParentSessionPage } from './parent-session-page';
 import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
 import { TutorNotes } from './tutor-notes';
@@ -14,11 +16,11 @@ export interface ParentScreenProps {
   onBack: () => void;
   /** The profile's settings changed here (Tutor settings): the Tutor screen keeps its own copy. */
   onProfileChange?: (profile: Profile) => void;
+  /** The seams Ask the tutor runs on; the real grist client when absent. */
+  deps?: ParentAskDeps;
 }
 
-const COMING = ['Ask the tutor'] as const;
-
-export function ParentScreen({ profileId, onBack, onProfileChange }: ParentScreenProps) {
+export function ParentScreen({ profileId, onBack, onProfileChange, deps }: ParentScreenProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -41,12 +43,7 @@ export function ParentScreen({ profileId, onBack, onProfileChange }: ParentScree
           <>
             <ParentThisWeek profileId={profileId} />
             <ParentSessions profileId={profileId} onOpen={setOpenId} />
-            {COMING.map((title) => (
-              <section key={title} className="rounded-xl bg-sf-surface border border-sf-border p-4">
-                <h2 className="text-sf-heading font-bold text-lg">{title}</h2>
-                <p className="text-sf-muted text-sm">Coming soon.</p>
-              </section>
-            ))}
+            <AskTheTutor profileId={profileId} deps={deps} />
             <TutorSettings profileId={profileId} onProfileChange={onProfileChange} />
             <TutorNotes profileId={profileId} onProfileChange={onProfileChange} />
           </>

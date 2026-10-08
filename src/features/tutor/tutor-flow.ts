@@ -48,7 +48,7 @@ export class TutorUserError extends Error {
   }
 }
 
-const NO_KEY = "This device has no key yet. Open Settings and tap \"This device's key\" to make one.";
+export const NO_KEY = "This device has no key yet. Open Settings and tap \"This device's key\" to make one.";
 const OFFLINE = 'The tutor cannot be reached right now. Check the internet and try again.';
 const NOT_SENT = 'The problem could not be sent. You can try again.';
 const CUT_OFF = 'The problem did not get sent. You can try again.';
@@ -75,7 +75,8 @@ async function parentNotesFor(profileId: string): Promise<Pick<TutorRequest, 'pa
   return notes?.length ? { parent_notes: [...notes] } : {};
 }
 
-function sayWhy(error: unknown, otherwise: string = NOT_SENT): string {
+/** Worded for the person who tapped, from why a send failed. */
+export function sayWhy(error: unknown, otherwise: string = NOT_SENT): string {
   if (error instanceof GristOffline) return OFFLINE;
   if (error instanceof GristUnlicensed || error instanceof GristLimitError) return error.message;
   return otherwise;

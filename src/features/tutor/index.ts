@@ -16,3 +16,6 @@ export { TutorSettings } from './tutor-settings';
 export { TutorNotes } from './tutor-notes';
 export { tutorSayFor } from './tutor-voice';
 export { PARENT_ASK_MAX_QUESTION, PARENT_ASK_SESSIONS, buildParentAskRequest, buildParentAskRequestFor } from './parent-ask-request';
+export { AskTheTutor } from './ask-the-tutor';
+export { PARENT_ASK_HISTORY, failHalfSentAsks, sendParentAsk } from './parent-ask-flow';
+export type { ParentAskDeps } from './parent-ask-flow';

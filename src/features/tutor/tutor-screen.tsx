@@ -339,6 +339,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
       <ParentGate
         profileId={profile.id}
         onExit={() => setView({ kind: 'tutor' })}
+        deps={{ sendGrist: deps.sendGrist, getKey: deps.getKey, fetchImpl: deps.fetchImpl, pollIntervalMs: deps.pollIntervalMs, now: deps.now }}
         onProfileChange={(next) => {
           setStrictness(next.settings.tutorStrictness ?? 'meaning-gated');
           onProfileChange?.(next);
