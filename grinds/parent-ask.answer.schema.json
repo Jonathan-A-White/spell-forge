@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Parent Ask Answer 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["answer", "examples"],
+  "properties": {
+    "answer": {
+      "description": "The reply to the parent's question, in plain words, drawn only from the session summaries given. Says so when the sessions do not show it.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "examples": {
+      "description": "Short examples from the sessions that back the answer (a word he misread, a step he missed), each one a plain sentence. Empty when the sessions give none.",
+      "type": "array",
+      "maxItems": 10,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    }
+  }
+}
