@@ -105,6 +105,9 @@ let consecutiveFailures = 0;
 let cooldownUntil = 0;
 const COOLDOWN_MS = 5_000; // wait 5 s before retrying after all attempts fail
 
+// Bumped by stopSpeaking(): a speak that began before the bump was cancelled on purpose, so it is not retried.
+let speechEpoch = 0;
+
 // ─── Core TTS speak ─────────────────────────────────────────
 
 /** Voice + lang strategy for a single TTS attempt. */
@@ -243,6 +246,7 @@ async function ttsSpeak(text: string, rate: number, languageCode: string = 'en')
 
   const strategies = buildStrategies(languageCode);
   const attempts = Math.min(strategies.length, MAX_ATTEMPTS);
+  const epoch = speechEpoch;
 
   for (let i = 0; i < attempts; i++) {
     const strategy = strategies[i];
@@ -255,12 +259,16 @@ async function ttsSpeak(text: string, rate: number, languageCode: string = 'en')
       const delay = BASE_DELAY_MS * Math.pow(2, i - 1);
       dbg(`ttsSpeak() attempt ${attemptNum - 1} failed — cancel + wait ${delay}ms`);
       await new Promise<void>((r) => setTimeout(r, delay));
+      if (epoch !== speechEpoch) return false;
     }
 
     dbg(`ttsSpeak() attempt ${attemptNum}/${attempts}`, {
       strategy: strategy.label,
     });
     const ok = await trySpeak(text, rate, strategy);
+
+    // stopSpeaking() cancelled it: not a failure, no retry, no cooldown.
+    if (epoch !== speechEpoch) return false;
 
     if (ok) {
       consecutiveFailures = 0;
@@ -384,6 +392,14 @@ export async function sayThenSpell(word: string, language: string = 'en'): Promi
   dbg(`sayThenSpell("${word}", lang=${language})`);
   const spelled = word.split('').join(', ');
   await ttsSpeak(`${word},,,, ${spelled}`, 1, language);
+}
+
+/** Stop whatever is being said, at once, and drop what is queued; the cancelled speech is not retried. */
+export function stopSpeaking(): void {
+  speechEpoch += 1;
+  if (!isTtsAvailable()) return;
+  dbg('stopSpeaking()');
+  window.speechSynthesis.cancel();
 }
 
 /** True when the browser supports speech synthesis. */

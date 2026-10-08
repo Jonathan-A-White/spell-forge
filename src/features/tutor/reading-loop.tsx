@@ -7,12 +7,16 @@
 // With several focus words the screen walks through them in order, one word at a time, before the whole problem returns;
 // a new whole reading with misreads starts the walk again, and only a clear whole reading ends the loop (mw-7wyn4s).
 // Everything shown comes from the turns.
+// The button works like Postern's push-to-talk (mw-kuy7rx.5): pressing stops the tutor talking, a buzz says the microphone is
+// recording, letting go buzzes again, and sliding off the button before letting go drops the attempt (nothing is sent).
+// The tutor never starts speaking while the button is held: a reply that arrives mid-hold is spoken on release.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ReadingRecorder, sayWord } from '../../audio';
+import { ReadingRecorder, sayWord, stopSpeaking } from '../../audio';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorAnswer, TutorSession, TutorTurn } from '../../contracts/types';
+import { hapticError, hapticReady, hapticRelease } from '../../core/haptics';
 import { splitSyllables } from '../../core/phonics';
 import { sendReading, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
@@ -21,6 +25,10 @@ import type { TutorDeps } from './tutor-flow';
 export const MIN_READING_MS = 500;
 
 const TAP_HINT = 'Hold while you read';
+/** Pointer distance outside the button's box beyond which the attempt is dropped. */
+export const SLIDE_OFF_PX = 40;
+const DROPPED_NOTE = 'Dropped. Hold to try again';
+const DROPPED_NOTE_MS = 3000;
 const SEND_FAILED = 'Your reading could not be sent. You can try again.';
 
 const LARGE_TEXT = {
@@ -151,7 +159,13 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   const [heldMs, setHeldMs] = useState(0);
   const [message, setMessage] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const hold = useRef<{ recorder: HoldRecorder; startedAt: number; started: boolean; released: boolean } | null>(null);
+  const [ready, setReady] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const [droppedNote, setDroppedNote] = useState(false);
+  const droppedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hold = useRef<{ recorder: HoldRecorder; startedAt: number; started: boolean; released: boolean; dropped: boolean } | null>(null);
+  // a line that came due while he held the button: spoken on release
+  const heldLine = useRef<string | null>(null);
   const reread = useMemo(() => rereadState(turns), [turns]);
   const rereadWord = reread.word;
   const depsRef = useRef(deps);
@@ -173,6 +187,10 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   }, [holding, waiting]);
 
   const say = useCallback((text: string) => {
+    if (hold.current) {
+      heldLine.current = text;
+      return;
+    }
     const speak = depsRef.current.say ?? ((t: string) => sayWord(t));
     void Promise.resolve(speak(text)).catch(() => undefined);
   }, []);
@@ -187,6 +205,13 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     else if (reread.cleared) say(WORD_CLEARED_LINE);
     else if (reread.advanced) say(NEXT_WORD_LINE);
   }, [latest, say, reread]);
+
+  useEffect(() => {
+    if (holding || heldLine.current === null) return;
+    const line = heldLine.current;
+    heldLine.current = null;
+    say(line);
+  }, [holding, say]);
 
   const sendClip = useCallback(
     async (recording: Recording) => {
@@ -207,6 +232,17 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     async (h: NonNullable<typeof hold.current>) => {
       hold.current = null;
       setHolding(false);
+      setReady(false);
+      setDropping(false);
+      if (h.dropped) {
+        h.recorder.cancel();
+        hapticError();
+        setDroppedNote(true);
+        clearTimeout(droppedTimer.current);
+        droppedTimer.current = setTimeout(() => setDroppedNote(false), DROPPED_NOTE_MS);
+        return;
+      }
+      hapticRelease();
       try {
         await sendClip(await h.recorder.stop());
       } catch {
@@ -219,13 +255,19 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   const press = useCallback(async () => {
     if (hold.current) return;
     setMessage('');
+    setDroppedNote(false);
+    clearTimeout(droppedTimer.current);
+    // the tutor stops talking the moment he presses, before the microphone opens
+    (depsRef.current.stopSpeaking ?? stopSpeaking)();
     const onLimit = (recording: Recording) => {
       hold.current = null;
       setHolding(false);
+      setReady(false);
+      setDropping(false);
       void sendClip(recording);
     };
     const recorder = (depsRef.current.createRecorder ?? ((limit) => new ReadingRecorder(limit)))(onLimit);
-    const h = { recorder, startedAt: Date.now(), started: false, released: false };
+    const h = { recorder, startedAt: Date.now(), started: false, released: false, dropped: false };
     hold.current = h;
     setHeldMs(0);
     setHolding(true);
@@ -234,11 +276,18 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     } catch (error) {
       if (hold.current === h) hold.current = null;
       setHolding(false);
+      setReady(false);
+      setDropping(false);
       setMessage(error instanceof Error && error.message ? error.message : 'The microphone could not be used.');
       return;
     }
     h.started = true;
     h.startedAt = Date.now();
+    // the recorder is recording now: buzz and show the ready state
+    if (hold.current === h) {
+      hapticReady();
+      setReady(true);
+    }
     // he let go while the microphone was still being opened
     if (h.released && hold.current === h) void finish(h);
   }, [finish, sendClip]);
@@ -253,11 +302,22 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     void finish(h);
   }, [finish]);
 
+  // Sliding off the button marks the attempt dropped; sliding back on keeps it.
+  const slide = useCallback((e: ReactPointerEvent<HTMLButtonElement>) => {
+    const h = hold.current;
+    if (!h) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const off = Math.max(box.left - e.clientX, e.clientX - box.right, box.top - e.clientY, e.clientY - box.bottom);
+    h.dropped = off > SLIDE_OFF_PX;
+    setDropping(h.dropped);
+  }, []);
+
   // The screen closing mid-recording lets the microphone go.
   useEffect(
     () => () => {
       hold.current?.recorder.cancel();
       hold.current = null;
+      clearTimeout(droppedTimer.current);
     },
     [],
   );
@@ -273,7 +333,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   const readButton = (
     <button
       type="button"
-      aria-label={holding ? 'Let go to send' : rereading ? 'Read the word' : 'Read it'}
+      aria-label={holding ? (dropping ? 'Let go to drop' : 'Let go to send') : rereading ? 'Read the word' : 'Read it'}
       onPointerDown={(e: ReactPointerEvent<HTMLButtonElement>) => {
         try {
           e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -282,6 +342,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         }
         void press();
       }}
+      onPointerMove={slide}
       onPointerUp={release}
       onPointerCancel={release}
       onKeyDown={(e: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -294,13 +355,21 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         if (e.key === ' ' || e.key === 'Enter') release();
       }}
       onContextMenu={(e) => e.preventDefault()}
-      className={`${holding ? `${BUTTON} bg-red-600 text-white` : PRIMARY} w-full text-2xl select-none`}
+      className={`${holding ? `${BUTTON} ${dropping ? 'bg-gray-600' : ready ? 'bg-red-600' : 'bg-amber-600'} text-white` : PRIMARY} w-full text-2xl select-none`}
       style={{ ...TAP, minHeight: 'calc(var(--sf-tap-target-size) * 2)', touchAction: 'none' }}
     >
       {holding ? (
         <span className="flex items-center justify-center gap-3">
-          <span data-testid="recording-dot" aria-hidden="true" className="inline-block w-4 h-4 rounded-full bg-white animate-pulse" />
-          <span>{seconds(heldMs)}</span>
+          {dropping ? (
+            <span>Let go to drop</span>
+          ) : ready ? (
+            <>
+              <span data-testid="recording-dot" aria-hidden="true" className="inline-block w-4 h-4 rounded-full bg-white animate-pulse" />
+              <span>{seconds(heldMs)}</span>
+            </>
+          ) : (
+            <span>Getting ready...</span>
+          )}
         </span>
       ) : rereading ? (
         'Read the word'
@@ -308,6 +377,13 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         'Read it'
       )}
     </button>
+  );
+
+  const droppedNotice = droppedNote && (
+    <p role="status" className="text-sf-heading text-lg">
+      <span aria-hidden="true">✋ </span>
+      {DROPPED_NOTE}
+    </p>
   );
 
   if (rereading) {
@@ -343,6 +419,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         )}
 
         {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
+        {droppedNotice}
 
         {readButton}
       </div>
@@ -397,6 +474,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
       )}
 
       {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
+      {droppedNotice}
 
       {!finished && readButton}
       {!latest && !holding && (

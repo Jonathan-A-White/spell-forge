@@ -21,3 +21,17 @@ export function hapticError(): void {
 export function hapticSuccess(): void {
   navigator.vibrate?.([15, 40, 15, 40, 30]);
 }
+
+/**
+ * Push-to-talk: the microphone is recording, speak now (30 ms).
+ */
+export function hapticReady(): void {
+  navigator.vibrate?.(30);
+}
+
+/**
+ * Push-to-talk: the button was let go (15 ms).
+ */
+export function hapticRelease(): void {
+  navigator.vibrate?.(15);
+}
