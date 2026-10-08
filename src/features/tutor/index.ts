@@ -4,3 +4,7 @@ export { HALF_SENT_MS, TutorUserError, deviceKey, failHalfSent, sendMath, sendPr
 export type { ProblemSource, TutorDeps } from './tutor-flow';
 export { SessionList, SessionRecord } from './session-record';
 export { sessionAsJson } from './session-json';
+export { ParentGate } from './parent-gate';
+export { ParentScreen } from './parent-screen';
+export { PinPad } from './pin-pad';
+export { checkParentPin, checkRecoveryAnswer, getRecoveryQuestion, hasParentPin, resetParentPin, setParentPin } from './parent-pin';
