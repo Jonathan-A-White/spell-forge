@@ -2,7 +2,7 @@
 //
 // Proves mw-bhvxcn.8 against a real production build in real Chromium: with the sf-tutor flag off Home has no
 // Tutor tile; with it on the tile opens the Tutor screen; a typed problem goes to the factory as a problem-in
-// grist, the screen says 'Reading the problem...', and the answer's target_text shows large in the child's own
+// grist, the screen shows a spinner and the seconds, and the answer's target_text shows large in the child's own
 // font and size; a reload brings the problem back from Dexie.
 //
 // The Postern backend (https://postern.allmymind.org) is answered by page.route, and the stub plays the mill: it
@@ -206,17 +206,18 @@ test.describe('the Tutor screen behind sf-tutor (mw-bhvxcn.8)', () => {
       await expect(tile).toBeVisible();
       await tile.click();
       await expect(page.getByRole('heading', { name: 'Tutor' })).toBeVisible();
-      await expect(page.getByRole('radio', { name: 'Meaning first' })).toBeChecked();
-      await page.getByRole('radio', { name: 'Every word' }).check();
+      await expect(page.getByRole('button', { name: 'Take a photo' })).toBeVisible();
+      await expect(page.getByRole('radio')).toHaveCount(0);
 
       // --- A typed problem goes out as a problem-in grist, and the screen waits ---
+      await page.getByRole('button', { name: 'Type it instead' }).click();
       await page.getByLabel('Type the problem').fill(TYPED);
       await page.screenshot({ path: join(SHOTS, 'tutor-typed.png'), fullPage: true });
       await page.getByRole('button', { name: 'Send' }).click();
-      await expect(page.getByText('Reading the problem...')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole('status')).toBeVisible({ timeout: 15_000 });
       await expect.poll(() => factory.delivered.length, { timeout: 15_000 }).toBe(1);
       expect(factory.delivered[0].grist).toMatchObject({ app: 'spellforge', kind: 'tutor-turn' });
-      expect(factory.delivered[0].input).toMatchObject({ mode: 'problem-in', strictness: 'precision', target_text: TYPED });
+      expect(factory.delivered[0].input).toMatchObject({ mode: 'problem-in', strictness: 'meaning-gated', target_text: TYPED });
       await page.screenshot({ path: join(SHOTS, 'tutor-reading.png'), fullPage: true });
 
       // --- The mill answers: the problem it read shows large, in the child's own font and size ---

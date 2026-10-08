@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
-import { profileRepo, tutorRepo } from '../../src/data/repositories';
+import { tutorRepo } from '../../src/data/repositories';
 import type { Profile, TutorAnswer } from '../../src/contracts';
 import { HomeScreen } from '../../src/features/dashboard/home-screen';
 import { TutorScreen } from '../../src/features/tutor';
@@ -60,16 +60,21 @@ function deps(factory: ReturnType<typeof fakeFactory>, over: Partial<TutorDeps> 
 const profile: Profile = { ...paulProfile, settings: { ...DEFAULT_SETTINGS, fontSize: 32 } };
 
 async function renderScreen(factory: ReturnType<typeof fakeFactory>, over: Partial<TutorDeps> = {}, p: Profile = profile) {
+  over = { say: vi.fn(async () => undefined), ...over };
   await db.profiles.put(p);
   const onProfileChange = vi.fn();
   const view = render(<TutorScreen profile={p} onBack={vi.fn()} onProfileChange={onProfileChange} deps={deps(factory, over)} />);
   return { ...view, onProfileChange };
 }
 
+/** The keyboard path: the small keyboard icon opens the box, then Send. */
 async function typeAndSend(text: string) {
+  fireEvent.click(await screen.findByRole('button', { name: 'Type it instead' }));
   fireEvent.change(await screen.findByLabelText('Type the problem'), { target: { value: text } });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 }
+
+const photoFile = () => new File([new Uint8Array([1, 2, 3, 4])], 'problem.jpg', { type: 'image/jpeg' });
 
 beforeEach(async () => {
   await db.delete();
@@ -129,37 +134,52 @@ describe('the sf-tutor flag and the Home tile', () => {
   });
 });
 
-describe('TutorScreen: strictness', () => {
-  it('offers Meaning first and Every word, Meaning first chosen to begin with', async () => {
+describe('TutorScreen: the start screen is photo-first (mw-kuy7rx.9)', () => {
+  it('shows one big camera button and a small keyboard icon, and no strictness radios', async () => {
     await renderScreen(fakeFactory());
-    expect(await screen.findByRole('radio', { name: 'Meaning first' })).toBeChecked();
-    expect(screen.getByRole('radio', { name: 'Every word' })).not.toBeChecked();
+    expect(await screen.findByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Type it instead' })).toBeInTheDocument();
+    expect(screen.queryByText('How should the tutor help?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Type the problem')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
   });
 
-  it('remembers the choice per profile in Profile.settings, and starts a session with it', async () => {
+  it("sends with the profile's saved strictness (set in Tutor settings)", async () => {
     const factory = fakeFactory();
-    const { onProfileChange, unmount } = await renderScreen(factory);
-    fireEvent.click(await screen.findByRole('radio', { name: 'Every word' }));
-
-    await waitFor(async () => expect((await profileRepo.getById(profile.id))?.settings.tutorStrictness).toBe('precision'));
-    expect(onProfileChange).toHaveBeenCalledWith(
-      expect.objectContaining({ id: profile.id, settings: expect.objectContaining({ tutorStrictness: 'precision' }) }),
-    );
-    unmount();
-
-    // another profile still gets the default; the first profile gets its own choice back
-    const emma: Profile = { ...profile, id: 'profile-emma', name: 'Emma' };
-    const other = await renderScreen(factory, {}, emma);
-    expect(await screen.findByRole('radio', { name: 'Meaning first' })).toBeChecked();
-    other.unmount();
-
-    const saved = (await profileRepo.getById(profile.id)) as Profile;
+    const saved: Profile = { ...profile, settings: { ...profile.settings, tutorStrictness: 'precision' } };
     await renderScreen(factory, {}, saved);
-    expect(await screen.findByRole('radio', { name: 'Every word' })).toBeChecked();
-
     await typeAndSend(PROBLEM);
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     expect((factory.sends[0].input as { strictness: string }).strictness).toBe('precision');
+  });
+
+  it('speaks the prompt once on arrival, and again only when asked with the icon', async () => {
+    const say = vi.fn(async () => undefined);
+    await renderScreen(fakeFactory(), { say });
+    await screen.findByRole('button', { name: 'Take a photo' });
+    await waitFor(() => expect(say).toHaveBeenCalledWith('Take a photo of your problem'));
+    // the screen re-renders (opening the keyboard) without speaking again
+    fireEvent.click(screen.getByRole('button', { name: 'Type it instead' }));
+    await screen.findByLabelText('Type the problem');
+    expect(say).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Say it again' }));
+    expect(say).toHaveBeenCalledTimes(2);
+    expect(say).toHaveBeenLastCalledWith('Take a photo of your problem');
+  });
+
+  it('does not speak the prompt when a session is already under way', async () => {
+    const factory = fakeFactory();
+    const say = vi.fn(async () => undefined);
+    const first = await renderScreen(factory, { say });
+    await typeAndSend(PROBLEM);
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+    await screen.findByRole('status');
+    first.unmount();
+    const again = vi.fn(async () => undefined);
+    await renderScreen(factory, { say: again });
+    await screen.findByRole('status');
+    expect(again).not.toHaveBeenCalled();
   });
 });
 
@@ -185,9 +205,9 @@ describe('TutorScreen: a typed problem', () => {
     expect(factory.sends[0].files ?? []).toHaveLength(0);
 
     // while waiting
-    const waiting = await screen.findByText('Reading the problem...');
-    expect(waiting).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toBeInTheDocument();
     expect(screen.getByText(/\d+ seconds?/)).toBeInTheDocument();
+    expect(screen.queryByText(/reading the problem/i)).not.toBeInTheDocument();
     expect(screen.queryByText(PROBLEM)).not.toBeInTheDocument();
 
     // the factory answers: the problem shows large, in the child's font and size
@@ -196,7 +216,7 @@ describe('TutorScreen: a typed problem', () => {
     expect(shown).toHaveStyle({ fontFamily: 'var(--sf-font-family)', letterSpacing: 'var(--sf-letter-spacing)' });
     expect(shown.style.fontSize).toContain('var(--sf-font-size)');
     expect(screen.getByText(/word problem/i)).toBeInTheDocument();
-    expect(screen.queryByText('Reading the problem...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
     // the record: a session and one answered turn
     const sessions = await db.tutorSessions.toArray();
@@ -211,13 +231,14 @@ describe('TutorScreen: a typed problem', () => {
     const factory = fakeFactory();
     await renderScreen(factory);
     await typeAndSend(PROBLEM);
-    await screen.findByText('Reading the problem...');
+    await screen.findByRole('status');
     expect(await screen.findByText(/^[1-9]\d* seconds?$/, undefined, { timeout: 3500 })).toBeInTheDocument();
   });
 
   it('will not send an empty problem', async () => {
     const factory = fakeFactory();
     await renderScreen(factory);
+    fireEvent.click(await screen.findByRole('button', { name: 'Type it instead' }));
     expect(await screen.findByRole('button', { name: 'Send' })).toBeDisabled();
     expect(factory.sends).toHaveLength(0);
   });
@@ -230,7 +251,7 @@ describe('TutorScreen: a typed problem', () => {
     factory.answers.set('direct:1', { answer: { status: 'refused', reason: 'That is not a problem.' }, next: 2 });
     expect(await screen.findByText('That is not a problem.', undefined, { timeout: 3000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByLabelText('Type the problem')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
   });
 
   it('says so when the problem cannot be sent (no key on this device), and sends nothing', async () => {
@@ -243,20 +264,21 @@ describe('TutorScreen: a typed problem', () => {
 });
 
 describe('TutorScreen: a photo of the problem', () => {
-  it('sends the shrunk photo as an attachment with problem-in, and keeps it as a problem blob', async () => {
+  it('sends itself once the photo is taken, with no further tap, and keeps it as a problem blob', async () => {
     const factory = fakeFactory();
     await renderScreen(factory);
-    expect(await screen.findByRole('button', { name: 'Take a photo of the problem' })).toBeInTheDocument();
+    await screen.findByRole('button', { name: 'Take a photo' });
 
-    const file = new File([new Uint8Array([1, 2, 3, 4])], 'problem.jpg', { type: 'image/jpeg' });
-    fireEvent.change(screen.getByTestId('tutor-photo-input'), { target: { files: [file] } });
-    fireEvent.click(await screen.findByRole('button', { name: 'Send' }));
+    fireEvent.change(screen.getByTestId('tutor-photo-input'), { target: { files: [photoFile()] } });
 
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     expect(factory.sends[0].input).toMatchObject({ mode: 'problem-in' });
     expect(factory.sends[0].files).toHaveLength(1);
     expect(factory.sends[0].files?.[0].mime).toBe('image/jpeg');
     expect(Array.from(factory.sends[0].files?.[0].bytes ?? [])).toEqual([1, 2, 3, 4]);
+    // the screen is waiting, with a picture and the seconds, not a Send button
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
 
     const [session] = await db.tutorSessions.toArray();
     const [turn] = await tutorRepo.listTurns(session.id);
@@ -265,7 +287,7 @@ describe('TutorScreen: a photo of the problem', () => {
     expect(await tutorRepo.getBlob(turn.attachments[0].blobId)).toBeDefined();
   });
 
-  it('says when the photo is too big to send, and sends nothing', async () => {
+  it('says when the photo is too big to send, sends nothing, and offers the camera again', async () => {
     const factory = fakeFactory();
     const { GristLimitError } = await import('../../src/grist');
     await renderScreen(factory, {
@@ -273,11 +295,10 @@ describe('TutorScreen: a photo of the problem', () => {
         throw new GristLimitError('This photo is too big even when shrunk.');
       },
     });
-    const file = new File([new Uint8Array([1])], 'problem.jpg', { type: 'image/jpeg' });
-    fireEvent.change(await screen.findByTestId('tutor-photo-input'), { target: { files: [file] } });
-    fireEvent.click(await screen.findByRole('button', { name: 'Send' }));
+    fireEvent.change(await screen.findByTestId('tutor-photo-input'), { target: { files: [photoFile()] } });
     expect(await screen.findByText('This photo is too big even when shrunk.')).toBeInTheDocument();
     expect(factory.sends).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
   });
 });
 
@@ -336,15 +357,15 @@ describe('TutorScreen: a reload', () => {
     expect(await screen.findByText(PROBLEM)).toBeInTheDocument();
   });
 
-  it("resumes a turn still waiting: 'Reading the problem...' again, then the answer when it comes", async () => {
+  it('resumes a turn still waiting: the waiting picture again, then the answer when it comes', async () => {
     const factory = fakeFactory();
     const first = await renderScreen(factory);
     await typeAndSend(PROBLEM);
-    await screen.findByText('Reading the problem...');
+    await screen.findByRole('status');
     first.unmount();
 
     const again = await renderScreen(factory);
-    expect(await screen.findByText('Reading the problem...')).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toBeInTheDocument();
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: answer() }, next: 2 });
     expect(await screen.findByText(PROBLEM, undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(factory.sends).toHaveLength(1);
@@ -361,6 +382,6 @@ describe('TutorScreen: a reload', () => {
     });
     await renderScreen(fakeFactory());
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
-    expect(screen.queryByText('Reading the problem...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

@@ -252,7 +252,7 @@ describe('the answer, by action', () => {
     expect(screen.queryByLabelText('Your answer')).not.toBeInTheDocument();
     // and he can begin again
     fireEvent.click(screen.getByRole('button', { name: 'Start another' }));
-    expect(await screen.findByLabelText('Type the problem')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
   });
 
   it('says why when the factory refuses the answer, and keeps the boxes', async () => {
@@ -325,7 +325,7 @@ describe('Stop for now', () => {
   it('is not offered before a session has begun', async () => {
     await db.profiles.put(profile);
     render(<TutorScreen profile={profile} onBack={vi.fn()} deps={{ getKey: async () => key }} />);
-    await screen.findByLabelText('Type the problem');
+    await screen.findByRole('button', { name: 'Take a photo' });
     expect(screen.queryByRole('button', { name: 'Stop for now' })).not.toBeInTheDocument();
   });
 });

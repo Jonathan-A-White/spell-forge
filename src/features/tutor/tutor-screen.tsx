@@ -1,22 +1,25 @@
-// src/features/tutor/tutor-screen.tsx — The Tutor (sf-tutor), step one: pick how strict the tutor is, bring a
-// problem in by camera or typed, and see it read back large, in the child's own font and size (mw-bhvxcn.8).
+// src/features/tutor/tutor-screen.tsx — The Tutor (sf-tutor), step one: bring a problem in by camera (the photo
+// sends itself) or typed behind a small keyboard icon, and see it read back large, in the child's own font and size
+// (mw-bhvxcn.8). The start screen is photo-first and speaks its prompt (mw-kuy7rx.9); how strict the tutor is
+// lives in Tutor settings, not here.
 // What is shown comes from the tutor's Dexie tables, live, so a reload picks the session up where it was.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { liveQuery } from 'dexie';
 import type { Profile, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
-import { profileRepo, tutorRepo } from '../../data/repositories';
+import { tutorRepo } from '../../data/repositories';
 import { GristInFlight } from '../../grist';
 import { MathLoop } from './math-loop';
 import { ParentGate } from './parent-gate';
 import { ReadingLoop } from './reading-loop';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
-import type { TutorDeps } from './tutor-flow';
+import type { ProblemSource, TutorDeps } from './tutor-flow';
+import { tutorSayFor } from './tutor-voice';
 
 export interface TutorScreenProps {
   profile: Profile;
   onBack: () => void;
-  /** Called with the profile as it now stands after the child's strictness choice is saved. */
+  /** Called with the profile as it now stands after the Grown-ups screen changes its settings. */
   onProfileChange?: (profile: Profile) => void;
   deps?: TutorDeps;
 }
@@ -30,10 +33,7 @@ type View = { kind: 'tutor' } | { kind: 'parent' };
 
 const STOPPED = 'Stopped for now. Your work is kept.';
 
-const STRICTNESS: { value: TutorStrictness; label: string; hint: string }[] = [
-  { value: 'meaning-gated', label: 'Meaning first', hint: 'Help with the words that get in the way of the meaning.' },
-  { value: 'precision', label: 'Every word', hint: 'Help with every word, even when the meaning is clear.' },
-];
+const START_PROMPT = 'Take a photo of your problem';
 
 /** The problem as the child's own settings show it: his font and weight, and a size well above his reading size. */
 const LARGE_TEXT = {
@@ -53,11 +53,23 @@ function currentProblemTurn(turns: TutorTurn[]): TutorTurn | undefined {
   return turns.filter((t) => t.mode === 'problem-in').sort((a, b) => b.index - a.index)[0];
 }
 
+/** The waiting picture: a spinner and the seconds, no sentence to read. */
+function Waiting({ seconds }: { seconds?: number }) {
+  return (
+    <div role="status" aria-label="Reading the problem" className="flex flex-col items-center py-10 gap-3 text-sf-heading">
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="motion-safe:animate-spin">
+        <path d="M12 3a9 9 0 1 0 9 9" />
+      </svg>
+      {seconds !== undefined && <p className="text-sf-muted text-xl">{`${seconds} second${seconds === 1 ? '' : 's'}`}</p>}
+    </div>
+  );
+}
+
 export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: TutorScreenProps) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [strictness, setStrictness] = useState<TutorStrictness>(profile.settings.tutorStrictness ?? 'meaning-gated');
   const [text, setText] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [typing, setTyping] = useState(false);
   const [sending, setSending] = useState(false);
   const [problemError, setProblemError] = useState('');
   const [retyping, setRetyping] = useState<string | null>(null);
@@ -67,6 +79,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
   /** What the session ended on (its closing line), kept on screen: the ended session is no longer the active one. */
   const [farewell, setFarewell] = useState<string | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
+  const spokenStart = useRef(false);
   const depsRef = useRef(deps);
   useEffect(() => {
     depsRef.current = deps;
@@ -122,30 +135,35 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     void tutorRepo.setProblem(session.id, { targetText: answeredText, problemKind: answeredKind });
   }, [session, answeredText, answeredKind]);
 
-  const chooseStrictness = useCallback(
-    async (next: TutorStrictness) => {
-      setStrictness(next);
-      const settings = { ...profile.settings, tutorStrictness: next };
-      await profileRepo.update(profile.id, { settings });
-      onProfileChange?.({ ...profile, settings });
+  const send = useCallback(
+    async (source: ProblemSource) => {
+      setSending(true);
+      setProblemError('');
+      try {
+        await sendProblem({ profileId: profile.id, strictness, source }, depsRef.current);
+        setText('');
+        setTyping(false);
+      } catch (error) {
+        setProblemError(error instanceof TutorUserError ? error.message : 'The problem could not be sent. You can try again.');
+      } finally {
+        setSending(false);
+      }
     },
-    [profile, onProfileChange],
+    [profile.id, strictness],
   );
 
-  const send = useCallback(async () => {
-    const source = photo ? ({ kind: 'photo', file: photo } as const) : ({ kind: 'text', text } as const);
-    setSending(true);
-    setProblemError('');
-    try {
-      await sendProblem({ profileId: profile.id, strictness, source }, depsRef.current);
-      setText('');
-      setPhoto(null);
-    } catch (error) {
-      setProblemError(error instanceof TutorUserError ? error.message : 'The problem could not be sent. You can try again.');
-    } finally {
-      setSending(false);
-    }
-  }, [photo, text, profile.id, strictness]);
+  const sayStart = useCallback(() => {
+    const speak = depsRef.current.say ?? tutorSayFor(profile.id);
+    void Promise.resolve(speak(START_PROMPT)).catch(() => undefined);
+  }, [profile.id]);
+
+  // The start screen speaks its prompt once, when it first shows on arrival; a session under way is not greeted.
+  const onStartScreen = snapshot !== null && !current && farewell === null;
+  useEffect(() => {
+    if (!onStartScreen || spokenStart.current) return;
+    spokenStart.current = true;
+    sayStart();
+  }, [onStartScreen, sayStart]);
 
   const startOver = useCallback(async () => {
     if (session) await tutorRepo.endSession(session.id);
@@ -203,12 +221,9 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     body = <p className="text-sf-muted">Loading...</p>;
   } else if (current && waiting) {
     const seconds = Math.max(0, Math.floor((nowMs - current.sentAt.getTime()) / 1000));
-    body = (
-      <div role="status" className="text-center py-10 space-y-2">
-        <p className="text-sf-heading font-bold text-2xl">Reading the problem...</p>
-        <p className="text-sf-muted">{`${seconds} second${seconds === 1 ? '' : 's'}`}</p>
-      </div>
-    );
+    body = <Waiting seconds={seconds} />;
+  } else if (!current && sending) {
+    body = <Waiting />;
   } else if (current && answeredText && retyping !== null) {
     body = (
       <div className="space-y-3">
@@ -257,69 +272,71 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
       </div>
     );
   } else {
-    const canSend = !sending && (photo !== null || text.trim().length > 0);
+    const canSend = !sending && text.trim().length > 0;
     body = (
       <div className="space-y-5">
-        <fieldset className="space-y-2">
-          <legend className="text-sf-heading font-bold mb-1">How should the tutor help?</legend>
-          {STRICTNESS.map((option) => (
-            <div key={option.value} className="flex items-start gap-3">
-              <input
-                id={`tutor-strictness-${option.value}`}
-                type="radio"
-                name="tutor-strictness"
-                checked={strictness === option.value}
-                onChange={() => void chooseStrictness(option.value)}
-                aria-describedby={`tutor-strictness-${option.value}-hint`}
-                className="mt-1.5 w-5 h-5"
-              />
-              <div>
-                <label htmlFor={`tutor-strictness-${option.value}`} className="text-sf-heading font-medium">{option.label}</label>
-                <p id={`tutor-strictness-${option.value}-hint`} className="text-sf-muted text-sm">{option.hint}</p>
-              </div>
-            </div>
-          ))}
-        </fieldset>
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          data-testid="tutor-photo-input"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) void send({ kind: 'photo', file });
+          }}
+        />
+        <button
+          onClick={() => photoInput.current?.click()}
+          className={`${PRIMARY} w-full flex flex-col items-center justify-center gap-3 py-10 text-2xl`}
+          style={TAP}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />
+            <circle cx="12" cy="13" r="3.5" />
+          </svg>
+          Take a photo
+        </button>
 
-        <div className="space-y-2">
-          <input
-            ref={photoInput}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            data-testid="tutor-photo-input"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setPhoto(file);
-                setText('');
-                setProblemError('');
-              }
-              e.target.value = '';
-            }}
-          />
-          <button onClick={() => photoInput.current?.click()} className={SECONDARY} style={TAP}>Take a photo of the problem</button>
-          {photo && <p className="text-sf-muted text-sm">{`Photo ready: ${photo.name || 'your photo'}`}</p>}
+        <div className="flex items-center gap-3">
+          <button onClick={sayStart} className={`${SECONDARY} px-3`} style={TAP} aria-label="Say it again">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 5 6 9H3v6h3l5 4z" />
+              <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setTyping((open) => !open)}
+            aria-expanded={typing}
+            aria-label="Type it instead"
+            className={`${SECONDARY} px-3 ml-auto`}
+            style={TAP}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+            </svg>
+          </button>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="tutor-problem-text" className="block text-sf-heading font-bold">Type the problem</label>
-          <textarea
-            id="tutor-problem-text"
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              if (e.target.value) setPhoto(null);
-            }}
-            rows={4}
-            className="w-full rounded-xl border border-sf-border bg-sf-surface p-3 text-sf-text"
-            style={{ fontFamily: 'var(--sf-font-family)', fontSize: 'var(--sf-font-size)' }}
-          />
-        </div>
+        {typing && (
+          <div className="space-y-2">
+            <label htmlFor="tutor-problem-text" className="sr-only">Type the problem</label>
+            <textarea
+              id="tutor-problem-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              className="w-full rounded-xl border border-sf-border bg-sf-surface p-3 text-sf-text"
+              style={{ fontFamily: 'var(--sf-font-family)', fontSize: 'var(--sf-font-size)' }}
+            />
+            <button onClick={() => void send({ kind: 'text', text })} disabled={!canSend} className={PRIMARY} style={TAP}>Send</button>
+          </div>
+        )}
 
         {problemError && <p role="alert" className="text-sf-heading">{problemError}</p>}
-        <button onClick={() => void send()} disabled={!canSend} className={PRIMARY} style={TAP}>Send</button>
       </div>
     );
   }
