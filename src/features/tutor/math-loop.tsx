@@ -1,5 +1,5 @@
-// src/features/tutor/math-loop.tsx — The maths turn (mw-bhvxcn.10), after the reading is clear: 'Your answer' typed
-// and/or a 'Photo of your work', sent as a math turn. The answer comes back by action: a probe shows its
+// src/features/tutor/math-loop.tsx — The maths turn (mw-bhvxcn.10), after the reading is clear: 'Answer' typed
+// and/or a 'Photo', sent as a math turn. The answer comes back by action: a probe shows its
 // prompt_to_child (never the answer) and offers 'Try again'; confirm_answer says "That's it" and its prompt_to_child;
 // done ends the session with a spoken closing line. Everything shown comes from the turns. Only what is for the child
 // is shown: the diagnosis and method stay in the turn's answer for the parent screen (mw-kuy7rx.1).
@@ -9,6 +9,7 @@ import type { TutorSession, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
 import { sendMath, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
+import { CameraIcon, CheckIcon, PencilIcon, RetryIcon, SayAgainButton, SendIcon, Waiting } from './pictures';
 import { tutorSayFor } from './tutor-voice';
 
 const LARGE_TEXT = {
@@ -25,10 +26,7 @@ const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-headi
 
 const SEND_FAILED = 'Your answer could not be sent. You can try again.';
 
-const seconds = (ms: number) => {
-  const whole = Math.max(0, Math.floor(ms / 1000));
-  return `${whole} second${whole === 1 ? '' : 's'}`;
-};
+const ICON_BUTTON = 'inline-flex items-center justify-center gap-2';
 
 export interface MathLoopProps {
   session: TutorSession;
@@ -124,7 +122,7 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
         <div className="space-y-3">
           {confirmed && <p className="text-sf-heading font-bold text-2xl">That&apos;s it</p>}
           <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>
-          <button type="button" onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>
+          <SayAgainButton onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP} />
         </div>
       )}
 
@@ -135,25 +133,20 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
         </div>
       )}
 
-      {latest && waiting && (
-        <div role="status" className="text-center space-y-1">
-          <p className="text-sf-heading font-bold text-2xl">Checking...</p>
-          <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
-        </div>
-      )}
+      {latest && waiting && <Waiting label="Waiting" seconds={Math.max(0, Math.floor((nowMs - latest.sentAt.getTime()) / 1000))} />}
 
       {(latest?.status === 'failed' || latest?.status === 'refused') && (
         <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that answer.'}</p>
       )}
 
       {probing && retriedAfter !== latest?.id && latest && (
-        <button type="button" onClick={() => { setRetriedAfter(latest.id); setText(''); setPhoto(null); }} className={PRIMARY} style={TAP}>Try again</button>
+        <button type="button" onClick={() => { setRetriedAfter(latest.id); setText(''); setPhoto(null); }} className={`${PRIMARY} ${ICON_BUTTON}`} style={TAP}><RetryIcon />Try again</button>
       )}
 
       {showForm && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <label htmlFor="tutor-math-answer" className="block text-sf-heading font-bold">Your answer</label>
+            <label htmlFor="tutor-math-answer" className="flex items-center gap-2 text-sf-heading font-bold"><PencilIcon />Answer</label>
             <input
               id="tutor-math-answer"
               type="text"
@@ -181,11 +174,11 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
               e.target.value = '';
             }}
           />
-          <button type="button" onClick={() => photoInput.current?.click()} className={SECONDARY} style={TAP}>Photo of your work</button>
-          {photo && <p className="text-sf-muted text-sm">{`Photo ready: ${photo.name || 'your photo'}`}</p>}
+          <button type="button" onClick={() => photoInput.current?.click()} className={`${SECONDARY} ${ICON_BUTTON}`} style={TAP}><CameraIcon />Photo</button>
+          {photo && <span role="img" aria-label="Photo ready" className="inline-flex ml-3 align-middle text-sf-heading"><CheckIcon /></span>}
           {message && <p role="alert" className="text-sf-heading">{message}</p>}
           <div>
-            <button type="button" onClick={() => void submit()} disabled={!canSend} className={PRIMARY} style={TAP}>Send</button>
+            <button type="button" onClick={() => void submit()} disabled={!canSend} className={`${PRIMARY} ${ICON_BUTTON}`} style={TAP}>Send<SendIcon /></button>
           </div>
         </div>
       )}
