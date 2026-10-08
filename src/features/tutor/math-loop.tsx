@@ -5,11 +5,11 @@
 // is shown: the diagnosis and method stay in the turn's answer for the parent screen (mw-kuy7rx.1).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { sayWord } from '../../audio';
 import type { TutorSession, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
 import { sendMath, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
+import { tutorSayFor } from './tutor-voice';
 
 const LARGE_TEXT = {
   fontFamily: 'var(--sf-font-family)',
@@ -69,9 +69,9 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
   }, [waiting]);
 
   const say = useCallback((line: string) => {
-    const speak = depsRef.current.say ?? ((t: string) => sayWord(t));
+    const speak = depsRef.current.say ?? tutorSayFor(session.profileId);
     void Promise.resolve(speak(line)).catch(() => undefined);
-  }, []);
+  }, [session.profileId]);
 
   // A new answer is spoken once, as it arrives; answers already there when the screen opened are not.
   const spoken = useRef<Set<string> | null>(null);

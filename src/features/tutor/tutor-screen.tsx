@@ -328,7 +328,18 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     <button onClick={() => void stopForNow()} className={`${SECONDARY} mt-6`} style={TAP}>Stop for now</button>
   );
 
-  if (view.kind === 'parent') return <ParentGate profileId={profile.id} onExit={() => setView({ kind: 'tutor' })} />;
+  if (view.kind === 'parent') {
+    return (
+      <ParentGate
+        profileId={profile.id}
+        onExit={() => setView({ kind: 'tutor' })}
+        onProfileChange={(next) => {
+          setStrictness(next.settings.tutorStrictness ?? 'meaning-gated');
+          onProfileChange?.(next);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-sf-bg">

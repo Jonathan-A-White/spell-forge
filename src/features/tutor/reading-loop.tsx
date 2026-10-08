@@ -16,13 +16,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ReadingRecorder, sayWord, stopSpeaking } from '../../audio';
+import { ReadingRecorder, stopSpeaking } from '../../audio';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorAnswer, TutorSession, TutorTurn } from '../../contracts/types';
 import { hapticError, hapticReady, hapticRelease } from '../../core/haptics';
 import { splitSyllables } from '../../core/phonics';
 import { sendReading, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
+import { tutorSayFor } from './tutor-voice';
 
 /** A press shorter than this is a tap, not a reading. */
 export const MIN_READING_MS = 500;
@@ -212,9 +213,9 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
       heldLine.current = text;
       return;
     }
-    const speak = depsRef.current.say ?? ((t: string) => sayWord(t));
+    const speak = depsRef.current.say ?? tutorSayFor(session.profileId);
     void Promise.resolve(speak(text)).catch(() => undefined);
-  }, []);
+  }, [session.profileId]);
 
   // A new answer is spoken once, as it arrives; answers already there when the screen opened are not.
   const spoken = useRef<Set<string> | null>(null);

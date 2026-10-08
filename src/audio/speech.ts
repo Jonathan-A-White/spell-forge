@@ -235,7 +235,12 @@ function buildStrategies(languageCode: string = 'en'): SpeakStrategy[] {
  *
  * On total failure a short cooldown prevents hammering a broken engine.
  */
-async function ttsSpeak(text: string, rate: number, languageCode: string = 'en'): Promise<boolean> {
+async function ttsSpeak(
+  text: string,
+  rate: number,
+  languageCode: string = 'en',
+  strategies: SpeakStrategy[] = buildStrategies(languageCode),
+): Promise<boolean> {
   // Respect cooldown after repeated failures.
   if (Date.now() < cooldownUntil) {
     dbg('ttsSpeak() skipped — cooling down', {
@@ -244,7 +249,6 @@ async function ttsSpeak(text: string, rate: number, languageCode: string = 'en')
     return false;
   }
 
-  const strategies = buildStrategies(languageCode);
   const attempts = Math.min(strategies.length, MAX_ATTEMPTS);
   const epoch = speechEpoch;
 
@@ -284,6 +288,75 @@ async function ttsSpeak(text: string, rate: number, languageCode: string = 'en')
     cooldownMs: COOLDOWN_MS,
   });
   return false;
+}
+
+// ─── The tutor's voice ──────────────────────────────────────
+
+function allVoices(): SpeechSynthesisVoice[] {
+  return isTtsAvailable() ? window.speechSynthesis.getVoices() : [];
+}
+
+const normaliseLang = (lang: string) => lang.replace('_', '-').toLowerCase();
+const primaryOf = (lang: string) => normaliseLang(lang).split('-')[0];
+
+/**
+ * Postern's rule: the voice matching the language exactly, else one with the same primary subtag, else null
+ * (the browser default).  No ranking of regions: the phone's own order decides among equals.
+ */
+export function pickPosternVoice(voices: SpeechSynthesisVoice[], language: string): SpeechSynthesisVoice | null {
+  const want = normaliseLang(language);
+  return (
+    voices.find((v) => normaliseLang(v.lang) === want) ??
+    voices.find((v) => primaryOf(v.lang) === primaryOf(want)) ??
+    null
+  );
+}
+
+function deviceLanguage(): string {
+  return typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'en-US';
+}
+
+/** The device's voices for the phone's language (what the Voice picker offers). */
+export function listTutorVoices(language: string = deviceLanguage()): SpeechSynthesisVoice[] {
+  const primary = primaryOf(language);
+  return allVoices().filter((v) => primaryOf(v.lang) === primary);
+}
+
+/** Calls back when the device finishes loading its voices (Chrome Android does it late); returns the unsubscribe. */
+export function onVoicesChanged(callback: () => void): () => void {
+  if (!isTtsAvailable()) return () => undefined;
+  const synth = window.speechSynthesis;
+  synth.addEventListener('voiceschanged', callback);
+  return () => synth.removeEventListener('voiceschanged', callback);
+}
+
+/**
+ * The tutor's strategies: the picked voice (else Postern's pick) with no lang, so the voice decides; no pick and
+ * no match is a bare utterance, the browser default.  Then the same fallbacks as everyone: the device default
+ * voice, then a bare utterance.  Only the ranking of spelling practice is skipped.
+ */
+function buildTutorStrategies(voiceURI: string | null | undefined): SpeakStrategy[] {
+  const voices = allVoices();
+  const chosen = (voiceURI ? voices.find((v) => v.voiceURI === voiceURI) : undefined) ?? pickPosternVoice(voices, deviceLanguage());
+  const strategies: SpeakStrategy[] = [];
+  strategies.push(
+    chosen
+      ? { voice: chosen, lang: null, label: `tutor voice ${chosen.name}` }
+      : { voice: null, lang: null, label: 'browser default (no voice, no lang)' },
+  );
+  const defaultVoice = voices.find((v) => v.default) ?? voices[0] ?? null;
+  if (defaultVoice && defaultVoice !== chosen) {
+    const bcp47 = getLanguageConfig('en').bcp47;
+    strategies.push({ voice: defaultVoice, lang: bcp47, label: `default voice (${defaultVoice.name}) + lang=${bcp47}` });
+  }
+  if (chosen) strategies.push({ voice: null, lang: null, label: 'bare-minimum (no voice, no lang)' });
+  return strategies;
+}
+
+/** Say a sentence in the tutor's voice: the picked one (by voiceURI), else the phone's default by Postern's rule. */
+export async function sayAsTutor(text: string, voiceURI?: string | null): Promise<void> {
+  dbg('sayAsTutor()', { text: text.slice(0, 60), voiceURI });
+  await ttsSpeak(text, 1, 'en', buildTutorStrategies(voiceURI));
 }
 
 // ─── Warm-up ────────────────────────────────────────────────

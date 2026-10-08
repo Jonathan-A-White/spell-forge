@@ -68,12 +68,13 @@ export function getPreset(name: string): NamedPreset | undefined {
 
 /**
  * The settings a profile gets when a preset is applied: the preset's look, the profile's current contrast mode
- * (unless the preset names one) and the profile's own tutor strictness, which no preset owns.
+ * (unless the preset names one) and the profile's own tutor strictness and voice, which no preset owns.
  */
 export function presetToSettings(preset: NamedPreset, current: AccessibilitySettings): AccessibilitySettings {
   return validateSettings({
     ...preset.settings,
     contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : current.contrastMode,
     tutorStrictness: current.tutorStrictness,
+    tutorVoice: current.tutorVoice,
   });
 }

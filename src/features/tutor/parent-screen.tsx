@@ -1,19 +1,23 @@
 // src/features/tutor/parent-screen.tsx — The Grown-ups screen, behind the PIN gate (parent-gate.tsx): 'This week'
-// and 'Sessions' are filled (mw-kuy7rx.3) and a session line opens its page (mw-kuy7rx.4); the other two sections
-// are still to come.
+// and 'Sessions' are filled (mw-kuy7rx.3), a session line opens its page (mw-kuy7rx.4) and 'Tutor settings' is
+// filled (mw-kuy7rx.8); 'Ask the tutor' is still to come.
 
 import { useState } from 'react';
 import { ParentSessionPage } from './parent-session-page';
 import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
+import { TutorSettings } from './tutor-settings';
+import type { Profile } from '../../contracts';
 
 export interface ParentScreenProps {
   profileId: string;
   onBack: () => void;
+  /** The profile's settings changed here (Tutor settings): the Tutor screen keeps its own copy. */
+  onProfileChange?: (profile: Profile) => void;
 }
 
-const COMING = ['Ask the tutor', 'Tutor settings'] as const;
+const COMING = ['Ask the tutor'] as const;
 
-export function ParentScreen({ profileId, onBack }: ParentScreenProps) {
+export function ParentScreen({ profileId, onBack, onProfileChange }: ParentScreenProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div className="min-h-screen bg-sf-bg">
@@ -42,6 +46,7 @@ export function ParentScreen({ profileId, onBack }: ParentScreenProps) {
                 <p className="text-sf-muted text-sm">Coming soon.</p>
               </section>
             ))}
+            <TutorSettings profileId={profileId} onProfileChange={onProfileChange} />
           </>
         )}
       </div>

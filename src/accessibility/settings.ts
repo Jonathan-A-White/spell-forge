@@ -49,6 +49,7 @@ export function validateSettings(raw: Partial<AccessibilitySettings>): Accessibi
     ...(base.tutorStrictness && VALID_TUTOR_STRICTNESS.has(base.tutorStrictness)
       ? { tutorStrictness: base.tutorStrictness }
       : {}),
+    ...(typeof base.tutorVoice === 'string' && base.tutorVoice ? { tutorVoice: base.tutorVoice } : {}),
   };
 }
 

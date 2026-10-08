@@ -12,3 +12,5 @@ export { checkParentPin, checkRecoveryAnswer, getRecoveryQuestion, hasParentPin,
 export { ParentSessions, ParentThisWeek } from './parent-sessions-view';
 export { plainDate, plainTurn, sessionLine, sessionLines, weekSummary } from './parent-sessions';
 export type { SessionLineData, SessionWithTurns } from './parent-sessions';
+export { TutorSettings } from './tutor-settings';
+export { tutorSayFor } from './tutor-voice';
