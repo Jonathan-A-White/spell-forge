@@ -12,7 +12,9 @@
 // The tutor never starts speaking while the button is held: a reply that arrives mid-hold is spoken on release.
 // A long problem stays readable while he holds (mw-kuy7rx.6): the text sits in its own vertical scroll area, capped to the screen
 // so it never pushes the button away; the button sits in a footer pinned to the bottom (clear of the phone's bottom edge). The
-// button keeps touch-action none, the text pan-y, so the other hand can scroll the text during a hold.
+// button and the text both take touch-action pan-y, so the other hand can scroll the text during a hold (a touch-action none under
+// the first finger narrows a second finger's pan too, mw-kuy7rx.16). A pan-y button lets the holding finger's own drift start a
+// pan, which would cancel its pointer and end the hold, so a touchmove on the button alone is cancelled while held.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
@@ -325,6 +327,22 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     void finish(h);
   }, [finish]);
 
+  // While held, the holding finger's touchmove is cancelled so its drift never becomes a pan (a pointercancel would end the hold).
+  // A non-passive listener on the button only: the other finger's touches land on the text area and are not touched. The button
+  // element changes between the whole-problem and the one-word views, so the listener follows it through a callback ref.
+  const guarded = useRef<HTMLButtonElement | null>(null);
+  const guardTouchMove = useCallback((e: TouchEvent) => {
+    if (hold.current && e.cancelable) e.preventDefault();
+  }, []);
+  const readButtonRef = useCallback(
+    (el: HTMLButtonElement | null) => {
+      guarded.current?.removeEventListener('touchmove', guardTouchMove);
+      guarded.current = el;
+      el?.addEventListener('touchmove', guardTouchMove, { passive: false });
+    },
+    [guardTouchMove],
+  );
+
   // Sliding off the button marks the attempt dropped; sliding back on keeps it.
   const slide = useCallback((e: ReactPointerEvent<HTMLButtonElement>) => {
     const h = hold.current;
@@ -355,6 +373,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
 
   const readButton = (
     <button
+      ref={readButtonRef}
       type="button"
       aria-label={holding ? (dropping ? 'Let go to drop' : 'Let go to send') : rereading ? 'Read the word' : 'Read it'}
       onPointerDown={(e: ReactPointerEvent<HTMLButtonElement>) => {
@@ -379,7 +398,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
       }}
       onContextMenu={(e) => e.preventDefault()}
       className={`${holding ? `${BUTTON} ${dropping ? 'bg-gray-600' : ready ? 'bg-red-600' : 'bg-amber-600'} text-white` : PRIMARY} w-full text-2xl select-none`}
-      style={{ ...TAP, minHeight: 'calc(var(--sf-tap-target-size) * 2)', touchAction: 'none' }}
+      style={{ ...TAP, minHeight: 'calc(var(--sf-tap-target-size) * 2)', touchAction: 'pan-y' }}
     >
       {holding ? (
         <span className="flex items-center justify-center gap-3">

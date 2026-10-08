@@ -199,8 +199,8 @@ describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () => {
     expect(area.style.overflowY).toBe('auto');
     expect(area.style.touchAction).toBe('pan-y');
     expect(area).not.toContainElement(button);
-    // the button keeps touch-action none, so holding it never starts a scroll
-    expect(button.style.touchAction).toBe('none');
+    // the button lets the other finger pan: a touch-action none under the first finger would narrow the second finger's pan
+    expect(button.style.touchAction).toBe('pan-y');
     // the footer holding the button is pinned and clears the phone's bottom edge
     const footer = screen.getByTestId('reading-footer');
     expect(footer).toContainElement(button);
@@ -219,7 +219,51 @@ describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () => {
     expect(screen.getByTestId('reading-text')).toContainElement(screen.getByText(PROBLEM));
     expect(screen.getByTestId('reading-text')).not.toContainElement(held);
     expect(screen.getByTestId('reading-footer')).toContainElement(held);
-    expect(held.style.touchAction).toBe('none');
+    expect(held.style.touchAction).toBe('pan-y');
+    expect(screen.getByTestId('reading-text').style.overflowY).toBe('auto');
+  });
+});
+
+describe('a second finger scrolls the text while the first holds (mw-kuy7rx.16)', () => {
+  it('guards touchmove on the button only, never on the document or window', async () => {
+    const docAdd = vi.spyOn(document, 'addEventListener');
+    const winAdd = vi.spyOn(window, 'addEventListener');
+    try {
+      await setup();
+      fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+      await screen.findByRole('button', { name: /Let go/ });
+      const touchy = (spy: typeof docAdd) => spy.mock.calls.filter(([type]) => String(type).startsWith('touch'));
+      expect(touchy(docAdd)).toHaveLength(0);
+      expect(touchy(winAdd)).toHaveLength(0);
+    } finally {
+      docAdd.mockRestore();
+      winAdd.mockRestore();
+    }
+  });
+
+  it('a touchmove on the held button does not end the hold, and pointerup still releases it', async () => {
+    const { factory } = await setup();
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    await screen.findByTestId('recording-dot');
+    const held = screen.getByRole('button', { name: /Let go/ });
+    // the guard stops the browser turning the holding finger's drift into a pan (which would cancel the pointer)
+    const move = new Event('touchmove', { bubbles: true, cancelable: true });
+    held.dispatchEvent(move);
+    expect(move.defaultPrevented).toBe(true);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.getByRole('button', { name: /Let go/ })).toBeInTheDocument();
+    expect(screen.getByTestId('recording-dot')).toBeInTheDocument();
+    expect(factory.sends).toHaveLength(0);
+    fireEvent.pointerUp(held);
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+  });
+
+  it('leaves a touchmove on the button alone when nothing is held', async () => {
+    await setup();
+    const button = await screen.findByRole('button', { name: 'Read it' });
+    const move = new Event('touchmove', { bubbles: true, cancelable: true });
+    button.dispatchEvent(move);
+    expect(move.defaultPrevented).toBe(false);
   });
 });
 

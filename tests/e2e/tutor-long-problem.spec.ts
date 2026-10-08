@@ -2,7 +2,7 @@
 //
 // Proves mw-kuy7rx.6 in real Chromium on a phone-sized screen (390x844): a 20-line problem sits in its own scroll area
 // above the 'Read it' button, the button stays in view (pinned at the bottom) and the text scrolls; the button keeps
-// touch-action none and the text area pan-y, so a second finger can scroll the text during a hold.
+// touch-action pan-y and the text area pan-y, so a second finger can scroll the text during a hold.
 //
 // The session is put straight into Dexie (a session and its answered problem turn) the way the Tutor screen would have
 // left it. Same setup as tutor-reread.spec.ts: builds dist/ itself and serves it with `vite preview` on port 4173. Not
@@ -136,7 +136,7 @@ test.describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () =
       expect(metrics.touchAction).toBe('pan-y');
       expect(metrics.scroll, 'the 20 lines overflow the text area').toBeGreaterThan(metrics.client);
       expect(metrics.top).toBe(0);
-      expect(await button.evaluate((el) => getComputedStyle(el).touchAction)).toBe('none');
+      expect(await button.evaluate((el) => getComputedStyle(el).touchAction)).toBe('pan-y');
       expect(await area.evaluate((el, b) => el.contains(b), await button.elementHandle())).toBe(false);
       const before = await button.boundingBox();
 
