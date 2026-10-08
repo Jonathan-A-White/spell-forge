@@ -7,6 +7,7 @@ import { tutorRepo } from '../../src/data/repositories';
 import type { TutorAnswer, TutorMode } from '../../src/contracts';
 import {
   GristInFlight,
+  TUTOR_POLL_IN_FLIGHT_MS,
   TUTOR_POLL_INTERVAL_MS,
   TUTOR_TURN_DEADLINE_MS,
   TUTOR_TURN_GRIND,
@@ -56,6 +57,7 @@ beforeEach(async () => {
 });
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('GristInFlight.pass', () => {
@@ -142,9 +144,10 @@ describe('GristInFlight.pass', () => {
 });
 
 describe('GristInFlight deadline', () => {
-  it('has 180 s and polls every 5 s', () => {
+  it('has 180 s, and polls every 1 s in flight and every 5 s idle', () => {
     expect(TUTOR_TURN_DEADLINE_MS).toBe(180_000);
     expect(TUTOR_POLL_INTERVAL_MS).toBe(5_000);
+    expect(TUTOR_POLL_IN_FLIGHT_MS).toBe(1_000);
   });
 
   it('fails a turn still unanswered 180 s after it was sent, and not one second sooner', async () => {
@@ -204,6 +207,65 @@ describe('GristInFlight.start', () => {
     vi.advanceTimersByTime(TUTOR_POLL_INTERVAL_MS * 3);
     window.dispatchEvent(new Event('online'));
     expect(spy).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('GristInFlight.start cadence', () => {
+  const fakeTurn = (txid: string) =>
+    ({ id: txid, txid, mill: 'aa', seq: 0, sentAt: new Date(), status: 'waiting' }) as unknown as Awaited<ReturnType<typeof tutorRepo.listWaiting>>[number];
+
+  it('polls every second while a turn is in flight, and not at all once it is answered', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const waiting = [fakeTurn('direct:a')];
+    vi.spyOn(tutorRepo, 'listWaiting').mockImplementation(async () => waiting);
+    const { read, calls } = fakeRead(new Map());
+    const inFlight = new GristInFlight({ getKey: async () => key, read });
+
+    const stop = inFlight.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toHaveLength(1);
+
+    // the first tick is still on the idle cadence; from then on the loop is at one second
+    await vi.advanceTimersByTimeAsync(TUTOR_POLL_INTERVAL_MS);
+    const afterSwitch = calls.length;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(calls.length - afterSwitch).toBe(5);
+
+    // answered: nothing is waiting, so nothing is read, however long we wait
+    waiting.length = 0;
+    await vi.advanceTimersByTimeAsync(1_000);
+    const afterAnswer = calls.length;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(calls).toHaveLength(afterAnswer);
+    stop();
+  });
+
+  it('is back on the 5 s cadence once nothing is in flight', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const waiting = [fakeTurn('direct:a')];
+    vi.spyOn(tutorRepo, 'listWaiting').mockImplementation(async () => waiting);
+    const inFlight = new GristInFlight({ getKey: async () => key, read: fakeRead(new Map()).read });
+    const passSpy = vi.spyOn(inFlight, 'pass');
+
+    const stop = inFlight.start();
+    await vi.advanceTimersByTimeAsync(TUTOR_POLL_INTERVAL_MS);
+    waiting.length = 0;
+    await vi.advanceTimersByTimeAsync(1_000); // one more fast tick sees the empty table and slows the loop
+    const before = passSpy.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(passSpy.mock.calls.length - before).toBe(2);
+    stop();
+  });
+
+  it('keeps a fixed cadence when one is given', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    vi.spyOn(tutorRepo, 'listWaiting').mockImplementation(async () => [fakeTurn('direct:a')]);
+    const inFlight = new GristInFlight({ getKey: async () => key, read: fakeRead(new Map()).read });
+    const passSpy = vi.spyOn(inFlight, 'pass');
+    const stop = inFlight.start(20);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(passSpy.mock.calls.length).toBe(11);
+    stop();
   });
 });
 

@@ -46,6 +46,7 @@ beforeEach(async () => {
 });
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('parentAskRepo', () => {
@@ -179,6 +180,30 @@ describe('ParentAskInFlight.start', () => {
     vi.advanceTimersByTime(TUTOR_POLL_INTERVAL_MS * 3);
     window.dispatchEvent(new Event('online'));
     expect(spy).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('ParentAskInFlight.start cadence', () => {
+  it('polls every second while an ask is in flight, and not at all once it is answered', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const waiting = [{ id: 'a', txid: 'direct:a', mill: 'aa', seq: 0, askedAt: new Date(), status: 'waiting' }] as unknown as Awaited<
+      ReturnType<typeof parentAskRepo.listWaiting>
+    >;
+    vi.spyOn(parentAskRepo, 'listWaiting').mockImplementation(async () => waiting);
+    const { read, calls } = fakeRead(new Map());
+    const stop = new ParentAskInFlight({ getKey: async () => key, read }).start();
+
+    await vi.advanceTimersByTimeAsync(TUTOR_POLL_INTERVAL_MS);
+    const afterSwitch = calls.length;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(calls.length - afterSwitch).toBe(5);
+
+    waiting.length = 0;
+    await vi.advanceTimersByTimeAsync(1_000);
+    const afterAnswer = calls.length;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(calls).toHaveLength(afterAnswer);
+    stop();
   });
 });
 

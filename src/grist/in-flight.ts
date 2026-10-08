@@ -1,17 +1,17 @@
 // src/grist/in-flight.ts — Any number of tutor turns in flight at once, each answer applied to its own turn as
-// it arrives, in whatever order. One pass reads for every waiting txid (every 5 s, when the browser comes online,
-// on load); a turn still unanswered 180 s after it was sent is failed. Everything a pass needs is in the
-// tutorTurns table, never in memory, so a reload loses nothing.
+// it arrives, in whatever order. One pass reads for every waiting txid (every 1 s while one is waiting, every 5 s
+// when none is, when the browser comes online, on load); a turn still unanswered 180 s after it was sent is failed.
+// Everything a pass needs is in the tutorTurns table, never in memory, so a reload loses nothing.
 
 import type { PrivateKey } from '@bsv/sdk';
 import type { TutorAnswer, TutorTurn, TutorTurnResult } from '../contracts/types';
 import { tutorRepo } from '../data/repositories/tutor-repo';
 import { readAnswer } from './read-answer';
 import type { ReadAnswerParams, ReadAnswerResult } from './read-answer';
+import { TUTOR_POLL_IN_FLIGHT_MS, TUTOR_POLL_INTERVAL_MS, startPolling } from './poll';
 import { isTutorAnswer, pickReadingResult } from './tutor-answer';
 
-/** How often a pass runs while the app is open. A pass with nothing waiting asks the network nothing. */
-export const TUTOR_POLL_INTERVAL_MS = 5_000;
+export { TUTOR_POLL_IN_FLIGHT_MS, TUTOR_POLL_INTERVAL_MS };
 /** How long the factory has to answer one turn. */
 export const TUTOR_TURN_DEADLINE_MS = 180_000;
 
@@ -28,24 +28,18 @@ export interface GristInFlightDeps {
 
 export class GristInFlight {
   private running: Promise<void> | undefined;
+  /** Whether the last pass found anything waiting: it sets the pace of `start`. */
+  private anyWaiting = false;
   private readonly deps: GristInFlightDeps;
 
   constructor(deps: GristInFlightDeps) {
     this.deps = deps;
   }
 
-  /** Passes on load, every 5 s (or `intervalMs`) and on `online`. Returns the function that stops all three. */
-  start(intervalMs: number = TUTOR_POLL_INTERVAL_MS): () => void {
-    const run = () => {
-      void this.pass();
-    };
-    run();
-    const timer = setInterval(run, intervalMs);
-    window.addEventListener('online', run);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('online', run);
-    };
+  /** Passes on load, on `online` and on a timer: every 1 s while anything is waiting, every 5 s otherwise (or every
+   *  `intervalMs`, fixed). Returns the function that stops it. */
+  start(intervalMs?: number): () => void {
+    return startPolling(() => this.pass(), () => this.anyWaiting, intervalMs);
   }
 
   /** One pass over every waiting turn. A pass already running is joined, not doubled. */
@@ -60,6 +54,7 @@ export class GristInFlight {
 
   private async runPass(): Promise<void> {
     const waiting = (await tutorRepo.listWaiting()).filter((turn) => turn.txid && turn.mill);
+    this.anyWaiting = waiting.length > 0;
     if (waiting.length === 0) return;
     const key = await this.deps.getKey();
     if (!key) return;

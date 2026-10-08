@@ -1,14 +1,14 @@
 // src/grist/parent-ask-in-flight.ts — Any number of parent asks in flight at once, each answer applied to its own
-// ask as it arrives. The same pass as GristInFlight (every 5 s, when the browser comes online, on load; a deadline
-// of 180 s), over the parentAsks table instead of tutorTurns. Everything a pass needs is in the table, never in
-// memory, so a reload loses nothing.
+// ask as it arrives. The same pass as GristInFlight (every 1 s while one is waiting, every 5 s when none is, when
+// the browser comes online, on load; a deadline of 180 s), over the parentAsks table instead of tutorTurns.
+// Everything a pass needs is in the table, never in memory, so a reload loses nothing.
 
 import type { PrivateKey } from '@bsv/sdk';
 import type { ParentAsk, ParentAskAnswer } from '../contracts/types';
 import { parentAskRepo } from '../data/repositories/parent-ask-repo';
 import { readAnswer } from './read-answer';
 import type { ReadAnswerParams, ReadAnswerResult } from './read-answer';
-import { TUTOR_POLL_INTERVAL_MS } from './in-flight';
+import { startPolling } from './poll';
 import { isParentAskAnswer } from './parent-ask';
 
 /** How long the factory has to answer one ask. */
@@ -27,24 +27,18 @@ export interface ParentAskInFlightDeps {
 
 export class ParentAskInFlight {
   private running: Promise<void> | undefined;
+  /** Whether the last pass found anything waiting: it sets the pace of `start`. */
+  private anyWaiting = false;
   private readonly deps: ParentAskInFlightDeps;
 
   constructor(deps: ParentAskInFlightDeps) {
     this.deps = deps;
   }
 
-  /** Passes on load, every 5 s (or `intervalMs`) and on `online`. Returns the function that stops all three. */
-  start(intervalMs: number = TUTOR_POLL_INTERVAL_MS): () => void {
-    const run = () => {
-      void this.pass();
-    };
-    run();
-    const timer = setInterval(run, intervalMs);
-    window.addEventListener('online', run);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('online', run);
-    };
+  /** Passes on load, on `online` and on a timer: every 1 s while anything is waiting, every 5 s otherwise (or every
+   *  `intervalMs`, fixed). Returns the function that stops it. */
+  start(intervalMs?: number): () => void {
+    return startPolling(() => this.pass(), () => this.anyWaiting, intervalMs);
   }
 
   /** One pass over every waiting ask. A pass already running is joined, not doubled. */
@@ -59,6 +53,7 @@ export class ParentAskInFlight {
 
   private async runPass(): Promise<void> {
     const waiting = (await parentAskRepo.listWaiting()).filter((ask) => ask.txid && ask.mill);
+    this.anyWaiting = waiting.length > 0;
     if (waiting.length === 0) return;
     const key = await this.deps.getKey();
     if (!key) return;
