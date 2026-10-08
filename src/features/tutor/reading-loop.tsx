@@ -10,6 +10,9 @@
 // The button works like Postern's push-to-talk (mw-kuy7rx.5): pressing stops the tutor talking, a buzz says the microphone is
 // recording, letting go buzzes again, and sliding off the button before letting go drops the attempt (nothing is sent).
 // The tutor never starts speaking while the button is held: a reply that arrives mid-hold is spoken on release.
+// A long problem stays readable while he holds (mw-kuy7rx.6): the text sits in its own vertical scroll area, capped to the screen
+// so it never pushes the button away; the button sits in a footer pinned to the bottom (clear of the phone's bottom edge). The
+// button keeps touch-action none, the text pan-y, so the other hand can scroll the text during a hold.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
@@ -42,6 +45,10 @@ const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 const BUTTON = 'px-5 rounded-xl font-bold transition-all active:scale-[0.97] disabled:opacity-50';
 const PRIMARY = `${BUTTON} bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover`;
 const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-heading hover:border-sf-border-strong`;
+const TEXT_AREA = { overflowY: 'auto', touchAction: 'pan-y' } as const;
+/** Classes, not inline styles: the text area is capped to what is left of the screen above the pinned button, and the footer clears the phone's bottom edge. */
+const TEXT_AREA_CLASS = 'max-h-[max(8rem,calc(100dvh-22rem))] overscroll-contain';
+const FOOTER_CLASS = 'sticky bottom-0 z-10 bg-sf-bg pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]';
 const MARK = 'bg-yellow-200 text-black rounded px-1';
 
 export interface ReadingLoopProps {
@@ -153,6 +160,20 @@ const NEXT_WORD_LINE = 'Now this word.';
 
 /** Said and shown once a reread word is cleared: the screen waits for the whole problem, never for solving (mw-eezwdm). */
 const WORD_CLEARED_LINE = 'Now read the whole problem again.';
+
+/** The text in its own scroll area above; what the child presses (and what is said to him about it) pinned below. */
+function Pinned({ text, footer }: { text: React.ReactNode; footer: React.ReactNode }) {
+  return (
+    <div className="space-y-4">
+      <div data-testid="reading-text" className={`space-y-4 ${TEXT_AREA_CLASS}`} style={TEXT_AREA}>
+        {text}
+      </div>
+      <div data-testid="reading-footer" className={`space-y-3 ${FOOTER_CLASS}`}>
+        {footer}
+      </div>
+    </div>
+  );
+}
 
 export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMaths }: ReadingLoopProps) {
   const [holding, setHolding] = useState(false);
@@ -390,96 +411,109 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     // the tip stays up while the next reading is out
     const tip = reread.tip;
     return (
-      <div className="space-y-4">
-        <div className="text-center space-y-2">
-          <p data-testid="reread-word" className="text-sf-heading font-bold break-words" style={{ ...LARGE_TEXT, fontSize: 'calc(var(--sf-font-size) * 2.5)' }}>
-            {rereadWord}
-          </p>
-          <p data-testid="focus-chunks" className="text-sf-heading font-bold" style={LARGE_TEXT}>
-            {reread.chunks.join(' · ')}
-          </p>
-        </div>
+      <Pinned
+        text={
+          <>
+            <div className="text-center space-y-2">
+              <p data-testid="reread-word" className="text-sf-heading font-bold break-words" style={{ ...LARGE_TEXT, fontSize: 'calc(var(--sf-font-size) * 2.5)' }}>
+                {rereadWord}
+              </p>
+              <p data-testid="focus-chunks" className="text-sf-heading font-bold" style={LARGE_TEXT}>
+                {reread.chunks.join(' · ')}
+              </p>
+            </div>
 
-        {tip && (
-          <div className="space-y-3">
-            <p className="text-sf-heading text-lg line-clamp-1">{tip}</p>
-            <button type="button" onClick={() => say(tip)} className={SECONDARY} style={TAP}>Say it again</button>
-          </div>
-        )}
+            {tip && (
+              <div className="space-y-3">
+                <p className="text-sf-heading text-lg line-clamp-1">{tip}</p>
+                <button type="button" onClick={() => say(tip)} className={SECONDARY} style={TAP}>Say it again</button>
+              </div>
+            )}
 
-        {latest && waiting && (
-          <div role="status" className="text-center space-y-1">
-            <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
-            <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
-          </div>
-        )}
+            {latest && waiting && (
+              <div role="status" className="text-center space-y-1">
+                <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
+                <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
+              </div>
+            )}
 
-        {(latest?.status === 'failed' || latest?.status === 'refused') && (
-          <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that reading.'}</p>
-        )}
-
-        {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
-        {droppedNotice}
-
-        {readButton}
-      </div>
+            {(latest?.status === 'failed' || latest?.status === 'refused') && (
+              <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that reading.'}</p>
+            )}
+          </>
+        }
+        footer={
+          <>
+            {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
+            {droppedNotice}
+            {readButton}
+          </>
+        }
+      />
     );
   }
 
   const focusWords = answer?.focus_words ?? [];
   return (
-    <div className="space-y-4">
-      <p className="text-sf-heading whitespace-pre-wrap" style={LARGE_TEXT}>
-        {sentence || wordFocus ? litText(targetText, focusWords.map((f) => f.word), sentence) : targetText}
-      </p>
+    <Pinned
+      text={
+        <>
+          <p className="text-sf-heading whitespace-pre-wrap" style={LARGE_TEXT}>
+            {sentence || wordFocus ? litText(targetText, focusWords.map((f) => f.word), sentence) : targetText}
+          </p>
 
-      {wordFocus && focusWords.length > 0 && (
-        <ul className="space-y-2">
-          {focusWords.map((focus) => (
-            <li key={focus.word} className="flex flex-wrap items-baseline gap-3">
-              <span className="text-sf-muted text-sm">{focus.word}</span>
-              <span data-testid="focus-chunks" className="text-sf-heading font-bold" style={LARGE_TEXT}>
-                {chunksOf(focus).join(' · ')}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+          {wordFocus && focusWords.length > 0 && (
+            <ul className="space-y-2">
+              {focusWords.map((focus) => (
+                <li key={focus.word} className="flex flex-wrap items-baseline gap-3">
+                  <span className="text-sf-muted text-sm">{focus.word}</span>
+                  <span data-testid="focus-chunks" className="text-sf-heading font-bold" style={LARGE_TEXT}>
+                    {chunksOf(focus).join(' · ')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {answer && finished && (
-        <div role="status" className="space-y-3">
-          <p className="text-sf-heading font-bold text-2xl">Nice reading</p>
-          <button type="button" onClick={onMaths} className={PRIMARY} style={TAP}>Now the math</button>
-        </div>
-      )}
+          {answer && finished && (
+            <div role="status" className="space-y-3">
+              <p className="text-sf-heading font-bold text-2xl">Nice reading</p>
+              <button type="button" onClick={onMaths} className={PRIMARY} style={TAP}>Now the math</button>
+            </div>
+          )}
 
-      {answer && wordCleared && <p className="text-sf-heading text-xl">{WORD_CLEARED_LINE}</p>}
+          {answer && wordCleared && <p className="text-sf-heading text-xl">{WORD_CLEARED_LINE}</p>}
 
-      {answer && !finished && !wordCleared && (
-        <div className="space-y-3">
-          <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>
-          <button type="button" onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>
-        </div>
-      )}
+          {answer && !finished && !wordCleared && (
+            <div className="space-y-3">
+              <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>
+              <button type="button" onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>
+            </div>
+          )}
 
-      {latest && waiting && (
-        <div role="status" className="text-center space-y-1">
-          <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
-          <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
-        </div>
-      )}
+          {latest && waiting && (
+            <div role="status" className="text-center space-y-1">
+              <p className="text-sf-heading font-bold text-2xl">Thinking about your reading...</p>
+              <p className="text-sf-muted">{seconds(nowMs - latest.sentAt.getTime())}</p>
+            </div>
+          )}
 
-      {(latest?.status === 'failed' || latest?.status === 'refused') && (
-        <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that reading.'}</p>
-      )}
+          {(latest?.status === 'failed' || latest?.status === 'refused') && (
+            <p role="alert" className="text-sf-heading text-lg">{latest.failureReason ?? 'The tutor could not use that reading.'}</p>
+          )}
 
-      {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
-      {droppedNotice}
-
-      {!finished && readButton}
-      {!latest && !holding && (
-        <button type="button" onClick={onRetype} className={SECONDARY} style={TAP}>That&apos;s not it</button>
-      )}
-    </div>
+          {!latest && !holding && (
+            <button type="button" onClick={onRetype} className={SECONDARY} style={TAP}>That&apos;s not it</button>
+          )}
+        </>
+      }
+      footer={
+        <>
+          {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
+          {droppedNotice}
+          {!finished && readButton}
+        </>
+      }
+    />
   );
 }

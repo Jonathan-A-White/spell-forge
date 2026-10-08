@@ -183,6 +183,39 @@ describe('hold to read', () => {
   });
 });
 
+describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () => {
+  it('puts the problem in its own vertical scroll area and the button outside it, pinned at the bottom', async () => {
+    await setup();
+    const button = await screen.findByRole('button', { name: 'Read it' });
+    const area = screen.getByTestId('reading-text');
+    expect(area).toContainElement(screen.getByText(PROBLEM));
+    expect(area.style.overflowY).toBe('auto');
+    expect(area.style.touchAction).toBe('pan-y');
+    expect(area).not.toContainElement(button);
+    // the button keeps touch-action none, so holding it never starts a scroll
+    expect(button.style.touchAction).toBe('none');
+    // the footer holding the button is pinned and clears the phone's bottom edge
+    const footer = screen.getByTestId('reading-footer');
+    expect(footer).toContainElement(button);
+    expect(area).not.toContainElement(footer);
+    expect(footer.className).toMatch(/sticky/);
+    expect(footer.className).toMatch(/bottom-0/);
+    expect(footer.className).toMatch(/env\(safe-area-inset-bottom\)/);
+    // the text area is capped to the screen, so a long problem never pushes the button away
+    expect(area.className).toMatch(/max-h-\[[^\]]*dvh/);
+  });
+
+  it('keeps the scroll area and the button outside it while the button is held', async () => {
+    await setup();
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    const held = await screen.findByRole('button', { name: /Let go/ });
+    expect(screen.getByTestId('reading-text')).toContainElement(screen.getByText(PROBLEM));
+    expect(screen.getByTestId('reading-text')).not.toContainElement(held);
+    expect(screen.getByTestId('reading-footer')).toContainElement(held);
+    expect(held.style.touchAction).toBe('none');
+  });
+});
+
 describe('push to talk (mw-kuy7rx.5)', () => {
   const vibrate = vi.fn();
   beforeEach(() => {
