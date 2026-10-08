@@ -189,23 +189,25 @@ describe('the answer, by action', () => {
     return ctx;
   }
 
-  it('math_probe: the prompt shown and spoken, where it went wrong and the gap in a box, then Try again', async () => {
+  it('math_probe: only the prompt to him is shown and spoken, none of the diagnosis, then Try again', async () => {
     const { say } = await answered({});
-    const box = await screen.findByRole('region', { name: 'What to look at' }, { timeout: 3000 });
-    expect(box).toHaveTextContent('you took the apples away instead of putting them together');
-    expect(box).toHaveTextContent('knowing that buying more means adding');
-    expect(screen.getByText('Look at what Anna starts with. What happens when she buys more?')).toBeInTheDocument();
+    expect(await screen.findByText('Look at what Anna starts with. What happens when she buys more?', undefined, { timeout: 3000 })).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('Look at what Anna starts with. What happens when she buys more?'));
     expect(screen.queryByLabelText('Your answer')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
+    expect(screen.queryByText('What to look at')).not.toBeInTheDocument();
+    const shown = document.body.textContent ?? '';
+    expect(shown).not.toContain('you took the apples away instead of putting them together');
+    expect(shown).not.toContain('knowing that buying more means adding');
+    expect(shown).not.toContain('counting on from the bigger number');
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByLabelText('Your answer')).toHaveValue('');
-    expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
   });
 
   it('no-answer guard: the screen never shows the answer to the problem', async () => {
     await answered({});
-    await screen.findByRole('region', { name: 'What to look at' }, { timeout: 3000 });
+    await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 });
     const shown = document.body.textContent ?? '';
     expect(shown).not.toMatch(new RegExp(`(?<![\\d.])${EXPECTED_ANSWER}(?![\\d.])`));
     // not even the method before he has got it
@@ -229,10 +231,13 @@ describe('the answer, by action', () => {
     expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
   });
 
-  it("confirm_answer: \"That's it\" and the method used", async () => {
+  it("confirm_answer: \"That's it\" and the prompt to him, not the method or its heading", async () => {
     const { say } = await answered({ action: 'confirm_answer', prompt_to_child: 'You got it by counting on.', layer_diagnosis: 'none' });
     expect(await screen.findByText("That's it", undefined, { timeout: 3000 })).toBeInTheDocument();
-    expect(screen.getByText('counting on from the bigger number')).toBeInTheDocument();
+    expect(screen.getByText('You got it by counting on.')).toBeInTheDocument();
+    expect(screen.queryByText('The way you did it')).not.toBeInTheDocument();
+    expect(screen.queryByText('counting on from the bigger number')).not.toBeInTheDocument();
+    expect(screen.queryByText('What to look at')).not.toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('You got it by counting on.'));
     expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
   });
@@ -274,6 +279,20 @@ describe('the answer, by action', () => {
     expect(turn?.status).toBe('stale');
     expect(screen.queryByText('LATE PROMPT')).not.toBeInTheDocument();
     expect(say).not.toHaveBeenCalledWith('LATE PROMPT');
+  });
+});
+
+describe('the record keeps what the child does not see', () => {
+  it('stores the whole answer, diagnosis and method included, for the parent screen', async () => {
+    const { session, factory } = await setup();
+    await typeAnswer('8');
+    send();
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+    const answer = mathAnswer({ notes_for_parent: 'Subtracts when the story says "buys more".', teaching_method: 'counting on' });
+    factory.answers.set('direct:1', { answer: { status: 'answered', answer }, next: 2 });
+    await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 });
+    const turn = (await tutorRepo.listTurns(session.id)).find((t) => t.mode === 'math');
+    expect(turn?.answer).toEqual(answer);
   });
 });
 
