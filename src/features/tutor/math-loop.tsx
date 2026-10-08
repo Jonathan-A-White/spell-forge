@@ -1,7 +1,8 @@
 // src/features/tutor/math-loop.tsx — The maths turn (mw-bhvxcn.10), after the reading is clear: 'Your answer' typed
-// and/or a 'Photo of your work', sent as a math turn. The answer comes back by action: a probe shows where it went
-// wrong and the gap in kid words (never the answer) and offers 'Try again'; confirm_answer says "That's it" and the
-// method used; done ends the session with a spoken closing line. Everything shown comes from the turns.
+// and/or a 'Photo of your work', sent as a math turn. The answer comes back by action: a probe shows its
+// prompt_to_child (never the answer) and offers 'Try again'; confirm_answer says "That's it" and its prompt_to_child;
+// done ends the session with a spoken closing line. Everything shown comes from the turns. Only what is for the child
+// is shown: the diagnosis and method stay in the turn's answer for the parent screen (mw-kuy7rx.1).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sayWord } from '../../audio';
@@ -113,8 +114,6 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
   const confirmed = action === 'confirm_answer';
   const done = action === 'done';
   const showForm = !waiting && !confirmed && !done && (!probing || retriedAfter === latest?.id);
-  const diagnosis = answer?.math_diagnosis;
-  const method = diagnosis?.method ?? answer?.teaching_method;
   const canSend = !sending && (photo !== null || text.trim().length > 0);
 
   return (
@@ -125,19 +124,6 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
         <div className="space-y-3">
           {confirmed && <p className="text-sf-heading font-bold text-2xl">That&apos;s it</p>}
           <p className="text-sf-heading text-xl">{answer.prompt_to_child}</p>
-          {confirmed && method && (
-            <div className="space-y-1">
-              <p className="text-sf-muted text-sm">The way you did it</p>
-              <p className="text-sf-heading font-medium">{method}</p>
-            </div>
-          )}
-          {probing && diagnosis && retriedAfter !== latest?.id && (
-            <section aria-label="What to look at" className="bg-sf-surface border border-sf-border rounded-xl p-4 space-y-2">
-              <h2 className="font-bold text-sf-heading">What to look at</h2>
-              <p className="text-sf-heading">{diagnosis.where_wrong}</p>
-              <p className="text-sf-heading">{diagnosis.gap}</p>
-            </section>
-          )}
           <button type="button" onClick={() => say(answer.prompt_to_child)} className={SECONDARY} style={TAP}>Say it again</button>
         </div>
       )}
