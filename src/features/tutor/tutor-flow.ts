@@ -5,7 +5,7 @@
 import { PrivateKey } from '@bsv/sdk';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
-import { bsvWalletRepo, tutorRepo } from '../../data/repositories';
+import { bsvWalletRepo, profileRepo, tutorRepo } from '../../data/repositories';
 import {
   GristLimitError,
   GristOffline,
@@ -69,6 +69,12 @@ export async function deviceKey(): Promise<PrivateKey | undefined> {
   }
 }
 
+/** The parent's notes for the profile, as the request carries them: absent (an empty object) when there are none. */
+async function parentNotesFor(profileId: string): Promise<Pick<TutorRequest, 'parent_notes'>> {
+  const notes = (await profileRepo.getById(profileId))?.settings.tutorNotes;
+  return notes?.length ? { parent_notes: [...notes] } : {};
+}
+
 function sayWhy(error: unknown, otherwise: string = NOT_SENT): string {
   if (error instanceof GristOffline) return OFFLINE;
   if (error instanceof GristUnlicensed || error instanceof GristLimitError) return error.message;
@@ -100,6 +106,7 @@ export async function sendProblem(
     mode: 'problem-in',
     strictness: params.strictness,
     ...(params.source.kind === 'text' ? { target_text: params.source.text.trim() } : {}),
+    ...(await parentNotesFor(params.profileId)),
     session_history: [],
   };
 
@@ -173,6 +180,7 @@ export async function sendReading(
     mode: 'reading',
     strictness: session.strictness,
     target_text: params.targetText,
+    ...(await parentNotesFor(session.profileId)),
     session_history: sessionHistory(turns),
   };
   const stored = await tutorRepo.putBlob({ bytes: new Uint8Array(file.bytes).buffer, mime: file.mime, name });
@@ -228,6 +236,7 @@ export async function sendMath(
     target_text: params.targetText,
     ...(answer ? { child_answer: answer } : {}),
     ...(photo ? { work_photo: true } : {}),
+    ...(await parentNotesFor(session.profileId)),
     session_history: sessionHistory(turns),
   };
   const attachments: { kind: 'work'; blobId: string }[] = [];

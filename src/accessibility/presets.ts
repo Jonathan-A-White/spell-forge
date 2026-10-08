@@ -76,5 +76,6 @@ export function presetToSettings(preset: NamedPreset, current: AccessibilitySett
     contrastMode: preset.settings.contrastMode !== 'light' ? preset.settings.contrastMode : current.contrastMode,
     tutorStrictness: current.tutorStrictness,
     tutorVoice: current.tutorVoice,
+    tutorNotes: current.tutorNotes,
   });
 }

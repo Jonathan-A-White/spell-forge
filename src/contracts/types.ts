@@ -47,6 +47,8 @@ export interface AccessibilitySettings {
   tutorStrictness?: TutorStrictness;
   /** The voiceURI of the voice this child's Tutor speaks with (Tutor settings); absent means the phone's default. */
   tutorVoice?: string;
+  /** Standing notes from the parent to this child's Tutor (Notes for the tutor): at most 10, each at most 200 characters; absent means none. */
+  tutorNotes?: string[];
 }
 
 export interface WordList {
@@ -577,6 +579,8 @@ export interface TutorRequest {
   child_answer?: string;
   /** True when a photo of the child's work is attached. */
   work_photo?: boolean;
+  /** The parent's standing notes for this child (Notes for the tutor); absent when there are none. */
+  parent_notes?: string[];
   session_history: TutorHistoryEntry[];
 }
 
