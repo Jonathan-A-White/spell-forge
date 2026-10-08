@@ -38,7 +38,7 @@ describe('Creating the device key warms the factory licence walk', () => {
 
     await waitFor(() => expect(meCalls(server)).toHaveLength(1), { timeout: 5000 });
     expect(server.authorizations).toHaveLength(1);
-    expect(server.authorizations[0]).toContain(`Postern ${PrivateKey.fromWif(key.material).toPublicKey().toString()}:`);
+    expect(server.authorizations[0]).toContain(`Postern2 ${PrivateKey.fromWif(key.material).toPublicKey().toString()}:`);
     // Give a stray second call time to show itself.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(meCalls(server)).toHaveLength(1);

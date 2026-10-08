@@ -1,9 +1,11 @@
-// src/grist/postern-api.ts — The four Postern calls a grist needs (docs/api.md), each signed with a fresh
-// challenge: GET /api/me, POST /api/blobs, POST /api/messages and GET /api/messages.
+// src/grist/postern-api.ts — The four Postern calls a grist needs (docs/api.md), each signed for that one
+// request with a fresh challenge (the v2 scheme, as Postern's own app signs it in src/services/apiAuth.ts):
+// GET /api/me, POST /api/blobs, POST /api/messages and GET /api/messages.
 
 import type { PrivateKey } from '@bsv/sdk';
+import { Hash, Utils } from '@bsv/sdk';
 import { gristConfig } from './config';
-import { GristBackendError, GristOffline, GristUnlicensed } from './errors';
+import { GristBackendError, GristNeedsUpdate, GristOffline, GristUnlicensed } from './errors';
 
 /** One record of GET /api/messages, as far as a grist reads it. */
 export interface PosternRecord {
@@ -74,10 +76,31 @@ function refusalReason(reply: Reply): string | undefined {
     : undefined;
 }
 
+/** The bytes a request's body hashes as: a string's UTF-8 bytes, a byte array as it is, none for no body. */
+function bodyBytes(body: RequestInit['body']): Uint8Array {
+  if (body === undefined || body === null) return new Uint8Array(0);
+  if (typeof body === 'string') return new TextEncoder().encode(body);
+  if (ArrayBuffer.isView(body)) return new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
+  throw new Error('This request has a body of a kind that cannot be signed; nothing was sent.');
+}
+
+/** Bodies up to this size are hashed in script; a sealed photo (megabytes) by crypto.subtle. */
+const SYNC_HASH_LIMIT = 64 * 1024;
+
+/** The lower-case hex SHA-256 of `bytes`. */
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  if (bytes.length <= SYNC_HASH_LIMIT) return Utils.toHex(Hash.sha256(Array.from(bytes)));
+  const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes));
+  return Utils.toHex(Array.from(new Uint8Array(digest)));
+}
+
 /**
  * A client for the Postern backend that proves `key` on every call (docs/api.md, Authentication): it asks for a
- * challenge, signs the nonce string (one SHA-256, DER) and sends `Authorization: Postern <pubkey>:<nonce>:<sig>`.
- * A nonce is single use, so each call, and each retry, asks for its own.
+ * challenge and signs the v2 message for this one request, five lines joined by "\n": "postern-v2", the method, the
+ * request target as sent (path and query), the hex sha256 of the body (of nothing, for a GET) and the nonce
+ * (one SHA-256 of the UTF-8 bytes, DER), then sends `Authorization: Postern2 <pubkey>:<nonce>:<sig>`.
+ * A nonce is single use, so each call, and each retry, asks for its own. The v1 scheme (the nonce alone) is
+ * gone: the backend refuses it with 401 reason 'signature-v1' and nothing here sends it.
  */
 export function posternApi(key: PrivateKey, fetchImpl: Fetch = globalThis.fetch.bind(globalThis)): PosternApi {
   const pubkey = key.toPublicKey().toString();
@@ -105,13 +128,16 @@ export function posternApi(key: PrivateKey, fetchImpl: Fetch = globalThis.fetch.
   /** One signed call; a 'nonce' refusal is retried once with a fresh challenge (nothing was acted on). */
   async function call(path: string, init: RequestInit, retried = false): Promise<Reply> {
     const nonce = await challenge();
-    const signature = key.sign(nonce).toDER('hex') as string;
+    const method = (init.method ?? 'GET').toUpperCase();
+    const message = `postern-v2\n${method}\n${path}\n${await sha256Hex(bodyBytes(init.body))}\n${nonce}`;
+    const signature = key.sign(message).toDER('hex') as string;
     const reply = await send(`${gristConfig.backendUrl}${path}`, {
       ...init,
-      headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Postern ${pubkey}:${nonce}:${signature}` },
+      headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Postern2 ${pubkey}:${nonce}:${signature}` },
     });
     const reason = refusalReason(reply);
     if (reason === 'nonce' && !retried) return call(path, init, true);
+    if (reason === 'signature-v1') throw new GristNeedsUpdate();
     if (reason === 'no_licence') throw new GristUnlicensed();
     if (reply.status < 200 || reply.status > 299) throw backendError(reply);
     return reply;

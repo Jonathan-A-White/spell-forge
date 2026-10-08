@@ -7,6 +7,7 @@ import { decodeRecordScript } from '../../src/bsv';
 import {
   GristBackendError,
   GristLimitError,
+  GristNeedsUpdate,
   GristOffline,
   GristUnlicensed,
   gristConfig,
@@ -94,7 +95,8 @@ function makeServer(millKey: PrivateKey | undefined): Server {
     const headers = (init?.headers ?? {}) as Record<string, string>;
     const authorization = headers.Authorization ?? '';
     server.authorizations.push(authorization);
-    const match = /^Postern ([0-9a-f]{66}):([0-9a-f]+):([0-9a-f]+)$/.exec(authorization);
+    if (/^Postern /.test(authorization)) return json(401, { error: 'v1 is no longer accepted', reason: 'signature-v1' });
+    const match = /^Postern2 ([0-9a-f]{66}):([0-9a-f]+):([0-9a-f]+)$/.exec(authorization);
     if (!match) return json(401, { error: 'bad header', reason: 'malformed_authorization' });
     const [, pubkeyHex, nonce, sigHex] = match;
     if (server.refuseNonce > 0) {
@@ -103,7 +105,12 @@ function makeServer(millKey: PrivateKey | undefined): Server {
       return json(401, { error: 'unknown nonce', reason: 'nonce' });
     }
     if (!issued.delete(nonce)) return json(401, { error: 'unknown nonce', reason: 'nonce' });
-    const verified = PublicKey.fromString(pubkeyHex).verify(nonce, Signature.fromDER(sigHex, 'hex'));
+    // The v2 message over the request as received: method, raw target, body hash, nonce (docs/api.md).
+    const target = String(input).replace(/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/i, '');
+    const sent = init?.body;
+    const body = typeof sent === 'string' ? Utils.toArray(sent, 'utf8') : sent ? Array.from(sent as Uint8Array) : [];
+    const message = `postern-v2\n${method.toUpperCase()}\n${target}\n${toHex(Hash.sha256(body))}\n${nonce}`;
+    const verified = PublicKey.fromString(pubkeyHex).verify(message, Signature.fromDER(sigHex, 'hex'));
     if (!verified) return json(401, { error: 'bad signature', reason: 'signature' });
     if (!server.licensed) return json(401, { error: 'no licence', reason: 'no_licence' });
     if (server.respondWith) return json(server.respondWith.status, server.respondWith.body);
@@ -189,7 +196,7 @@ describe('gristConfig', () => {
 });
 
 describe('posternApi', () => {
-  it('signs a fresh challenge for every call: the Authorization header verifies against its nonce', async () => {
+  it('signs a fresh challenge for every call: the Authorization header verifies against its nonce and the request', async () => {
     const key = PrivateKey.fromRandom();
     const server = makeServer(PrivateKey.fromRandom());
     const api = posternApi(key, server.fetch);
@@ -199,13 +206,69 @@ describe('posternApi', () => {
 
     expect(me.pubkey).toBe(key.toPublicKey().toString());
     expect(server.authorizations).toHaveLength(2);
+    expect(server.authorizations.every((header) => header.startsWith('Postern2 '))).toBe(true);
     const [first, second] = server.authorizations.map((header) => header.split(' ')[1].split(':'));
     expect(first[0]).toBe(key.toPublicKey().toString());
     expect(first[1]).not.toBe(second[1]);
-    for (const [pubkey, nonce, sig] of [first, second]) {
-      expect(PublicKey.fromString(pubkey).verify(nonce, Signature.fromDER(sig, 'hex'))).toBe(true);
-    }
+    // The fake server verifies each signature over the v2 message and would have answered 401 otherwise.
     expect(server.calls.filter((c) => c.path === '/api/challenge')).toHaveLength(2);
+  });
+
+  // Vectors from Postern's own signer (src/services/apiAuth.ts, apiFetch with the same key and nonce), so a
+  // drift from the backend's message shows here rather than as a 401 in the field.
+  describe('v2 vectors from Postern\'s signer', () => {
+    const KEY = PrivateKey.fromHex(Utils.toHex(Array.from({ length: 32 }, (_, i) => i + 1)));
+    const NONCE = 'ab'.repeat(32);
+    const PUBKEY = '0284bf7562262bbd6940085748f3be6afa52ae317155181ece31b66351ccffa4b0';
+    const GET_HEADER =
+      `Postern2 ${PUBKEY}:${NONCE}:304402204fe40ded4c6b7298790e75a0852462f96296f76da4013a2d05e8956f92dd54fa022020b5eb7e9b7ee32ebaedfefb2df03e47562836e1de518bc2fbb7f8cf375ff17b`;
+    const POST_HEADER =
+      `Postern2 ${PUBKEY}:${NONCE}:3045022100efd82e4cc3d408bc0e185d270a8302ccb58ee436681b72d8ab407c5b40e5f78802202dd56f0e8fdfcf2233165b788c8fa57b35aafd0bc651e89def3e7d9a104373f0`;
+
+    /** A fetch that hands out NONCE and records the Authorization header of the one signed call. */
+    function capture() {
+      const seen: { header?: string; url?: string; method?: string } = {};
+      const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).endsWith('/api/challenge')) return json(200, { nonce: NONCE });
+        seen.header = (init?.headers as Record<string, string>).Authorization;
+        seen.url = String(input);
+        seen.method = init?.method;
+        return json(200, { pubkey: PUBKEY, next: 1, records: [], txid: 'direct:x', seq: 1 });
+      }) as typeof fetch;
+      return { seen, fetchImpl };
+    }
+
+    it('signs a GET with a query: postern-v2, GET, the raw target, the empty-body hash, the nonce', async () => {
+      const { seen, fetchImpl } = capture();
+      await posternApi(KEY, fetchImpl).messages(0);
+      expect(seen.url).toBe(`${gristConfig.backendUrl}/api/messages?since=0`);
+      expect(seen.header).toBe(GET_HEADER);
+    });
+
+    it('signs a POST with a body over the sha256 of its bytes', async () => {
+      const { seen, fetchImpl } = capture();
+      await posternApi(KEY, fetchImpl).deliver('ab');
+      expect(seen.method).toBe('POST');
+      expect(seen.header).toBe(POST_HEADER);
+    });
+  });
+
+  it('signs a blob upload over the sha256 of the sealed bytes, and the target as sent', async () => {
+    const server = makeServer(PrivateKey.fromRandom());
+    const bytes = new Uint8Array(100_000).map((_, i) => (i * 13) % 256);
+    const stored = await posternApi(PrivateKey.fromRandom(), server.fetch).uploadBlob(bytes);
+    expect(stored.size).toBe(bytes.length);
+    expect(server.authorizations[0].startsWith('Postern2 ')).toBe(true);
+  });
+
+  it('never sends the v1 header', async () => {
+    const server = makeServer(PrivateKey.fromRandom());
+    const api = posternApi(PrivateKey.fromRandom(), server.fetch);
+    await api.me();
+    await api.messages(0);
+    await api.deliver('ab').catch(() => undefined);
+    expect(server.authorizations.length).toBeGreaterThan(0);
+    expect(server.authorizations.some((header) => /^Postern /.test(header))).toBe(false);
   });
 
   it('retries a nonce refusal once with a fresh challenge', async () => {
@@ -225,6 +288,24 @@ describe('posternApi', () => {
     expect(failure).toBeInstanceOf(GristBackendError);
     expect((failure as GristBackendError).status).toBe(401);
     expect(server.calls.filter((c) => c.path === '/api/me')).toHaveLength(2);
+  });
+
+  it("reads 401 signature-v1 as GristNeedsUpdate: 'SpellForge needs an update', not 'cannot reach'", async () => {
+    const server = makeServer(PrivateKey.fromRandom());
+    server.respondWith = { status: 401, body: { error: 'v1 is no longer accepted', reason: 'signature-v1' } };
+    const failure = await posternApi(PrivateKey.fromRandom(), server.fetch).me().catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(GristNeedsUpdate);
+    expect(failure).not.toBeInstanceOf(GristOffline);
+    expect((failure as GristNeedsUpdate).message).toBe('SpellForge needs an update');
+    expect(server.calls.filter((c) => c.path === '/api/me')).toHaveLength(1);
+  });
+
+  it('retries a nonce refusal of a POST once too, signing the body again', async () => {
+    const server = makeServer(PrivateKey.fromRandom());
+    server.refuseNonce = 1;
+    const api = posternApi(PrivateKey.fromRandom(), server.fetch);
+    await expect(api.uploadBlob(new Uint8Array([1, 2, 3]))).resolves.toMatchObject({ size: 3 });
+    expect(server.calls.filter((c) => c.path === '/api/blobs')).toHaveLength(2);
   });
 
   it('reads 401 no_licence as GristUnlicensed', async () => {

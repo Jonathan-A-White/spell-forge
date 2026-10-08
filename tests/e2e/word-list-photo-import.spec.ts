@@ -121,7 +121,7 @@ async function stubPostern(page: Page): Promise<PosternCalls> {
       return route.fulfill(json({ nonce: `${calls.challenges}`.padStart(2, '0').repeat(56) }));
     }
     if (pathname === '/api/me') {
-      const pubkey = /^Postern ([0-9a-f]{66}):/.exec(request.headers()['authorization'] ?? '')?.[1] ?? '';
+      const pubkey = /^Postern2 ([0-9a-f]{66}):/.exec(request.headers()['authorization'] ?? '')?.[1] ?? '';
       return route.fulfill(json({ pubkey, mill, network: 'testnet', features: ['grist'], apps: ['spellforge'] }));
     }
     if (pathname === '/api/blobs') {

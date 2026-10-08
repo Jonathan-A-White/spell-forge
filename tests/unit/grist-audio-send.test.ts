@@ -1,7 +1,7 @@
 // mw-bhvxcn.6: sendGrist carries audio (up to 8 MiB) beside photos (up to 4 MiB), the mime from the Blob and the
 // file's name, through the fake Postern server, which checks every signature.
 import { describe, expect, it } from 'vitest';
-import { EncryptedMessage, PrivateKey, PublicKey, Signature, Utils } from '@bsv/sdk';
+import { EncryptedMessage, PrivateKey, Utils } from '@bsv/sdk';
 import { GristLimitError, gristFileFromBlob, sendGrist } from '../../src/grist';
 import type { GristFile } from '../../src/grist';
 import { makeServer } from '../fixtures/grist/fake-postern';
@@ -39,12 +39,11 @@ describe('sendGrist with files', () => {
     expect(Uint8Array.from(EncryptedMessage.decrypt(Array.from(body), millKey))).toEqual(audio.bytes);
     expect(() => EncryptedMessage.decrypt(Array.from(body), appKey)).toThrow();
 
-    // the fake server verified each challenge signature before it served the call; check the headers too
+    // the fake server verified each request's v2 signature before it served the call; check the headers too
     expect(server.authorizations.length).toBeGreaterThanOrEqual(3);
     for (const header of server.authorizations) {
-      const [pubkey, nonce, sig] = header.split(' ')[1].split(':');
-      expect(pubkey).toBe(appKey.toPublicKey().toString());
-      expect(PublicKey.fromString(pubkey).verify(nonce, Signature.fromDER(sig, 'hex'))).toBe(true);
+      expect(header.startsWith('Postern2 ')).toBe(true);
+      expect(header.split(' ')[1].split(':')[0]).toBe(appKey.toPublicKey().toString());
     }
   });
 

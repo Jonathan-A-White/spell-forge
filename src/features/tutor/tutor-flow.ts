@@ -8,6 +8,7 @@ import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, Tu
 import { bsvWalletRepo, profileRepo, tutorRepo } from '../../data/repositories';
 import {
   GristLimitError,
+  GristNeedsUpdate,
   GristOffline,
   GristUnlicensed,
   TUTOR_TURN_GRIND,
@@ -78,7 +79,7 @@ async function parentNotesFor(profileId: string): Promise<Pick<TutorRequest, 'pa
 /** Worded for the person who tapped, from why a send failed. */
 export function sayWhy(error: unknown, otherwise: string = NOT_SENT): string {
   if (error instanceof GristOffline) return OFFLINE;
-  if (error instanceof GristUnlicensed || error instanceof GristLimitError) return error.message;
+  if (error instanceof GristUnlicensed || error instanceof GristLimitError || error instanceof GristNeedsUpdate) return error.message;
   return otherwise;
 }
 

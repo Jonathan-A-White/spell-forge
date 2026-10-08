@@ -2,7 +2,7 @@ export { WORD_LIST_GRIND, isWordListAnswer } from './word-list-answer';
 export type { WordListAnswer } from './word-list-answer';
 export { gristConfig } from './config';
 export type { GristConfig } from './config';
-export { GristBackendError, GristLimitError, GristOffline, GristUnlicensed } from './errors';
+export { GristBackendError, GristLimitError, GristNeedsUpdate, GristOffline, GristUnlicensed } from './errors';
 export { posternApi } from './postern-api';
 export type { PosternApi, PosternMe, PosternRecord } from './postern-api';
 export {

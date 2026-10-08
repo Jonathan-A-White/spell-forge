@@ -82,7 +82,8 @@ export function makeServer(millKey: PrivateKey | undefined): Server {
     const headers = (init?.headers ?? {}) as Record<string, string>;
     const authorization = headers.Authorization ?? '';
     server.authorizations.push(authorization);
-    const match = /^Postern ([0-9a-f]{66}):([0-9a-f]+):([0-9a-f]+)$/.exec(authorization);
+    if (/^Postern /.test(authorization)) return json(401, { error: 'v1 is no longer accepted', reason: 'signature-v1' });
+    const match = /^Postern2 ([0-9a-f]{66}):([0-9a-f]+):([0-9a-f]+)$/.exec(authorization);
     if (!match) return json(401, { error: 'bad header', reason: 'malformed_authorization' });
     const [, pubkeyHex, nonce, sigHex] = match;
     if (server.refuseNonce > 0) {
@@ -91,7 +92,12 @@ export function makeServer(millKey: PrivateKey | undefined): Server {
       return json(401, { error: 'unknown nonce', reason: 'nonce' });
     }
     if (!issued.delete(nonce)) return json(401, { error: 'unknown nonce', reason: 'nonce' });
-    const verified = PublicKey.fromString(pubkeyHex).verify(nonce, Signature.fromDER(sigHex, 'hex'));
+    // The v2 message over the request as received: method, raw target, body hash, nonce (docs/api.md).
+    const target = String(input).replace(/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/i, '');
+    const sent = init?.body;
+    const body = typeof sent === 'string' ? Utils.toArray(sent, 'utf8') : sent ? Array.from(sent as Uint8Array) : [];
+    const message = `postern-v2\n${method.toUpperCase()}\n${target}\n${toHex(Hash.sha256(body))}\n${nonce}`;
+    const verified = PublicKey.fromString(pubkeyHex).verify(message, Signature.fromDER(sigHex, 'hex'));
     if (!verified) return json(401, { error: 'bad signature', reason: 'signature' });
     if (!server.licensed) return json(401, { error: 'no licence', reason: 'no_licence' });
     if (server.respondWith) return json(server.respondWith.status, server.respondWith.body);

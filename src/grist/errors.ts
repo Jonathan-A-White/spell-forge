@@ -16,6 +16,14 @@ export class GristUnlicensed extends Error {
   }
 }
 
+/** 401 reason signature-v1: the backend no longer takes the signing scheme this build uses; only a newer SpellForge will do. */
+export class GristNeedsUpdate extends Error {
+  constructor(message = 'SpellForge needs an update') {
+    super(message);
+    this.name = 'GristNeedsUpdate';
+  }
+}
+
 /** Anything else the backend refuses or answers oddly, with the HTTP status (0 when it never got that far). */
 export class GristBackendError extends Error {
   readonly status: number;
