@@ -10,7 +10,6 @@ import { GristInFlight } from '../../grist';
 import { MathLoop } from './math-loop';
 import { ParentGate } from './parent-gate';
 import { ReadingLoop } from './reading-loop';
-import { SessionList, SessionRecord } from './session-record';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
 
@@ -27,7 +26,7 @@ interface Snapshot {
   turns: TutorTurn[];
 }
 
-type View = { kind: 'tutor' } | { kind: 'sessions' } | { kind: 'parent' } | { kind: 'record'; sessionId: string };
+type View = { kind: 'tutor' } | { kind: 'parent' };
 
 const STOPPED = 'Stopped for now. Your work is kept.';
 
@@ -170,31 +169,20 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     setRetyping(null);
   }, [session, retyping]);
 
-  const goBack = () => {
-    if (view.kind === 'record') setView({ kind: 'sessions' });
-    else if (view.kind === 'sessions') setView({ kind: 'tutor' });
-    else onBack();
-  };
-
   const header = (
     <div className="bg-sf-surface border-b border-sf-border px-4 py-3">
       <div className="max-w-lg md:max-w-4xl mx-auto flex items-center gap-3">
-        <button onClick={goBack} className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover" aria-label="Go back">
+        <button onClick={onBack} className="p-2 -ml-2 rounded-lg text-sf-muted hover:text-sf-secondary hover:bg-sf-surface-hover" aria-label="Go back">
           <span aria-hidden="true">&larr;</span>
         </button>
         <h1 className="text-xl font-bold text-sf-heading">Tutor</h1>
-        {view.kind === 'tutor' && (
-          <>
-            <button onClick={() => setView({ kind: 'parent' })} className={`${SECONDARY} ml-auto flex items-center gap-1.5 text-sm`} style={TAP}>
-              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="5" y="11" width="14" height="9" rx="2" />
-                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-              </svg>
-              Grown-ups
-            </button>
-            <button onClick={() => setView({ kind: 'sessions' })} className={SECONDARY} style={TAP}>Sessions</button>
-          </>
-        )}
+        <button onClick={() => setView({ kind: 'parent' })} className={`${SECONDARY} ml-auto flex items-center gap-1.5 text-sm`} style={TAP}>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="11" width="14" height="9" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+          Grown-ups
+        </button>
       </div>
     </div>
   );
@@ -208,7 +196,6 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
         <p className="text-sf-heading font-bold text-2xl">{farewell}</p>
         <div className="flex flex-wrap gap-3">
           <button onClick={startAnother} className={PRIMARY} style={TAP}>Start another</button>
-          <button onClick={() => setView({ kind: 'sessions' })} className={SECONDARY} style={TAP}>Sessions</button>
         </div>
       </div>
     );
@@ -347,16 +334,8 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     <div className="min-h-screen bg-sf-bg">
       {header}
       <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-5">
-        {view.kind === 'sessions' ? (
-          <SessionList profileId={profile.id} onOpen={(sessionId) => setView({ kind: 'record', sessionId })} />
-        ) : view.kind === 'record' ? (
-          <SessionRecord sessionId={view.sessionId} />
-        ) : (
-          <>
-            {body}
-            {stop}
-          </>
-        )}
+        {body}
+        {stop}
       </div>
     </div>
   );

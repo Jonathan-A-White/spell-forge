@@ -33,6 +33,26 @@ export function parentRecommendationsOf(turns: TutorTurn[]): Recommendation[] {
   return found;
 }
 
+/** What to look at: where the maths went wrong and the gap behind it, each pair once, in turn order. */
+export function parentDiagnosesOf(turns: TutorTurn[]): { where_wrong: string; gap: string }[] {
+  const found: { where_wrong: string; gap: string }[] = [];
+  for (const turn of turns) {
+    const d = turn.answer?.math_diagnosis;
+    if (d && !found.some((f) => f.where_wrong === d.where_wrong && f.gap === d.gap)) found.push({ where_wrong: d.where_wrong, gap: d.gap });
+  }
+  return found;
+}
+
+/** The way he did it: the method the tutor named, each once, in turn order. */
+export function parentMethodsOf(turns: TutorTurn[]): string[] {
+  const methods: string[] = [];
+  for (const turn of turns) {
+    const method = (turn.answer?.math_diagnosis?.method ?? turn.answer?.teaching_method)?.trim();
+    if (method && !methods.includes(method)) methods.push(method);
+  }
+  return methods;
+}
+
 /** The whole session as one fenced json block, or an empty block's worth of nothing when it is not there. */
 export async function sessionAsJson(sessionId: string): Promise<string> {
   const session = await tutorRepo.getSession(sessionId);

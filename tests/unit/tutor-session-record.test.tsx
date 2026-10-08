@@ -1,12 +1,11 @@
 // mw-bhvxcn.10: the Session record screen: every turn's raw material and timing, from a fixture session with two
-// scoring engines and one stale turn; the Sessions list newest first; 'Copy as JSON' for the whole session.
+// scoring engines and one stale turn; 'Copy as JSON' for the whole session.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { tutorRepo } from '../../src/data/repositories';
 import type { Profile } from '../../src/contracts';
-import { SessionRecord, TutorScreen, sessionAsJson } from '../../src/features/tutor';
+import { SessionRecord, sessionAsJson } from '../../src/features/tutor';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
 import { paulProfile } from '../fixtures/profiles';
 import { MATH_PROBLEM, seedRecordedSession, T0 } from '../fixtures/tutor-math';
@@ -175,34 +174,5 @@ describe('Copy as JSON', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Copy as JSON' }));
     const box = (await screen.findByLabelText('Session as JSON')) as HTMLTextAreaElement;
     expect(box.value.startsWith('```json')).toBe(true);
-  });
-});
-
-describe('the Sessions list on the Tutor screen', () => {
-  it('lists sessions newest first and opens the record of the one he taps', async () => {
-    await db.profiles.put(profile);
-    const older = await seedRecordedSession(profile.id);
-    const newer = await tutorRepo.createSession({ profileId: profile.id, strictness: 'precision', targetText: 'Newer problem text' });
-    await db.tutorSessions.update(newer.id, { startedAt: new Date(T0.getTime() + 86_400_000) });
-    await tutorRepo.endSession(newer.id);
-    render(<TutorScreen profile={profile} onBack={vi.fn()} deps={{ getKey: async () => PrivateKey.fromRandom(), pollIntervalMs: 20 }} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Sessions' }));
-    const items = await screen.findAllByRole('listitem');
-    expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent('Newer problem text');
-    expect(items[1]).toHaveTextContent(MATH_PROBLEM);
-
-    fireEvent.click(within(items[1]).getByRole('button'));
-    expect(await screen.findByRole('article', { name: 'Turn 5' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
-    expect(await screen.findAllByRole('listitem')).toHaveLength(2);
-    expect(older.session.id).toBeTruthy();
-  });
-
-  it('says so when there are no sessions yet', async () => {
-    await db.profiles.put(profile);
-    render(<TutorScreen profile={profile} onBack={vi.fn()} deps={{ getKey: async () => PrivateKey.fromRandom() }} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Sessions' }));
-    expect(await screen.findByText('No sessions yet.')).toBeInTheDocument();
   });
 });
