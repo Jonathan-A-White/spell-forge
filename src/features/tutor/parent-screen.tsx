@@ -1,10 +1,11 @@
 // src/features/tutor/parent-screen.tsx — The Grown-ups screen, behind the PIN gate (parent-gate.tsx): 'This week'
-// and 'Sessions' are filled (mw-kuy7rx.3), a session line opens its page (mw-kuy7rx.4) and 'Tutor settings' is
-// filled (mw-kuy7rx.8); 'Ask the tutor' is still to come.
+// and 'Sessions' are filled (mw-kuy7rx.3), a session line opens its page (mw-kuy7rx.4), 'Tutor settings' is
+// filled (mw-kuy7rx.8) and so is 'Notes for the tutor' (mw-kuy7rx.11); 'Ask the tutor' is still to come.
 
 import { useState } from 'react';
 import { ParentSessionPage } from './parent-session-page';
 import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
+import { TutorNotes } from './tutor-notes';
 import { TutorSettings } from './tutor-settings';
 import type { Profile } from '../../contracts';
 
@@ -47,6 +48,7 @@ export function ParentScreen({ profileId, onBack, onProfileChange }: ParentScree
               </section>
             ))}
             <TutorSettings profileId={profileId} onProfileChange={onProfileChange} />
+            <TutorNotes profileId={profileId} onProfileChange={onProfileChange} />
           </>
         )}
       </div>
