@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { hapticError } from '../../core/haptics';
+import type { Profile } from '../../contracts';
 import { PinPad } from './pin-pad';
 import { ParentScreen } from './parent-screen';
 import {
@@ -21,6 +22,8 @@ export interface ParentGateProps {
   profileId: string;
   /** Leave the Grown-ups area, back to the Tutor. */
   onExit: () => void;
+  /** The profile's settings changed on the Grown-ups screen (Tutor settings). */
+  onProfileChange?: (profile: Profile) => void;
 }
 
 type Step =
@@ -46,7 +49,7 @@ const BUTTON = 'px-5 rounded-xl font-bold transition-all active:scale-[0.97] dis
 const PRIMARY = `${BUTTON} bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover`;
 const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-heading hover:border-sf-border-strong`;
 
-export function ParentGate({ profileId, onExit }: ParentGateProps) {
+export function ParentGate({ profileId, onExit, onProfileChange }: ParentGateProps) {
   const [step, setStep] = useState<Step>(() => (hasParentPin() ? { kind: 'enter' } : { kind: 'choose' }));
   const [wrong, setWrong] = useState(0);
 
@@ -75,7 +78,7 @@ export function ParentGate({ profileId, onExit }: ParentGateProps) {
     </div>
   );
 
-  if (step.kind === 'open') return <ParentScreen profileId={profileId} onBack={onExit} />;
+  if (step.kind === 'open') return <ParentScreen profileId={profileId} onBack={onExit} onProfileChange={onProfileChange} />;
 
   if (step.kind === 'enter') {
     const check = async (pin: string) => {

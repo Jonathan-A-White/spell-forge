@@ -45,6 +45,8 @@ export interface AccessibilitySettings {
   learningStrategy: LearningStrategy;
   /** The Tutor's strictness this child last chose (sf-tutor); absent means 'meaning-gated'. */
   tutorStrictness?: TutorStrictness;
+  /** The voiceURI of the voice this child's Tutor speaks with (Tutor settings); absent means the phone's default. */
+  tutorVoice?: string;
 }
 
 export interface WordList {
