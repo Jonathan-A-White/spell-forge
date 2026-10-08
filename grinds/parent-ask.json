@@ -1,0 +1,16 @@
+{
+  "grind": 1,
+  "app": "spellforge",
+  "kind": "parent-ask",
+  "versions": ["1"],
+  "model": "sonnet",
+  "effort": "high",
+  "instructions": "grinds/parent-ask.instructions.md",
+  "answerSchema": "grinds/parent-ask.answer.schema.json",
+  "attachments": {
+    "min": 0,
+    "max": 0,
+    "mime": [],
+    "maxBytes": 0
+  }
+}

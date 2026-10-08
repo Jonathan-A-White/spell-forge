@@ -659,6 +659,43 @@ export interface TutorBlob {
   createdAt: Date;
 }
 
+// ─── Parent ask (sf-tutor) ────────────────────────────────────
+
+export type ParentAskStatus = 'sending' | 'waiting' | 'answered' | 'refused' | 'failed';
+
+/** App -> AI: a parent's question and his recent sessions as compact text, newest first (grinds/parent-ask.json). */
+export interface ParentAskRequest {
+  question: string;
+  sessions: string[];
+}
+
+/** AI -> App: grinds/parent-ask.answer.schema.json. */
+export interface ParentAskAnswer {
+  answer: string;
+  examples: string[];
+}
+
+/** The mill's verdict on one parent ask, as the app applies it. */
+export type ParentAskResult = { status: 'answered'; answer: ParentAskAnswer } | { status: 'refused' | 'failed'; reason: string };
+
+/** One question a parent asked about a child, kept apart from the tutor's turns. */
+export interface ParentAsk {
+  id: string;
+  profileId: string;
+  question: string;
+  askedAt: Date;
+  answeredAt?: Date;
+  /** The grist's txid, seq and mill: set once the factory has the ask. */
+  txid?: string;
+  seq?: number;
+  mill?: string;
+  request: ParentAskRequest;
+  answer?: ParentAskAnswer;
+  /** Why an ask was refused or failed. */
+  failureReason?: string;
+  status: ParentAskStatus;
+}
+
 // ─── Sync Queue ───────────────────────────────────────────────
 
 export interface SyncQueueItem {

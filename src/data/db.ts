@@ -20,6 +20,7 @@ import type {
   TutorSession,
   TutorTurn,
   TutorBlob,
+  ParentAsk,
 } from '../contracts/types';
 import type { LicenseToken } from '../bsv/license-token';
 
@@ -49,6 +50,7 @@ class SpellForgeDB extends Dexie {
   tutorSessions!: Table<TutorSession, string>;
   tutorTurns!: Table<TutorTurn, string>;
   tutorBlobs!: Table<TutorBlob, string>;
+  parentAsks!: Table<ParentAsk, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -311,6 +313,33 @@ class SpellForgeDB extends Dexie {
       tutorSessions: 'id, profileId, [profileId+startedAt], status',
       tutorTurns: 'id, sessionId, [sessionId+index], txid, status',
       tutorBlobs: 'id',
+    });
+
+    // v15: parentAsks — the questions a parent asked about a child and their answers (mw-kuy7rx.12), apart from
+    // the tutor's turns; found by profile, and by txid when the answer comes.
+    this.version(15).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+      bsvWallet: 'id',
+      bsvPendingSpends: 'txid',
+      bsvTokens: '[origin.txid+origin.vout], mintedAt',
+      photoImports: 'id, listId, status, [listId+status]',
+      tutorSessions: 'id, profileId, [profileId+startedAt], status',
+      tutorTurns: 'id, sessionId, [sessionId+index], txid, status',
+      tutorBlobs: 'id',
+      parentAsks: 'id, profileId, [profileId+askedAt], txid, status',
     });
   }
 }
