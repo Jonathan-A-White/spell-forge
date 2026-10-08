@@ -25,7 +25,7 @@ import { hapticError, hapticReady, hapticRelease } from '../../core/haptics';
 import { splitSyllables } from '../../core/phonics';
 import { sendReading, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
-import { SayAgainButton, Waiting } from './pictures';
+import { MicIcon, SayAgainButton, Waiting } from './pictures';
 import { tutorSayFor } from './tutor-voice';
 
 /** A press shorter than this is a tap, not a reading. */
@@ -47,6 +47,8 @@ const LARGE_TEXT = {
 } as const;
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 const BUTTON = 'px-5 rounded-xl font-bold transition-all active:scale-[0.97] disabled:opacity-50';
+/** The hold-to-talk bar is Postern's, the same in every app (mw-kuy7rx.19): full width to max-w-xl, rounded-3xl, the mic over the label. */
+const HOLD_BAR = BUTTON.replace('rounded-xl', 'rounded-3xl');
 const PRIMARY = `${BUTTON} bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover`;
 const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-heading hover:border-sf-border-strong`;
 const TEXT_AREA = { overflowY: 'auto', touchAction: 'pan-y' } as const;
@@ -397,9 +399,10 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         if (e.key === ' ' || e.key === 'Enter') release();
       }}
       onContextMenu={(e) => e.preventDefault()}
-      className={`${holding ? `${BUTTON} ${dropping ? 'bg-gray-600' : ready ? 'bg-red-600' : 'bg-amber-600'} text-white` : PRIMARY} w-full text-2xl select-none`}
-      style={{ ...TAP, minHeight: 'calc(var(--sf-tap-target-size) * 2)', touchAction: 'pan-y' }}
+      className={`${HOLD_BAR} ${holding ? `${dropping ? 'bg-gray-600' : ready ? 'bg-red-600' : 'bg-amber-600'} text-white` : 'bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover'} flex w-full max-w-xl mx-auto flex-col items-center justify-center gap-1 text-2xl select-none`}
+      style={{ ...TAP, minHeight: 'max(96px, calc(var(--sf-tap-target-size) * 2))', touchAction: 'pan-y' }}
     >
+      <MicIcon size={26} />
       {holding ? (
         <span className="flex items-center justify-center gap-3">
           {dropping ? (

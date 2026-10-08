@@ -12,6 +12,15 @@ export function SpeakerIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+/** Postern's microphone, the icon over the label on the hold-to-talk bar (mw-kuy7rx.19). */
+export function MicIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg {...SVG} width={size} height={size} data-icon="mic">
+      <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-6.5 9a6.5 6.5 0 0 0 13 0M12 18.5V21" />
+    </svg>
+  );
+}
+
 export function PencilIcon({ size = 24 }: { size?: number }) {
   return (
     <svg {...SVG} width={size} height={size}>
