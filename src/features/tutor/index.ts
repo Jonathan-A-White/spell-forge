@@ -8,3 +8,6 @@ export { ParentGate } from './parent-gate';
 export { ParentScreen } from './parent-screen';
 export { PinPad } from './pin-pad';
 export { checkParentPin, checkRecoveryAnswer, getRecoveryQuestion, hasParentPin, resetParentPin, setParentPin } from './parent-pin';
+export { ParentSessions, ParentThisWeek } from './parent-sessions-view';
+export { plainDate, sessionLine, sessionLines, weekSummary } from './parent-sessions';
+export type { SessionLineData, SessionWithTurns } from './parent-sessions';

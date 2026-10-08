@@ -1,13 +1,18 @@
-// src/features/tutor/parent-screen.tsx — The Grown-ups screen: an empty shell for now (mw-kuy7rx.2).
-// Later stories fill the four sections; they are behind the PIN gate (parent-gate.tsx).
+// src/features/tutor/parent-screen.tsx — The Grown-ups screen, behind the PIN gate (parent-gate.tsx): 'This week'
+// and 'Sessions' are filled (mw-kuy7rx.3); the other two sections are still to come.
+
+import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
 
 export interface ParentScreenProps {
+  profileId: string;
   onBack: () => void;
+  /** A tap on a session line; the next story opens the session's record. */
+  onOpenSession?: (sessionId: string) => void;
 }
 
-const SECTIONS = ['This week', 'Sessions', 'Ask the tutor', 'Tutor settings'] as const;
+const COMING = ['Ask the tutor', 'Tutor settings'] as const;
 
-export function ParentScreen({ onBack }: ParentScreenProps) {
+export function ParentScreen({ profileId, onBack, onOpenSession = () => undefined }: ParentScreenProps) {
   return (
     <div className="min-h-screen bg-sf-bg">
       <div className="bg-sf-surface border-b border-sf-border px-4 py-3">
@@ -23,7 +28,9 @@ export function ParentScreen({ onBack }: ParentScreenProps) {
         </div>
       </div>
       <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-5 space-y-4">
-        {SECTIONS.map((title) => (
+        <ParentThisWeek profileId={profileId} />
+        <ParentSessions profileId={profileId} onOpen={onOpenSession} />
+        {COMING.map((title) => (
           <section key={title} className="rounded-xl bg-sf-surface border border-sf-border p-4">
             <h2 className="text-sf-heading font-bold text-lg">{title}</h2>
             <p className="text-sf-muted text-sm">Coming soon.</p>
