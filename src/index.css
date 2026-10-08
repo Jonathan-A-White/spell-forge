@@ -159,3 +159,17 @@ body {
   --color-sf-input-border: var(--sf-color-input-border);
   --color-sf-disabled: var(--sf-color-disabled);
 }
+
+/* ─── PIN pad: a wrong PIN shakes the boxes ───────────────────── */
+
+@keyframes sf-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.animate-sf-shake {
+  animation: sf-shake 0.4s ease-in-out;
+}
