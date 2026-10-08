@@ -1,0 +1,26 @@
+{
+  "about": "the same wrong-operation turn, but the parent's note asks for a picture or tally marks first: the probe asks him to draw it, and never mentions the note or the parent",
+  "action": "math_probe",
+  "layer_diagnosis": "math",
+  "answer_must_not_appear": [
+    "9",
+    "nine"
+  ],
+  "prompt_mentions_each": [
+    [
+      "draw",
+      "picture",
+      "sketch",
+      "tally"
+    ]
+  ],
+  "prompt_must_not_say": [
+    "note",
+    "notes",
+    "parent",
+    "mom",
+    "dad",
+    "mother",
+    "father"
+  ]
+}

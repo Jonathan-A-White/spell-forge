@@ -15,6 +15,21 @@ const VALID_FONT_WEIGHTS = new Set<string>(['normal', 'bold', 'extra-bold']);
 const VALID_CONTRAST_MODES = new Set<string>(['light', 'dark', 'high-contrast']);
 const VALID_LEARNING_STRATEGIES = new Set<string>(['wave', 'easy-to-hard', 'hard-to-easy', 'random']);
 const VALID_TUTOR_STRICTNESS = new Set<string>(['meaning-gated', 'precision']);
+
+/** The most notes a parent can leave for the tutor, and the most characters in one (Notes for the tutor). */
+export const MAX_TUTOR_NOTES = 10;
+export const MAX_TUTOR_NOTE_LENGTH = 200;
+
+/** The notes that are text, not blank and not too long, trimmed, at most MAX_TUTOR_NOTES of them. */
+function validNotes(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((n): n is string => typeof n === 'string')
+    .map((n) => n.trim())
+    .filter((n) => n && n.length <= MAX_TUTOR_NOTE_LENGTH)
+    .slice(0, MAX_TUTOR_NOTES);
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -50,6 +65,7 @@ export function validateSettings(raw: Partial<AccessibilitySettings>): Accessibi
       ? { tutorStrictness: base.tutorStrictness }
       : {}),
     ...(typeof base.tutorVoice === 'string' && base.tutorVoice ? { tutorVoice: base.tutorVoice } : {}),
+    ...(validNotes(base.tutorNotes).length ? { tutorNotes: validNotes(base.tutorNotes) } : {}),
   };
 }
 
