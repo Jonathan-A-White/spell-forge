@@ -3,19 +3,12 @@
 // comes back out of the tutorTurns table, never from here, so a reload loses nothing.
 
 import { PrivateKey } from '@bsv/sdk';
+import { door } from 'bsv-kit/bsv';
+import { grist } from 'bsv-kit/grist';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { bsvWalletRepo, profileRepo, tutorRepo } from '../../data/repositories';
-import {
-  GristLimitError,
-  GristNeedsUpdate,
-  GristOffline,
-  GristUnlicensed,
-  TUTOR_TURN_GRIND,
-  gristFileFromBlob,
-  sendGrist,
-  shrinkPhoto,
-} from '../../grist';
+import { TUTOR_TURN_GRIND, gristFileFromBlob, sendGrist, shrinkPhoto } from '../../grist';
 import type { GristInFlightDeps, GristPhoto } from '../../grist';
 
 /** The seams the screen runs on; each defaults to the real thing, tests replace them. */
@@ -51,6 +44,7 @@ export class TutorUserError extends Error {
 
 export const NO_KEY = "This device has no key yet. Open Settings and tap \"This device's key\" to make one.";
 const OFFLINE = 'The tutor cannot be reached right now. Check the internet and try again.';
+const NO_LICENCE = 'This device holds no licence to use the factory.';
 const NOT_SENT = 'The problem could not be sent. You can try again.';
 const CUT_OFF = 'The problem did not get sent. You can try again.';
 const READING_NOT_SENT = 'Your reading could not be sent. You can try again.';
@@ -78,8 +72,13 @@ async function parentNotesFor(profileId: string): Promise<Pick<TutorRequest, 'pa
 
 /** Worded for the person who tapped, from why a send failed. */
 export function sayWhy(error: unknown, otherwise: string = NOT_SENT): string {
-  if (error instanceof GristOffline) return OFFLINE;
-  if (error instanceof GristUnlicensed || error instanceof GristLimitError || error instanceof GristNeedsUpdate) return error.message;
+  if (error instanceof door.BackendUnreachableError || error instanceof door.ApiTimeoutError) return OFFLINE;
+  if (error instanceof door.RefusedError) {
+    if (error.message === door.LICENCE_REQUIRED) return NO_LICENCE;
+    // a 5xx is the factory on standby, not a refusal
+    return error.status >= 500 ? OFFLINE : otherwise;
+  }
+  if (error instanceof grist.GristInputError) return error.message;
   return otherwise;
 }
 
@@ -100,7 +99,7 @@ export async function sendProblem(
     try {
       photo = await (deps.shrink ?? shrinkPhoto)(params.source.file);
     } catch (error) {
-      throw new TutorUserError(error instanceof GristLimitError ? error.message : 'This photo could not be used. Try another one.');
+      throw new TutorUserError(error instanceof grist.GristInputError ? error.message : 'This photo could not be used. Try another one.');
     }
   }
 
@@ -228,7 +227,7 @@ export async function sendMath(
     try {
       photo = { ...(await (deps.shrink ?? shrinkPhoto)(params.photo)), name };
     } catch (error) {
-      throw new TutorUserError(error instanceof GristLimitError ? error.message : 'This photo could not be used. Try another one.');
+      throw new TutorUserError(error instanceof grist.GristInputError ? error.message : 'This photo could not be used. Try another one.');
     }
   }
 

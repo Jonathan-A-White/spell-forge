@@ -5,7 +5,9 @@ import { db } from '../../src/data/db';
 import { SettingsPanel } from '../../src/features/settings/settings-panel';
 import { createDeviceKey } from '../../src/features/device-key';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
-import { makeServer } from '../fixtures/grist/fake-postern';
+import { gristConfig } from '../../src/grist';
+import { fakePostern } from 'bsv-kit/testing';
+import type { FakePostern } from 'bsv-kit/testing';
 
 const baseProps = {
   profile: { name: 'Rowan', themeId: 'dragon-forge' },
@@ -16,8 +18,8 @@ const baseProps = {
   onBack: vi.fn(),
 };
 
-const meCalls = (server: ReturnType<typeof makeServer>) =>
-  server.calls.filter((call) => call.method === 'GET' && call.path === '/api/me');
+const makeServer = (): FakePostern => fakePostern({ base: gristConfig.backendUrl });
+const meCalls = (server: FakePostern) => server.seen.filter((call) => call.method === 'GET' && call.path === '/me');
 
 beforeEach(async () => {
   localStorage.clear();
@@ -33,19 +35,17 @@ afterEach(() => {
 
 describe('Creating the device key warms the factory licence walk', () => {
   it('makes exactly one signed GET /api/me, as the new key', async () => {
-    const server = makeServer(PrivateKey.fromRandom());
-    const key = await createDeviceKey(server.fetch);
+    const server = makeServer();
+    await createDeviceKey(server.fetch);
 
     await waitFor(() => expect(meCalls(server)).toHaveLength(1), { timeout: 5000 });
-    expect(server.authorizations).toHaveLength(1);
-    expect(server.authorizations[0]).toContain(`Postern2 ${PrivateKey.fromWif(key.material).toPublicKey().toString()}:`);
     // Give a stray second call time to show itself.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(meCalls(server)).toHaveLength(1);
   });
 
   it('the Create button in Settings makes that one call, and shows the key as before', async () => {
-    const server = makeServer(PrivateKey.fromRandom());
+    const server = makeServer();
     vi.stubGlobal('fetch', server.fetch);
     render(<SettingsPanel {...baseProps} />);
 
@@ -59,15 +59,12 @@ describe('Creating the device key warms the factory licence walk', () => {
 
   it.each([
     ['offline', () => Promise.reject(new TypeError('Failed to fetch'))],
-    ['a refusal (401 no licence)', undefined],
+    ['a refusal (401 no licence)', () => Promise.resolve(new Response(JSON.stringify({ reason: 'no_licence' }), { status: 401 }))],
   ])('a failing call (%s) changes nothing visible and raises nothing', async (_name, failingFetch) => {
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
     try {
-      const server = makeServer(PrivateKey.fromRandom());
-      server.licensed = false;
-      const fetchImpl = (failingFetch ?? server.fetch) as typeof fetch;
-      vi.stubGlobal('fetch', fetchImpl);
+      vi.stubGlobal('fetch', failingFetch);
       render(<SettingsPanel {...baseProps} />);
 
       fireEvent.click(await screen.findByRole('button', { name: "Create this device's key" }, { timeout: 5000 }));

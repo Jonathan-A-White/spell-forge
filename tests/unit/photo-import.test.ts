@@ -9,7 +9,7 @@ import { db } from '../../src/data/db';
 import { bsvWalletRepo, profileRepo, statsRepo, wordListRepo, wordRepo } from '../../src/data/repositories';
 import type { OcrManager } from '../../src/ocr';
 import type { OcrResult } from '../../src/contracts/types';
-import { GristOffline, GristUnlicensed } from '../../src/grist';
+import { door } from 'bsv-kit/bsv';
 import type { GristAnswer, ReadAnswerResult } from '../../src/grist';
 import type { WordListAnswer } from '../../src/grist';
 import {
@@ -220,15 +220,15 @@ describe('the device reads at once', () => {
     expect(await wordTexts()).toEqual(['device']);
   });
 
-  it('when sending throws GristOffline, without waiting', async () => {
-    const deps = makeDeps({ sendGrist: vi.fn(async () => { throw new GristOffline(); }) });
+  it('when the factory cannot be reached, without waiting', async () => {
+    const deps = makeDeps({ sendGrist: vi.fn(async () => { throw new door.BackendUnreachableError('offline'); }) });
     await start(deps);
     expect((await theImport()).status).toBe('device');
     expect(await wordTexts()).toEqual(['device']);
   });
 
-  it('when sending throws GristUnlicensed (401 no_licence), without waiting', async () => {
-    const deps = makeDeps({ sendGrist: vi.fn(async () => { throw new GristUnlicensed(); }) });
+  it('when the factory says there is no licence (401), without waiting', async () => {
+    const deps = makeDeps({ sendGrist: vi.fn(async () => { throw new door.RefusedError(door.LICENCE_REQUIRED, 401); }) });
     await start(deps);
     expect((await theImport()).status).toBe('device');
     expect(await wordTexts()).toEqual(['device']);

@@ -14,7 +14,7 @@ import {
   sendGrist,
 } from '../../src/grist';
 import type { ReadAnswerParams, ReadAnswerResult } from '../../src/grist';
-import { answerPayload, makeServer } from '../fixtures/grist/fake-postern';
+import { factoryFor, replyAt } from '../fixtures/grist/bsv-kit-fake';
 
 const key = PrivateKey.fromRandom();
 const request: ParentAskRequest = { question: 'How is he doing?', sessions: ['2025-10-07. Problem: "x".'] };
@@ -210,24 +210,21 @@ describe('ParentAskInFlight.start cadence', () => {
 describe('through the real reader and a fake Postern', () => {
   it('sends an ask, gets the mill\'s answer back, and a bad answer fails the ask instead', async () => {
     const appKey = PrivateKey.fromRandom();
-    const millKey = PrivateKey.fromRandom();
-    const server = makeServer(millKey);
+    const server = factoryFor(appKey);
 
-    const sendOne = async () => {
+    const sendOne = async (n: number) => {
       const ask = await parentAskRepo.add({ profileId: 'p1', question: request.question, request });
+      server.postResult = { txid: `direct:${String(n).repeat(64)}`, seq: n };
       const sent = await sendGrist({ key: appKey, input: request, header: { ...PARENT_ASK_GRIND }, fetchImpl: server.fetch });
       await parentAskRepo.markSent(ask.id, sent);
       return { ask, txid: sent.txid };
     };
-    const good = await sendOne();
-    const bad = await sendOne();
-    const reply = (txid: string, body: unknown) =>
-      server.inject({
-        signer: millKey.toPublicKey().toString(),
-        payload: answerPayload({ from: millKey, to: appKey, plaintext: { re: txid, status: 'answered', answer: body } }),
-      });
-    reply(good.txid, answer('Real answer.'));
-    reply(bad.txid, { answer: 7 });
+    const good = await sendOne(1);
+    const bad = await sendOne(2);
+    const reply = (seq: number, txid: string, body: unknown) =>
+      replyAt(server, seq, { re: txid, status: 'answered', answer: body, grind: { app: 'spellforge', kind: 'parent-ask', v: '1' } });
+    reply(10, good.txid, answer('Real answer.'));
+    reply(11, bad.txid, { answer: 7 });
 
     await new ParentAskInFlight({ getKey: async () => appKey, fetchImpl: server.fetch }).pass();
 

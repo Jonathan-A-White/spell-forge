@@ -1,88 +1,73 @@
-// mw-bhvxcn.6: sendGrist carries audio (up to 8 MiB) beside photos (up to 4 MiB), the mime from the Blob and the
-// file's name, through the fake Postern server, which checks every signature.
+// mw-bhvxcn.6: sendGrist carries audio (up to 8 MiB) beside photos, the mime from the Blob and the file's name,
+// through bsv-kit's fake Postern. bsv-kit holds the file rules; this holds what the app sends and what it is told.
 import { describe, expect, it } from 'vitest';
-import { EncryptedMessage, PrivateKey, Utils } from '@bsv/sdk';
-import { GristLimitError, gristFileFromBlob, sendGrist } from '../../src/grist';
+import { PrivateKey } from '@bsv/sdk';
+import { grist } from 'bsv-kit/grist';
+import { gristFileFromBlob, sendGrist } from '../../src/grist';
 import type { GristFile } from '../../src/grist';
-import { makeServer } from '../fixtures/grist/fake-postern';
+import { delivered, factoryFor, uploaded } from '../fixtures/grist/bsv-kit-fake';
 
 const HEADER = { app: 'spellforge', kind: 'tutor-turn', v: '1' };
-const PHOTO_LIMIT = 4_194_304;
 const AUDIO_LIMIT = 8_388_608;
 const bytes = (n: number) => new Uint8Array(n).map((_, i) => (i * 13 + n) % 256);
 
-function plaintextOf(server: ReturnType<typeof makeServer>, millKey: PrivateKey) {
-  const envelope = server.records[0].payload as { ct: string };
-  return JSON.parse(Utils.toUTF8(EncryptedMessage.decrypt(Utils.toArray(envelope.ct, 'base64'), millKey))) as {
-    grist: unknown;
-    input: unknown;
-    attachments: { hash: string; size: number; mime: string; name?: string }[];
-  };
-}
-
 describe('sendGrist with files', () => {
-  it('sends an audio/webm recording sealed to the mill, with its mime and its name, every call signed', async () => {
-    const appKey = PrivateKey.fromRandom();
-    const millKey = PrivateKey.fromRandom();
-    const server = makeServer(millKey);
-    const audio: GristFile = { bytes: bytes(3000), mime: 'audio/webm', name: 'reading.webm' };
+  it('sends an audio/webm recording sealed to the mill, with its mime and its name', async () => {
+    const key = PrivateKey.fromRandom();
+    const fake = factoryFor(key);
+    const audio: GristFile = { bytes: bytes(3000), mime: 'audio/webm;codecs=opus', name: 'reading.webm' };
 
-    const sent = await sendGrist({ key: appKey, files: [audio], input: { mode: 'reading' }, header: HEADER, fetchImpl: server.fetch });
+    const sent = await sendGrist({ key, files: [audio], input: { mode: 'reading' }, header: HEADER, fetchImpl: fake.fetch });
 
-    expect(sent.txid).toMatch(/^direct:[0-9a-f]{64}$/);
-    const plain = plaintextOf(server, millKey);
+    expect(sent).toMatchObject({ txid: expect.stringMatching(/^direct:[0-9a-f]{64}$/), seq: 1, mill: fake.mill });
+    const [plain] = delivered(fake);
     expect(plain.grist).toEqual(HEADER);
-    expect(plain.attachments).toHaveLength(1);
-    expect(plain.attachments[0]).toMatchObject({ mime: 'audio/webm', name: 'reading.webm', size: server.blobs.get(plain.attachments[0].hash)!.length });
-
-    const body = server.blobs.get(plain.attachments[0].hash)!;
-    expect(Uint8Array.from(EncryptedMessage.decrypt(Array.from(body), millKey))).toEqual(audio.bytes);
-    expect(() => EncryptedMessage.decrypt(Array.from(body), appKey)).toThrow();
-
-    // the fake server verified each request's v2 signature before it served the call; check the headers too
-    expect(server.authorizations.length).toBeGreaterThanOrEqual(3);
-    for (const header of server.authorizations) {
-      expect(header.startsWith('Postern2 ')).toBe(true);
-      expect(header.split(' ')[1].split(':')[0]).toBe(appKey.toPublicKey().toString());
-    }
+    expect(plain.input).toEqual({ mode: 'reading' });
+    expect(plain.attachments).toEqual([expect.objectContaining({ mime: 'audio/webm', name: 'reading.webm', size: fake.seen.find((c) => c.path === '/blobs')?.body?.length })]);
+    expect(uploaded(fake)[0]).toEqual(audio.bytes);
   });
 
-  it('sends photos and audio together, naming only what has a name', async () => {
-    const millKey = PrivateKey.fromRandom();
-    const server = makeServer(millKey);
+  it('sends photos and audio together, naming only what has a name, in the order given', async () => {
+    const key = PrivateKey.fromRandom();
+    const fake = factoryFor(key);
     const files: GristFile[] = [
       { bytes: bytes(500), mime: 'image/jpeg' },
       { bytes: bytes(700), mime: 'audio/ogg', name: 'clip.ogg' },
     ];
-    await sendGrist({ key: PrivateKey.fromRandom(), files, input: {}, header: HEADER, fetchImpl: server.fetch });
-    const { attachments } = plaintextOf(server, millKey);
+    await sendGrist({ key, files, input: {}, header: HEADER, fetchImpl: fake.fetch });
+    const { attachments } = delivered(fake)[0];
     expect(attachments.map((a) => a.mime)).toEqual(['image/jpeg', 'audio/ogg']);
     expect(attachments[0]).not.toHaveProperty('name');
     expect(attachments[1].name).toBe('clip.ogg');
   });
 
-  it('still takes photos in the old `photos` field', async () => {
-    const millKey = PrivateKey.fromRandom();
-    const server = makeServer(millKey);
-    await sendGrist({ key: PrivateKey.fromRandom(), photos: [{ bytes: bytes(10), mime: 'image/png' }], input: {}, header: HEADER, fetchImpl: server.fetch });
-    expect(plaintextOf(server, millKey).attachments.map((a) => a.mime)).toEqual(['image/png']);
+  it('sends nothing when a file is one the mill would refuse: too much audio, another type, too many files', async () => {
+    const key = PrivateKey.fromRandom();
+    const fake = factoryFor(key);
+    const send = (files: GristFile[]) => sendGrist({ key, files, input: {}, header: HEADER, fetchImpl: fake.fetch });
+
+    await expect(send([{ bytes: bytes(AUDIO_LIMIT + 1), mime: 'audio/webm' }])).rejects.toBeInstanceOf(grist.GristInputError);
+    await expect(send([{ bytes: bytes(10), mime: 'audio/wav' }])).rejects.toBeInstanceOf(grist.GristInputError);
+    await expect(send([{ bytes: bytes(10), mime: 'video/mp4' }])).rejects.toBeInstanceOf(grist.GristInputError);
+    await expect(send(Array.from({ length: 5 }, () => ({ bytes: bytes(10), mime: 'audio/webm' })))).rejects.toBeInstanceOf(grist.GristInputError);
+    expect(fake.seen).toEqual([]);
   });
 
-  it('holds a photo to 4 MiB and audio to 8 MiB, and refuses other mimes, before any network call', async () => {
-    const server = makeServer(PrivateKey.fromRandom());
+  it('sends nothing when an upload fails', async () => {
     const key = PrivateKey.fromRandom();
-    const send = (files: GristFile[]) => sendGrist({ key, files, input: {}, header: HEADER, fetchImpl: server.fetch });
+    const fake = factoryFor(key);
+    fake.failBlobs = { status: 500, error: 'disk full' };
+    await expect(sendGrist({ key, files: [{ bytes: bytes(10), mime: 'image/png' }], input: {}, header: HEADER, fetchImpl: fake.fetch })).rejects.toThrow('disk full');
+    expect(delivered(fake)).toEqual([]);
+  });
 
-    await expect(send([{ bytes: bytes(PHOTO_LIMIT + 1), mime: 'image/jpeg' }])).rejects.toBeInstanceOf(GristLimitError);
-    await expect(send([{ bytes: bytes(AUDIO_LIMIT + 1), mime: 'audio/webm' }])).rejects.toBeInstanceOf(GristLimitError);
-    await expect(send([{ bytes: bytes(10), mime: 'audio/wav' }])).rejects.toBeInstanceOf(GristLimitError);
-    await expect(send([{ bytes: bytes(10), mime: 'video/mp4' }])).rejects.toBeInstanceOf(GristLimitError);
-    await expect(send(Array.from({ length: 5 }, () => ({ bytes: bytes(10), mime: 'audio/webm' })))).rejects.toBeInstanceOf(GristLimitError);
-    expect(server.calls).toEqual([]);
-
-    // sealing 8 MiB takes seconds on a busy machine
-    await expect(send([{ bytes: bytes(AUDIO_LIMIT), mime: 'audio/mp4' }])).resolves.toBeDefined();
-  }, 60_000);
+  it('fails when the backend names no mill, and sends nothing', async () => {
+    const key = PrivateKey.fromRandom();
+    const fake = factoryFor(key);
+    fake.mill = '';
+    await expect(sendGrist({ key, input: {}, header: HEADER, fetchImpl: fake.fetch })).rejects.toThrow(/no mill/);
+    expect(delivered(fake)).toEqual([]);
+  });
 });
 
 describe('gristFileFromBlob', () => {

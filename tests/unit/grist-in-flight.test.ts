@@ -15,7 +15,7 @@ import {
   sendGrist,
 } from '../../src/grist';
 import type { ReadAnswerParams, ReadAnswerResult } from '../../src/grist';
-import { answerPayload, makeServer } from '../fixtures/grist/fake-postern';
+import { factoryFor, replyAt } from '../fixtures/grist/bsv-kit-fake';
 
 const key = PrivateKey.fromRandom();
 const answer = (action: TutorAnswer['action'] = 'continue'): TutorAnswer => ({
@@ -272,26 +272,24 @@ describe('GristInFlight.start cadence', () => {
 describe('through the real reader and a fake Postern', () => {
   it('sends three turns, gets two answers back in reverse order, and each lands on its own turn', async () => {
     const appKey = PrivateKey.fromRandom();
-    const millKey = PrivateKey.fromRandom();
-    const server = makeServer(millKey);
+    const server = factoryFor(appKey);
     const session = await tutorRepo.createSession({ profileId: 'p1', strictness: 'meaning-gated' });
 
     const turns = [];
-    for (const mode of ['problem-in', 'reading', 'math'] as const) {
+    for (const [i, mode] of (['problem-in', 'reading', 'math'] as const).entries()) {
       const turn = await tutorRepo.addTurn({ sessionId: session.id, mode, request: { mode, strictness: 'meaning-gated', session_history: [] } });
+      server.postResult = { txid: `direct:${String(i + 1).repeat(64)}`, seq: i + 1 };
       const sent = await sendGrist({ key: appKey, files: [], input: { mode }, header: { ...TUTOR_TURN_GRIND }, fetchImpl: server.fetch });
       await tutorRepo.markSent(turn.id, sent);
       turns.push({ turn, txid: sent.txid });
     }
 
     for (const index of [2, 1]) {
-      server.inject({
-        signer: millKey.toPublicKey().toString(),
-        payload: answerPayload({
-          from: millKey,
-          to: appKey,
-          plaintext: { re: turns[index].txid, status: 'answered', answer: answer(index === 2 ? 'math_probe' : 'reread_word') },
-        }),
+      replyAt(server, 10 + index, {
+        re: turns[index].txid,
+        status: 'answered',
+        answer: answer(index === 2 ? 'math_probe' : 'reread_word'),
+        grind: { app: 'spellforge', kind: 'tutor-turn', v: '1' },
       });
     }
 

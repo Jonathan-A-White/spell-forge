@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PrivateKey } from '@bsv/sdk';
 import { generateTestnetKey } from '../../bsv';
 import { bsvWalletRepo } from '../../data/repositories';
-import { posternApi } from '../../grist';
+import { warmLicence as askWhoThisKeyIs } from '../../grist';
 import type { BsvWalletKey } from '../../contracts/types';
 
 /**
@@ -13,9 +13,7 @@ import type { BsvWalletKey } from '../../contracts/types';
  */
 function warmLicence(material: string, fetchImpl?: typeof fetch): void {
   try {
-    posternApi(PrivateKey.fromWif(material), fetchImpl)
-      .me()
-      .catch(() => undefined);
+    askWhoThisKeyIs(PrivateKey.fromWif(material), fetchImpl).catch(() => undefined);
   } catch {
     // Nothing here may reach the child.
   }

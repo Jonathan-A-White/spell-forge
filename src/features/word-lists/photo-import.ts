@@ -154,7 +154,7 @@ export async function startPhotoImport(params: StartPhotoImportParams, deps: Pho
       const photo = await (deps.shrink ?? shrinkPhoto)(params.file);
       sent = await (deps.sendGrist ?? sendGrist)({
         key,
-        photos: [photo],
+        files: [photo],
         input: { language: params.language },
         header: WORD_LIST_GRIND,
       });

@@ -289,10 +289,10 @@ describe('TutorScreen: a photo of the problem', () => {
 
   it('says when the photo is too big to send, sends nothing, and offers the camera again', async () => {
     const factory = fakeFactory();
-    const { GristLimitError } = await import('../../src/grist');
+    const { grist } = await import('bsv-kit/grist');
     await renderScreen(factory, {
       shrink: async () => {
-        throw new GristLimitError('This photo is too big even when shrunk.');
+        throw new grist.GristInputError('This photo is too big even when shrunk.');
       },
     });
     fireEvent.change(await screen.findByTestId('tutor-photo-input'), { target: { files: [photoFile()] } });

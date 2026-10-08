@@ -2,9 +2,12 @@
 // One already in those limits goes through untouched; anything else is re-encoded as JPEG by an encoder
 // that tests replace (the default needs a browser: createImageBitmap and a canvas).
 
-import { GristLimitError } from './errors';
-import { GRIST_MAX_PHOTO_BYTES, GRIST_MIMES } from './send-grist';
-import type { GristPhoto } from './send-grist';
+import { grist } from 'bsv-kit/grist';
+import type { GristPhoto } from './factory';
+
+/** What the mill's grinds take of a photo (grinds/word-list.json, grinds/tutor-turn.json); bsv-kit's own cap is looser. */
+export const GRIST_MAX_PHOTO_BYTES = 4_194_304;
+export const GRIST_MIMES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** Re-encodes `blob` as JPEG bytes, trying to land at or under `maxBytes`. */
 export type PhotoEncoder = (blob: Blob, maxBytes: number) => Promise<Uint8Array>;
@@ -55,7 +58,7 @@ async function draw(blob: Blob): Promise<Drawing> {
   const image = new Image();
   await new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
-    image.onerror = () => reject(new GristLimitError('This photo could not be opened.'));
+    image.onerror = () => reject(new grist.GristInputError('This photo could not be opened.'));
     image.src = url;
   });
   return {
@@ -75,7 +78,7 @@ async function draw(blob: Blob): Promise<Drawing> {
 function canvasBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (result) => (result ? resolve(result) : reject(new GristLimitError('This photo could not be saved as a JPEG.'))),
+      (result) => (result ? resolve(result) : reject(new grist.GristInputError('This photo could not be saved as a JPEG.'))),
       JPEG,
       quality,
     );
@@ -104,7 +107,7 @@ export const browserPhotoEncoder: PhotoEncoder = async (blob, maxBytes) => {
 
 /**
  * A photo ready to send: `blob` as it is when it is a JPEG, PNG or WebP of at most 4 MiB, else re-encoded as a
- * JPEG under that. Throws a GristLimitError if the encoder cannot get it under.
+ * JPEG under that. Throws a GristInputError if the encoder cannot get it under.
  */
 export async function shrinkPhoto(blob: Blob, encode: PhotoEncoder = browserPhotoEncoder): Promise<GristPhoto> {
   if (GRIST_MIMES.includes(blob.type) && blob.size <= GRIST_MAX_PHOTO_BYTES) {
@@ -112,7 +115,7 @@ export async function shrinkPhoto(blob: Blob, encode: PhotoEncoder = browserPhot
   }
   const bytes = await encode(blob, GRIST_MAX_PHOTO_BYTES);
   if (bytes.length === 0 || bytes.length > GRIST_MAX_PHOTO_BYTES) {
-    throw new GristLimitError('This photo is too large to send, even made smaller.');
+    throw new grist.GristInputError('This photo is too large to send, even made smaller.');
   }
   return { bytes, mime: JPEG };
 }

@@ -6,9 +6,9 @@
 import type { PrivateKey } from '@bsv/sdk';
 import type { ParentAsk, ParentAskAnswer } from '../contracts/types';
 import { parentAskRepo } from '../data/repositories/parent-ask-repo';
-import { readAnswer } from './read-answer';
-import type { ReadAnswerParams, ReadAnswerResult } from './read-answer';
-import { startPolling } from './poll';
+import { readAnswer } from './factory';
+import type { ReadAnswerParams, ReadAnswerResult } from './factory';
+import { startPolling } from './in-flight';
 import { isParentAskAnswer } from './parent-ask';
 
 /** How long the factory has to answer one ask. */

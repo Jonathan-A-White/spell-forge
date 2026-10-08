@@ -7,7 +7,8 @@ import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { parentAskRepo, tutorRepo } from '../../src/data/repositories';
 import { ParentScreen } from '../../src/features/tutor/parent-screen';
-import { PARENT_ASK_GRIND, GristOffline } from '../../src/grist';
+import { door } from 'bsv-kit/bsv';
+import { PARENT_ASK_GRIND } from '../../src/grist';
 import type { ReadAnswerParams, ReadAnswerResult, SendGristParams } from '../../src/grist';
 import type { ParentAskAnswer, ParentAskRequest } from '../../src/contracts';
 import { paulProfile } from '../fixtures/profiles';
@@ -136,7 +137,7 @@ describe('Ask the tutor box', () => {
   });
 
   it('says why when the question could not be sent, and keeps the failed ask in the history', async () => {
-    const client = fakeClient({ sendError: new GristOffline('offline') });
+    const client = fakeClient({ sendError: new door.BackendUnreachableError('offline') });
     open(client.deps);
     const s = await ask('Will this fail?');
     expect(await s.findByText(/cannot be reached/i)).toBeTruthy();
