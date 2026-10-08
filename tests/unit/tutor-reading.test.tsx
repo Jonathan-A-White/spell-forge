@@ -190,6 +190,50 @@ describe('hold to read', () => {
   });
 });
 
+describe("'Read it' is Postern's bar (mw-kuy7rx.19)", () => {
+  /** jsdom has no layout: the floor and the tap-target multiple in the min-height are resolved here the way the browser does. */
+  function barMinHeightPx(el: HTMLElement, tapTargetPx: number) {
+    const css = el.style.minHeight.replace(/var\(--sf-tap-target-size\)/g, `${tapTargetPx}px`);
+    const floor = /max\((\d+)px,\s*calc\((\d+)px \* 2\)\)/.exec(css);
+    if (!floor) throw new Error(`unexpected min-height: ${el.style.minHeight}`);
+    return Math.max(Number(floor[1]), Number(floor[2]) * 2);
+  }
+
+  it('spans the footer to max-w-xl, is rounded-3xl, and carries the mic icon over the label', async () => {
+    await setup();
+    const button = await screen.findByRole('button', { name: 'Read it' });
+    expect(button.className).toMatch(/\bw-full\b/);
+    expect(button.className).toMatch(/\bmax-w-xl\b/);
+    expect(button.className).toMatch(/\brounded-3xl\b/);
+    expect(button.className).toMatch(/\bflex-col\b/);
+    expect(screen.getByTestId('reading-footer')).toContainElement(button);
+    const icon = button.querySelector('svg[data-icon="mic"]');
+    expect(icon).not.toBeNull();
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    // the icon comes before the label in a column: it sits over it
+    expect(button.firstElementChild).toBe(icon);
+    expect(button).toHaveTextContent('Read it');
+  });
+
+  it('is at least 96 px tall at the default tap-target setting and taller at the large one', async () => {
+    await setup();
+    const button = await screen.findByRole('button', { name: 'Read it' });
+    expect(barMinHeightPx(button, DEFAULT_SETTINGS.tapTargetSize)).toBeGreaterThanOrEqual(96);
+    expect(barMinHeightPx(button, 72)).toBeGreaterThan(barMinHeightPx(button, DEFAULT_SETTINGS.tapTargetSize));
+    expect(barMinHeightPx(button, 48)).toBeGreaterThanOrEqual(96);
+  });
+
+  it('keeps the bar and its icon while held', async () => {
+    await setup();
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    const held = await screen.findByRole('button', { name: /Let go/ });
+    expect(held.className).toMatch(/\bmax-w-xl\b/);
+    expect(held.className).toMatch(/\brounded-3xl\b/);
+    expect(held.querySelector('svg[data-icon="mic"]')).not.toBeNull();
+    expect(barMinHeightPx(held, DEFAULT_SETTINGS.tapTargetSize)).toBeGreaterThanOrEqual(96);
+  });
+});
+
 describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () => {
   it('puts the problem in its own vertical scroll area and the button outside it, pinned at the bottom', async () => {
     await setup();

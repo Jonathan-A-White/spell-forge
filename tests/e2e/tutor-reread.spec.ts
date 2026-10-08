@@ -55,9 +55,9 @@ async function completeOnboarding(page: Page, name: string): Promise<void> {
 }
 
 /** An active session for the (only) profile: the problem shown, then a reading answered with reread_word. */
-async function seedRereadSession(page: Page): Promise<void> {
+async function seedRereadSession(page: Page, withReread = true): Promise<void> {
   await page.evaluate(
-    ({ problem, tip }) =>
+    ({ problem, tip, withReread }) =>
       new Promise<void>((resolve, reject) => {
         const openReq = indexedDB.open('SpellForgeDB');
         openReq.onerror = () => reject(openReq.error);
@@ -90,7 +90,7 @@ async function seedRereadSession(page: Page): Promise<void> {
               attachments: [],
               status: 'answered',
             });
-            tx.objectStore('tutorTurns').put({
+            if (withReread) tx.objectStore('tutorTurns').put({
               id: 'e2e-turn-2',
               sessionId: 'e2e-session',
               index: 2,
@@ -115,7 +115,7 @@ async function seedRereadSession(page: Page): Promise<void> {
           };
         };
       }),
-    { problem: PROBLEM, tip: TIP },
+    { problem: PROBLEM, tip: TIP, withReread },
   );
 }
 
@@ -170,6 +170,52 @@ test.describe('a reread shows only the missed word (mw-ke5k7i)', () => {
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
       await expect(button).toBeInViewport({ ratio: 1 });
       await page.screenshot({ path: join(SHOTS, 'tutor-reread.png') });
+
+      expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
+    } finally {
+      previewProcess?.kill();
+    }
+  });
+});
+
+test.describe("'Read it' is Postern's bar (mw-kuy7rx.19)", () => {
+  test.use({ viewport: { width: 360, height: 740 } });
+
+  test('the bar is at the foot of the reading screen: big, full width, rounded, with a mic icon', async ({ page }) => {
+    test.setTimeout(180_000);
+    mkdirSync(SHOTS, { recursive: true });
+
+    execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
+    let previewProcess: ChildProcess | undefined;
+    try {
+      previewProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
+      await waitForServer(`${PREVIEW_ORIGIN}${APP_PATH}`, 20_000);
+
+      const pageErrors: string[] = [];
+      page.on('pageerror', (error) => pageErrors.push(error.message));
+
+      await completeOnboarding(page, 'Bar Kid');
+      await seedRereadSession(page, false);
+      await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
+      await page.reload();
+      await page.getByRole('button', { name: /Tutor/ }).click();
+
+      const button = page.getByRole('button', { name: 'Read it' });
+      await expect(button).toBeVisible({ timeout: 15_000 });
+      await expect(button).toBeInViewport({ ratio: 1 });
+      const box = await button.boundingBox();
+      expect(box, 'the bar has a box').not.toBeNull();
+      expect(box?.height, 'at least Postern\'s 96 px').toBeGreaterThanOrEqual(96);
+      expect(box?.width, 'full width of a 360 px phone less the page padding').toBeGreaterThan(360 - 64);
+      expect(box?.y ?? 0, 'at the foot').toBeGreaterThan(740 / 2);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(740);
+      await expect(button.locator('svg[data-icon="mic"]')).toBeVisible();
+      const radius = await button.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius));
+      expect(radius, 'rounded-3xl is 24 px').toBeGreaterThanOrEqual(24);
+      await page.screenshot({ path: join(SHOTS, 'tutor-read-it-bar.png') });
 
       expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
     } finally {
