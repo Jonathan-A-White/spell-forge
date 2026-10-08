@@ -183,6 +183,135 @@ describe('hold to read', () => {
   });
 });
 
+describe('push to talk (mw-kuy7rx.5)', () => {
+  const vibrate = vi.fn();
+  beforeEach(() => {
+    vibrate.mockClear();
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true, writable: true });
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'vibrate');
+  });
+
+  /** A recorder whose start the test opens by hand, logging what happens in order. */
+  function gatedRecorder() {
+    const order: string[] = [];
+    let open: () => void = () => undefined;
+    const canceled = vi.fn();
+    const create = () => ({
+      start: () => {
+        order.push('recorder.start');
+        return new Promise<void>((resolve) => {
+          open = () => {
+            order.push('recording');
+            resolve();
+          };
+        });
+      },
+      stop: async () => clip(),
+      cancel: () => {
+        canceled();
+        order.push('recorder.cancel');
+      },
+    });
+    return { order, create, canceled, open: () => open() };
+  }
+
+  const BOX = { left: 100, top: 100, right: 300, bottom: 200, width: 200, height: 100, x: 100, y: 100, toJSON: () => ({}) };
+  const slide = (button: HTMLElement, clientX: number, clientY: number) => {
+    button.getBoundingClientRect = () => BOX as DOMRect;
+    const event = new MouseEvent('pointermove', { bubbles: true, clientX, clientY });
+    act(() => {
+      button.dispatchEvent(event);
+    });
+  };
+
+  it('cancels the tutor talking on press, before the recorder starts', async () => {
+    const g = gatedRecorder();
+    const stopSpeaking = vi.fn(() => g.order.push('stopSpeaking'));
+    await setup({ createRecorder: g.create, stopSpeaking });
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    await waitFor(() => expect(g.order).toContain('recorder.start'));
+    expect(stopSpeaking).toHaveBeenCalledTimes(1);
+    expect(g.order.indexOf('stopSpeaking')).toBeLessThan(g.order.indexOf('recorder.start'));
+  });
+
+  it('buzzes 30 ms only once the recorder is actually recording, and 15 ms on release', async () => {
+    const g = gatedRecorder();
+    await setup({ createRecorder: g.create });
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    await waitFor(() => expect(g.order).toContain('recorder.start'));
+    expect(vibrate).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('recording-dot')).not.toBeInTheDocument();
+
+    await act(async () => g.open());
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenLastCalledWith(30);
+    expect(await screen.findByTestId('recording-dot')).toBeInTheDocument();
+
+    fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
+    expect(vibrate).toHaveBeenCalledTimes(2);
+    expect(vibrate).toHaveBeenLastCalledWith(15);
+  });
+
+  it('drops the attempt when he slides more than 40 px off the button: nothing is sent, the clip is discarded', async () => {
+    const g = gatedRecorder();
+    const { factory } = await setup({ createRecorder: g.create });
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    await act(async () => g.open());
+    const button = await screen.findByRole('button', { name: 'Let go to send' });
+
+    slide(button, 320, 150); // 20 px off the right edge: still on
+    expect(screen.getByRole('button', { name: 'Let go to send' })).toBeInTheDocument();
+
+    slide(button, 350, 150); // 50 px off
+    expect(screen.getByRole('button', { name: 'Let go to drop' })).toBeInTheDocument();
+
+    vibrate.mockClear();
+    fireEvent.pointerUp(screen.getByRole('button', { name: 'Let go to drop' }));
+    expect(await screen.findByText('Dropped. Hold to try again')).toBeInTheDocument();
+    expect(g.canceled).toHaveBeenCalled();
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenCalledWith([30, 50, 30]);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(factory.sends).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Read it' })).toBeInTheDocument();
+  });
+
+  it('sliding back onto the button keeps the attempt', async () => {
+    const g = gatedRecorder();
+    const { factory } = await setup({ createRecorder: g.create });
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    await act(async () => g.open());
+    const button = await screen.findByRole('button', { name: 'Let go to send' });
+    slide(button, 50, 150);
+    expect(screen.getByRole('button', { name: 'Let go to drop' })).toBeInTheDocument();
+    slide(button, 150, 150);
+    fireEvent.pointerUp(screen.getByRole('button', { name: 'Let go to send' }));
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+  });
+
+  it('holds a reply that arrives mid-hold until he lets go', async () => {
+    const { factory, say } = await setup();
+    await readIt();
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+    await screen.findByText('Thinking about your reading...');
+
+    // he presses again, and the reply to the first reading arrives while he holds
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    await screen.findByTestId('recording-dot');
+    factory.answers.set('direct:1', {
+      answer: { status: 'answered', answer: reading({ action: 'encourage', prompt_to_child: 'Nearly there.' }) },
+      next: 2,
+    });
+    await screen.findByText('Nearly there.', undefined, { timeout: 3000 });
+    expect(say).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(screen.getByRole('button', { name: /Let go/ }));
+    await waitFor(() => expect(say).toHaveBeenCalledWith('Nearly there.'));
+  });
+});
+
 describe('the answer, by action', () => {
   async function answered(over: Partial<TutorAnswer>, extra: { readingResult?: unknown } = {}) {
     const ctx = await setup();
