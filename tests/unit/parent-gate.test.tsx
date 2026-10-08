@@ -48,7 +48,7 @@ describe('PinPad', () => {
 });
 
 describe('ParentGate', () => {
-  const open = () => render(<ParentGate onExit={() => undefined} />);
+  const open = () => render(<ParentGate profileId="p1" onExit={() => undefined} />);
 
   it('on first open asks to choose a PIN, then to type it again', async () => {
     open();
@@ -125,7 +125,7 @@ describe('ParentGate', () => {
     await setParentPin('1234', 'q', 'a');
     function Host() {
       const [on, setOn] = useState(false);
-      return on ? <ParentGate onExit={() => setOn(false)} /> : <button onClick={() => setOn(true)}>Grown-ups</button>;
+      return on ? <ParentGate profileId="p1" onExit={() => setOn(false)} /> : <button onClick={() => setOn(true)}>Grown-ups</button>;
     }
     render(<Host />);
     fireEvent.click(screen.getByRole('button', { name: 'Grown-ups' }));

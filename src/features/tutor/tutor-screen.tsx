@@ -341,7 +341,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     <button onClick={() => void stopForNow()} className={`${SECONDARY} mt-6`} style={TAP}>Stop for now</button>
   );
 
-  if (view.kind === 'parent') return <ParentGate onExit={() => setView({ kind: 'tutor' })} />;
+  if (view.kind === 'parent') return <ParentGate profileId={profile.id} onExit={() => setView({ kind: 'tutor' })} />;
 
   return (
     <div className="min-h-screen bg-sf-bg">

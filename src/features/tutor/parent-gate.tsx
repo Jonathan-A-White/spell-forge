@@ -17,6 +17,8 @@ import {
 } from './parent-pin';
 
 export interface ParentGateProps {
+  /** The child whose sessions the screen shows. */
+  profileId: string;
   /** Leave the Grown-ups area, back to the Tutor. */
   onExit: () => void;
 }
@@ -44,7 +46,7 @@ const BUTTON = 'px-5 rounded-xl font-bold transition-all active:scale-[0.97] dis
 const PRIMARY = `${BUTTON} bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover`;
 const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-heading hover:border-sf-border-strong`;
 
-export function ParentGate({ onExit }: ParentGateProps) {
+export function ParentGate({ profileId, onExit }: ParentGateProps) {
   const [step, setStep] = useState<Step>(() => (hasParentPin() ? { kind: 'enter' } : { kind: 'choose' }));
   const [wrong, setWrong] = useState(0);
 
@@ -73,7 +75,7 @@ export function ParentGate({ onExit }: ParentGateProps) {
     </div>
   );
 
-  if (step.kind === 'open') return <ParentScreen onBack={onExit} />;
+  if (step.kind === 'open') return <ParentScreen profileId={profileId} onBack={onExit} />;
 
   if (step.kind === 'enter') {
     const check = async (pin: string) => {
