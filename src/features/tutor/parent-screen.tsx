@@ -1,18 +1,20 @@
 // src/features/tutor/parent-screen.tsx — The Grown-ups screen, behind the PIN gate (parent-gate.tsx): 'This week'
-// and 'Sessions' are filled (mw-kuy7rx.3); the other two sections are still to come.
+// and 'Sessions' are filled (mw-kuy7rx.3) and a session line opens its page (mw-kuy7rx.4); the other two sections
+// are still to come.
 
+import { useState } from 'react';
+import { ParentSessionPage } from './parent-session-page';
 import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
 
 export interface ParentScreenProps {
   profileId: string;
   onBack: () => void;
-  /** A tap on a session line; the next story opens the session's record. */
-  onOpenSession?: (sessionId: string) => void;
 }
 
 const COMING = ['Ask the tutor', 'Tutor settings'] as const;
 
-export function ParentScreen({ profileId, onBack, onOpenSession = () => undefined }: ParentScreenProps) {
+export function ParentScreen({ profileId, onBack }: ParentScreenProps) {
+  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div className="min-h-screen bg-sf-bg">
       <div className="bg-sf-surface border-b border-sf-border px-4 py-3">
@@ -28,14 +30,20 @@ export function ParentScreen({ profileId, onBack, onOpenSession = () => undefine
         </div>
       </div>
       <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-5 space-y-4">
-        <ParentThisWeek profileId={profileId} />
-        <ParentSessions profileId={profileId} onOpen={onOpenSession} />
-        {COMING.map((title) => (
-          <section key={title} className="rounded-xl bg-sf-surface border border-sf-border p-4">
-            <h2 className="text-sf-heading font-bold text-lg">{title}</h2>
-            <p className="text-sf-muted text-sm">Coming soon.</p>
-          </section>
-        ))}
+        {openId ? (
+          <ParentSessionPage sessionId={openId} onBack={() => setOpenId(null)} />
+        ) : (
+          <>
+            <ParentThisWeek profileId={profileId} />
+            <ParentSessions profileId={profileId} onOpen={setOpenId} />
+            {COMING.map((title) => (
+              <section key={title} className="rounded-xl bg-sf-surface border border-sf-border p-4">
+                <h2 className="text-sf-heading font-bold text-lg">{title}</h2>
+                <p className="text-sf-muted text-sm">Coming soon.</p>
+              </section>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

@@ -132,7 +132,7 @@ describe('the Grown-ups screen\'s This week and Sessions', () => {
   });
 
   it('the Grown-ups screen has both sections, with no Mode or Turn text', async () => {
-    const { container } = render(<ParentScreen profileId="p1" onBack={() => undefined} onOpenSession={() => undefined} />);
+    const { container } = render(<ParentScreen profileId="p1" onBack={() => undefined} />);
     expect(screen.getByRole('heading', { name: 'This week' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Sessions' })).toBeTruthy();
     await screen.findAllByRole('listitem');

@@ -1,7 +1,7 @@
-// src/features/tutor/session-record.tsx — The Session record (mw-bhvxcn.10): the Sessions list, newest first, and
-// for one session every turn's raw material and timing: the request as sent, the photos and audio, each scoring
-// engine's word table, the answer as returned, stale/refused/failed marked, and the parent's notes at the foot.
-// Read-only: nothing here deletes anything.
+// src/features/tutor/session-record.tsx — The Session record (mw-bhvxcn.10): for one session every turn's raw
+// material and timing: the request as sent, the photos and audio, each scoring engine's word table, the answer as returned, stale/refused/failed marked, and the parent's notes at the foot.
+// Read-only: nothing here deletes anything. It sits behind 'Details' on a session's page on the Grown-ups screen
+// (mw-kuy7rx.4); the child's Tutor screen no longer reaches it.
 
 import { useEffect, useMemo, useState } from 'react';
 import { liveQuery } from 'dexie';
@@ -18,45 +18,6 @@ const PRE = 'text-xs bg-sf-bg border border-sf-border rounded-lg p-2 overflow-x-
 const whole = (date: Date) => date.toLocaleString();
 
 const seconds = (n: number) => `${n} second${n === 1 ? '' : 's'}`;
-
-// ─── The Sessions list ────────────────────────────────────────
-
-export interface SessionListProps {
-  profileId: string;
-  onOpen: (sessionId: string) => void;
-}
-
-export function SessionList({ profileId, onOpen }: SessionListProps) {
-  const [rows, setRows] = useState<{ session: TutorSession; turns: number }[] | null>(null);
-
-  useEffect(() => {
-    const subscription = liveQuery(async () => {
-      const sessions = await tutorRepo.listSessions(profileId);
-      return Promise.all(sessions.map(async (session) => ({ session, turns: (await tutorRepo.listTurns(session.id)).length })));
-    }).subscribe({ next: setRows, error: () => setRows([]) });
-    return () => subscription.unsubscribe();
-  }, [profileId]);
-
-  if (!rows) return <p className="text-sf-muted">Loading...</p>;
-  if (rows.length === 0) return <p className="text-sf-muted">No sessions yet.</p>;
-  return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-bold text-sf-heading">Sessions</h2>
-      <ul className="space-y-2">
-        {rows.map(({ session, turns }) => (
-          <li key={session.id}>
-            <button type="button" onClick={() => onOpen(session.id)} className={`${SECONDARY} w-full text-left py-2`} style={TAP}>
-              <span className="block text-sf-muted text-sm">
-                {whole(session.startedAt)} · {session.status === 'active' ? 'Still going' : 'Ended'} · {turns} {turns === 1 ? 'turn' : 'turns'}
-              </span>
-              <span className="block text-sf-heading font-medium">{session.targetText ?? 'No problem yet'}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 // ─── One session's record ─────────────────────────────────────
 

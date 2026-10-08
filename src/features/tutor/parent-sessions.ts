@@ -111,3 +111,19 @@ export function weekSummary(rows: SessionWithTurns[], now: Date = new Date()): s
   const words = mostMisread(week);
   return words.length > 0 ? `${first} The words he misread most: ${words.join(', ')}.` : first;
 }
+
+/** One turn in plain words, for a session's page. */
+export function plainTurn(turn: TutorTurn): string {
+  if (turn.status === 'stale') return 'He had moved on before this answer came.';
+  if (turn.status === 'failed' || turn.status === 'refused') return `This turn did not go through: ${(turn.failureReason ?? 'no reason given').replace(/\.$/, '')}.`;
+  if (turn.status === 'sending' || turn.status === 'waiting') return 'Still waiting for the tutor.';
+  const said = turn.answer?.prompt_to_child ? ` The tutor said: "${turn.answer.prompt_to_child}"` : '';
+  if (turn.mode === 'problem-in') return 'The tutor read the problem.';
+  if (turn.mode === 'reading') {
+    const result: ReadingResult | undefined = turn.readingResult?.azure ?? turn.readingResult?.local;
+    const missed = (result?.words ?? []).filter((w) => w.error !== 'none').map((w) => w.text);
+    return `He read it aloud.${missed.length > 0 ? ` He misread: ${missed.join(', ')}.` : ''}${said}`;
+  }
+  const typed = turn.request.child_answer ? `He answered "${turn.request.child_answer}"` : 'He answered';
+  return `${typed}${turn.request.work_photo ? ', with a photo of his work' : ''}.${said}`;
+}
