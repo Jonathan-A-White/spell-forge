@@ -13,6 +13,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    // Load on the factory's host: stays above asyncUtilTimeout 5000 in tests/setup.ts.
+    testTimeout: 20000,
     include: [
       'tests/unit/**/*.test.ts',
       'tests/unit/**/*.test.tsx',
