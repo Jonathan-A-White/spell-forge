@@ -51,6 +51,7 @@ import type { QrWordListPayload } from './features/word-lists/qr-codec';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { SettingsPanel } from './features/settings/settings-panel';
+import { AboutScreen } from './features/about';
 import { BsvDebugScreen } from './features/bsv-debug';
 import { TutorScreen } from './features/tutor';
 import { SharePanel } from './features/settings/share-panel';
@@ -70,7 +71,7 @@ import { presetToSettings } from './accessibility/presets';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar' | 'record-test-results' | 'test-history' | 'test-result-detail' | 'trouble-words' | 'bsv-debug' | 'tutor';
+type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar' | 'record-test-results' | 'test-history' | 'test-result-detail' | 'trouble-words' | 'bsv-debug' | 'tutor' | 'about';
 
 const eventBus = createEventBus();
 
@@ -1117,9 +1118,13 @@ function App() {
           debugModeEnabled={debugModeEnabled}
           onToggleDebugMode={toggleDebugMode}
           onOpenBsvDebug={() => setView('bsv-debug')}
+          onOpenAbout={() => setView('about')}
           onBack={goBack}
         />
       );
+
+    case 'about':
+      return <AboutScreen onBack={goBack} />;
 
     case 'bsv-debug':
       return <BsvDebugScreen onBack={goBack} eventBus={eventBus} />;

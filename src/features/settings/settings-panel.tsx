@@ -32,6 +32,7 @@ interface SettingsPanelProps {
   debugModeEnabled?: boolean;
   onToggleDebugMode?: () => void;
   onOpenBsvDebug: () => void;
+  onOpenAbout?: () => void;
   onBack: () => void;
 }
 
@@ -72,6 +73,7 @@ export function SettingsPanel({
   debugModeEnabled,
   onToggleDebugMode,
   onOpenBsvDebug,
+  onOpenAbout,
   onBack,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -397,6 +399,27 @@ export function SettingsPanel({
           </section>
         )}
 
+        {/* About & Credits */}
+        {onOpenAbout && (
+          <section>
+            <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
+              About
+            </h2>
+            <button
+              onClick={onOpenAbout}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-sf-border bg-sf-surface hover:border-sf-border-strong hover:bg-sf-surface-hover transition-all active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sf-track text-sf-muted">
+                <InfoIcon />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-sm text-sf-text">About &amp; Credits</p>
+                <p className="text-xs text-sf-muted">Who and what SpellForge is built on</p>
+              </div>
+            </button>
+          </section>
+        )}
+
         {/* Developer Settings */}
         <section>
           <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">
@@ -614,6 +637,16 @@ function FeedbackIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
     </svg>
   );
 }
