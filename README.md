@@ -214,6 +214,42 @@ Tables: `profiles`, `wordLists`, `words`, `wordStats`, `sessionLogs`, `streaks`,
 - **version-bump.yml** — automated version updates
 - **ci-pass** gate job aggregates all test results for branch protection
 
+## Credits
+
+> "If I have seen further it is by standing on the shoulders of Giants."
+> — Isaac Newton, in a letter to Robert Hooke, 1675
+
+SpellForge stands on other people’s work, so we credit every text, tool, font and idea it is built on, whether or not the licence asks us to.
+
+The same list is shown in the app under Settings → About & Credits (source: [`src/features/about/credits.ts`](src/features/about/credits.ts)); a test fails when a runtime dependency in `package.json` is missing from it.
+
+- [React](https://react.dev) — Draws every screen. Licence: [MIT](https://github.com/facebook/react/blob/main/LICENSE). Changes: None; used as published.
+- [React Router](https://reactrouter.com) — Installed for routing; screens are switched by hand today. Licence: [MIT](https://github.com/remix-run/react-router/blob/main/LICENSE.md). Changes: None; used as published.
+- [Dexie.js](https://dexie.org) — Keeps every profile, word list and score in the browser’s IndexedDB, so SpellForge works offline. Licence: [Apache-2.0](https://github.com/dexie/Dexie.js/blob/master/LICENSE). Changes: None; used as published.
+- [Tesseract.js](https://github.com/naptha/tesseract.js) — Reads a photo of a spelling list on the device, so the picture never has to leave it. Licence: [Apache-2.0](https://github.com/naptha/tesseract.js/blob/master/LICENSE.md). Changes: None; used as published.
+- [Tesseract OCR English language data](https://github.com/tesseract-ocr/tessdata) — The English model (eng.traineddata) Tesseract.js reads with, bundled so photo import works offline. Licence: [Apache-2.0](https://github.com/tesseract-ocr/tessdata/blob/main/LICENSE). Changes: None; the file is bundled as downloaded.
+- [html5-qrcode](https://github.com/mebjas/html5-qrcode) — Scans a QR code with the camera to import a shared word list. Licence: [Apache-2.0](https://github.com/mebjas/html5-qrcode/blob/master/LICENSE). Changes: None; used as published.
+- [node-qrcode](https://github.com/soldair/node-qrcode) — Draws the QR codes that share a word list and show this device’s public key. Licence: [MIT](https://github.com/soldair/node-qrcode/blob/master/license). Changes: None; used as published.
+- [jsPDF](https://github.com/parallax/jsPDF) — Makes the printable word-list and practice sheets. Licence: [MIT](https://github.com/parallax/jsPDF/blob/master/LICENSE). Changes: None; used as published.
+- [uuid](https://github.com/uuidjs/uuid) — Gives every profile, word and session its own id. Licence: [MIT](https://github.com/uuidjs/uuid/blob/main/LICENSE.md). Changes: None; used as published.
+- [BSV SDK](https://github.com/bsv-blockchain/ts-stack/tree/main/packages/sdk) — Makes this device’s key and builds and signs the transactions that prove a licence. Licence: [Open BSV License](https://github.com/bsv-blockchain/ts-stack/blob/main/packages/sdk/LICENSE.txt). Changes: None; used as published.
+- [bsv-kit](https://github.com/Jonathan-A-White/bsv-kit) — Our own shared kit for talking to the factory: it seals the questions the Tutor and photo import send, and opens the answers. Licence: [MIT](https://github.com/Jonathan-A-White/bsv-kit/blob/main/LICENSE). Changes: Written by us; shared with our other apps.
+- [Tailwind CSS](https://tailwindcss.com) — Styles every screen. Licence: [MIT](https://github.com/tailwindlabs/tailwindcss/blob/main/LICENSE). Changes: None; used as published.
+- [Vite](https://vite.dev) — Builds and bundles the app. Licence: [MIT](https://github.com/vitejs/vite/blob/main/LICENSE). Changes: None; used as published.
+- [Patrick Hand](https://fonts.google.com/specimen/Patrick+Hand) — The handwriting font on printed practice sheets. The font by Patrick Wagesreiter reaches us through Fontsource. Licence: [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/). Changes: The printed sheets embed a Latin-only subset of the font, converted to base64.
+- [OpenDyslexic](https://opendyslexic.org) — The font the dyslexia-friendly preset asks for, used only if it is installed on the device. Licence: [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/). Changes: None; SpellForge does not ship the font, it only names it.
+- [Feather icons](https://feathericons.com) — Several of the small line icons on the Settings screen follow Feather’s shapes. Licence: [MIT](https://github.com/feathericons/feather/blob/main/LICENSE). Changes: Redrawn inline as SVG and recoloured with the theme.
+- [Fry Instant Words](https://en.wikipedia.org/wiki/Sight_word) — Edward Fry’s list of the most common English words seeds the dictionary that corrects photo-import misreads. Licence: [Published word list, no licence stated](https://en.wikipedia.org/wiki/Sight_word). Changes: Mixed with common K–8 spelling vocabulary and sorted alphabetically.
+- [SM-2 spaced repetition](https://super-memory.com/english/ol/sm2.htm) — Piotr Woźniak’s SuperMemo algorithm decides when a word comes back for review. Licence: [Published algorithm, no licence stated](https://super-memory.com/english/ol/sm2.htm). Changes: Adapted for children: gentler intervals and word buckets (new, learning, familiar, mastered, review).
+- [Web Speech API](https://wicg.github.io/speech-api/) — Says words aloud with the voices your phone or browser provides, so spelling words are spoken even offline. Licence: [Open web standard](https://wicg.github.io/speech-api/). Changes: None; we add retries and a slower speaking mode.
+- [WhatsOnChain](https://whatsonchain.com) — Looks up and broadcasts BSV transactions for the licence and record features. Licence: [WhatsOnChain API terms](https://docs.whatsonchain.com). Changes: None; we call the public API.
+- [Claude](https://www.anthropic.com/claude) — The AI model behind the Tutor’s answers, which reach the app through our own factory. Licence: [Anthropic Commercial Terms](https://www.anthropic.com/legal/commercial-terms). Changes: None; we give it instructions and read its answers.
+- [Claude Code](https://claude.com/product/claude-code) — Anthropic’s coding assistant wrote and tested much of this app alongside Jonathan. Licence: [Anthropic Commercial Terms](https://www.anthropic.com/legal/commercial-terms). Changes: None; it is a tool we use.
+- [Beads](https://github.com/steveyegge/beads) — Steve Yegge’s issue tracker for AI agents is how the work on this app is planned and tracked. Licence: [MIT](https://github.com/steveyegge/beads/blob/main/LICENSE). Changes: None; used as published.
+- [Gas Town](https://github.com/steveyegge/gastown) — Steve Yegge’s ideas for running many AI workers shaped the factory that builds this app. Licence: [MIT](https://github.com/steveyegge/gastown/blob/main/LICENSE). Changes: Ideas only; no code copied.
+- [Wings of Fire](https://en.wikipedia.org/wiki/Wings_of_Fire_(novel_series)) — Tui T. Sutherland’s dragon books inspired the Dragon Forge theme. Licence: [Inspiration only; no text or art used](https://en.wikipedia.org/wiki/Wings_of_Fire_(novel_series)). Changes: Our dragons are our own drawings.
+- [Plus-Plus](https://www.plusplus.com) — The Plus-Plus building toy inspired the Monster Lab theme. Licence: [Inspiration only; no art used](https://www.plusplus.com). Changes: Our creatures are our own drawings.
+
 ## License
 
 [MIT](LICENSE) — Copyright (c) 2026 Jonathan White
