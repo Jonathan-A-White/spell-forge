@@ -10,6 +10,7 @@ import { tutorRepo } from '../../data/repositories';
 import { sendMath, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
 import { CameraIcon, CheckIcon, PencilIcon, RetryIcon, SayAgainButton, SendIcon, Waiting } from './pictures';
+import { TutorSpeechBar } from './speech-bar';
 import { tutorSayFor } from './tutor-voice';
 
 const LARGE_TEXT = {
@@ -117,6 +118,8 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
   return (
     <div className="space-y-4">
       <p className="text-sf-heading whitespace-pre-wrap" style={LARGE_TEXT}>{targetText}</p>
+
+      <TutorSpeechBar />
 
       {answer && !done && (
         <div className="space-y-3">

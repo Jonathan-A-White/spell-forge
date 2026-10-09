@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { liveQuery } from 'dexie';
+import { pauseTutorSpeech } from '../../audio';
 import type { Profile, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
 import { GristInFlight } from '../../grist';
@@ -15,6 +16,8 @@ import { ReadingLoop } from './reading-loop';
 import { SayAgainButton, Waiting } from './pictures';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
 import type { ProblemSource, TutorDeps } from './tutor-flow';
+import { TutorSpeechBar } from './speech-bar';
+import { usePauseTutorOnLeave } from './use-pause-tutor-on-leave';
 import { tutorSayFor } from './tutor-voice';
 
 export interface TutorScreenProps {
@@ -67,6 +70,11 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
   const [mathsStarted, setMathsStarted] = useState(false);
   /** What the session ended on (its closing line), kept on screen: the ended session is no longer the active one. */
   const [farewell, setFarewell] = useState<string | null>(null);
+  usePauseTutorOnLeave();
+  // the Grown-ups screen is another screen: the tutor pauses, and Resume waits on the way back
+  useEffect(() => {
+    if (view.kind === 'parent') pauseTutorSpeech();
+  }, [view.kind]);
   const photoInput = useRef<HTMLInputElement>(null);
   const spokenStart = useRef(false);
   const depsRef = useRef(deps);
@@ -223,6 +231,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     body = (
       <div role="status" className="space-y-4 py-6">
         <p className="text-sf-heading font-bold text-2xl">{farewell}</p>
+        <TutorSpeechBar />
         <div className="flex flex-wrap gap-3">
           <button onClick={startAnother} className={PRIMARY} style={TAP}>Start another</button>
         </div>
@@ -283,6 +292,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
           <button onClick={() => void startOver()} className={PRIMARY} style={TAP}>Try again</button>
           {turnedAway && <SayAgainButton onClick={sayTurnedAway} className={SECONDARY} style={TAP} />}
         </div>
+        <TutorSpeechBar />
       </div>
     );
   } else {
@@ -349,6 +359,8 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
             <button onClick={() => void send({ kind: 'text', text })} disabled={!canSend} className={PRIMARY} style={TAP}>Send</button>
           </div>
         )}
+
+        <TutorSpeechBar />
 
         {problemError && <p role="alert" className="text-sf-heading">{problemError}</p>}
       </div>

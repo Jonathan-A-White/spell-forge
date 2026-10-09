@@ -7,7 +7,8 @@
 // With several focus words the screen walks through them in order, one word at a time, before the whole problem returns;
 // a new whole reading with misreads starts the walk again, and only a clear whole reading ends the loop (mw-7wyn4s).
 // Everything shown comes from the turns.
-// The button works like Postern's push-to-talk (mw-kuy7rx.5): pressing stops the tutor talking, a buzz says the microphone is
+// The button works like Postern's push-to-talk (mw-kuy7rx.5): pressing pauses the tutor (mw-kuy7rx.20: the speaking bar offers
+// Resume), a buzz says the microphone is
 // recording, letting go buzzes again, and sliding off the button before letting go drops the attempt (nothing is sent).
 // The tutor never starts speaking while the button is held: a reply that arrives mid-hold is spoken on release.
 // A long problem stays readable while he holds (mw-kuy7rx.6): the text sits in its own vertical scroll area, capped to the screen
@@ -18,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ReadingRecorder, stopSpeaking } from '../../audio';
+import { ReadingRecorder, pauseTutorSpeech } from '../../audio';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorAnswer, TutorSession, TutorTurn } from '../../contracts/types';
 import { hapticError, hapticReady, hapticRelease } from '../../core/haptics';
@@ -26,6 +27,7 @@ import { splitSyllables } from '../../core/phonics';
 import { sendReading, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
 import { MicIcon, SayAgainButton, Waiting } from './pictures';
+import { TutorSpeechBar } from './speech-bar';
 import { tutorSayFor } from './tutor-voice';
 
 /** A press shorter than this is a tap, not a reading. */
@@ -284,8 +286,8 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
     setMessage('');
     setDroppedNote(false);
     clearTimeout(droppedTimer.current);
-    // the tutor stops talking the moment he presses, before the microphone opens
-    (depsRef.current.stopSpeaking ?? stopSpeaking)();
+    // the tutor pauses the moment he presses, before the microphone opens; the bar offers Resume afterwards
+    (depsRef.current.pauseSpeaking ?? pauseTutorSpeech)();
     const onLimit = (recording: Recording) => {
       hold.current = null;
       setHolding(false);
@@ -465,6 +467,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
           <>
             {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
             {droppedNotice}
+            <TutorSpeechBar />
             {readButton}
           </>
         }
@@ -525,6 +528,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
         <>
           {message && <p role="alert" className="text-sf-heading text-lg">{message}</p>}
           {droppedNotice}
+          <TutorSpeechBar />
           {!finished && readButton}
         </>
       }

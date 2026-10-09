@@ -2,14 +2,14 @@
 // text, then the answer's action rendered. A fake recorder (the real one is tested in audio-recorder.test.ts), a
 // fake grist client and a fake voice stand in; the tutor's Dexie tables and the real GristInFlight run for real.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { tutorRepo } from '../../src/data/repositories';
 import type { Profile, TutorAnswer, TutorReadingResult } from '../../src/contracts';
 import { TutorScreen } from '../../src/features/tutor';
 import type { TutorDeps } from '../../src/features/tutor';
-import { MicUnavailable } from '../../src/audio';
+import { MicUnavailable, getTutorSpeech, sayAsTutor, stopSpeaking } from '../../src/audio';
 import type { Recording } from '../../src/audio';
 import type { ReadAnswerParams, ReadAnswerResult, SendGristParams } from '../../src/grist';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
@@ -356,11 +356,11 @@ describe('push to talk (mw-kuy7rx.5)', () => {
 
   it('cancels the tutor talking on press, before the recorder starts', async () => {
     const g = gatedRecorder();
-    const stopSpeaking = vi.fn(() => g.order.push('stopSpeaking'));
-    await setup({ createRecorder: g.create, stopSpeaking });
+    const pauseSpeaking = vi.fn(() => g.order.push('stopSpeaking'));
+    await setup({ createRecorder: g.create, pauseSpeaking });
     fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
     await waitFor(() => expect(g.order).toContain('recorder.start'));
-    expect(stopSpeaking).toHaveBeenCalledTimes(1);
+    expect(pauseSpeaking).toHaveBeenCalledTimes(1);
     expect(g.order.indexOf('stopSpeaking')).toBeLessThan(g.order.indexOf('recorder.start'));
   });
 
@@ -779,5 +779,103 @@ describe('pickReadingResult', () => {
     expect(pickReadingResult({ azure: { error: 'x' } })).toBeUndefined();
     expect(pickReadingResult('nope')).toBeUndefined();
     expect(pickReadingResult(undefined)).toBeUndefined();
+  });
+});
+
+describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
+  /** A synthesiser that speaks nothing by itself; cancel() errors the playing utterance, as browsers do. */
+  function fakeSynth() {
+    const live: Array<{ text: string; onerror: ((ev: Event) => void) | null }> = [];
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      class {
+        text: string;
+        rate = 1;
+        lang = '';
+        voice = null;
+        onstart = null;
+        onend = null;
+        onerror: ((ev: Event) => void) | null = null;
+        constructor(text: string) {
+          this.text = text;
+        }
+      },
+    );
+    vi.stubGlobal('speechSynthesis', {
+      speak: vi.fn((u) => live.push(u)),
+      cancel: vi.fn(() => live.splice(0).forEach((u) => setTimeout(() => u.onerror?.({ error: 'interrupted' } as unknown as Event), 0))),
+      resume: vi.fn(),
+      pause: vi.fn(),
+      getVoices: () => [],
+      onvoiceschanged: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+  }
+
+  afterEach(() => {
+    stopSpeaking();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows Pause, Restart and Stop while the tutor speaks, and none when he does not', async () => {
+    fakeSynth();
+    await setup({ say: undefined });
+    await screen.findByRole('button', { name: 'Read it' });
+    expect(screen.queryByRole('group', { name: 'Tutor speech' })).not.toBeInTheDocument();
+    act(() => void sayAsTutor('One sentence. And another one.'));
+    const bar = await screen.findByRole('group', { name: 'Tutor speech' });
+    expect(within(bar).getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Restart' })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Stop' }));
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Tutor speech' })).not.toBeInTheDocument());
+  });
+
+  it("pressing 'Read it' during the tutor's sentence pauses it, and the bar offers Resume", async () => {
+    fakeSynth();
+    await setup({ say: undefined });
+    const button = await screen.findByRole('button', { name: 'Read it' });
+    act(() => void sayAsTutor('Read this slowly. Then tell me.'));
+    await screen.findByRole('button', { name: 'Pause' });
+
+    fireEvent.pointerDown(button);
+    await screen.findByRole('button', { name: 'Resume' });
+    expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
+    expect(getTutorSpeech()).toMatchObject({ status: 'paused', index: 0 });
+
+    fireEvent.pointerUp(await screen.findByRole('button', { name: /Let go/ }));
+    // Resume stays after the reading; pressing it speaks on from the kept sentence
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume' }));
+    expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(vi.mocked(speechSynthesis.speak).mock.calls.map((c) => (c[0] as { text: string }).text)).toEqual([
+      'Read this slowly.',
+      'Read this slowly.',
+    ]);
+  });
+
+  it('the page going hidden pauses the tutor, and coming back offers Resume at the same place', async () => {
+    fakeSynth();
+    await setup({ say: undefined });
+    await screen.findByRole('button', { name: 'Read it' });
+    act(() => void sayAsTutor('Read this slowly. Then tell me.'));
+    await screen.findByRole('button', { name: 'Pause' });
+    const state = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(await screen.findByRole('button', { name: 'Resume' })).toBeInTheDocument();
+    expect(getTutorSpeech()).toMatchObject({ status: 'paused', index: 0 });
+    state.mockRestore();
+  });
+
+  it('leaving the Tutor screen pauses the tutor and keeps the place', async () => {
+    fakeSynth();
+    await setup({ say: undefined });
+    await screen.findByRole('button', { name: 'Read it' });
+    act(() => void sayAsTutor('Read this slowly. Then tell me.'));
+    await screen.findByRole('button', { name: 'Pause' });
+    cleanup();
+    expect(getTutorSpeech()).toMatchObject({ status: 'paused', index: 0 });
   });
 });

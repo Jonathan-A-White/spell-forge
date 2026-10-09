@@ -25,8 +25,8 @@ export interface TutorDeps {
   createRecorder?: (onLimit: (recording: Recording) => void) => HoldRecorder;
   /** Speaks a sentence aloud; the app's own speech when absent. */
   say?: (text: string) => Promise<void>;
-  /** Stops the tutor talking at once when 'Read it' is pressed; the app's own speech when absent. */
-  stopSpeaking?: () => void;
+  /** Pauses the tutor talking at once when 'Read it' is pressed (the speaking bar offers Resume); the app's own speech when absent. */
+  pauseSpeaking?: () => void;
 }
 
 export type ProblemSource = { kind: 'text'; text: string } | { kind: 'photo'; file: Blob };
