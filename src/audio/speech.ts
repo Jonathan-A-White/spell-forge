@@ -353,10 +353,116 @@ function buildTutorStrategies(voiceURI: string | null | undefined): SpeakStrateg
   return strategies;
 }
 
-/** Say a sentence in the tutor's voice: the picked one (by voiceURI), else the phone's default by Postern's rule. */
+// ─── Long speech: the tutor's sentences (mw-kuy7rx.20) ─────────
+//
+// Anything longer than a word can be paused, resumed, restarted and stopped.  The tutor's speech is spoken sentence
+// by sentence, so the engine keeps a position (the sentence reached).  Pause cancels the engine and keeps the
+// position; Resume speaks on from that sentence (never speechSynthesis.pause()/resume(): Android Chrome does not
+// honour them).  New tutor speech replaces what plays: it is cancelled only when the tutor really is mid-speech, so
+// a speak into an idle engine is never preceded by a cancel().
+
+export interface TutorSpeechState {
+  status: 'idle' | 'playing' | 'paused';
+  /** The sentence reached (playing) or kept (paused). */
+  index: number;
+  total: number;
+}
+
+const IDLE: TutorSpeechState = { status: 'idle', index: 0, total: 0 };
+let tutorSnapshot: TutorSpeechState = IDLE;
+let tutorSentences: string[] = [];
+let tutorVoiceURI: string | null | undefined;
+/** Bumped by every pause, stop, resume, restart and new speech: a run that finds it changed has been superseded. */
+let tutorRun = 0;
+const tutorListeners = new Set<() => void>();
+
+function publishTutor(status: TutorSpeechState['status'], index: number): void {
+  const total = status === 'idle' ? 0 : tutorSentences.length;
+  const next = status === 'idle' ? IDLE : { status, index, total };
+  if (tutorSnapshot.status === next.status && tutorSnapshot.index === next.index && tutorSnapshot.total === next.total) return;
+  tutorSnapshot = next;
+  for (const listener of tutorListeners) listener();
+}
+
+/** The tutor's speech as it stands; a new object only when something changed. */
+export function getTutorSpeech(): TutorSpeechState {
+  return tutorSnapshot;
+}
+
+/** Calls back whenever the tutor's speech state changes; returns the unsubscribe. */
+export function subscribeTutorSpeech(listener: () => void): () => void {
+  tutorListeners.add(listener);
+  return () => tutorListeners.delete(listener);
+}
+
+/** Sentences end at . ! ? … (with any closing quote or bracket) followed by a space, so 3.5 stays whole. */
+export function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?…]["'”’)\]]*)\s+/u)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0);
+}
+
+/** Cancel what the engine is saying; the cancelled utterance is not retried. */
+function cancelEngine(): void {
+  speechEpoch += 1;
+  if (isTtsAvailable()) window.speechSynthesis.cancel();
+}
+
+/** Speak the kept sentences from `from` on, one voice for the whole run.  Resolves when it ends or is superseded. */
+function runTutor(from: number): Promise<void> {
+  const run = ++tutorRun;
+  const sentences = tutorSentences;
+  const strategies = buildTutorStrategies(tutorVoiceURI);
+  return (async () => {
+    for (let i = from; i < sentences.length; i++) {
+      publishTutor('playing', i);
+      const ok = await ttsSpeak(sentences[i], 1, 'en', strategies);
+      if (run !== tutorRun) return;
+      if (!ok) break;
+    }
+    if (run === tutorRun) publishTutor('idle', 0);
+  })();
+}
+
+/**
+ * Say a sentence in the tutor's voice: the picked one (by voiceURI), else the phone's default by Postern's rule.
+ * It replaces any tutor speech playing or paused; the first is not spoken to its end.
+ */
 export async function sayAsTutor(text: string, voiceURI?: string | null): Promise<void> {
   dbg('sayAsTutor()', { text: text.slice(0, 60), voiceURI });
-  await ttsSpeak(text, 1, 'en', buildTutorStrategies(voiceURI));
+  const sentences = splitSentences(text);
+  if (tutorSnapshot.status === 'playing') cancelEngine();
+  tutorRun += 1;
+  tutorSentences = sentences;
+  tutorVoiceURI = voiceURI;
+  if (sentences.length === 0) {
+    publishTutor('idle', 0);
+    return;
+  }
+  await runTutor(0);
+}
+
+/** Pause the tutor's speech, keeping the sentence reached.  Nothing playing, nothing to do. */
+export function pauseTutorSpeech(): void {
+  if (tutorSnapshot.status !== 'playing') return;
+  const at = tutorSnapshot.index;
+  tutorRun += 1;
+  cancelEngine();
+  publishTutor('paused', at);
+}
+
+/** Speak on from the kept sentence. */
+export function resumeTutorSpeech(): void {
+  if (tutorSnapshot.status !== 'paused') return;
+  void runTutor(tutorSnapshot.index);
+}
+
+/** Speak the tutor's sentences again from the first, whether they were playing or paused. */
+export function restartTutorSpeech(): void {
+  if (tutorSnapshot.status === 'idle') return;
+  if (tutorSnapshot.status === 'playing') cancelEngine();
+  void runTutor(0);
 }
 
 // ─── Warm-up ────────────────────────────────────────────────
@@ -444,18 +550,21 @@ export function getTtsStatus(languageCode: string): 'available' | 'no-voices' | 
 /** Say a word out loud. Optionally specify language for correct pronunciation. */
 export async function sayWord(word: string, language: string = 'en'): Promise<void> {
   dbg(`sayWord("${word}", lang=${language})`);
+  pauseTutorSpeech();
   await ttsSpeak(word, 1, language);
 }
 
 /** Say a word slowly (0.6x speed). */
 export async function sayWordSlowly(word: string, language: string = 'en'): Promise<void> {
   dbg(`sayWordSlowly("${word}", lang=${language})`);
+  pauseTutorSpeech();
   await ttsSpeak(word, 0.6, language);
 }
 
 /** Spell a word letter-by-letter (single utterance, commas create pauses). */
 export async function spellWord(word: string, language: string = 'en'): Promise<void> {
   dbg(`spellWord("${word}", lang=${language})`);
+  pauseTutorSpeech();
   const spelled = word.split('').join(', ');
   await ttsSpeak(spelled, 1, language);
 }
@@ -463,13 +572,16 @@ export async function spellWord(word: string, language: string = 'en'): Promise<
 /** Say the word, pause, then spell it (single utterance). */
 export async function sayThenSpell(word: string, language: string = 'en'): Promise<void> {
   dbg(`sayThenSpell("${word}", lang=${language})`);
+  pauseTutorSpeech();
   const spelled = word.split('').join(', ');
   await ttsSpeak(`${word},,,, ${spelled}`, 1, language);
 }
 
-/** Stop whatever is being said, at once, and drop what is queued; the cancelled speech is not retried. */
+/** Stop whatever is being said, at once, and drop what is queued; the cancelled speech is not retried.  Ends the tutor's speech too: nothing is kept to resume. */
 export function stopSpeaking(): void {
   speechEpoch += 1;
+  tutorRun += 1;
+  publishTutor('idle', 0);
   if (!isTtsAvailable()) return;
   dbg('stopSpeaking()');
   window.speechSynthesis.cancel();
