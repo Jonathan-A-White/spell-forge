@@ -1,16 +1,24 @@
 // src/features/about/credits.ts — Everything SpellForge builds on, credited by name (mw-vtjxh4.4).
 //
-// Every runtime dependency in package.json must be named in `packages` of one entry: tests/unit/credits.test.tsx
-// fails when one is missing, so adding a library means crediting it in the same commit. The README's Credits
-// section lists the same names; the test checks that too.
+// Every runtime dependency in package.json must be named in `packages` of one entry, every package a credit names
+// must still be in package.json, and every font or data file under public/ must be named in `files`:
+// tests/unit/credits.test.tsx fails otherwise, so adding or removing a source changes its credit in the same commit.
+// Credits that are not packages (fonts, data, services, texts, ideas, tools) carry a `kind` and are left alone by the
+// package check. The README's Credits section lists the same names; the test checks that too.
+
+export type CreditKind = 'package' | 'tool' | 'font' | 'data' | 'text' | 'service' | 'idea';
 
 export interface Credit {
+  /** What sort of source this is; only 'package' credits must name an npm package. */
+  kind: CreditKind;
   /** Shown as the link text; never a URL. */
   name: string;
   /** Where the source lives. */
   url: string;
-  /** npm packages in package.json `dependencies` this credit covers. */
+  /** npm packages in package.json this credit covers. */
   packages?: string[];
+  /** Bundled files this credit covers: repo-relative paths, or a directory ending in '/'. */
+  files?: string[];
   /** What SpellForge uses it for. */
   use: string;
   licence: { name: string; url: string };
@@ -26,6 +34,7 @@ export const WHY_WE_CREDIT =
 export const CREDITS: readonly Credit[] = [
   // Libraries
   {
+    kind: 'package',
     name: 'React',
     url: 'https://react.dev',
     packages: ['react', 'react-dom'],
@@ -34,6 +43,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'React Router',
     url: 'https://reactrouter.com',
     packages: ['react-router-dom'],
@@ -42,6 +52,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'Dexie.js',
     url: 'https://dexie.org',
     packages: ['dexie'],
@@ -50,6 +61,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'Tesseract.js',
     url: 'https://github.com/naptha/tesseract.js',
     packages: ['tesseract.js'],
@@ -58,13 +70,16 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'data',
     name: 'Tesseract OCR English language data',
     url: 'https://github.com/tesseract-ocr/tessdata',
+    files: ['public/tessdata/eng.traineddata'],
     use: 'The English model (eng.traineddata) Tesseract.js reads with, bundled so photo import works offline.',
     licence: { name: 'Apache-2.0', url: 'https://github.com/tesseract-ocr/tessdata/blob/main/LICENSE' },
     changes: 'None; the file is bundled as downloaded.',
   },
   {
+    kind: 'package',
     name: 'html5-qrcode',
     url: 'https://github.com/mebjas/html5-qrcode',
     packages: ['html5-qrcode'],
@@ -73,6 +88,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'node-qrcode',
     url: 'https://github.com/soldair/node-qrcode',
     packages: ['qrcode'],
@@ -81,6 +97,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'jsPDF',
     url: 'https://github.com/parallax/jsPDF',
     packages: ['jspdf'],
@@ -89,15 +106,16 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'uuid',
     url: 'https://github.com/uuidjs/uuid',
     packages: ['uuid'],
-    
     use: 'Gives every profile, word and session its own id.',
     licence: { name: 'MIT', url: 'https://github.com/uuidjs/uuid/blob/main/LICENSE.md' },
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'BSV SDK',
     url: 'https://github.com/bsv-blockchain/ts-stack/tree/main/packages/sdk',
     packages: ['@bsv/sdk'],
@@ -109,6 +127,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'package',
     name: 'bsv-kit',
     url: 'https://github.com/Jonathan-A-White/bsv-kit',
     packages: ['bsv-kit'],
@@ -118,6 +137,7 @@ export const CREDITS: readonly Credit[] = [
   },
   // Build tools whose output ships in the app
   {
+    kind: 'tool',
     name: 'Tailwind CSS',
     url: 'https://tailwindcss.com',
     use: 'Styles every screen.',
@@ -125,6 +145,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'tool',
     name: 'Vite',
     url: 'https://vite.dev',
     use: 'Builds and bundles the app.',
@@ -133,6 +154,7 @@ export const CREDITS: readonly Credit[] = [
   },
   // Fonts and icons
   {
+    kind: 'font',
     name: 'Patrick Hand',
     url: 'https://fonts.google.com/specimen/Patrick+Hand',
     packages: ['@fontsource/patrick-hand'],
@@ -141,6 +163,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'The printed sheets embed a Latin-only subset of the font, converted to base64.',
   },
   {
+    kind: 'font',
     name: 'OpenDyslexic',
     url: 'https://opendyslexic.org',
     use: 'The font the dyslexia-friendly preset asks for, used only if it is installed on the device.',
@@ -148,6 +171,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; SpellForge does not ship the font, it only names it.',
   },
   {
+    kind: 'idea',
     name: 'Feather icons',
     url: 'https://feathericons.com',
     use: 'Several of the small line icons on the Settings screen follow Feather’s shapes.',
@@ -156,6 +180,7 @@ export const CREDITS: readonly Credit[] = [
   },
   // Texts, word lists and algorithms
   {
+    kind: 'text',
     name: 'Fry Instant Words',
     url: 'https://en.wikipedia.org/wiki/Sight_word',
     use: 'Edward Fry’s list of the most common English words seeds the dictionary that corrects photo-import misreads.',
@@ -163,6 +188,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'Mixed with common K–8 spelling vocabulary and sorted alphabetically.',
   },
   {
+    kind: 'idea',
     name: 'SM-2 spaced repetition',
     url: 'https://super-memory.com/english/ol/sm2.htm',
     use: 'Piotr Woźniak’s SuperMemo algorithm decides when a word comes back for review.',
@@ -171,6 +197,7 @@ export const CREDITS: readonly Credit[] = [
   },
   // Outside services and platform features
   {
+    kind: 'service',
     name: 'Web Speech API',
     url: 'https://wicg.github.io/speech-api/',
     use: 'Says words aloud with the voices your phone or browser provides, so spelling words are spoken even offline.',
@@ -178,6 +205,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; we add retries and a slower speaking mode.',
   },
   {
+    kind: 'service',
     name: 'WhatsOnChain',
     url: 'https://whatsonchain.com',
     use: 'Looks up and broadcasts BSV transactions for the licence and record features.',
@@ -185,6 +213,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; we call the public API.',
   },
   {
+    kind: 'service',
     name: 'Claude',
     url: 'https://www.anthropic.com/claude',
     use: 'The AI model behind the Tutor’s answers, which reach the app through our own factory.',
@@ -193,6 +222,7 @@ export const CREDITS: readonly Credit[] = [
   },
   // Borrowed ideas and the tools that built the app
   {
+    kind: 'tool',
     name: 'Claude Code',
     url: 'https://claude.com/product/claude-code',
     use: 'Anthropic’s coding assistant wrote and tested much of this app alongside Jonathan.',
@@ -200,6 +230,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; it is a tool we use.',
   },
   {
+    kind: 'tool',
     name: 'Beads',
     url: 'https://github.com/steveyegge/beads',
     use: 'Steve Yegge’s issue tracker for AI agents is how the work on this app is planned and tracked.',
@@ -207,6 +238,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'None; used as published.',
   },
   {
+    kind: 'idea',
     name: 'Gas Town',
     url: 'https://github.com/steveyegge/gastown',
     use: 'Steve Yegge’s ideas for running many AI workers shaped the factory that builds this app.',
@@ -214,6 +246,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'Ideas only; no code copied.',
   },
   {
+    kind: 'idea',
     name: 'Wings of Fire',
     url: 'https://en.wikipedia.org/wiki/Wings_of_Fire_(novel_series)',
     use: 'Tui T. Sutherland’s dragon books inspired the Dragon Forge theme.',
@@ -221,6 +254,7 @@ export const CREDITS: readonly Credit[] = [
     changes: 'Our dragons are our own drawings.',
   },
   {
+    kind: 'idea',
     name: 'Plus-Plus',
     url: 'https://www.plusplus.com',
     use: 'The Plus-Plus building toy inspired the Monster Lab theme.',

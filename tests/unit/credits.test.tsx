@@ -5,10 +5,18 @@ import { join } from 'node:path';
 import { CREDITS, AboutScreen } from '../../src/features/about';
 import { SettingsPanel } from '../../src/features/settings/settings-panel';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
+import {
+  stalePackageCredits,
+  uncreditedPackages,
+  listShippedFiles,
+  uncreditedFiles,
+  type CreditLike,
+} from '../fixtures/credits-check';
 
 const root = join(__dirname, '..', '..');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
   dependencies: Record<string, string>;
+  devDependencies?: Record<string, string>;
 };
 const readme = readFileSync(join(root, 'README.md'), 'utf8');
 
@@ -16,15 +24,56 @@ afterEach(cleanup);
 
 describe('credits list', () => {
   it('credits every runtime dependency in package.json', () => {
-    const credited = new Set(CREDITS.flatMap((c) => c.packages ?? []));
-    const missing = Object.keys(pkg.dependencies).filter((name) => !credited.has(name));
+    const missing = uncreditedPackages(CREDITS, pkg);
     expect(missing, `uncredited runtime dependencies: ${missing.join(', ')}`).toEqual([]);
   });
 
-  it('names no package that is not a dependency', () => {
-    const deps = new Set(Object.keys(pkg.dependencies));
-    const stale = CREDITS.flatMap((c) => c.packages ?? []).filter((name) => !deps.has(name));
-    expect(stale, `credited packages that are not runtime dependencies: ${stale.join(', ')}`).toEqual([]);
+  it('names no package that is not in package.json (dependencies or devDependencies)', () => {
+    const stale = stalePackageCredits(CREDITS, pkg);
+    expect(stale, `credited packages no longer in package.json: ${stale.join(', ')}`).toEqual([]);
+  });
+
+  it('flags a credit for a package that was removed from package.json (fake list)', () => {
+    const fake: CreditLike[] = [
+      { name: 'Kept', kind: 'package', packages: ['kept'] },
+      { name: 'Gone', kind: 'package', packages: ['gone-pkg'] },
+      { name: 'Dev tool', kind: 'tool', packages: ['dev-only'] },
+    ];
+    const fakePkg = { dependencies: { kept: '1' }, devDependencies: { 'dev-only': '1' } };
+    expect(stalePackageCredits(fake, fakePkg)).toEqual(['gone-pkg']);
+    expect(uncreditedPackages(fake, { dependencies: { kept: '1', fresh: '1' } })).toEqual(['fresh']);
+  });
+
+  it('exempts credits that are not packages, by kind', () => {
+    const fake: CreditLike[] = [
+      { name: 'A book', kind: 'text' },
+      { name: 'A font', kind: 'font' },
+      { name: 'A service', kind: 'service' },
+      { name: 'An idea', kind: 'idea' },
+    ];
+    expect(stalePackageCredits(fake, { dependencies: {} })).toEqual([]);
+    expect(uncreditedPackages(fake, { dependencies: {} })).toEqual([]);
+    // but a credit of kind 'package' must name a package
+    expect(stalePackageCredits([{ name: 'Hollow', kind: 'package' }], { dependencies: {} })).toEqual(['Hollow']);
+  });
+
+  it('gives every credit a kind, and every real non-package credit is exempt from the package check', () => {
+    for (const c of CREDITS) {
+      expect(c.kind, `${c.name}: kind`).toBeTruthy();
+    }
+    expect(CREDITS.some((c) => c.kind !== 'package')).toBe(true);
+  });
+
+  it('credits every font and data file the app bundles (public/, and fonts anywhere in src/)', () => {
+    const shipped = listShippedFiles(root);
+    expect(shipped, 'found the bundled Tesseract data').toContain('public/tessdata/eng.traineddata');
+    const missing = uncreditedFiles(CREDITS, shipped);
+    expect(missing, `bundled files with no credit (name them in a credit's files): ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('flags a bundled file that no credit names (fake list)', () => {
+    const fake: CreditLike[] = [{ name: 'Data', kind: 'data', files: ['public/data/'] }];
+    expect(uncreditedFiles(fake, ['public/data/words.json', 'public/fonts/x.woff2'])).toEqual(['public/fonts/x.woff2']);
   });
 
   it('gives every credit a name, link, use, licence with a link, and its changes', () => {

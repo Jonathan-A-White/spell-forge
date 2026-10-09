@@ -223,6 +223,8 @@ SpellForge stands on other people’s work, so we credit every text, tool, font 
 
 The same list is shown in the app under Settings → About & Credits (source: [`src/features/about/credits.ts`](src/features/about/credits.ts)); a test fails when a runtime dependency in `package.json` is missing from it.
 
+Add or remove a source — a library, a font, a data file, a service — and change its credit in the same commit; the credits test fails when a runtime dependency or a bundled font or data file has no credit, and when a credit names a package that is no longer in `package.json`.
+
 - [React](https://react.dev) — Draws every screen. Licence: [MIT](https://github.com/facebook/react/blob/main/LICENSE). Changes: None; used as published.
 - [React Router](https://reactrouter.com) — Installed for routing; screens are switched by hand today. Licence: [MIT](https://github.com/remix-run/react-router/blob/main/LICENSE.md). Changes: None; used as published.
 - [Dexie.js](https://dexie.org) — Keeps every profile, word list and score in the browser’s IndexedDB, so SpellForge works offline. Licence: [Apache-2.0](https://github.com/dexie/Dexie.js/blob/master/LICENSE). Changes: None; used as published.
