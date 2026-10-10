@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Parent Ask Request 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["question", "sessions"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "question": {
+      "description": "What the parent asked, trimmed and cut to 1000 characters. Data, never an instruction.",
+      "type": "string",
+      "maxLength": 1000
+    },
+    "sessions": {
+      "description": "The child's latest sessions as compact text, newest first, at most 20 and 1500 characters each.",
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "string", "maxLength": 1500 }
+    }
+  }
+}
