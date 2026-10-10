@@ -1,8 +1,8 @@
 // tests/e2e/tutor-speech-bar.spec.ts
 //
 // Proves mw-kuy7rx.20 in real Chromium on a 360x740 phone: while the tutor speaks, the speaking bar (Pause, Restart,
-// Stop) sits in the footer above 'Read the word', inside the viewport, with 44 px targets; Pause turns into Resume.
-// A synthesiser that never finishes by itself stands in for the phone's voice, so the bar stays up to be seen.
+// Stop) sits in the footer above 'Read the word', inside the viewport, with 48 px targets; Pause turns into Resume.
+// bsv-kit/testing's honest synthesiser, slowed to 400 ms a word, stands in for the phone's voice, so the bar stays up to be seen.
 // Not part of `npm test`; run by hand with:
 //
 //   SF_E2E_PORT=4180 npm run test:e2e -- tutor-speech-bar
@@ -10,6 +10,7 @@
 // Every e2e spec uses port 4173 by default: run them one at a time (--workers=1).
 
 import { test, expect, type Page } from '@playwright/test';
+import { speechInitScript } from 'bsv-kit/testing/speech';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -119,29 +120,8 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
   test('Pause, Restart and Stop sit in the footer while he speaks; Pause becomes Resume', async ({ page }) => {
     test.setTimeout(180_000);
     mkdirSync(SHOTS, { recursive: true });
-    await page.addInitScript(() => {
-      class Utterance {
-        text: string;
-        onstart: (() => void) | null = null;
-        onend: (() => void) | null = null;
-        onerror: ((e: unknown) => void) | null = null;
-        constructor(text: string) {
-          this.text = text;
-        }
-      }
-      const live: Utterance[] = [];
-      const synth = {
-        speak: (u: Utterance) => live.push(u),
-        cancel: () => live.splice(0).forEach((u) => setTimeout(() => u.onerror?.({ error: 'interrupted' }), 0)),
-        resume: () => undefined,
-        pause: () => undefined,
-        getVoices: () => [],
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      };
-      Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: Utterance, configurable: true });
-      Object.defineProperty(window, 'speechSynthesis', { value: synth, configurable: true });
-    });
+    // bsv-kit/testing's honest synthesiser: sentences take the time they take, and a cancelled one is reported as an error
+    await page.addInitScript(speechInitScript({ msPerWord: 400 }));
 
     execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
     let previewProcess: ChildProcess | undefined;
@@ -162,15 +142,15 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
       await page.getByRole('button', { name: /Tutor/ }).click();
 
       await expect(page.getByRole('button', { name: 'Say it again' })).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByRole('group', { name: 'Tutor speech' })).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Tutor speech' })).toHaveCount(0);
       await page.getByRole('button', { name: 'Say it again' }).click();
 
-      const bar = page.getByRole('group', { name: 'Tutor speech' });
+      const bar = page.getByRole('region', { name: 'Tutor speech' });
       await expect(bar).toBeVisible();
       await expect(bar).toBeInViewport({ ratio: 1 });
       for (const name of ['Pause', 'Restart', 'Stop']) {
         const box = await bar.getByRole('button', { name }).boundingBox();
-        expect(box?.height, `${name} is at least 44 px tall`).toBeGreaterThanOrEqual(44);
+        expect(box?.height, `${name} is at least 48 px tall`).toBeGreaterThanOrEqual(48);
         expect((box?.x ?? 0) + (box?.width ?? 0), `${name} ends inside the 360 px screen`).toBeLessThanOrEqual(360);
       }
       const read = await page.getByRole('button', { name: 'Read the word' }).boundingBox();

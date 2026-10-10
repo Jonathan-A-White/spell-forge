@@ -9,7 +9,9 @@ import { tutorRepo } from '../../src/data/repositories';
 import type { Profile, TutorAnswer, TutorReadingResult } from '../../src/contracts';
 import { TutorScreen } from '../../src/features/tutor';
 import type { TutorDeps } from '../../src/features/tutor';
-import { MicUnavailable, getTutorSpeech, sayAsTutor, stopSpeaking } from '../../src/audio';
+import { stop, getSpeech } from 'bsv-kit/speech';
+import { installSpeech, type SpeechFake } from 'bsv-kit/testing/speech';
+import { MicUnavailable, sayAsTutor } from '../../src/audio';
 import type { Recording } from '../../src/audio';
 import type { ReadAnswerParams, ReadAnswerResult, SendGristParams } from '../../src/grist';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
@@ -782,100 +784,73 @@ describe('pickReadingResult', () => {
   });
 });
 
-describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
-  /** A synthesiser that speaks nothing by itself; cancel() errors the playing utterance, as browsers do. */
-  function fakeSynth() {
-    const live: Array<{ text: string; onerror: ((ev: Event) => void) | null }> = [];
-    vi.stubGlobal(
-      'SpeechSynthesisUtterance',
-      class {
-        text: string;
-        rate = 1;
-        lang = '';
-        voice = null;
-        onstart = null;
-        onend = null;
-        onerror: ((ev: Event) => void) | null = null;
-        constructor(text: string) {
-          this.text = text;
-        }
-      },
-    );
-    vi.stubGlobal('speechSynthesis', {
-      speak: vi.fn((u) => live.push(u)),
-      cancel: vi.fn(() => live.splice(0).forEach((u) => setTimeout(() => u.onerror?.({ error: 'interrupted' } as unknown as Event), 0))),
-      resume: vi.fn(),
-      pause: vi.fn(),
-      getVoices: () => [],
-      onvoiceschanged: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    });
-  }
+describe("the tutor's speaking bar (mw-kuy7rx.20, mw-m7v5kc.4)", () => {
+  // bsv-kit/testing's honest synthesiser on real timers; the first sentence is long enough (about 2 s) to be caught speaking
+  const LONG = `${Array(30).fill('slowly').join(' ')}. Then tell me.`;
+  let speech: SpeechFake;
+  const barRegion = () => screen.queryByRole('region', { name: 'Tutor speech' });
+
+  beforeEach(() => {
+    speech = installSpeech(window);
+  });
 
   afterEach(() => {
-    stopSpeaking();
-    vi.unstubAllGlobals();
+    act(() => stop());
+    speech.uninstall();
   });
 
   it('shows Pause, Restart and Stop while the tutor speaks, and none when he does not', async () => {
-    fakeSynth();
     await setup({ say: undefined });
     await screen.findByRole('button', { name: 'Read it' });
-    expect(screen.queryByRole('group', { name: 'Tutor speech' })).not.toBeInTheDocument();
+    expect(barRegion()).not.toBeInTheDocument();
     act(() => void sayAsTutor('One sentence. And another one.'));
-    const bar = await screen.findByRole('group', { name: 'Tutor speech' });
+    const bar = await screen.findByRole('region', { name: 'Tutor speech' });
     expect(within(bar).getByRole('button', { name: 'Pause' })).toBeInTheDocument();
     expect(within(bar).getByRole('button', { name: 'Restart' })).toBeInTheDocument();
     expect(within(bar).getByRole('button', { name: 'Stop' })).toBeInTheDocument();
     fireEvent.click(within(bar).getByRole('button', { name: 'Stop' }));
-    await waitFor(() => expect(screen.queryByRole('group', { name: 'Tutor speech' })).not.toBeInTheDocument());
+    await waitFor(() => expect(barRegion()).not.toBeInTheDocument());
   });
 
   it("pressing 'Read it' during the tutor's sentence pauses it, and the bar offers Resume", async () => {
-    fakeSynth();
     await setup({ say: undefined });
     const button = await screen.findByRole('button', { name: 'Read it' });
-    act(() => void sayAsTutor('Read this slowly. Then tell me.'));
+    act(() => void sayAsTutor(LONG));
     await screen.findByRole('button', { name: 'Pause' });
 
     fireEvent.pointerDown(button);
     await screen.findByRole('button', { name: 'Resume' });
     expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
-    expect(getTutorSpeech()).toMatchObject({ status: 'paused', index: 0 });
+    expect(getSpeech()).toMatchObject({ status: 'paused', index: 0 });
 
     fireEvent.pointerUp(await screen.findByRole('button', { name: /Let go/ }));
     // Resume stays after the reading; pressing it speaks on from the kept sentence
     fireEvent.click(await screen.findByRole('button', { name: 'Resume' }));
     expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
-    expect(vi.mocked(speechSynthesis.speak).mock.calls.map((c) => (c[0] as { text: string }).text)).toEqual([
-      'Read this slowly.',
-      'Read this slowly.',
-    ]);
+    await waitFor(() => expect(speech.spoken()).toHaveLength(2));
+    expect(speech.spoken()[1]).toBe(speech.spoken()[0]);
   });
 
   it('the page going hidden pauses the tutor, and coming back offers Resume at the same place', async () => {
-    fakeSynth();
     await setup({ say: undefined });
     await screen.findByRole('button', { name: 'Read it' });
-    act(() => void sayAsTutor('Read this slowly. Then tell me.'));
+    act(() => void sayAsTutor(LONG));
     await screen.findByRole('button', { name: 'Pause' });
     const state = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
     expect(await screen.findByRole('button', { name: 'Resume' })).toBeInTheDocument();
-    expect(getTutorSpeech()).toMatchObject({ status: 'paused', index: 0 });
+    expect(getSpeech()).toMatchObject({ status: 'paused', index: 0 });
     state.mockRestore();
   });
 
   it('leaving the Tutor screen pauses the tutor and keeps the place', async () => {
-    fakeSynth();
     await setup({ say: undefined });
     await screen.findByRole('button', { name: 'Read it' });
-    act(() => void sayAsTutor('Read this slowly. Then tell me.'));
+    act(() => void sayAsTutor(LONG));
     await screen.findByRole('button', { name: 'Pause' });
     cleanup();
-    expect(getTutorSpeech()).toMatchObject({ status: 'paused', index: 0 });
+    expect(getSpeech()).toMatchObject({ status: 'paused', index: 0 });
   });
 });

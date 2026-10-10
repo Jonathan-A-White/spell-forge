@@ -1,158 +1,125 @@
-// mw-kuy7rx.8: the tutor speaks with the phone's default voice by Postern's rule unless a voice is picked;
-// spelling practice keeps its en-US/GB/AU ranking.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// mw-kuy7rx.8 / mw-m7v5kc.4: the tutor speaks (through bsv-kit/speech) with the phone's default voice for its language
+// unless a voice is picked; spelling practice keeps its en-US/GB/AU ranking. The synthesiser is bsv-kit/testing's honest fake.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resume, stop } from 'bsv-kit/speech';
+import { installSpeech, type FakeVoice, type SpeechFake } from 'bsv-kit/testing/speech';
+import { listTutorVoices, pauseTutorSpeech, sayAsTutor, sayWord } from '../../src/audio';
 
-class MockUtterance {
-  text: string;
-  rate = 1;
-  lang = '';
-  voice: SpeechSynthesisVoice | null = null;
-  onstart: ((ev: Event) => void) | null = null;
-  onend: ((ev: Event) => void) | null = null;
-  onerror: ((ev: Event) => void) | null = null;
-  constructor(text: string) {
-    this.text = text;
-  }
-}
-
-const v = (name: string, lang: string, isDefault = false) =>
-  ({ name, lang, voiceURI: `uri:${name}`, default: isDefault, localService: true }) as SpeechSynthesisVoice;
-
-let synth: SpeechSynthesis;
-let voices: SpeechSynthesisVoice[];
-
-function install(list: SpeechSynthesisVoice[], navLang: string) {
-  voices = list;
-  synth = {
-    speak: vi.fn((u: MockUtterance) => {
-      setTimeout(() => u.onend?.(new Event('end')), 0);
-    }),
-    cancel: vi.fn(),
-    resume: vi.fn(),
-    pause: vi.fn(),
-    speaking: false,
-    pending: false,
-    paused: false,
-    getVoices: vi.fn(() => voices),
-    onvoiceschanged: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  } as unknown as SpeechSynthesis;
-  vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
-  vi.stubGlobal('speechSynthesis', synth);
-  vi.spyOn(navigator, 'language', 'get').mockReturnValue(navLang);
-}
-
-const spoken = () => vi.mocked(synth.speak).mock.calls.map((c) => c[0] as unknown as MockUtterance);
-
-async function freshSpeech() {
-  vi.resetModules();
-  return await import('../../src/audio/speech.ts');
-}
-
-beforeEach(() => {
-  vi.restoreAllMocks();
+const v = (name: string, lang: string, isDefault = false): FakeVoice => ({
+  name,
+  lang,
+  voiceURI: `uri:${name}`,
+  default: isDefault,
+  localService: true,
 });
 
-describe('pickPosternVoice (the tutor default)', () => {
-  it('takes the voice that matches the phone language exactly', async () => {
-    install([], 'en-GB');
-    const { pickPosternVoice } = await freshSpeech();
-    const list = [v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')];
-    expect(pickPosternVoice(list, 'en-GB')?.name).toBe('GB');
-    expect(pickPosternVoice(list, 'en_gb')?.name).toBe('GB');
-  });
+let speech: SpeechFake;
 
-  it('else takes a voice with the same primary language', async () => {
-    install([], 'en-NZ');
-    const { pickPosternVoice } = await freshSpeech();
-    const list = [v('FR', 'fr-FR', true), v('AU', 'en-AU'), v('US', 'en-US')];
-    expect(pickPosternVoice(list, 'en-NZ')?.name).toBe('AU');
-  });
+async function install(voices: FakeVoice[], navLang: string) {
+  vi.spyOn(navigator, 'language', 'get').mockReturnValue(navLang);
+  speech = installSpeech(window, { voices });
+  await vi.advanceTimersByTimeAsync(60); // the phone lists its voices
+}
 
-  it('else leaves it to the browser default', async () => {
-    install([], 'de-DE');
-    const { pickPosternVoice } = await freshSpeech();
-    expect(pickPosternVoice([v('US', 'en-US', true), v('FR', 'fr-FR')], 'de-DE')).toBeNull();
-    expect(pickPosternVoice([], 'en-US')).toBeNull();
-  });
+/** The voice and language each utterance was given. */
+const given = () => speech.log.map((entry) => ({ voice: entry.voice, lang: entry.lang }));
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  stop();
+  speech.uninstall();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('sayAsTutor', () => {
-  it('speaks with the voice Postern would pick, and leaves the lang to that voice', async () => {
-    install([v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')], 'en-GB');
-    const { sayAsTutor } = await freshSpeech();
-    await sayAsTutor('Hello there');
-    expect(spoken()).toHaveLength(1);
-    expect(spoken()[0].voice?.name).toBe('GB');
-    expect(spoken()[0].lang).toBe('');
+  it('speaks with the voice that matches the phone language exactly', async () => {
+    await install([v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')], 'en-GB');
+    void sayAsTutor('Hello there');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()).toEqual([{ voice: 'GB', lang: 'en-GB' }]);
   });
 
-  it('with no matching voice speaks a bare utterance: the browser default', async () => {
-    install([v('FR', 'fr-FR', true)], 'de-DE');
-    const { sayAsTutor } = await freshSpeech();
-    await sayAsTutor('Hello');
-    expect(spoken()[0].voice).toBeNull();
-    expect(spoken()[0].lang).toBe('');
+  it('else takes a voice with the same primary language', async () => {
+    await install([v('FR', 'fr-FR', true), v('AU', 'en-AU'), v('US', 'en-US')], 'en-NZ');
+    void sayAsTutor('Hello');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()[0].voice).toBe('AU');
   });
 
-  it('uses a picked voice (by voiceURI) over the default rule', async () => {
-    install([v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')], 'en-GB');
-    const { sayAsTutor } = await freshSpeech();
-    await sayAsTutor('Hello', 'uri:AU');
-    expect(spoken()[0].voice?.name).toBe('AU');
-    expect(spoken()[0].lang).toBe('');
+  it('with no matching voice, names the language and leaves the voice to the browser default', async () => {
+    await install([v('FR', 'fr-FR', true)], 'de-DE');
+    void sayAsTutor('Hello');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()).toEqual([{ voice: null, lang: 'de-DE' }]);
+  });
+
+  it('uses a picked voice (by voiceURI) over the default rule, for every sentence of the speech', async () => {
+    await install([v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')], 'en-GB');
+    void sayAsTutor('Hello. Hello again.', 'uri:AU');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(given()).toEqual([
+      { voice: 'AU', lang: 'en-AU' },
+      { voice: 'AU', lang: 'en-AU' },
+    ]);
+  });
+
+  it('keeps the picked voice when the speech is paused and resumed', async () => {
+    await install([v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')], 'en-GB');
+    void sayAsTutor('Hello. Hello again.', 'uri:AU');
+    await vi.advanceTimersByTimeAsync(300);
+    pauseTutorSpeech();
+    resume();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(given().map((g) => g.voice)).toEqual(['AU', 'AU', 'AU']);
   });
 
   it('a picked voice the phone no longer has falls back to the default rule', async () => {
-    install([v('US', 'en-US', true), v('GB', 'en-GB')], 'en-GB');
-    const { sayAsTutor } = await freshSpeech();
-    await sayAsTutor('Hello', 'uri:Gone');
-    expect(spoken()[0].voice?.name).toBe('GB');
+    await install([v('US', 'en-US', true), v('GB', 'en-GB')], 'en-GB');
+    void sayAsTutor('Hello', 'uri:Gone');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()[0].voice).toBe('GB');
   });
 
-  it('keeps the fallbacks: when the chosen voice errors it tries the device default voice', async () => {
-    install([v('US', 'en-US', true), v('GB', 'en-GB')], 'en-GB');
-    let n = 0;
-    vi.mocked(synth.speak).mockImplementation(((u: MockUtterance) => {
-      n += 1;
-      const call = n;
-      setTimeout(() => (call === 1 ? u.onerror?.(new Event('error')) : u.onend?.(new Event('end'))), 0);
-    }) as unknown as SpeechSynthesis['speak']);
-    const { sayAsTutor } = await freshSpeech();
-    await sayAsTutor('Hello');
-    expect(spoken().map((u) => u.voice?.name)).toEqual(['GB', 'US']);
+  it('a later speech with no pick is not stuck with the earlier pick', async () => {
+    await install([v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')], 'en-GB');
+    void sayAsTutor('Hello', 'uri:AU');
+    await vi.advanceTimersByTimeAsync(500);
+    void sayAsTutor('Hello');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given().map((g) => g.voice)).toEqual(['AU', 'GB']);
   });
 });
 
 describe('listTutorVoices', () => {
   it("lists the device's voices for the phone's language", async () => {
-    install([v('US', 'en-US', true), v('FR', 'fr-FR'), v('GB', 'en-GB')], 'en-GB');
-    const { listTutorVoices } = await freshSpeech();
+    await install([v('US', 'en-US', true), v('FR', 'fr-FR'), v('GB', 'en-GB')], 'en-GB');
     expect(listTutorVoices().map((x) => x.name)).toEqual(['US', 'GB']);
   });
 });
 
 describe('spelling practice keeps its voice ranking', () => {
   it('sayWord still prefers en-US, then en-GB, then en-AU, and forces the lang', async () => {
-    install([v('AU', 'en-AU'), v('GB', 'en-GB'), v('US', 'en-US')], 'en-AU');
-    const { sayWord } = await freshSpeech();
-    await sayWord('cat');
-    expect(spoken()[0].voice?.name).toBe('US');
-    expect(spoken()[0].lang).toBe('en-US');
+    await install([v('AU', 'en-AU'), v('GB', 'en-GB'), v('US', 'en-US')], 'en-AU');
+    void sayWord('cat');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()).toEqual([{ voice: 'US', lang: 'en-US' }]);
   });
 
   it('the first three strategies are still the ranked voices', async () => {
-    install([v('AU', 'en-AU'), v('GB', 'en-GB'), v('US', 'en-US')], 'en-AU');
-    vi.mocked(synth.speak).mockImplementation(((u: MockUtterance) => {
-      setTimeout(() => u.onerror?.(new Event('error')), 0);
-    }) as unknown as SpeechSynthesis['speak']);
-    vi.useFakeTimers();
-    const { sayWord } = await freshSpeech();
+    await install([v('AU', 'en-AU'), v('GB', 'en-GB'), v('US', 'en-US')], 'en-AU');
+    // an engine that fails every utterance: it is cancelled the moment it is queued, which the honest fake reports as an error
+    const queue = speech.synth.speak.bind(speech.synth);
+    vi.spyOn(speech.synth, 'speak').mockImplementation((utterance) => {
+      queue(utterance);
+      speech.synth.cancel();
+    });
     const p = sayWord('cat');
     await vi.advanceTimersByTimeAsync(10_000);
     await p;
-    vi.useRealTimers();
-    expect(spoken().slice(0, 3).map((u) => u.voice?.name)).toEqual(['US', 'GB', 'AU']);
+    expect(given().slice(0, 3).map((g) => g.voice)).toEqual(['US', 'GB', 'AU']);
   });
 });

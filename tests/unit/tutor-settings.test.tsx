@@ -1,5 +1,7 @@
 // mw-kuy7rx.8: 'Tutor settings' on the Grown-ups screen: How should the tutor help? and the Voice picker.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { stop } from 'bsv-kit/speech';
+import { installSpeech, type FakeVoice, type SpeechFake } from 'bsv-kit/testing/speech';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
@@ -9,46 +11,24 @@ import { presetToSettings, PRESETS } from '../../src/accessibility/presets';
 import { validateSettings } from '../../src/accessibility/settings';
 import { paulProfile } from '../fixtures/profiles';
 
-class MockUtterance {
-  text: string;
-  rate = 1;
-  lang = '';
-  voice: SpeechSynthesisVoice | null = null;
-  onstart: ((ev: Event) => void) | null = null;
-  onend: ((ev: Event) => void) | null = null;
-  onerror: ((ev: Event) => void) | null = null;
-  constructor(text: string) {
-    this.text = text;
-  }
-}
-const v = (name: string, lang: string, isDefault = false) =>
-  ({ name, lang, voiceURI: `uri:${name}`, default: isDefault, localService: true }) as SpeechSynthesisVoice;
+const v = (name: string, lang: string, isDefault = false): FakeVoice => ({ name, lang, voiceURI: `uri:${name}`, default: isDefault, localService: true });
 
-let synth: SpeechSynthesis;
-const spoken = () => vi.mocked(synth.speak).mock.calls.map((c) => c[0] as unknown as MockUtterance);
+// bsv-kit/testing's honest synthesiser (real timers): it lists its voices 50 ms after install and takes the time speech takes.
+let speech: SpeechFake;
+const spoken = () => speech.log;
 
 beforeEach(async () => {
   vi.restoreAllMocks();
-  synth = {
-    speak: vi.fn((u: MockUtterance) => {
-      setTimeout(() => u.onend?.(new Event('end')), 0);
-    }),
-    cancel: vi.fn(),
-    resume: vi.fn(),
-    speaking: false,
-    pending: false,
-    paused: false,
-    getVoices: vi.fn(() => [v('Sam', 'en-US', true), v('Fran', 'fr-FR'), v('Gwen', 'en-GB')]),
-    onvoiceschanged: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  } as unknown as SpeechSynthesis;
-  vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
-  vi.stubGlobal('speechSynthesis', synth);
+  speech = installSpeech(window, { voices: [v('Sam', 'en-US', true), v('Fran', 'fr-FR'), v('Gwen', 'en-GB')] });
   vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
   await db.delete();
   await db.open();
   await db.profiles.add({ ...paulProfile });
+});
+
+afterEach(() => {
+  stop();
+  speech.uninstall();
 });
 
 const open = () => render(<ParentScreen profileId={paulProfile.id} onBack={() => undefined} />);
@@ -109,11 +89,11 @@ describe('Tutor settings: Voice', () => {
     expect(buttons).toHaveLength(3); // the phone's default, Sam, Gwen
     fireEvent.click(s.getByRole('button', { name: 'Try it: Gwen' }));
     await vi.waitFor(() => expect(spoken()).toHaveLength(1));
-    expect(spoken()[0].voice?.name).toBe('Gwen');
+    expect(spoken()[0].voice).toBe('Gwen');
     expect(spoken()[0].text.split(/[.!?]/).filter((x) => x.trim())).toHaveLength(1);
     fireEvent.click(s.getByRole('button', { name: "Try it: Phone's default" }));
     await vi.waitFor(() => expect(spoken()).toHaveLength(2));
-    expect(spoken()[1].voice?.name).toBe('Sam');
+    expect(spoken()[1].voice).toBe('Sam');
   });
 });
 
@@ -121,18 +101,18 @@ describe("the tutor's speech uses the profile's voice", () => {
   it('tutorSayFor speaks with the voice picked for the profile', async () => {
     await profileRepo.update(paulProfile.id, { settings: { ...paulProfile.settings, tutorVoice: 'uri:Gwen' } });
     await tutorSayFor(paulProfile.id)('Hello');
-    expect(spoken()[0].voice?.name).toBe('Gwen');
+    expect(spoken()[0].voice).toBe('Gwen');
   });
 
   it('with no pick, it follows the default rule', async () => {
     await tutorSayFor(paulProfile.id)('Hello');
-    expect(spoken()[0].voice?.name).toBe('Sam');
-    expect(spoken()[0].lang).toBe('');
+    expect(spoken()[0].voice).toBe('Sam');
+    expect(spoken()[0].lang).toBe('en-US');
   });
 
   it('an unknown profile still speaks, by the default rule', async () => {
     await tutorSayFor('nobody')('Hello');
-    expect(spoken()[0].voice?.name).toBe('Sam');
+    expect(spoken()[0].voice).toBe('Sam');
   });
 });
 

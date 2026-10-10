@@ -3,16 +3,7 @@
 import { useEffect } from 'react';
 import { pauseTutorSpeech } from '../../audio';
 
-/** Pauses the tutor's speech when the screen using it goes away or the page goes hidden. */
+/** Pauses the tutor's speech when the screen using it goes away (the page going hidden is paused by bsv-kit/speech itself). */
 export function usePauseTutorOnLeave(): void {
-  useEffect(() => {
-    const onHidden = () => {
-      if (document.visibilityState === 'hidden') pauseTutorSpeech();
-    };
-    document.addEventListener('visibilitychange', onHidden);
-    return () => {
-      document.removeEventListener('visibilitychange', onHidden);
-      pauseTutorSpeech();
-    };
-  }, []);
+  useEffect(() => pauseTutorSpeech, []);
 }

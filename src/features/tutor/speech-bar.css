@@ -1,0 +1,29 @@
+/* The tutor's speaking bar: bsv-kit/speech's SpeakingBar, themed to SpellForge (mw-m7v5kc.4).  The colours follow the
+   child's theme; the buttons are no smaller than 48 px, and as tall as the child's own tap-target setting.  The icon sits
+   over the label so three buttons fit a 360 px phone at the child's own large text size. */
+.bk-speech.sf-speaking-bar {
+  --bk-speech-surface: transparent;
+  --bk-speech-fg: var(--sf-color-text-heading);
+  --bk-speech-line: var(--sf-color-border);
+  --bk-speech-button-bg: var(--sf-color-surface);
+  --bk-speech-accent: var(--sf-color-primary);
+  --bk-speech-accent-fg: var(--sf-color-primary-text);
+  --bk-speech-button-size: max(48px, var(--sf-tap-target-size, 48px));
+  --bk-speech-button-radius: 0.75rem;
+  --bk-speech-gap: 0.5rem;
+  width: 100%;
+  max-width: 36rem;
+  margin-inline: auto;
+  padding: 0;
+  border-top: 0;
+  font-weight: 700;
+}
+
+.sf-speaking-bar .bk-speech__button {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border-color: var(--sf-color-border);
+}
