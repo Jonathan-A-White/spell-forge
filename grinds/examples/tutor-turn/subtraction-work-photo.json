@@ -13,11 +13,10 @@
     ]
   },
   "photos": ["subtraction-work.png"],
-  "expect": [
-    { "path": "action", "equals": "math_probe" },
-    { "path": "layer_diagnosis", "equals": "math" },
-    { "path": "math_diagnosis.gap", "matches": "regroup|borrow|exchang|trade|smaller|bigger|larger|ones|swap|rename" },
-    { "path": "prompt_to_child", "notContains": "27" },
-    { "path": "prompt_to_child", "notContains": "twenty-seven" }
-  ]
+  "expect": {
+    "action": "math_probe",
+    "layer_diagnosis": "math",
+    "math_diagnosis.gap": {"matches":"(?i)regroup|borrow|exchang|trade|smaller|bigger|larger|ones|swap|rename"},
+    "prompt_to_child": {"all":[{"matches":"(?i)^(?:[^2]|22*[^27])*(?:|22*)$"},{"matches":"(?i)^(?:[^t]|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:[^tw]|w(?:entw)*(?:[^te]|e(?:[^tn]|n(?:[^t]|t(?:[^twy]|y(?:[^t\\-]|-(?:[^ts]|s(?:[^te]|e(?:[^tv]|v(?:[^te]|e[^tn])))))))))))*(?:|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:|w(?:entw)*(?:|e(?:|n(?:|t(?:|y(?:|-(?:|s(?:|e(?:|v(?:|e)))))))))))$"}]}
+  }
 }

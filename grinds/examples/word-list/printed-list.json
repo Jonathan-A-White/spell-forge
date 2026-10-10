@@ -2,12 +2,7 @@
   "about": "A printed spelling list with headings: the words come back in reading order, without the headings.",
   "request": { "schemaVersion": "1", "requestType": "word-list", "language": "en", "listName": "Unit 3 week 6" },
   "photos": ["spelling-list.jpg"],
-  "expect": [
-    { "path": "words", "contains": "giraffe" },
-    { "path": "words", "contains": "emergency" },
-    { "path": "words", "contains": "almost" },
-    { "path": "words", "notContains": "Challenge Words" },
-    { "path": "words", "notContains": "WK 6" },
-    { "path": "words[0]", "equals": "badge" }
-  ]
+  "expect": {
+    "words": ["badge", "edge", "judge", "pace", "mice", "peace", "huge", "giraffe", "gems", "price", "celebrate", "emergency", "message", "group", "almost"]
+  }
 }

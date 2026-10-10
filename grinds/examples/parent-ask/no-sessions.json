@@ -1,8 +1,8 @@
 {
   "about": "A parent asks about maths but there are no sessions yet: the answer says the sessions do not show it, and gives no examples.",
   "request": { "schemaVersion": "1", "question": "How is he doing with subtraction?", "sessions": [] },
-  "expect": [
-    { "path": "answer", "matches": "no sessions|not enough|do not show|does not show|nothing to go on|no session|yet" },
-    { "path": "examples", "equals": [] }
-  ]
+  "expect": {
+    "answer": {"matches":"(?i)no sessions|not enough|do not show|does not show|nothing to go on|no session|yet"},
+    "examples": []
+  }
 }

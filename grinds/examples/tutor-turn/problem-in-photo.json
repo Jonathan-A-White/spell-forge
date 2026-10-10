@@ -7,11 +7,11 @@
     "session_history": []
   },
   "photos": ["pencils-problem.jpg"],
-  "expect": [
-    { "path": "action", "equals": "continue" },
-    { "path": "layer_diagnosis", "equals": "none" },
-    { "path": "target_text", "matches": "24 pencils.*4 tables" },
-    { "path": "problem_kind", "equals": "word" },
-    { "path": "prompt_to_child", "notContains": "six" }
-  ]
+  "expect": {
+    "action": "continue",
+    "layer_diagnosis": "none",
+    "target_text": {"matches":"(?i)24 pencils.*4 tables"},
+    "problem_kind": "word",
+    "prompt_to_child": {"matches":"(?i)^(?:[^s]|s(?:s|is)*(?:[^si]|i[^sx]))*(?:|s(?:s|is)*(?:|i))$"}
+  }
 }

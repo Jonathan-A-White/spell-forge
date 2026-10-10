@@ -8,10 +8,8 @@
       "2026-10-06.\nProblem (reading): A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?\nTurns: 2.\nMisread words: library, borrowed."
     ]
   },
-  "expect": [
-    { "path": "answer", "matches": "gardener" },
-    { "path": "answer", "matches": "altogether" },
-    { "path": "answer", "matches": "library" },
-    { "path": "examples", "present": true }
-  ]
+  "expect": {
+    "answer": {"all":[{"matches":"(?i)gardener"},{"matches":"(?i)altogether"},{"matches":"(?i)library"}]},
+    "examples": {"present":true}
+  }
 }

@@ -1,12 +1,17 @@
-// mw-gq6.322: the grinds' example scenarios (grinds/examples/<kind>/<name>.json). Each holds a request the app
-// really sends (with schemaVersion), optional photo file names beside it, and `expect`: simple checks on the
-// answer's fields. `mw grist smoke` sends the request and runs the checks on what comes back; the unit test
-// (tests/unit/grist-grind-examples.test.ts) holds every example to its grind's schemas. The checks are:
-//   { path, equals }  { path, isNull }  { path, oneOf }  { path, contains }  { path, notContains }
-//   { path, matches } { path, present: true }  { path, absent: true }
-// A path is a field of the answer ("action", "math_diagnosis.gap", "focus_words[0].word"; a field that is an
-// array is the whole array). `contains` is a substring of a string (any case) or an element of an array;
-// `matches` is a regular expression (any case) tested on a string.
+// The grinds' example scenarios (grinds/examples/<kind>/<name>.json; mw-gq6.322, reshaped to mw's own by mw-gq6.330).
+// Each holds a request the app really sends (with schemaVersion), optional photo file names beside it, and `expect`.
+// `mw grist smoke` (millwright application/gristsmokecheck.go, GristExample) sends the request and holds the answer
+// to `expect`, and it reads ONE shape; this file is the same reader in TypeScript, so the unit test
+// (tests/unit/grist-grind-examples.test.ts) refuses what the smoke would refuse:
+//   "expect": { "<answer path>": <check>, ... }       an OBJECT, one key for each path; never a list
+// A path is dotted, object keys and array positions ("action", "math_diagnosis.gap", "focus_words.0.word"; a field
+// that is an array is the whole array). A check is a bare value (the field equals it) or an object of any of:
+//   equals  is_null (true|false)  one_of (a list)  contains  matches (a regular expression)  present (true|false)  all
+// every one of which must hold. `all` is a list of checks of the same kinds (a bare value, or such an object), each
+// of which must hold too: it is how one path shows several things ("answer": {"all": [{"matches": "a"}, {"matches": "b"}]}).
+// `contains` is a substring of a string (case matters) or an element of an array. `matches` is a regular expression
+// in Go's RE2 syntax tested on a string; it is case-sensitive unless it begins (?i), and it has no look-ahead,
+// look-behind or backreference. There is no "does not contain" check: say it as `matches` with avoidsPattern(text).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -71,9 +76,18 @@ export function validate(value: unknown, s: Schema, path = '$'): string[] {
 
 // ─── The scenarios ────────────────────────────────────────────
 
-export const CHECK_OPERATORS = ['equals', 'isNull', 'oneOf', 'contains', 'notContains', 'matches', 'present', 'absent'] as const;
-export type CheckOperator = (typeof CHECK_OPERATORS)[number];
-export type Check = { path: string } & Partial<Record<CheckOperator, unknown>>;
+export const CHECK_KEYS = ['equals', 'is_null', 'one_of', 'contains', 'matches', 'present', 'all'] as const;
+
+/** One path's expectation, parsed: every part that is set must hold (mw's gristCheck). */
+export interface Check {
+  equals?: { value: unknown };
+  isNull?: boolean;
+  oneOf?: unknown[];
+  contains?: { value: unknown };
+  matches?: { source: string; regex: RegExp };
+  present?: boolean;
+  all?: Check[];
+}
 
 export interface Scenario {
   /** What this scenario shows, in a plain sentence. */
@@ -81,32 +95,101 @@ export interface Scenario {
   request: Record<string, unknown>;
   /** File names beside the scenario: the photos that travel with the request, in order. */
   photos?: string[];
-  expect: Check[];
+  /** The checks, an object: answer path -> a bare value or a check object. A list is refused. */
+  expect: Record<string, unknown>;
 }
 
 export const EXAMPLES_DIR = 'grinds/examples';
 
-/** A path as steps: "focus_words[0].word" is ['focus_words', 0, 'word']. */
-export function parsePath(path: string): (string | number)[] {
-  const steps: (string | number)[] = [];
-  const re = /([^.[\]]+)|\[(\d*)\]/g;
-  let consumed = 0;
-  for (let m = re.exec(path); m; m = re.exec(path)) {
-    consumed += m[0].length;
-    if (m[1] !== undefined) steps.push(m[1]);
-    else if (m[2] !== '') steps.push(Number(m[2]));
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const sameJson = (a: unknown, b: unknown): boolean => {
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => sameJson(x, b[i]));
+  if (isPlainObject(a) || isPlainObject(b)) {
+    if (!isPlainObject(a) || !isPlainObject(b)) return false;
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((k) => k in b && sameJson(a[k], b[k]));
   }
-  const dots = (path.match(/\./g) ?? []).length;
-  if (path === '' || consumed + dots < path.length) throw new Error(`not a path: ${path}`);
-  return steps;
+  return a === b;
+};
+
+/** A Go (RE2) pattern as a JavaScript one: a leading (?i) is the i flag; what RE2 lacks (look-around, backreferences) throws. */
+export function compilePattern(pattern: string): RegExp {
+  let source = pattern;
+  let flags = '';
+  if (source.startsWith('(?i)')) {
+    source = source.slice(4);
+    flags = 'i';
+  }
+  if (/\(\?(?!:)/.test(source)) throw new Error(`matches ${pattern}: only (?i) at the start and (?:...) groups are in RE2's syntax this check allows`);
+  if (/\\[1-9]/.test(source)) throw new Error(`matches ${pattern}: RE2 has no backreferences`);
+  return new RegExp(source, flags);
 }
+
+/** Reads one check the way mw does; throws what mw would refuse. A bare value (anything but an object) is an `equals`. */
+export function parseCheck(raw: unknown): Check {
+  if (!isPlainObject(raw)) return { equals: { value: raw } };
+  const keys = Object.keys(raw);
+  if (keys.length === 0) throw new Error(`a check of none of ${CHECK_KEYS.join(', ')}`);
+  const check: Check = {};
+  for (const key of keys) {
+    const value = raw[key];
+    switch (key) {
+      case 'equals':
+        check.equals = { value };
+        break;
+      case 'contains':
+        check.contains = { value };
+        break;
+      case 'is_null':
+      case 'present':
+        if (typeof value !== 'boolean') throw new Error(`${key} is true or false`);
+        if (key === 'is_null') check.isNull = value;
+        else check.present = value;
+        break;
+      case 'one_of':
+        if (!Array.isArray(value) || value.length === 0) throw new Error('one_of is a list of values');
+        check.oneOf = value;
+        break;
+      case 'matches':
+        if (typeof value !== 'string') throw new Error('matches is a regular expression in a string');
+        check.matches = { source: value, regex: compilePattern(value) };
+        break;
+      case 'all':
+        if (!Array.isArray(value) || value.length === 0) throw new Error('all is a list of checks');
+        check.all = value.map(parseCheck);
+        break;
+      default:
+        throw new Error(`"${key}" is not a check: use ${CHECK_KEYS.join(', ')}`);
+    }
+  }
+  return check;
+}
+
+/** Reads a scenario's expect: an object, one key for each answer path, each a check. Throws on a list or an unknown check. */
+export function parseExpect(expect: unknown): Map<string, Check> {
+  if (!isPlainObject(expect)) throw new Error('expect is an object, one key for each answer path, not a list');
+  const checks = new Map<string, Check>();
+  for (const [path, raw] of Object.entries(expect)) {
+    try {
+      checks.set(path, parseCheck(raw));
+    } catch (error) {
+      throw new Error(`expect "${path}": ${(error as Error).message}`);
+    }
+  }
+  return checks;
+}
+
+/** A path as steps: "focus_words.0.word" is ['focus_words', '0', 'word']; an empty path is the whole answer. */
+export const pathSteps = (path: string): string[] => (path === '' ? [] : path.split('.'));
 
 /** The schema node a path leads to, or undefined when the answer schema has no such field. */
 export function schemaAt(root: Schema, path: string): Schema | undefined {
   let node: Schema | undefined = root;
-  for (const step of parsePath(path)) {
+  for (const step of pathSteps(path)) {
     if (!node) return undefined;
-    node = typeof step === 'number' ? node.items : node.properties?.[step];
+    node = /^\d+$/.test(step) && node.items ? node.items : node.properties?.[step];
   }
   return node;
 }
@@ -114,54 +197,121 @@ export function schemaAt(root: Schema, path: string): Schema | undefined {
 /** The value a path leads to in an answer; `found` is false when a step is missing. */
 export function valueAt(answer: unknown, path: string): { found: boolean; value?: unknown } {
   let value: unknown = answer;
-  for (const step of parsePath(path)) {
-    if (typeof step === 'number') {
-      if (!Array.isArray(value) || step >= value.length) return { found: false };
-      value = value[step];
-    } else {
-      if (typeof value !== 'object' || value === null || Array.isArray(value) || !(step in value)) return { found: false };
-      value = (value as Record<string, unknown>)[step];
-    }
+  for (const step of pathSteps(path)) {
+    if (Array.isArray(value)) {
+      const at = /^\d+$/.test(step) ? Number(step) : -1;
+      if (at < 0 || at >= value.length) return { found: false };
+      value = value[at];
+    } else if (isPlainObject(value) && step in value) value = value[step];
+    else return { found: false };
   }
   return { found: true, value };
 }
 
-export const operatorOf = (check: Check): CheckOperator | undefined => {
-  const used = CHECK_OPERATORS.filter((op) => op in check);
-  return used.length === 1 ? used[0] : undefined;
-};
+const show = (value: unknown) => JSON.stringify(value);
 
-/** Runs one check on an answer; returns what is wrong, or undefined when it holds. */
-export function runCheck(answer: unknown, check: Check): string | undefined {
-  const op = operatorOf(check);
-  if (!op) return `${check.path}: a check needs exactly one of ${CHECK_OPERATORS.join(', ')}`;
-  const { found, value } = valueAt(answer, check.path);
-  const operand = check[op];
-  if (op === 'absent') return found === (operand === false) ? undefined : `${check.path}: should be absent`;
-  if (op === 'present') return found === (operand !== false) ? undefined : `${check.path}: should be present`;
-  if (!found) return `${check.path}: missing`;
-  switch (op) {
-    case 'isNull':
-      return (value === null) === (operand !== false) ? undefined : `${check.path}: ${operand === false ? 'should not be null' : 'should be null'}`;
-    case 'equals':
-      return JSON.stringify(value) === JSON.stringify(operand) ? undefined : `${check.path}: ${JSON.stringify(value)} is not ${JSON.stringify(operand)}`;
-    case 'oneOf':
-      return (operand as unknown[]).some((o) => JSON.stringify(o) === JSON.stringify(value)) ? undefined : `${check.path}: ${JSON.stringify(value)} is none of ${JSON.stringify(operand)}`;
-    case 'contains':
-    case 'notContains': {
-      const has =
-        typeof value === 'string' ? value.toLowerCase().includes(String(operand).toLowerCase()) :
-        Array.isArray(value) ? value.some((item) => JSON.stringify(item) === JSON.stringify(operand)) : false;
-      return has === (op === 'contains') ? undefined : `${check.path}: ${op === 'contains' ? 'lacks' : 'has'} ${JSON.stringify(operand)}`;
-    }
-    case 'matches':
-      return typeof value === 'string' && new RegExp(String(operand), 'i').test(value) ? undefined : `${check.path}: ${JSON.stringify(value)} does not match /${String(operand)}/`;
+/** What fails when `got` (found or not) is held to a check: one line each (mw's gristCheck.failures). */
+function checkFailures(check: Check, path: string, got: unknown, found: boolean): string[] {
+  const seen = found ? show(got) : '(absent)';
+  const failed: string[] = [];
+  const fail = (wanted: string) => failed.push(`${path}: wanted ${wanted}, got ${seen}`);
+  if (check.present !== undefined && found !== check.present) fail(check.present ? 'present' : 'absent');
+  if (check.isNull !== undefined && (found && got === null) !== check.isNull) fail(check.isNull ? 'null' : 'not null');
+  if (check.equals && !(found && sameJson(got, check.equals.value))) fail(`equal to ${show(check.equals.value)}`);
+  if (check.oneOf && !check.oneOf.some((want) => found && sameJson(got, want))) fail(`one of ${show(check.oneOf)}`);
+  if (check.contains) {
+    const want = check.contains.value;
+    const has =
+      found &&
+      (typeof got === 'string' ? typeof want === 'string' && got.includes(want) : Array.isArray(got) && got.some((element) => sameJson(element, want)));
+    if (!has) fail(`containing ${show(want)}`);
   }
+  if (check.matches && !(found && typeof got === 'string' && check.matches.regex.test(got))) fail(`matching ${show(check.matches.source)}`);
+  for (const inner of check.all ?? []) failed.push(...checkFailures(inner, path, got, found));
+  return failed;
 }
 
-/** Every check that fails on an answer. */
-export const failedChecks = (answer: unknown, checks: Check[]): string[] =>
-  checks.map((check) => runCheck(answer, check)).filter((problem): problem is string => problem !== undefined);
+/** Every thing an answer fails to show of a scenario's expect. */
+export function failedChecks(answer: unknown, expect: Map<string, Check>): string[] {
+  return [...expect].flatMap(([path, check]) => {
+    const { found, value } = valueAt(answer, path);
+    return checkFailures(check, path, value, found);
+  });
+}
+
+/** The checks of a scenario's expect that are plain checks, `all` unfolded, each with its path. */
+export function flatChecks(expect: Map<string, Check>): { path: string; check: Check }[] {
+  const out: { path: string; check: Check }[] = [];
+  const walk = (path: string, check: Check) => {
+    out.push({ path, check });
+    for (const inner of check.all ?? []) walk(path, inner);
+  };
+  for (const [path, check] of expect) walk(path, check);
+  return out;
+}
+
+/**
+ * An RE2 pattern for "does not contain text, in any case": mw's checks have no notContains, and RE2 has no
+ * look-ahead, so the pattern spells out the strings that never complete text (the automaton of the text's
+ * prefixes, as a regular expression). Put it in a `matches`.
+ */
+export function avoidsPattern(text: string): string {
+  const word = [...text.toLowerCase()];
+  const n = word.length;
+  if (n === 0) throw new Error('avoidsPattern needs some text');
+  const alphabet = [...new Set(word)];
+  const border: number[] = [0, 0];
+  for (let i = 1; i < n; i++) {
+    let j = border[i];
+    while (j > 0 && word[i] !== word[j]) j = border[j];
+    border.push(word[i] === word[j] ? j + 1 : 0);
+  }
+  const step = (state: number, c: string): number => {
+    for (let s = state; ; s = border[s]) {
+      if (s < n && word[s] === c) return s + 1;
+      if (s === 0) return 0;
+    }
+  };
+  // A regular expression under construction: its text, and whether it is a union (0), a sequence (1) or one atom (2).
+  type Re = { text: string; rank: number } | null;
+  const group = (re: NonNullable<Re>, rank: number) => (re.rank < rank ? `(?:${re.text})` : re.text);
+  const union = (a: Re, b: Re): Re => (a === null ? b : b === null ? a : a.text === b.text ? a : { text: `${a.text}|${b.text}`, rank: 0 });
+  const concat = (a: Re, b: Re): Re =>
+    a === null || b === null ? null : a.text === '' ? b : b.text === '' ? a : { text: group(a, 1) + group(b, 1), rank: 1 };
+  const star = (a: Re): NonNullable<Re> =>
+    a === null || a.text === '' ? { text: '', rank: 2 } : { text: `${group(a, 2)}*`, rank: 2 };
+  const quote = (c: string) => (/[\\\]^-]/.test(c) ? `\\${c}` : c);
+  const literal = (c: string) => (/[.*+?()|[\]{}^$\\]/.test(c) ? `\\${c}` : c);
+  const symbols = [...alphabet, ''];
+  const edge = new Map<string, Set<string>>();
+  for (let k = 0; k < n; k++)
+    for (const c of symbols) {
+      const to = step(k, c);
+      if (to < n) edge.set(`${k}>${to}`, (edge.get(`${k}>${to}`) ?? new Set()).add(c));
+    }
+  const render = (set: Set<string>): string => {
+    if (set.has('')) return `[^${alphabet.filter((c) => !set.has(c)).map(quote).join('')}]`;
+    return set.size === 1 ? literal([...set][0]) : `[${[...set].map(quote).join('')}]`;
+  };
+  const re: Re[][] = Array.from({ length: n + 1 }, () => Array<Re>(n + 1).fill(null));
+  for (const [key, set] of edge) {
+    const [from, to] = key.split('>').map(Number);
+    re[from][to] = { text: render(set), rank: 2 };
+  }
+  for (let i = 0; i < n; i++) re[i][n] = { text: '', rank: 2 }; // every state but the full match may end the string
+  for (let k = n - 1; k >= 0; k--) {
+    const loop = star(re[k][k]);
+    if (k === 0) {
+      const all = concat(loop, re[0][n]);
+      return `(?i)^${group(all as NonNullable<Re>, 1)}$`;
+    }
+    for (let i = 0; i <= n; i++)
+      for (let j = 0; j <= n; j++)
+        if (i !== k && j !== k && re[i][k] && re[k][j]) re[i][j] = union(re[i][j], concat(concat(re[i][k], loop), re[k][j]));
+    for (let i = 0; i <= n; i++) re[i][k] = re[k][i] = null;
+  }
+  throw new Error('unreachable');
+}
 
 // ─── The files ────────────────────────────────────────────────
 
