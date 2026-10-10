@@ -194,6 +194,8 @@ src/
     └── feedback/       # User feedback form + offline sync banner
 ```
 
+The module map ([docs/module-map.md](docs/module-map.md)) says what each module is for, which files stories collide on, and the refactors and shared-library lifts that would let stories run in parallel.
+
 ## Architecture
 
 ### Key Design Patterns
