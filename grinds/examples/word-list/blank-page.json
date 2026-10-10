@@ -1,0 +1,9 @@
+{
+  "about": "A photo of blank paper: no words are made up, and the note says why for the parent.",
+  "request": { "schemaVersion": "1", "requestType": "word-list", "language": "en" },
+  "photos": ["blank-page.png"],
+  "expect": [
+    { "path": "words", "equals": [] },
+    { "path": "notes", "present": true }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "about": "The child answers 33 to 52 - 25 and photographs the working, which takes the smaller digit from the bigger in each column: the tutor probes the regrouping gap and never says 27.",
+  "request": {
+    "schemaVersion": "1",
+    "mode": "math",
+    "strictness": "meaning-gated",
+    "target_text": "A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?",
+    "child_answer": "33",
+    "work_photo": true,
+    "session_history": [
+      { "mode": "problem-in", "action": "continue", "prompt_to_child": "Here is your problem. Read it out loud when you are ready." },
+      { "mode": "reading", "action": "continue", "prompt_to_child": "Great reading. Work it out on paper, then take a photo of your working." }
+    ]
+  },
+  "photos": ["subtraction-work.png"],
+  "expect": [
+    { "path": "action", "equals": "math_probe" },
+    { "path": "layer_diagnosis", "equals": "math" },
+    { "path": "math_diagnosis.gap", "matches": "regroup|borrow|exchang|trade|smaller|bigger|larger|ones|swap|rename" },
+    { "path": "prompt_to_child", "notContains": "27" },
+    { "path": "prompt_to_child", "notContains": "twenty-seven" }
+  ]
+}

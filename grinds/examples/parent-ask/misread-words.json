@@ -1,0 +1,17 @@
+{
+  "about": "A parent asks which words the child misreads; the answer names the words the sessions show and invents none.",
+  "request": {
+    "schemaVersion": "1",
+    "question": "Which words does he keep misreading?",
+    "sessions": [
+      "2026-10-08.\nProblem (reading): A gardener plants 6 rows of carrots with 5 carrots in each row. How many carrots are there altogether?\nTurns: 3.\nMisread words: gardener, altogether.\nThe tutor's notes for the parent: He drops the ending of long words.",
+      "2026-10-06.\nProblem (reading): A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?\nTurns: 2.\nMisread words: library, borrowed."
+    ]
+  },
+  "expect": [
+    { "path": "answer", "matches": "gardener" },
+    { "path": "answer", "matches": "altogether" },
+    { "path": "answer", "matches": "library" },
+    { "path": "examples", "present": true }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "about": "The first turn, with a photo of a word problem: the tutor reads the problem off the photo as written and does not solve it.",
+  "request": {
+    "schemaVersion": "1",
+    "mode": "problem-in",
+    "strictness": "meaning-gated",
+    "session_history": []
+  },
+  "photos": ["pencils-problem.jpg"],
+  "expect": [
+    { "path": "action", "equals": "continue" },
+    { "path": "layer_diagnosis", "equals": "none" },
+    { "path": "target_text", "matches": "24 pencils.*4 tables" },
+    { "path": "problem_kind", "equals": "word" },
+    { "path": "prompt_to_child", "notContains": "six" }
+  ]
+}
