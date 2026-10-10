@@ -19,10 +19,11 @@ const answer: ParentAskAnswer = { answer: 'He is reading well and slips on long 
 
 type Read = (params: ReadAnswerParams<ParentAskAnswer>) => Promise<ReadAnswerResult<ParentAskAnswer>>;
 
-function fakeClient(opts: { reply?: () => ReadAnswerResult<ParentAskAnswer>; sendError?: Error } = {}) {
+function fakeClient(opts: { reply?: () => ReadAnswerResult<ParentAskAnswer>; sendError?: Error; sendDelayMs?: number } = {}) {
   const sent: SendGristParams[] = [];
   const sendGrist = vi.fn(async (params: SendGristParams) => {
     sent.push(params);
+    if (opts.sendDelayMs) await new Promise((resolve) => setTimeout(resolve, opts.sendDelayMs));
     if (opts.sendError) throw opts.sendError;
     return { txid: `direct:${sent.length}`, seq: 0, mill: 'aa' };
   });
@@ -61,7 +62,8 @@ describe('Ask the tutor box', () => {
   it('sends the question through the grist client as a parent-ask, with his recent sessions as text', async () => {
     await db.tutorSessions.add({ ...readRight.session, profileId: paulProfile.id });
     await db.tutorTurns.bulkAdd(readRight.turns);
-    const client = fakeClient();
+    // a slow send, as on a loaded host: the box clears and the row is marked sent only after the send returns
+    const client = fakeClient({ sendDelayMs: 150 });
     open(client.deps);
     await ask('  How is he doing with reading?  ');
 
@@ -74,9 +76,11 @@ describe('Ask the tutor box', () => {
     expect(input.sessions).toHaveLength(1);
     expect(input.sessions[0]).toMatch(/chapter/);
 
+    // the box clears only once the send has returned, so wait for it before looking at the stored row
+    const field = (await box()).getByLabelText('Your question') as HTMLTextAreaElement;
+    await vi.waitFor(() => expect(field.value).toBe(''), { timeout: 5000 });
     const [stored] = await parentAskRepo.listForProfile(paulProfile.id);
     expect(stored).toMatchObject({ question: 'How is he doing with reading?', status: 'waiting', txid: 'direct:1', mill: 'aa' });
-    expect(((await box()).getByLabelText('Your question') as HTMLTextAreaElement).value).toBe('');
     expect(await tutorRepo.listSessions(paulProfile.id)).toHaveLength(1);
     expect(await db.tutorTurns.count()).toBe(readRight.turns.length);
   });
@@ -110,7 +114,8 @@ describe('Ask the tutor box', () => {
     expect(s.getByText(answer.examples[0])).toBeTruthy();
     expect(s.queryByRole('status', { name: 'Waiting for the answer' })).toBeNull();
     expect(s.getByText('How is he doing with reading?')).toBeTruthy();
-    expect((s.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true); // field is empty again
+    await vi.waitFor(() => expect((s.getByLabelText('Your question') as HTMLTextAreaElement).value).toBe(''), { timeout: 5000 }); // field is empty again
+    expect((s.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
     await vi.waitFor(async () =>
       expect(await parentAskRepo.listForProfile(paulProfile.id)).toMatchObject([{ status: 'answered', answer, question: 'How is he doing with reading?' }]),
     );
