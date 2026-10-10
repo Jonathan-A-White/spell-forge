@@ -196,6 +196,8 @@ src/
 
 The module map ([docs/module-map.md](docs/module-map.md)) says what each module is for, which files stories collide on, and the refactors and shared-library lifts that would let stories run in parallel.
 
+The best-practices audit ([docs/best-practices-audit.md](docs/best-practices-audit.md)) marks every line of the PWA checklist and each newer rule pass, fail or n/a with evidence, and ranks the failures into fix stories.
+
 ## Architecture
 
 ### Key Design Patterns
