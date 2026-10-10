@@ -241,6 +241,8 @@ describe('ListEditor photo import: after the read', () => {
   });
 
   it("shows 'No words found. Try a clearer photo.' after a failed read", async () => {
+    // a slow start, as on a loaded host: the editor keeps its own reading label until the start call returns
+    imports.start.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({}), 150)));
     renderEditor({ list: makeList() });
     pickPhoto();
     await waitFor(() => expect(imports.start).toHaveBeenCalled());
@@ -248,7 +250,8 @@ describe('ListEditor photo import: after the read', () => {
     act(() => imports.set('list-1', 'failed'));
 
     expect(screen.getByText('No words found. Try a clearer photo.')).toBeInTheDocument();
-    expect(screen.queryByText('Reading your photo...')).not.toBeInTheDocument();
+    // the label also stays while the start call is pending, so wait for it to go rather than read it once
+    await waitFor(() => expect(screen.queryByText('Reading your photo...')).not.toBeInTheDocument());
     expect(screen.getByTestId('camera-import-btn')).toBeEnabled();
   });
 
