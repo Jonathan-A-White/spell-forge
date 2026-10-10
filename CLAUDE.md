@@ -77,6 +77,12 @@ Tables: `profiles`, `wordLists`, `words`, `wordStats`, `sessionLogs`, `streaks`,
 All accessibility settings map to CSS custom properties:
 `--sf-font-size`, `--sf-font-weight`, `--sf-font-family`, `--sf-letter-spacing`, `--sf-line-height`, `--sf-background-color`, `--sf-tap-target-size`, `--sf-reduced-motion`
 
+## Grind examples
+
+Every grind in `grinds/` keeps one or more example scenarios, `grinds/examples/<kind>/<name>.json`, which `mw grist smoke spell-forge` sends to the mill and checks. A scenario holds `about`, `request` (what the app sends, with `schemaVersion`), optional `photos` (file names beside it, public-safe, under 200 KB) and `expect`: checks on the answer's fields (`equals`, `isNull`, `oneOf`, `contains`, `notContains`, `matches`, `present`, `absent`; the format is documented in `tests/fixtures/grist/grind-examples.ts`). `tests/unit/grist-grind-examples.test.ts` validates each request against the grind's input schema (`grinds/<kind>.request.schema.json` or `<kind>-request-<v>.schema.json`), each `expect` path against its answer schema, and fails when a grind has no example.
+
+**A story that changes a grind's behaviour (its instructions, its request, its answer schema) updates or adds that grind's examples in the same story.** A new grind brings its input schema and at least one example.
+
 ## Code Conventions
 
 - TypeScript strict mode — no `any` types without justification
