@@ -1,5 +1,7 @@
 # SpellForge
 
+The app's vision: [VISION.md](VISION.md).
+
 An offline-first spelling app that helps kids learn through adaptive techniques, spaced repetition, mini-games, and rewards they actually care about.
 
 Built for children like Paul — a 3rd grader with double vision who loves creature-building games — but architected to be customizable for any child with any interests.
