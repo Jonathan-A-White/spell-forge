@@ -538,3 +538,81 @@ describe('additional word analyses', () => {
     expect(cats).toContain('r-controlled');
   });
 });
+
+// ─── Pattern examples make the pattern's sound (example-word-wrong-sound) ───
+// The example words are shown as "Also in:" and as the tricky part, so each one
+// must make, in its marked letters, the sound its pattern teaches (American English).
+
+/** Does `word` spell `grapheme`? A split grapheme "a_e" is the vowel, one consonant, then "e". */
+function spellsGrapheme(word: string, grapheme: string): boolean {
+  const split = /^([a-z])_([a-z])$/.exec(grapheme);
+  if (split) return new RegExp(`${split[1]}[^aeiou]${split[2]}`).test(word);
+  return word.includes(grapheme);
+}
+
+function examplesOfSound(phoneme: string): string[] {
+  return patterns.filter(p => p.phoneme === phoneme).flatMap(p => p.examples);
+}
+
+describe('pattern examples make the pattern sound', () => {
+  it('every example of every pattern contains the pattern grapheme', () => {
+    const misspelt = patterns.flatMap(p =>
+      p.examples.filter(w => !spellsGrapheme(w, p.grapheme)).map(w => `${p.id}: ${w}`),
+    );
+    expect(misspelt).toEqual([]);
+  });
+
+  it('no pattern lists the same example twice', () => {
+    for (const p of patterns) {
+      expect(new Set(p.examples).size, p.id).toBe(p.examples.length);
+    }
+  });
+
+  it('u_e as /juː/ has no example that says /uː/ or no long u', () => {
+    const yoo = examplesOfSound('/juː/');
+    for (const w of ['flute', 'brute', 'chute', 'minute', 'tube']) {
+      expect(yoo, w).not.toContain(w);
+    }
+  });
+
+  it('flute, brute and chute are taught under u_e as /uː/', () => {
+    const oo = patterns.filter(p => p.grapheme === 'u_e' && p.phoneme === '/uː/');
+    expect(oo.length).toBeGreaterThan(0);
+    const taught = oo.flatMap(p => p.examples);
+    for (const w of ['flute', 'brute', 'chute']) expect(taught).toContain(w);
+  });
+
+  it('the /uː/ split does not take over words that say /juː/ (cute, mute, mule, huge)', () => {
+    for (const w of ['cute', 'mute', 'mule', 'huge', 'fuse']) {
+      expect(patternIds(w), w).not.toContain('silent-e-u-oo');
+    }
+  });
+
+  it('"ure" as "yoor" has no example without the y (sure, lure)', () => {
+    const yoor = examplesOfSound('/jʊər/');
+    expect(yoor).not.toContain('sure');
+    expect(yoor).not.toContain('lure');
+    const oor = patterns.filter(p => p.grapheme === 'ure' && p.phoneme === '/ʊər/').flatMap(p => p.examples);
+    expect(oor).toEqual(expect.arrayContaining(['sure', 'lure']));
+  });
+
+  it('suffix -s as /s/ has no example that says /z/ (dogs, runs)', () => {
+    const ess = patterns.filter(p => p.category === 'suffix' && p.phoneme === '/s/').flatMap(p => p.examples);
+    expect(ess).not.toContain('dogs');
+    expect(ess).not.toContain('runs');
+    const zed = patterns.filter(p => p.category === 'suffix' && p.grapheme === 's' && p.phoneme === '/z/').flatMap(p => p.examples);
+    expect(zed).toEqual(expect.arrayContaining(['dogs', 'runs']));
+  });
+
+  it('borderline examples are gone: was under /wɒ/, dog and log under short o, read under long ea', () => {
+    expect(examplesOfSound('/wɒ/')).not.toContain('was');
+    expect(examplesOfSound('/ɒ/')).not.toContain('dog');
+    expect(examplesOfSound('/ɒ/')).not.toContain('log');
+    expect(examplesOfSound('/iː/')).not.toContain('read');
+  });
+
+  it('prefix examples keep the prefix sound (return is /rɪ/; exit, explore and expand are not /ɛks/)', () => {
+    expect(examplesOfSound('/riː/')).not.toContain('return');
+    for (const w of ['exit', 'explore', 'expand']) expect(examplesOfSound('/ɛks/'), w).not.toContain(w);
+  });
+});

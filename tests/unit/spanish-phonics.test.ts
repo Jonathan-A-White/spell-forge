@@ -3,6 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeSpanishWord } from '../../src/core/phonics/languages/spanish/engine';
 import { splitSpanishSyllables } from '../../src/core/phonics/languages/spanish/syllabifier';
+import { spanishPatterns } from '../../src/core/phonics/languages/spanish/patterns';
 import { analyzeWordMultilingual, splitSyllablesMultilingual, hasPhonicsEngine } from '../../src/core/phonics/multilingual';
 
 // ─── Spanish Syllabifier ───────────────────────────────────────
@@ -179,5 +180,48 @@ describe('multilingual phonics dispatcher', () => {
   it('splitSyllablesMultilingual falls back for unknown language', () => {
     const result = splitSyllablesMultilingual('hello', 'zh');
     expect(result).toEqual(['hello']);
+  });
+});
+
+// ─── Pattern examples make the pattern sound (example-word-wrong-sound) ───
+// Latin American Spanish. Each example is shown as "Also in:", so its marked
+// letters must be the pattern's grapheme and make its sound in that word.
+
+describe('Spanish pattern examples make the pattern sound', () => {
+  const spellsGrapheme = (word: string, grapheme: string): boolean =>
+    // "í/ú" lists two graphemes, either of which may mark the example
+    grapheme.split('/').some((g) => word.toLowerCase().includes(g));
+
+  const examplesOf = (id: string): string[] => spanishPatterns.find((p) => p.id === id)?.examples ?? [];
+
+  it('every example of every pattern contains the pattern grapheme', () => {
+    const misspelt = spanishPatterns.flatMap((p) =>
+      p.examples.filter((w) => !spellsGrapheme(w, p.grapheme)).map((w) => `${p.id}: ${w}`),
+    );
+    expect(misspelt).toEqual([]);
+  });
+
+  it('no pattern lists the same example twice', () => {
+    for (const p of spanishPatterns) {
+      expect(new Set(p.examples).size, p.id).toBe(p.examples.length);
+    }
+  });
+
+  it('á is not shown in words whose accent is on é or í (café, aquí)', () => {
+    expect(examplesOf('es-a-accent')).not.toContain('café');
+    expect(examplesOf('es-a-accent')).not.toContain('aquí');
+  });
+
+  it('oi is not shown in a word spelt oy or a hiatus (hoy, coincidir)', () => {
+    expect(examplesOf('es-oi')).not.toContain('hoy');
+    expect(examplesOf('es-oi')).not.toContain('coincidir');
+  });
+
+  it('unaccented rio is not an example of i (the word is río)', () => {
+    expect(examplesOf('es-i')).not.toContain('rio');
+  });
+
+  it('eu is not shown in reunir (re-u-nir is a hiatus)', () => {
+    expect(examplesOf('es-eu')).not.toContain('reunir');
   });
 });
