@@ -17,12 +17,12 @@ export const spanishPatterns: SpanishPatternEntry[] = [
   // ─── Vowels (5 — always consistent) ──────────────────────
   { id: 'es-a', category: 'es-vowel', grapheme: 'a', phoneme: '/a/', examples: ['casa', 'agua', 'alma', 'ala'], hint: '"a" always sounds like "ah".' },
   { id: 'es-e', category: 'es-vowel', grapheme: 'e', phoneme: '/e/', examples: ['mesa', 'leer', 'este', 'leche'], hint: '"e" always sounds like "eh".' },
-  { id: 'es-i', category: 'es-vowel', grapheme: 'i', phoneme: '/i/', examples: ['isla', 'piso', 'fino', 'rio'], hint: '"i" always sounds like "ee".' },
+  { id: 'es-i', category: 'es-vowel', grapheme: 'i', phoneme: '/i/', examples: ['isla', 'piso', 'fino', 'mina'], hint: '"i" always sounds like "ee".' },
   { id: 'es-o', category: 'es-vowel', grapheme: 'o', phoneme: '/o/', examples: ['oso', 'todo', 'como', 'oro'], hint: '"o" always sounds like "oh".' },
   { id: 'es-u', category: 'es-vowel', grapheme: 'u', phoneme: '/u/', examples: ['uva', 'luna', 'muro', 'uno'], hint: '"u" always sounds like "oo".' },
 
   // ─── Accented vowels (stress markers — same sound, different stress) ──
-  { id: 'es-a-accent', category: 'es-accent', grapheme: '\u00e1', phoneme: '/\u02c8a/', examples: ['pap\u00e1', 'caf\u00e9', 'm\u00e1s', 'aqu\u00ed'], hint: 'The accent mark (\u00b4) shows which syllable is stressed.' },
+  { id: 'es-a-accent', category: 'es-accent', grapheme: '\u00e1', phoneme: '/\u02c8a/', examples: ['pap\u00e1', 'est\u00e1', 'm\u00e1s', 'all\u00e1'], hint: 'The accent mark (\u00b4) shows which syllable is stressed.' },
   { id: 'es-e-accent', category: 'es-accent', grapheme: '\u00e9', phoneme: '/\u02c8e/', examples: ['caf\u00e9', 'beb\u00e9', 'despu\u00e9s', 'tambi\u00e9n'], hint: 'The accent on "\u00e9" marks the stressed syllable.' },
   { id: 'es-i-accent', category: 'es-accent', grapheme: '\u00ed', phoneme: '/\u02c8i/', examples: ['aqu\u00ed', 'viv\u00ed', 'pa\u00eds', 'ma\u00edz'], hint: 'The accent on "\u00ed" marks the stressed syllable.' },
   { id: 'es-o-accent', category: 'es-accent', grapheme: '\u00f3', phoneme: '/\u02c8o/', examples: ['le\u00f3n', 'raz\u00f3n', 'cami\u00f3n', 'coraz\u00f3n'], hint: 'The accent on "\u00f3" marks the stressed syllable.' },
@@ -54,9 +54,9 @@ export const spanishPatterns: SpanishPatternEntry[] = [
   // ─── Diphthongs ───────────────────────────────────────────
   { id: 'es-ai', category: 'es-diphthong', grapheme: 'ai', phoneme: '/ai/', examples: ['aire', 'baile', 'paisaje', 'traigo'], hint: '"ai" — two vowels glide together in one syllable.' },
   { id: 'es-ei', category: 'es-diphthong', grapheme: 'ei', phoneme: '/ei/', examples: ['reina', 'veinte', 'peine', 'seis'], hint: '"ei" — two vowels glide together in one syllable.' },
-  { id: 'es-oi', category: 'es-diphthong', grapheme: 'oi', phoneme: '/oi/', examples: ['oigo', 'hoy', 'boina', 'coincidir'], hint: '"oi" — two vowels glide together in one syllable.' },
+  { id: 'es-oi', category: 'es-diphthong', grapheme: 'oi', phoneme: '/oi/', examples: ['oigo', 'oiga', 'boina', 'boicot'], hint: '"oi" — two vowels glide together in one syllable.' },
   { id: 'es-au', category: 'es-diphthong', grapheme: 'au', phoneme: '/au/', examples: ['auto', 'causa', 'pausa', 'aula'], hint: '"au" — two vowels glide together in one syllable.' },
-  { id: 'es-eu', category: 'es-diphthong', grapheme: 'eu', phoneme: '/eu/', examples: ['Europa', 'deuda', 'neutro', 'reunir'], hint: '"eu" — two vowels glide together in one syllable.' },
+  { id: 'es-eu', category: 'es-diphthong', grapheme: 'eu', phoneme: '/eu/', examples: ['Europa', 'deuda', 'neutro', 'feudo'], hint: '"eu" — two vowels glide together in one syllable.' },
   { id: 'es-ia', category: 'es-diphthong', grapheme: 'ia', phoneme: '/ja/', examples: ['familia', 'diario', 'piano', 'hacia'], hint: '"ia" — the "i" glides into "a".' },
   { id: 'es-ie', category: 'es-diphthong', grapheme: 'ie', phoneme: '/je/', examples: ['tierra', 'tiempo', 'siete', 'bien'], hint: '"ie" — the "i" glides into "e".' },
   { id: 'es-io', category: 'es-diphthong', grapheme: 'io', phoneme: '/jo/', examples: ['radio', 'patio', 'precio', 'julio'], hint: '"io" — the "i" glides into "o".' },
