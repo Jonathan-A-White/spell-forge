@@ -13,7 +13,8 @@
 // (SF_E2E_PORT=4180 ... when something else already holds port 4173.) Every e2e spec uses port 4173: run them one at a time.
 
 import { test, expect, type Page } from '@playwright/test';
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, type ChildProcess } from 'node:child_process';
+import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -108,7 +109,7 @@ test.describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () =
     execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
     let previewProcess: ChildProcess | undefined;
     try {
-      previewProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
+      previewProcess = spawnGroup('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
         cwd: repoRoot,
         stdio: 'pipe',
       });
@@ -152,7 +153,7 @@ test.describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () =
 
       expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
     } finally {
-      previewProcess?.kill();
+      killGroup(previewProcess);
     }
   });
 });

@@ -11,7 +11,8 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { speechInitScript } from 'voice-kit/testing/speech';
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, type ChildProcess } from 'node:child_process';
+import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -126,7 +127,7 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
     execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
     let previewProcess: ChildProcess | undefined;
     try {
-      previewProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
+      previewProcess = spawnGroup('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
         cwd: repoRoot,
         stdio: 'pipe',
       });
@@ -171,7 +172,7 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
 
       expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
     } finally {
-      previewProcess?.kill();
+      killGroup(previewProcess);
     }
   });
 });

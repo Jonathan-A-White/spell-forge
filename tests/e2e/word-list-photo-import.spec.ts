@@ -18,7 +18,8 @@
 // Every e2e spec uses port 4173: run them one at a time (--workers=1), not side by side.
 
 import { test, expect, type Page } from '@playwright/test';
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, type ChildProcess } from 'node:child_process';
+import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -150,7 +151,7 @@ test.describe('photo import status in the list editor and Word Lists (mw-z361n.5
 
     let previewProcess: ChildProcess | undefined;
     try {
-      previewProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
+      previewProcess = spawnGroup('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
         cwd: repoRoot,
         stdio: 'pipe',
       });
@@ -190,7 +191,7 @@ test.describe('photo import status in the list editor and Word Lists (mw-z361n.5
       expect(postern.delivered, 'leaving did not send the photo again').toBe(1);
       expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
     } finally {
-      previewProcess?.kill();
+      killGroup(previewProcess);
     }
   });
 });

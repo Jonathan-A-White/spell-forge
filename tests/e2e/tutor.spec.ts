@@ -18,7 +18,8 @@
 // Every e2e spec uses port 4173: run them one at a time (--workers=1), not side by side.
 
 import { test, expect, type Page } from '@playwright/test';
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, type ChildProcess } from 'node:child_process';
+import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -182,7 +183,7 @@ test.describe('the Tutor screen behind sf-tutor (mw-bhvxcn.8)', () => {
     execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
     let previewProcess: ChildProcess | undefined;
     try {
-      previewProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
+      previewProcess = spawnGroup('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
         cwd: repoRoot,
         stdio: 'pipe',
       });
@@ -243,7 +244,7 @@ test.describe('the Tutor screen behind sf-tutor (mw-bhvxcn.8)', () => {
 
       expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
     } finally {
-      previewProcess?.kill();
+      killGroup(previewProcess);
     }
   });
 });

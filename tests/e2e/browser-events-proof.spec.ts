@@ -20,7 +20,8 @@
 //   npx playwright test tests/e2e/browser-events-proof.spec.ts
 
 import { test, expect, type Page } from '@playwright/test';
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, type ChildProcess } from 'node:child_process';
+import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Transaction } from '@bsv/sdk';
@@ -168,7 +169,7 @@ test.describe('browser build proof: minting a License + Fuel token in real Chrom
 
     let previewProcess: ChildProcess | undefined;
     try {
-      previewProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
+      previewProcess = spawnGroup('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
         cwd: repoRoot,
         stdio: 'pipe',
       });
@@ -237,7 +238,7 @@ test.describe('browser build proof: minting a License + Fuel token in real Chrom
       const faults = pageErrors.filter((message) => NODE_BUILTIN_FAULT_PATTERNS.some((pattern) => pattern.test(message)));
       expect(faults, `page-level errors matching a Node-builtin fault: ${JSON.stringify(faults)}`).toEqual([]);
     } finally {
-      previewProcess?.kill();
+      killGroup(previewProcess);
     }
   });
 });
