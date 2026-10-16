@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Profile } from '../../contracts';
 import { profileRepo } from '../../data/repositories';
 import { MAX_TUTOR_NOTES, MAX_TUTOR_NOTE_LENGTH } from '../../accessibility/settings';
+import { isTooLong } from './length-limit';
+import { LengthNote } from './length-note';
 
 export interface TutorNotesProps {
   profileId: string;
@@ -48,6 +50,7 @@ export function TutorNotes({ profileId, onProfileChange }: TutorNotesProps) {
 
   const text = draft.trim();
   const full = notes.length >= MAX_TUTOR_NOTES;
+  const tooLong = isTooLong(draft, MAX_TUTOR_NOTE_LENGTH);
 
   return (
     <section aria-labelledby="tutor-notes-title" className="rounded-xl bg-sf-surface border border-sf-border p-4 space-y-3">
@@ -73,27 +76,35 @@ export function TutorNotes({ profileId, onProfileChange }: TutorNotesProps) {
           )}
           {full && <p className="text-sf-muted text-sm">You have {MAX_TUTOR_NOTES} notes, the most there can be. Delete one to add another.</p>}
           <form
-            className="flex items-center gap-3"
+            className="space-y-2"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!text || full) return;
+              if (!text || full || tooLong) return;
               setDraft('');
               void save([...notes, text]);
             }}
           >
-            <input
-              type="text"
-              aria-label="New note"
-              placeholder="For example: go slower on carrying"
-              maxLength={MAX_TUTOR_NOTE_LENGTH}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              className="flex-1 min-w-0 px-3 rounded-xl border border-sf-border bg-sf-bg text-sf-heading"
-              style={TAP}
-            />
-            <button type="submit" className={BUTTON} style={TAP} disabled={!text || full}>
-              Add note
-            </button>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                aria-label="New note"
+                placeholder="For example: go slower on carrying"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                className="flex-1 min-w-0 px-3 rounded-xl border border-sf-border bg-sf-bg text-sf-heading"
+                style={TAP}
+              />
+              <button
+                type="submit"
+                className={BUTTON}
+                style={TAP}
+                disabled={!text || full || tooLong}
+                aria-describedby={tooLong ? 'tutor-note-length' : undefined}
+              >
+                Add note
+              </button>
+            </div>
+            <LengthNote id="tutor-note-length" text={draft} max={MAX_TUTOR_NOTE_LENGTH} what="note" verb="add" />
           </form>
         </>
       )}

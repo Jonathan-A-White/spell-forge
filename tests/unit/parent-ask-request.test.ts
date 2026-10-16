@@ -80,9 +80,9 @@ describe('buildParentAskRequest', () => {
     expect(sessions.join('\n')).not.toContain('Problem number 4');
   });
 
-  it('sends no sessions when there are none, and cuts an over-long question', () => {
+  it('sends no sessions when there are none, and never cuts an over-long question (sendParentAsk refuses it, mw-gq6.463)', () => {
     expect(buildParentAskRequest('q', []).sessions).toEqual([]);
-    expect(buildParentAskRequest('x'.repeat(PARENT_ASK_MAX_QUESTION + 50), []).question).toHaveLength(PARENT_ASK_MAX_QUESTION);
+    expect(buildParentAskRequest('x'.repeat(PARENT_ASK_MAX_QUESTION + 50), []).question).toHaveLength(PARENT_ASK_MAX_QUESTION + 50);
   });
 
   it('sends no names, ids or keys: only the question and text summaries', () => {

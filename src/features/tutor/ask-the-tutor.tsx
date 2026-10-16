@@ -11,6 +11,8 @@ import { ParentAskInFlight } from '../../grist';
 import { PARENT_ASK_MAX_QUESTION } from './parent-ask-request';
 import { PARENT_ASK_HISTORY, failHalfSentAsks, sendParentAsk } from './parent-ask-flow';
 import type { ParentAskDeps } from './parent-ask-flow';
+import { isTooLong } from './length-limit';
+import { LengthNote } from './length-note';
 import { Waiting } from './pictures';
 import { TutorUserError, deviceKey } from './tutor-flow';
 
@@ -73,9 +75,10 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
   }, [out]);
 
   const text = draft.trim();
+  const tooLong = isTooLong(draft, PARENT_ASK_MAX_QUESTION);
 
   const submit = async () => {
-    if (!text || sending || out) return;
+    if (!text || sending || out || tooLong) return;
     setSending(true);
     setProblem('');
     try {
@@ -106,12 +109,18 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
           aria-label="Your question"
           placeholder="For example: Which words does he get wrong most?"
           rows={3}
-          maxLength={PARENT_ASK_MAX_QUESTION}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           className="w-full px-3 py-2 rounded-xl border border-sf-border bg-sf-bg text-sf-heading"
         />
-        <button type="submit" className={PRIMARY} style={TAP} disabled={!text || sending || out}>
+        <LengthNote id="ask-the-tutor-length" text={draft} max={PARENT_ASK_MAX_QUESTION} what="question" verb="send" />
+        <button
+          type="submit"
+          className={PRIMARY}
+          style={TAP}
+          disabled={!text || sending || out || tooLong}
+          aria-describedby={tooLong ? 'ask-the-tutor-length' : undefined}
+        >
           Ask
         </button>
       </form>

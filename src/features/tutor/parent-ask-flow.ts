@@ -7,7 +7,8 @@ import type { ParentAsk } from '../../contracts/types';
 import { parentAskRepo } from '../../data/repositories';
 import { PARENT_ASK_GRIND, sendGrist } from '../../grist';
 import type { ParentAskInFlightDeps } from '../../grist';
-import { buildParentAskRequestFor } from './parent-ask-request';
+import { PARENT_ASK_MAX_QUESTION, buildParentAskRequestFor } from './parent-ask-request';
+import { isTooLong, tooLongReason } from './length-limit';
 import { HALF_SENT_MS, NO_KEY, TutorUserError, deviceKey, sayWhy } from './tutor-flow';
 
 /** The seams the box runs on; each defaults to the real thing, tests replace them. */
@@ -29,12 +30,16 @@ const CUT_OFF = 'The question did not get sent. You can try again.';
 const NOTHING_TO_ASK = 'Type your question first.';
 
 /**
- * Sends the question with the child's latest sessions as text. No key, or an empty question, throws a
- * TutorUserError before anything is stored; a send that fails after that leaves the ask 'failed' with the reason.
+ * Sends the question with the child's latest sessions as text. No key, an empty question or one past
+ * PARENT_ASK_MAX_QUESTION (refused whole, never cut) throws a TutorUserError before anything is stored; a send that
+ * fails after that leaves the ask 'failed' with the reason.
  * Returns the ask as it now stands.
  */
 export async function sendParentAsk(params: { profileId: string; question: string }, deps: ParentAskDeps = {}): Promise<ParentAsk> {
   if (!params.question.trim()) throw new TutorUserError(NOTHING_TO_ASK);
+  if (isTooLong(params.question, PARENT_ASK_MAX_QUESTION)) {
+    throw new TutorUserError(tooLongReason(params.question, PARENT_ASK_MAX_QUESTION, 'question', 'send'));
+  }
   const key = await (deps.getKey ?? deviceKey)();
   if (!key) throw new TutorUserError(NO_KEY);
 

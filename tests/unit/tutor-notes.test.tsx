@@ -72,10 +72,15 @@ describe('Notes for the tutor on the Grown-ups screen', () => {
     await vi.waitFor(async () => expect(await notesOf(paulProfile.id)).toBeUndefined());
   });
 
-  it('ignores a blank note, and stops the box at 200 characters', async () => {
+  it('ignores a blank note, and keeps a note past 200 characters whole with Add note off (mw-gq6.463: never cut)', async () => {
     open();
     const s = await section();
-    expect((await s.findByLabelText('New note') as HTMLInputElement).maxLength).toBe(200);
+    const field = (await s.findByLabelText('New note')) as HTMLInputElement;
+    expect(field.hasAttribute('maxlength')).toBe(false);
+    fireEvent.change(field, { target: { value: 'x'.repeat(201) } });
+    expect(field.value).toHaveLength(201);
+    expect((s.getByRole('button', { name: 'Add note' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(s.getByText(/^201 of 200: the note is too long to add/)).toBeTruthy();
     expect((s.getByRole('button', { name: 'Add note' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(s.getByLabelText('New note'), { target: { value: '   ' } });
     expect((s.getByRole('button', { name: 'Add note' }) as HTMLButtonElement).disabled).toBe(true);

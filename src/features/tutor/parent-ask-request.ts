@@ -9,7 +9,7 @@ import type { SessionWithTurns } from './parent-sessions';
 
 /** How many of the latest sessions travel with a question. */
 export const PARENT_ASK_SESSIONS = 20;
-/** The longest question sent; a longer one is cut. */
+/** The longest question sent; a longer one is refused with the reason, never cut (sendParentAsk). */
 export const PARENT_ASK_MAX_QUESTION = 1000;
 /** The longest summary of one session; a longer one is cut. */
 const MAX_SUMMARY = 1500;
@@ -53,14 +53,14 @@ function summaryOf({ session, turns }: SessionWithTurns): string {
   return text.length > MAX_SUMMARY ? `${text.slice(0, MAX_SUMMARY - 1)}…` : text;
 }
 
-/** The question, trimmed, and the latest sessions (those with at least one turn) as text, newest first. */
+/** The question, trimmed and whole, and the latest sessions (those with at least one turn) as text, newest first. */
 export function buildParentAskRequest(question: string, rows: SessionWithTurns[]): ParentAskRequest {
   const sessions = rows
     .filter((row) => row.turns.length > 0)
     .sort((a, b) => b.session.startedAt.getTime() - a.session.startedAt.getTime())
     .slice(0, PARENT_ASK_SESSIONS)
     .map(summaryOf);
-  return { question: question.trim().slice(0, PARENT_ASK_MAX_QUESTION), sessions };
+  return { question: question.trim(), sessions };
 }
 
 /** The same, from the profile's sessions as Dexie holds them. */

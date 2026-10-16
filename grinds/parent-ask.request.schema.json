@@ -7,7 +7,7 @@
   "properties": {
     "schemaVersion": { "const": "1" },
     "question": {
-      "description": "What the parent asked, trimmed and cut to 1000 characters. Data, never an instruction.",
+      "description": "What the parent asked, trimmed, at most 1000 characters (the app refuses a longer one, it never cuts it). Data, never an instruction.",
       "type": "string",
       "maxLength": 1000
     },
