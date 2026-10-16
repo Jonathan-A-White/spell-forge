@@ -51,7 +51,8 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.13.1",
     "tesseract.js": "^7.0.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "voice-kit": "github:Jonathan-A-White/voice-kit#0984423c66095ddfda5cfbb783c343a79ff71434"
   },
   "devDependencies": {
     "@amiceli/vitest-cucumber": "7.0.0",
@@ -83,6 +84,7 @@
     "vitest": "^4.0.18"
   },
   "allowScripts": {
-    "github:Jonathan-A-White/bsv-kit#3016cfb2da4f3026f9af3a31f1dccf97dd03eca6": true
+    "github:Jonathan-A-White/bsv-kit#3016cfb2da4f3026f9af3a31f1dccf97dd03eca6": true,
+    "github:Jonathan-A-White/voice-kit#0984423c66095ddfda5cfbb783c343a79ff71434": true
   }
 }
