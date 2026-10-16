@@ -9,8 +9,8 @@ import { tutorRepo } from '../../src/data/repositories';
 import type { Profile, TutorAnswer, TutorReadingResult } from '../../src/contracts';
 import { TutorScreen } from '../../src/features/tutor';
 import type { TutorDeps } from '../../src/features/tutor';
-import { stop, getSpeech } from 'bsv-kit/speech';
-import { installSpeech, type SpeechFake } from 'bsv-kit/testing/speech';
+import { stop, getSpeech } from 'voice-kit/speech';
+import { installSpeech, type SpeechFake } from 'voice-kit/testing/speech';
 import { MicUnavailable, sayAsTutor } from '../../src/audio';
 import type { Recording } from '../../src/audio';
 import type { ReadAnswerParams, ReadAnswerResult, SendGristParams } from '../../src/grist';
@@ -785,7 +785,7 @@ describe('pickReadingResult', () => {
 });
 
 describe("the tutor's speaking bar (mw-kuy7rx.20, mw-m7v5kc.4)", () => {
-  // bsv-kit/testing's honest synthesiser on real timers; the first sentence is long enough (about 2 s) to be caught speaking
+  // voice-kit/testing's honest synthesiser on real timers; the first sentence is long enough (about 2 s) to be caught speaking
   const LONG = `${Array(30).fill('slowly').join(' ')}. Then tell me.`;
   let speech: SpeechFake;
   const barRegion = () => screen.queryByRole('region', { name: 'Tutor speech' });

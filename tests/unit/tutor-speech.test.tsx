@@ -1,10 +1,10 @@
-// mw-m7v5kc.4: the tutor's sentences are spoken by bsv-kit/speech and steered by its Pause/Resume, Restart and Stop bar:
-// the position is kept, new speech replaces old, single words are untouched. The synthesiser is bsv-kit/testing's honest
+// mw-m7v5kc.4: the tutor's sentences are spoken by voice-kit/speech and steered by its Pause/Resume, Restart and Stop bar:
+// the position is kept, new speech replaces old, single words are untouched. The synthesiser is voice-kit/testing's honest
 // fake, which takes the time Android Chrome takes (150 ms and 60 ms a word) and reports a cancelled sentence as an error.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { stop } from 'bsv-kit/speech';
-import { installSpeech, type SpeechFake } from 'bsv-kit/testing/speech';
+import { stop } from 'voice-kit/speech';
+import { installSpeech, type SpeechFake } from 'voice-kit/testing/speech';
 import { sayAsTutor, sayWord } from '../../src/audio';
 import { TutorSpeechBar } from '../../src/features/tutor/speech-bar';
 

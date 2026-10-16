@@ -1,8 +1,8 @@
-// mw-kuy7rx.8 / mw-m7v5kc.4: the tutor speaks (through bsv-kit/speech) with the phone's default voice for its language
-// unless a voice is picked; spelling practice keeps its en-US/GB/AU ranking. The synthesiser is bsv-kit/testing's honest fake.
+// mw-kuy7rx.8 / mw-m7v5kc.4: the tutor speaks (through voice-kit/speech) with the phone's default voice for its language
+// unless a voice is picked; spelling practice keeps its en-US/GB/AU ranking. The synthesiser is voice-kit/testing's honest fake.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resume, stop } from 'bsv-kit/speech';
-import { installSpeech, type FakeVoice, type SpeechFake } from 'bsv-kit/testing/speech';
+import { resume, stop } from 'voice-kit/speech';
+import { installSpeech, type FakeVoice, type SpeechFake } from 'voice-kit/testing/speech';
 import { listTutorVoices, pauseTutorSpeech, sayAsTutor, sayWord } from '../../src/audio';
 
 const v = (name: string, lang: string, isDefault = false): FakeVoice => ({

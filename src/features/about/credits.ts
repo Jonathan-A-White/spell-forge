@@ -135,6 +135,15 @@ export const CREDITS: readonly Credit[] = [
     licence: { name: 'MIT', url: 'https://github.com/Jonathan-A-White/bsv-kit/blob/main/LICENSE' },
     changes: 'Written by us; shared with our other apps.',
   },
+  {
+    kind: 'package',
+    name: 'voice-kit',
+    url: 'https://github.com/Jonathan-A-White/voice-kit',
+    packages: ['voice-kit'],
+    use: 'Our own shared kit for speaking in the browser: it reads the Tutor’s sentences aloud and gives the Pause, Resume, Restart and Stop bar.',
+    licence: { name: 'MIT', url: 'https://github.com/Jonathan-A-White/voice-kit/blob/main/LICENSE' },
+    changes: 'Written by us; shared with our other apps.',
+  },
   // Build tools whose output ships in the app
   {
     kind: 'tool',

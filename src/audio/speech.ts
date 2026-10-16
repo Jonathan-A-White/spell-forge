@@ -2,7 +2,7 @@
 // Speech API with robust retry logic (exponential backoff, voice fallback).
 // Supports multiple languages via the language-aware voice selection system.
 
-import { stop as stopTutorSpeech } from 'bsv-kit/speech';
+import { stop as stopTutorSpeech } from 'voice-kit/speech';
 import { getLanguageConfig } from '../i18n/language-registry.ts';
 import { pauseTutorSpeech } from './tutor-speech.ts';
 
@@ -294,7 +294,7 @@ async function ttsSpeak(
 
 // ─── The tutor's voice list ─────────────────────────────────
 //
-// The tutor's sentences are spoken by bsv-kit/speech (src/audio/tutor-speech.ts); what stays here is the list of
+// The tutor's sentences are spoken by voice-kit/speech (src/audio/tutor-speech.ts); what stays here is the list of
 // the phone's voices the Voice picker offers.
 
 function allVoices(): SpeechSynthesisVoice[] {

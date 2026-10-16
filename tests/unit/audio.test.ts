@@ -1,7 +1,7 @@
 // Spelling practice's single words: sayWord, sayWordSlowly, spellWord, sayThenSpell, warmUp and the retry logic behind them.
-// The synthesiser is bsv-kit/testing's honest fake; an engine that sticks or errors is made by wrapping its speak().
+// The synthesiser is voice-kit/testing's honest fake; an engine that sticks or errors is made by wrapping its speak().
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { installSpeech, type SpeechFake } from 'bsv-kit/testing/speech';
+import { installSpeech, type SpeechFake } from 'voice-kit/testing/speech';
 import { AudioManagerImpl } from '../../src/audio/manager.ts';
 
 let speech: SpeechFake;

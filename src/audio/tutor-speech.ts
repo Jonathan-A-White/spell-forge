@@ -1,4 +1,4 @@
-// src/audio/tutor-speech.ts — The tutor's sentences, spoken by bsv-kit/speech (mw-m7v5kc.4).
+// src/audio/tutor-speech.ts — The tutor's sentences, spoken by voice-kit/speech (mw-m7v5kc.4).
 //
 // The package speaks a text sentence by sentence, keeps the sentence reached across Pause and Resume, goes back to the
 // first on Restart, and lets a new speech replace the old (Pause cancels the queue and Resume queues from the kept
@@ -8,7 +8,7 @@
 // The one thing the package does not do is speak in a voice the child picked in Tutor settings: it chooses a voice for
 // each sentence's language.  The picked voice is put on the tutor's utterances as they are queued (see applyPickedVoice).
 
-import { isSpeaking, isSupported, getSpeech, pause, speak, subscribe, whenDone } from 'bsv-kit/speech';
+import { isSpeaking, isSupported, getSpeech, pause, speak, subscribe, whenDone } from 'voice-kit/speech';
 
 /** Who the tutor's speech is, in the package: what a screen and the bar ask about. */
 export const TUTOR_SPEECH_KEY = 'tutor';

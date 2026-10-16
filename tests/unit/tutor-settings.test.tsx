@@ -1,7 +1,7 @@
 // mw-kuy7rx.8: 'Tutor settings' on the Grown-ups screen: How should the tutor help? and the Voice picker.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { stop } from 'bsv-kit/speech';
-import { installSpeech, type FakeVoice, type SpeechFake } from 'bsv-kit/testing/speech';
+import { stop } from 'voice-kit/speech';
+import { installSpeech, type FakeVoice, type SpeechFake } from 'voice-kit/testing/speech';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
@@ -13,7 +13,7 @@ import { paulProfile } from '../fixtures/profiles';
 
 const v = (name: string, lang: string, isDefault = false): FakeVoice => ({ name, lang, voiceURI: `uri:${name}`, default: isDefault, localService: true });
 
-// bsv-kit/testing's honest synthesiser (real timers): it lists its voices 50 ms after install and takes the time speech takes.
+// voice-kit/testing's honest synthesiser (real timers): it lists its voices 50 ms after install and takes the time speech takes.
 let speech: SpeechFake;
 const spoken = () => speech.log;
 
@@ -85,8 +85,8 @@ describe('Tutor settings: Voice', () => {
   it("each voice has a Try it that says one sentence in that voice", async () => {
     open();
     const s = await section();
-    const buttons = await s.findAllByRole('button', { name: /Try it/ });
-    expect(buttons).toHaveLength(3); // the phone's default, Sam, Gwen
+    // the phone's default, Sam, Gwen: the fake lists its voices 50 ms after install, so wait for all three
+    await vi.waitFor(() => expect(s.getAllByRole('button', { name: /Try it/ })).toHaveLength(3));
     fireEvent.click(s.getByRole('button', { name: 'Try it: Gwen' }));
     await vi.waitFor(() => expect(spoken()).toHaveLength(1));
     expect(spoken()[0].voice).toBe('Gwen');

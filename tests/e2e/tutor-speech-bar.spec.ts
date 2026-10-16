@@ -2,7 +2,7 @@
 //
 // Proves mw-kuy7rx.20 in real Chromium on a 360x740 phone: while the tutor speaks, the speaking bar (Pause, Restart,
 // Stop) sits in the footer above 'Read the word', inside the viewport, with 48 px targets; Pause turns into Resume.
-// bsv-kit/testing's honest synthesiser, slowed to 400 ms a word, stands in for the phone's voice, so the bar stays up to be seen.
+// voice-kit/testing's honest synthesiser, slowed to 400 ms a word, stands in for the phone's voice, so the bar stays up to be seen.
 // Not part of `npm test`; run by hand with:
 //
 //   SF_E2E_PORT=4180 npm run test:e2e -- tutor-speech-bar
@@ -10,7 +10,7 @@
 // Every e2e spec uses port 4173 by default: run them one at a time (--workers=1).
 
 import { test, expect, type Page } from '@playwright/test';
-import { speechInitScript } from 'bsv-kit/testing/speech';
+import { speechInitScript } from 'voice-kit/testing/speech';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -120,7 +120,7 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
   test('Pause, Restart and Stop sit in the footer while he speaks; Pause becomes Resume', async ({ page }) => {
     test.setTimeout(180_000);
     mkdirSync(SHOTS, { recursive: true });
-    // bsv-kit/testing's honest synthesiser: sentences take the time they take, and a cancelled one is reported as an error
+    // voice-kit/testing's honest synthesiser: sentences take the time they take, and a cancelled one is reported as an error
     await page.addInitScript(speechInitScript({ msPerWord: 400 }));
 
     execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
