@@ -71,6 +71,44 @@ describe('Ask the tutor takes the Composer', () => {
   });
 });
 
+describe('Ask the tutor shows its count through the kit (mw-06ggew.13)', () => {
+  beforeEach(async () => {
+    await db.delete();
+    await db.open();
+    await db.profiles.add({ ...paulProfile });
+  });
+
+  it('shows "N of 1000" live as the question grows and greys Send once it is over 1000', async () => {
+    mic.uninstall(); // no microphone: the box is what opens
+    render(<ParentScreen profileId={paulProfile.id} onBack={() => undefined} />);
+    const s = within(await screen.findByRole('region', { name: 'Ask the tutor' }));
+    const field = (await s.findByLabelText('Your question')) as HTMLTextAreaElement;
+
+    fireEvent.change(field, { target: { value: 'a'.repeat(12) } });
+    expect(s.getByTestId('composer-count').textContent).toBe('12 of 1000');
+    expect((s.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.change(field, { target: { value: 'a'.repeat(1000) } });
+    expect(s.getByTestId('composer-count').textContent).toBe('1000 of 1000');
+    expect((s.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.change(field, { target: { value: 'a'.repeat(1001) } });
+    expect(s.getByTestId('composer-count').textContent).toBe('1001 of 1000');
+    expect((s.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(field.value.length).toBe(1001); // nothing is cut
+  });
+});
+
+describe('the feedback form opens ready to type (mw-06ggew.13)', () => {
+  it('has the box focused and 8 rows tall', async () => {
+    mic.uninstall(); // with no microphone the box is what opens (with one, the bar does, and there is no box to focus)
+    render(<FeedbackForm onSubmit={() => undefined} onCancel={() => undefined} />);
+    const field = (await screen.findByLabelText('Your feedback')) as HTMLTextAreaElement;
+    expect(field.rows).toBe(8);
+    await vi.waitFor(() => expect(document.activeElement).toBe(field));
+  });
+});
+
 describe('the feedback form takes the Composer', () => {
   it('holding the mic and letting go puts the words in the box, and Send sends the feedback', { timeout: 20000 }, async () => {
     const onSubmit = vi.fn();

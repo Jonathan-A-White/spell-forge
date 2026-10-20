@@ -1,7 +1,8 @@
 // mw-gq6.463: a text box with a limit never cuts a paste. 'Notes for the tutor' (200) and 'Ask the tutor' (1000) used
 // maxLength, which drops the rest of a paste without a word. Now the box keeps the whole text. 'Notes for the tutor'
 // counts it ('N of M', red with the reason once over) and its button is off and says why; 'Ask the tutor' is voice-kit's
-// Composer (mw-06ggew.9), which has no count: Send refuses with the reason and the words stay. Nothing cuts the text.
+// Composer (mw-06ggew.9) with its maxLength (mw-06ggew.13): the kit counts 'N of M' live and greys Send when over, and
+// never cuts. Nothing cuts the text.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -51,9 +52,14 @@ beforeEach(async () => {
 
 describe('no text box in src uses maxLength', () => {
   it('has no maxLength on any input or textarea (a box with a limit counts and turns its button off instead)', () => {
+    // voice-kit's Composer takes a maxLength prop that only counts and greys Send, never cutting (its DOM box has none:
+    // the next test looks); a file that imports the Composer may pass it.
     const hits = sourceFiles(join(process.cwd(), 'src'))
       .filter((file) => /\.(tsx|ts)$/.test(file))
-      .filter((file) => /\bmaxLength\s*[=:]/.test(readFileSync(file, 'utf8')));
+      .filter((file) => {
+        const text = readFileSync(file, 'utf8');
+        return /\bmaxLength\s*[=:]/.test(text) && !text.includes("from 'voice-kit/composer'");
+      });
     expect(hits).toEqual([]);
   });
 
@@ -110,7 +116,7 @@ describe('Notes for the tutor keeps a long paste', () => {
 describe('Ask the tutor keeps a long paste', () => {
   const box = async () => within(await screen.findByRole('region', { name: 'Ask the tutor' }));
 
-  it('keeps all 1200 characters and says "1200 of 1000" with the reason when Send is pressed; nothing is sent', async () => {
+  it('keeps all 1200 characters, reads "1200 of 1000" and Send is off; nothing is sent', async () => {
     const client = fakeSend();
     render(<ParentScreen profileId={paulProfile.id} onBack={() => undefined} deps={client.deps} />);
     const s = await box();
@@ -118,10 +124,11 @@ describe('Ask the tutor keeps a long paste', () => {
     const field = (await s.findByLabelText('Your question')) as HTMLTextAreaElement;
     pasteInto(field, text);
     expect(field.value).toBe(text);
+    expect(s.getByTestId('composer-count').textContent).toBe('1200 of 1000');
+    const send = s.getByRole('button', { name: 'Send' }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
 
-    fireEvent.click(s.getByRole('button', { name: 'Send' }));
-    const note = await s.findByRole('alert');
-    expect(note.textContent).toBe('1200 of 1000: the question is too long to send. Shorten it; nothing has been cut.');
+    fireEvent.click(send);
     expect(field.value).toBe(text);
     expect(client.sendGrist).not.toHaveBeenCalled();
     expect(await db.parentAsks.count()).toBe(0);

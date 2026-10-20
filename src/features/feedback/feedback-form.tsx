@@ -69,7 +69,7 @@ export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
         Help us make SpellForge better! Tell us what you think, report a bug, or suggest a feature.
       </p>
 
-      <Composer className="sf-composer" settings={SPELLFORGE_COMPOSER_SETTINGS} labels={LABELS} appName="SpellForge" onSend={handleSubmit} />
+      <Composer className="sf-composer" settings={SPELLFORGE_COMPOSER_SETTINGS} labels={LABELS} appName="SpellForge" minRows={8} autoFocus onSend={handleSubmit} />
     </div>
   );
 }

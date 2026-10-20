@@ -12,6 +12,7 @@ import '../composer/composer-theme.css';
 import type { ParentAsk } from '../../contracts/types';
 import { parentAskRepo } from '../../data/repositories';
 import { ParentAskInFlight } from '../../grist';
+import { PARENT_ASK_MAX_QUESTION } from './parent-ask-request';
 import { PARENT_ASK_HISTORY, failHalfSentAsks, sendParentAsk } from './parent-ask-flow';
 import type { ParentAskDeps } from './parent-ask-flow';
 import { SPELLFORGE_COMPOSER_SETTINGS } from '../composer/composer-settings';
@@ -102,6 +103,7 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
         labels={LABELS}
         appName="SpellForge"
         initialText={again.text}
+        maxLength={PARENT_ASK_MAX_QUESTION}
         disabled={out}
         onSend={submit}
       />
