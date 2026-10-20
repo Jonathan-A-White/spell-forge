@@ -21,7 +21,7 @@ export interface TutorDeps {
   /** How often waiting turns are read; the grist client's own 5 s when absent. */
   pollIntervalMs?: number;
   now?: () => Date;
-  /** The recorder behind 'Read it'; `onLimit` gets the clip when the 60 s cap stops it. The real recorder when absent. */
+  /** The recorder behind 'Read it'; `onLimit` gets the clip when the ten-minute cap stops it. The real recorder when absent. */
   createRecorder?: (onLimit: (recording: Recording) => void) => HoldRecorder;
   /** Speaks a sentence aloud; the app's own speech when absent. */
   say?: (text: string) => Promise<void>;
@@ -191,6 +191,7 @@ export async function sendReading(
     mode: 'reading',
     request,
     attachments: [{ kind: 'audio', blobId: stored.id }],
+    ...(recording.capped ? { capped: true } : {}),
     sentAt: (deps.now ?? (() => new Date()))(),
   });
 

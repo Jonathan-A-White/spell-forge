@@ -92,20 +92,32 @@ describe('ReadingRecorder', () => {
     expect(error).toBeInstanceOf(MicUnavailable);
   });
 
-  it('stops at 60 s by itself and hands over the clip', async () => {
+  it('keeps listening past a minute, and stops at the ten-minute cap by itself, handing over the clip marked capped', async () => {
     vi.useFakeTimers();
-    expect(MAX_RECORDING_MS).toBe(60_000);
+    expect(MAX_RECORDING_MS).toBe(600_000);
     const clips: Recording[] = [];
     const recorder = new ReadingRecorder((clip) => clips.push(clip));
     await recorder.start();
-    await vi.advanceTimersByTimeAsync(59_000);
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(clips).toHaveLength(0);
+    expect(StubMediaRecorder.last?.state).toBe('recording');
+    await vi.advanceTimersByTimeAsync(509_000);
     expect(clips).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(1_000);
     expect(clips).toHaveLength(1);
+    expect(clips[0].capped).toBe(true);
     expect(clips[0].mime).toBe('audio/webm');
-    expect(clips[0].durationMs).toBeGreaterThanOrEqual(59_000);
+    expect(clips[0].durationMs).toBeGreaterThanOrEqual(599_000);
     expect(StubMediaRecorder.last?.state).toBe('inactive');
     expect(track.stop).toHaveBeenCalled();
+  });
+
+  it('does not mark a clip capped when he stops it', async () => {
+    vi.useFakeTimers();
+    const recorder = new ReadingRecorder();
+    await recorder.start();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect((await recorder.stop()).capped).toBeUndefined();
   });
 
   it('does not hand over a clip by itself when it is stopped before the cap', async () => {

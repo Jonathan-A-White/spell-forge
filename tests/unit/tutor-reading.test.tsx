@@ -35,7 +35,7 @@ const clip = (durationMs = 2000, mime = 'audio/webm'): Recording => ({
   durationMs,
 });
 
-/** A recorder that is told what to give back; `limit` plays the 60 s cap. */
+/** A recorder that is told what to give back; `onLimit` plays the cap. */
 function fakeRecorders() {
   const state = {
     clip: clip(),
@@ -179,16 +179,48 @@ describe('hold to read', () => {
     expect(factory.sends).toHaveLength(0);
   });
 
-  it('sends the clip when the 60 s cap stops the recording, and the late release sends nothing more', async () => {
+  it('sends the clip when the cap stops the recording, and the late release sends nothing more', async () => {
     const { factory, recorders } = await setup();
     fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
     await screen.findByTestId('recording-dot');
-    act(() => recorders.state.onLimit?.(clip(60_000)));
+    act(() => recorders.state.onLimit?.({ ...clip(600_000), capped: true }));
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     const release = screen.queryByRole('button', { name: /Let go/ });
     if (release) fireEvent.pointerUp(release);
     await new Promise((r) => setTimeout(r, 100));
     expect(factory.sends).toHaveLength(1);
+  });
+});
+
+describe('a reading the cap stopped (mw-xks4qg)', () => {
+  const CUT_LINE = 'Your reading was stopped after 10 minutes, and only that much was heard.';
+
+  async function readToTheCap(recorders: ReturnType<typeof fakeRecorders>) {
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Read it' }));
+    await screen.findByTestId('recording-dot');
+    act(() => recorders.state.onLimit?.({ ...clip(600_000), capped: true }));
+  }
+
+  it("opens the tutor's reply with one plain line saying the reading was stopped, and says it aloud", async () => {
+    const { factory, recorders, say, session } = await setup();
+    await readToTheCap(recorders);
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+    factory.answers.set('direct:1', { answer: { status: 'answered', answer: reading({ action: 'encourage', prompt_to_child: 'Try the last part again.' }) }, next: 2 });
+    const line = await screen.findByText(CUT_LINE);
+    const prompt = screen.getByText('Try the last part again.');
+    expect(line.compareDocumentPosition(prompt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await waitFor(() => expect(say).toHaveBeenCalledWith(`${CUT_LINE} Try the last part again.`));
+    // kept on the turn, so a reload still shows the line
+    expect((await tutorRepo.listTurns(session.id)).find((t) => t.mode === 'reading')?.capped).toBe(true);
+  });
+
+  it('says nothing about a cut for a reading he stopped himself', async () => {
+    const { factory } = await setup();
+    await readIt();
+    await waitFor(() => expect(factory.sends).toHaveLength(1));
+    factory.answers.set('direct:1', { answer: { status: 'answered', answer: reading({ action: 'encourage', prompt_to_child: 'Try the last part again.' }) }, next: 2 });
+    await screen.findByText('Try the last part again.');
+    expect(screen.queryByText(/was stopped after/)).not.toBeInTheDocument();
   });
 });
 

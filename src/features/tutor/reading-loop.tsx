@@ -38,6 +38,8 @@ const TAP_HINT = 'Hold while you read';
 export const SLIDE_OFF_PX = 40;
 const DROPPED_NOTE = 'Dropped. Hold to try again';
 const DROPPED_NOTE_MS = 3000;
+/** The first line of the reply to a reading the recorder's cap stopped (mw-xks4qg); MAX_RECORDING_MS is ten minutes. */
+export const CUT_LINE = 'Your reading was stopped after 10 minutes, and only that much was heard.';
 const SEND_FAILED = 'Your reading could not be sent. You can try again.';
 
 const LARGE_TEXT = {
@@ -230,9 +232,11 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   useEffect(() => {
     if (latest?.status !== 'answered' || !latest.answer || spoken.current?.has(latest.id)) return;
     spoken.current?.add(latest.id);
-    if (latest.answer.action !== 'continue') say(latest.answer.prompt_to_child);
-    else if (reread.cleared) say(WORD_CLEARED_LINE);
-    else if (reread.advanced) say(NEXT_WORD_LINE);
+    const cut = latest.capped ? `${CUT_LINE} ` : '';
+    if (latest.answer.action !== 'continue') say(cut + latest.answer.prompt_to_child);
+    else if (reread.cleared) say(cut + WORD_CLEARED_LINE);
+    else if (reread.advanced) say(cut + NEXT_WORD_LINE);
+    else if (cut) say(CUT_LINE);
   }, [latest, say, reread]);
 
   useEffect(() => {
@@ -368,6 +372,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   );
 
   const answer = latest?.status === 'answered' ? latest.answer : undefined;
+  const cutNote = answer && latest?.capped ? <p data-testid="cut-line" className="text-sf-heading text-lg font-bold">{CUT_LINE}</p> : null;
   const action = answer?.action;
   const sentence = action === 'reread_sentence';
   const wordFocus = action === 'reread_word' || action === 'sound_out';
@@ -449,6 +454,8 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
               </p>
             </div>
 
+            {cutNote}
+
             {tip && (
               <div className="space-y-3">
                 <p className="text-sf-heading text-lg line-clamp-1">{tip}</p>
@@ -496,6 +503,8 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
               ))}
             </ul>
           )}
+
+          {cutNote}
 
           {answer && finished && (
             <div role="status" className="space-y-3">

@@ -24,6 +24,8 @@ export interface AddTurnParams {
   request: TutorRequest;
   attachments?: { kind: TutorAttachmentKind; blobId: string }[];
   sentAt?: Date;
+  /** A reading the recorder's cap stopped. */
+  capped?: boolean;
 }
 
 /** A turn can take an answer only while it is still out. */
@@ -102,6 +104,7 @@ export const tutorRepo = {
         sentAt: params.sentAt ?? new Date(),
         request: params.request,
         attachments: params.attachments ?? [],
+        ...(params.capped ? { capped: true } : {}),
         status: 'sending',
       };
       await db.tutorTurns.add(turn);
