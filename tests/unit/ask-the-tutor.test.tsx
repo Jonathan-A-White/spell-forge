@@ -1,4 +1,5 @@
-// mw-kuy7rx.13: 'Ask the tutor' on the Grown-ups screen: a question typed (the keyboard's own mic dictates), Ask,
+// mw-kuy7rx.13: 'Ask the tutor' on the Grown-ups screen: a question said or typed in voice-kit's Composer (mw-06ggew.9;
+// jsdom has no microphone, so the box is shown and typed into here; the hold is in composer-forms.test.tsx), Send,
 // the wait with the seconds, the answer with its examples, and the last 10 asks kept on the device. The grist
 // client is a fake: sendGrist and read are replaced, so nothing touches a network.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,20 +44,24 @@ const box = async () => within(await screen.findByRole('region', { name: 'Ask th
 async function ask(text: string) {
   const s = await box();
   fireEvent.change(await s.findByLabelText('Your question'), { target: { value: text } });
-  fireEvent.click(s.getByRole('button', { name: 'Ask' }));
+  fireEvent.click(s.getByRole('button', { name: 'Send' }));
   return s;
 }
 
 describe('Ask the tutor box', () => {
-  it('is a section of the Grown-ups screen with a question field and an Ask button, no longer "coming soon"', async () => {
+  it('is a section of the Grown-ups screen with a question field and no Send until there are words, no longer "coming soon"', async () => {
     open(undefined);
     const s = await box();
     expect(s.getByLabelText('Your question')).toBeTruthy();
-    expect((s.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(s.queryByRole('button', { name: 'Send' })).toBeNull();
     expect(s.queryByText('Coming soon.')).toBeNull();
     expect(await s.findByText('No questions yet.')).toBeTruthy();
-    // no in-app speech recognition: the box is a field and Ask, the keyboard's own mic does the dictating
-    expect(s.getAllByRole('button').map((b) => b.textContent)).toEqual(['Ask']);
+    // voice-kit's Composer with the child's settings: a mic and Send, no attach and no camera
+    expect(s.queryByRole('button', { name: 'Attach files' })).toBeNull();
+    expect(s.queryByRole('button', { name: 'Take a photo' })).toBeNull();
+    expect(s.getByRole('button', { name: 'Speak a message' })).toBeTruthy();
+    fireEvent.change(s.getByLabelText('Your question'), { target: { value: 'Hello?' } });
+    expect((s.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('sends the question through the grist client as a parent-ask, with his recent sessions as text', async () => {
@@ -85,13 +90,14 @@ describe('Ask the tutor box', () => {
     expect(await db.tutorTurns.count()).toBe(readRight.turns.length);
   });
 
-  it('shows the wait as a spinner and the seconds, counting up, and takes Ask away until it is over', async () => {
+  it('shows the wait as a spinner and the seconds, counting up, and takes Send away until it is over', async () => {
     const client = fakeClient();
     open(client.deps);
     const s = await ask('Is he stuck on anything?');
     const waiting = await s.findByRole('status', { name: 'Waiting for the answer' });
     expect(within(waiting).getByText(/^[0-2] seconds?$/)).toBeTruthy();
-    expect((s.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(s.getByLabelText('Your question'), { target: { value: 'And another?' } });
+    expect((s.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('shows a waiting ask from before a reload with the seconds since he asked', async () => {
@@ -115,7 +121,7 @@ describe('Ask the tutor box', () => {
     expect(s.queryByRole('status', { name: 'Waiting for the answer' })).toBeNull();
     expect(s.getByText('How is he doing with reading?')).toBeTruthy();
     await vi.waitFor(() => expect((s.getByLabelText('Your question') as HTMLTextAreaElement).value).toBe(''), { timeout: 5000 }); // field is empty again
-    expect((s.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(s.queryByRole('button', { name: 'Send' })).toBeNull(); // nothing in the box, so no Send
     await vi.waitFor(async () =>
       expect(await parentAskRepo.listForProfile(paulProfile.id)).toMatchObject([{ status: 'answered', answer, question: 'How is he doing with reading?' }]),
     );
@@ -158,7 +164,7 @@ describe('Ask the tutor box', () => {
     const s = await ask('Can you tell me?');
     expect(await s.findByText('This device is not licensed.')).toBeTruthy();
     fireEvent.click(s.getByRole('button', { name: 'Ask again: Can you tell me?' }));
-    expect((s.getByLabelText('Your question') as HTMLTextAreaElement).value).toBe('Can you tell me?');
+    expect(((await s.findByLabelText('Your question')) as HTMLTextAreaElement).value).toBe('Can you tell me?');
   });
 
   it('tells the parent when this device has no key, and stores nothing', async () => {

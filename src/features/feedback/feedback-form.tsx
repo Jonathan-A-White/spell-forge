@@ -1,7 +1,18 @@
 // src/features/feedback/feedback-form.tsx — Send feedback UI (opens native email)
 
 import { useState, useCallback } from 'react';
+import { Composer } from 'voice-kit/composer';
+import type { ComposerLabels, ComposerMessage } from 'voice-kit/composer';
+import 'voice-kit/composer/styles.css';
+import '../composer/composer-theme.css';
+import { SPELLFORGE_COMPOSER_SETTINGS } from '../composer/composer-settings';
 import { FEEDBACK_EMAIL, buildMailtoUrl } from './mailto';
+
+const LABELS: Partial<ComposerLabels> = {
+  typeInstead: 'Type your feedback',
+  placeholder: 'Type your feedback here...',
+  message: 'Your feedback',
+};
 
 interface FeedbackFormProps {
   onSubmit: (text: string) => void;
@@ -9,20 +20,19 @@ interface FeedbackFormProps {
 }
 
 export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
-  const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = useCallback(() => {
-    if (text.trim() === '') return;
-    const trimmed = text.trim();
+  // The Composer hands over the words trimmed; it empties its box when this returns.
+  const handleSubmit = useCallback(({ text }: ComposerMessage) => {
+    if (text === '') return false;
 
     // Open native email client
-    window.location.href = buildMailtoUrl(trimmed);
+    window.location.href = buildMailtoUrl(text);
 
     // Also persist locally via the existing sync queue
-    onSubmit(trimmed);
+    onSubmit(text);
     setSubmitted(true);
-  }, [text, onSubmit]);
+  }, [onSubmit]);
 
   if (submitted) {
     return (
@@ -59,22 +69,7 @@ export function FeedbackForm({ onSubmit, onCancel }: FeedbackFormProps) {
         Help us make SpellForge better! Tell us what you think, report a bug, or suggest a feature.
       </p>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={8}
-        placeholder="Type your feedback here..."
-        className="w-full border border-sf-input-border rounded-lg px-4 py-3 text-sf-heading bg-sf-input-bg focus:outline-none focus:ring-2 focus:ring-sf-primary mb-4"
-        autoFocus
-      />
-
-      <button
-        onClick={handleSubmit}
-        disabled={text.trim() === ''}
-        className="w-full bg-sf-primary hover:bg-sf-primary-hover disabled:bg-sf-disabled text-sf-primary-text font-bold py-4 rounded-xl text-lg transition-colors"
-      >
-        Send Feedback
-      </button>
+      <Composer className="sf-composer" settings={SPELLFORGE_COMPOSER_SETTINGS} labels={LABELS} appName="SpellForge" onSend={handleSubmit} />
     </div>
   );
 }

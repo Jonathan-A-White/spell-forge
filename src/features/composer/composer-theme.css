@@ -1,0 +1,18 @@
+/* voice-kit's Composer, themed to SpellForge (mw-06ggew.9): the colours follow the child's theme, and the buttons are as
+   tall as the child's own tap-target setting. voice-kit's default look is imported once, in the forms that use it. */
+.bk-composer.sf-composer {
+  --bk-composer-surface: transparent;
+  --bk-composer-fg: var(--sf-color-text-heading);
+  --bk-composer-muted: var(--sf-color-text-muted);
+  --bk-composer-faint: var(--sf-color-text-faint);
+  --bk-composer-line: var(--sf-color-border);
+  --bk-composer-sunken: var(--sf-color-input-bg);
+  --bk-composer-accent: var(--sf-color-primary);
+  --bk-composer-accent-fg: var(--sf-color-primary-text);
+  --bk-composer-button-size: max(2.75rem, var(--sf-tap-target-size, 48px));
+  --bk-composer-quiet-size: max(2.25rem, var(--sf-tap-target-size, 48px));
+  --bk-composer-font-size: var(--sf-font-size, 1rem);
+  --bk-composer-max-width: none;
+  border-top: 0;
+  padding: 0;
+}

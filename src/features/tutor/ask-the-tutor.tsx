@@ -1,18 +1,20 @@
-// src/features/tutor/ask-the-tutor.tsx — 'Ask the tutor' on the Grown-ups screen (mw-kuy7rx.13): type a question
-// (the phone keyboard's own mic dictates; there is no speech recognition here), Ask, wait with the seconds, read the
+// src/features/tutor/ask-the-tutor.tsx — 'Ask the tutor' on the Grown-ups screen (mw-kuy7rx.13): say or type a question
+// in voice-kit's Composer (hold to talk, the words wait in the box, Send; mw-06ggew.9), wait with the seconds, read the
 // answer with its examples. The last 10 asks stay on the device, each with its answer. What is shown is live from
 // the parentAsks table, so a reload picks a waiting ask up where it was.
 
 import { useEffect, useRef, useState } from 'react';
 import { liveQuery } from 'dexie';
+import { Composer } from 'voice-kit/composer';
+import type { ComposerLabels, ComposerMessage } from 'voice-kit/composer';
+import 'voice-kit/composer/styles.css';
+import '../composer/composer-theme.css';
 import type { ParentAsk } from '../../contracts/types';
 import { parentAskRepo } from '../../data/repositories';
 import { ParentAskInFlight } from '../../grist';
-import { PARENT_ASK_MAX_QUESTION } from './parent-ask-request';
 import { PARENT_ASK_HISTORY, failHalfSentAsks, sendParentAsk } from './parent-ask-flow';
 import type { ParentAskDeps } from './parent-ask-flow';
-import { isTooLong } from './length-limit';
-import { LengthNote } from './length-note';
+import { SPELLFORGE_COMPOSER_SETTINGS } from '../composer/composer-settings';
 import { Waiting } from './pictures';
 import { TutorUserError, deviceKey } from './tutor-flow';
 
@@ -23,17 +25,20 @@ export interface AskTheTutorProps {
 
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 const BUTTON = 'px-4 rounded-xl font-bold border active:scale-[0.97] disabled:opacity-50';
-const PRIMARY = `${BUTTON} bg-sf-primary text-sf-primary-text border-transparent hover:bg-sf-primary-hover`;
 const SECONDARY = `${BUTTON} bg-sf-surface border-sf-border text-sf-heading hover:border-sf-border-strong`;
 const OUT: ReadonlySet<ParentAsk['status']> = new Set(['sending', 'waiting']);
+const LABELS: Partial<ComposerLabels> = {
+  hold: 'Hold to ask',
+  typeInstead: 'Type a question',
+  placeholder: 'For example: Which words does he get wrong most?',
+  message: 'Your question',
+};
 
 export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
   const [asks, setAsks] = useState<ParentAsk[] | null>(null);
-  const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
-  const [problem, setProblem] = useState('');
+  // Ask again puts an earlier question back in the box: a new key makes the Composer open with it (initialText).
+  const [again, setAgain] = useState<{ text: string; n: number }>({ text: '', n: 0 });
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const field = useRef<HTMLTextAreaElement>(null);
   const depsRef = useRef(deps);
   useEffect(() => {
     depsRef.current = deps;
@@ -74,20 +79,13 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
     return () => clearInterval(timer);
   }, [out]);
 
-  const text = draft.trim();
-  const tooLong = isTooLong(draft, PARENT_ASK_MAX_QUESTION);
-
-  const submit = async () => {
-    if (!text || sending || out || tooLong) return;
-    setSending(true);
-    setProblem('');
+  // The Composer clears its box when this returns, and keeps the words and shows the message when it throws.
+  const submit = async ({ text }: ComposerMessage) => {
+    if (!text || out) return false;
     try {
       await sendParentAsk({ profileId, question: text }, depsRef.current);
-      setDraft('');
     } catch (error) {
-      setProblem(error instanceof TutorUserError ? error.message : 'The question could not be sent. You can try again.');
-    } finally {
-      setSending(false);
+      throw error instanceof TutorUserError ? error : new Error('The question could not be sent. You can try again.');
     }
   };
 
@@ -95,36 +93,18 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
     <section aria-labelledby="ask-the-tutor-title" className="rounded-xl bg-sf-surface border border-sf-border p-4 space-y-3">
       <h2 id="ask-the-tutor-title" className="text-sf-heading font-bold text-lg">Ask the tutor</h2>
       <p className="text-sf-muted text-sm">
-        Ask about how your child is getting on. The tutor answers from the last 20 sessions. Use your keyboard&apos;s microphone to say it instead of typing.
+        Ask about how your child is getting on. The tutor answers from the last 20 sessions. Hold the microphone and say it, or type it.
       </p>
-      <form
-        className="space-y-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
-      >
-        <textarea
-          ref={field}
-          aria-label="Your question"
-          placeholder="For example: Which words does he get wrong most?"
-          rows={3}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className="w-full px-3 py-2 rounded-xl border border-sf-border bg-sf-bg text-sf-heading"
-        />
-        <LengthNote id="ask-the-tutor-length" text={draft} max={PARENT_ASK_MAX_QUESTION} what="question" verb="send" />
-        <button
-          type="submit"
-          className={PRIMARY}
-          style={TAP}
-          disabled={!text || sending || out || tooLong}
-          aria-describedby={tooLong ? 'ask-the-tutor-length' : undefined}
-        >
-          Ask
-        </button>
-      </form>
-      {problem && <p role="alert" className="text-sf-error">{problem}</p>}
+      <Composer
+        key={again.n}
+        className="sf-composer"
+        settings={SPELLFORGE_COMPOSER_SETTINGS}
+        labels={LABELS}
+        appName="SpellForge"
+        initialText={again.text}
+        disabled={out}
+        onSend={submit}
+      />
       {asks && shown.length === 0 && <p className="text-sf-muted">No questions yet.</p>}
       {shown.length > 0 && (
         <ul className="space-y-3">
@@ -152,10 +132,7 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
                     className={SECONDARY}
                     style={TAP}
                     aria-label={`Ask again: ${ask.question}`}
-                    onClick={() => {
-                      setDraft(ask.question);
-                      field.current?.focus();
-                    }}
+                    onClick={() => setAgain((previous) => ({ text: ask.question, n: previous.n + 1 }))}
                   >
                     Ask again
                   </button>
