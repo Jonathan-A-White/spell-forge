@@ -8,7 +8,7 @@ import { grist } from 'bsv-kit/grist';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { bsvWalletRepo, profileRepo, tutorRepo } from '../../data/repositories';
-import { READING_AUDIO_BYTES_PER_SECOND, TUTOR_TURN_GRIND, gristFileFromBlob, sendGrist, shrinkPhoto, uploadTimeoutMs } from '../../grist';
+import { READING_AUDIO_BYTES_PER_SECOND, TUTOR_TURN_GRIND, UploadTimeoutError, gristFileFromBlob, sendGrist, shrinkPhoto, uploadTimeoutMs } from '../../grist';
 import type { GristInFlightDeps, GristPhoto } from '../../grist';
 
 /** The seams the screen runs on; each defaults to the real thing, tests replace them. */
@@ -50,6 +50,7 @@ export class TutorUserError extends Error {
 
 export const NO_KEY = "This device has no key yet. Open Settings and tap \"This device's key\" to make one.";
 const OFFLINE = 'The tutor cannot be reached right now. Check the internet and try again.';
+const UPLOAD_TOO_SLOW = 'Sending took too long. Check your connection and try again.';
 const NO_LICENCE = 'This device holds no licence to use the factory.';
 const NOT_SENT = 'The problem could not be sent. You can try again.';
 const CUT_OFF = 'The problem did not get sent. You can try again.';
@@ -78,6 +79,8 @@ async function parentNotesFor(profileId: string): Promise<Pick<TutorRequest, 'pa
 
 /** Worded for the person who tapped, from why a send failed. */
 export function sayWhy(error: unknown, otherwise: string = NOT_SENT): string {
+  // a file that did not finish going up on a working connection: the tutor never had it, and is not what is down
+  if (error instanceof UploadTimeoutError) return typeof navigator !== 'undefined' && navigator.onLine === false ? OFFLINE : UPLOAD_TOO_SLOW;
   if (error instanceof door.BackendUnreachableError || error instanceof door.ApiTimeoutError) return OFFLINE;
   if (error instanceof door.RefusedError) {
     if (error.message === door.LICENCE_REQUIRED) return NO_LICENCE;

@@ -170,7 +170,8 @@ describe('sendGrist with a long clip', () => {
     );
     await slow.uploading;
     await vi.advanceTimersByTimeAsync(limit + 1_000);
-    expect((await settled) as Error).toMatchObject({ name: 'ApiTimeoutError' });
+    // the door's timeout, named for what ran out: the upload (mw-lzq4rs)
+    expect((await settled) as Error).toMatchObject({ name: 'UploadTimeoutError', cause: { name: 'ApiTimeoutError' } });
   });
 });
 

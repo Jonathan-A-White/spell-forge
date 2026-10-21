@@ -29,6 +29,17 @@ export function factoryDoor(key: PrivateKey, fetchImpl?: typeof fetch, timeoutMs
   });
 }
 
+/**
+ * A file's upload ran out of its time (the door's ApiTimeoutError while the files were going up): the link was too slow
+ * for the file, the factory never had the grist, and a retry sends afresh. Not the tutor being down (mw-lzq4rs).
+ */
+export class UploadTimeoutError extends Error {
+  constructor(cause: unknown) {
+    super('The file did not finish uploading in time.', { cause });
+    this.name = 'UploadTimeoutError';
+  }
+}
+
 export interface SendGristParams {
   key: PrivateKey;
   /** Photos and recordings, in the order the grind should see them. */
@@ -44,11 +55,31 @@ export interface SendGristParams {
  * the txid, the backend's seq and the mill key, which the app keeps to read the answer later. Throws bsv-kit's
  * GristInputError (nothing was sent) or the door's errors.
  */
-export function sendGrist(params: SendGristParams): Promise<SentGrist> {
-  const { key, header, input, files, fetchImpl } = params;
+export async function sendGrist(params: SendGristParams): Promise<SentGrist> {
+  const { key, files, fetchImpl } = params;
+  // a clip or a photo is given the time its bytes need, not the door's 30 s
+  const sendDoor = factoryDoor(key, fetchImpl, uploadTimeoutMs(files?.reduce((sum, file) => sum + file.bytes.length, 0) ?? 0));
+  // bsv-kit uploads every file, then posts the grist: a timeout between the first upload and the post is the upload's
+  let uploading = false;
+  let posting = false;
+  const callDoor = sendDoor.fetch.bind(sendDoor);
+  sendDoor.fetch = (path, init) => {
+    if (path === '/blobs') uploading = true;
+    if (path === '/messages') posting = true;
+    return callDoor(path, init);
+  };
+  try {
+    return await postGrist(sendDoor, params);
+  } catch (error) {
+    if (error instanceof door.ApiTimeoutError && uploading && !posting) throw new UploadTimeoutError(error);
+    throw error;
+  }
+}
+
+function postGrist(sendDoor: InstanceType<typeof door.Door>, params: SendGristParams): Promise<SentGrist> {
+  const { key, header, input, files } = params;
   return grist.sendGristRecord({
-    // a clip or a photo is given the time its bytes need, not the door's 30 s
-    door: factoryDoor(key, fetchImpl, uploadTimeoutMs(files?.reduce((sum, file) => sum + file.bytes.length, 0) ?? 0)),
+    door: sendDoor,
     key: keyBytes(key),
     app: header.app,
     kind: header.kind,
