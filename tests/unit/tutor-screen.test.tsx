@@ -212,7 +212,7 @@ describe('TutorScreen: a typed problem', () => {
 
     // the factory answers: the problem shows large, in the child's font and size
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: answer() }, next: 2 });
-    const shown = await screen.findByText(PROBLEM, undefined, { timeout: 3000 });
+    const shown = await screen.findByText(PROBLEM);
     expect(shown).toHaveStyle({ fontFamily: 'var(--sf-font-family)', letterSpacing: 'var(--sf-letter-spacing)' });
     expect(shown.style.fontSize).toContain('var(--sf-font-size)');
     expect(screen.getByText(/word problem/i)).toBeInTheDocument();
@@ -232,7 +232,7 @@ describe('TutorScreen: a typed problem', () => {
     await renderScreen(factory);
     await typeAndSend(PROBLEM);
     await screen.findByRole('status');
-    expect(await screen.findByText(/^[1-9]\d* seconds?$/, undefined, { timeout: 3500 })).toBeInTheDocument();
+    expect(await screen.findByText(/^[1-9]\d* seconds?$/)).toBeInTheDocument();
   });
 
   it('will not send an empty problem', async () => {
@@ -249,7 +249,7 @@ describe('TutorScreen: a typed problem', () => {
     await typeAndSend(PROBLEM);
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     factory.answers.set('direct:1', { answer: { status: 'refused', reason: 'That is not a problem.' }, next: 2 });
-    expect(await screen.findByText('That is not a problem.', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText('That is not a problem.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
   });
@@ -308,7 +308,7 @@ describe("TutorScreen: 'That's not it'", () => {
     await typeAndSend('anna has 3 aples');
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: answer({ target_text: 'Anna has 3 aples.' }) }, next: 2 });
-    await screen.findByText('Anna has 3 aples.', undefined, { timeout: 3000 });
+    await screen.findByText('Anna has 3 aples.');
     return view;
   }
 
@@ -350,7 +350,7 @@ describe('TutorScreen: a reload', () => {
     await typeAndSend(PROBLEM);
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: answer() }, next: 2 });
-    await screen.findByText(PROBLEM, undefined, { timeout: 3000 });
+    await screen.findByText(PROBLEM);
     first.unmount();
 
     await renderScreen(fakeFactory());
@@ -367,7 +367,7 @@ describe('TutorScreen: a reload', () => {
     const again = await renderScreen(factory);
     expect(await screen.findByRole('status')).toBeInTheDocument();
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: answer() }, next: 2 });
-    expect(await screen.findByText(PROBLEM, undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText(PROBLEM)).toBeInTheDocument();
     expect(factory.sends).toHaveLength(1);
     again.unmount();
   });
@@ -412,7 +412,7 @@ describe('TutorScreen: a photo turned away (mw-kuy7rx.17)', () => {
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: noProblem() }, next: 2 });
 
-    expect(await screen.findByRole('alert', undefined, { timeout: 3000 })).toHaveTextContent(TURNED_AWAY);
+    expect(await screen.findByRole('alert')).toHaveTextContent(TURNED_AWAY);
     expect(screen.queryByText(FIXED_LINE)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
@@ -427,7 +427,7 @@ describe('TutorScreen: a photo turned away (mw-kuy7rx.17)', () => {
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: noProblem() }, next: 2 });
 
-    await screen.findByText(TURNED_AWAY, undefined, { timeout: 3000 });
+    await screen.findByText(TURNED_AWAY);
     await waitFor(() => expect(say).toHaveBeenCalledWith(TURNED_AWAY));
     expect(say).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Say it again' }));

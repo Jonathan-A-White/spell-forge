@@ -2,7 +2,8 @@
 //
 // Proves mw-kuy7rx.20 in real Chromium on a 360x740 phone: while the tutor speaks, the speaking bar (Pause, Restart,
 // Stop) sits in the footer above 'Read the word', inside the viewport, with 48 px targets; Pause turns into Resume.
-// voice-kit/testing's honest synthesiser, slowed to 400 ms a word, stands in for the phone's voice, so the bar stays up to be seen.
+// voice-kit/testing's honest synthesiser, slowed to outlast the whole spec, stands in for the phone's voice, so the bar stays up
+// to be seen however long the spec takes to get to it.
 // Not part of `npm test`; run by hand with:
 //
 //   SF_E2E_PORT=4180 npm run test:e2e -- tutor-speech-bar
@@ -11,6 +12,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { speechInitScript } from 'voice-kit/testing/speech';
+import { playwrightTimeouts } from 'pwa-kit/test-preset';
 import { execFileSync, type ChildProcess } from 'node:child_process';
 import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { mkdirSync } from 'node:fs';
@@ -25,6 +27,12 @@ const SHOTS = join(repoRoot, 'test-results');
 
 const PROBLEM = 'The character has 3 apples and buys 4 more. How many apples does the character have now?';
 const TIP = 'Look at this word, one chunk at a time. Say each part out loud. Then put them together.';
+
+// The whole spec (build, preview, the steps below) may take this long on a loaded host.
+const SPEC_TIMEOUT_MS = 3 * playwrightTimeouts.timeout;
+// The fake voice takes twice that to speak the tip, so the Pause click never races the end of the utterance whatever the
+// pace of the spec; the spec ends the speech itself with Stop.
+const MS_PER_WORD = Math.ceil((2 * SPEC_TIMEOUT_MS) / TIP.split(/\s+/).length);
 
 async function waitForServer(url: string, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -119,10 +127,10 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
   test.use({ viewport: { width: 360, height: 740 } });
 
   test('Pause, Restart and Stop sit in the footer while he speaks; Pause becomes Resume', async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(SPEC_TIMEOUT_MS);
     mkdirSync(SHOTS, { recursive: true });
     // voice-kit/testing's honest synthesiser: sentences take the time they take, and a cancelled one is reported as an error
-    await page.addInitScript(speechInitScript({ msPerWord: 400 }));
+    await page.addInitScript(speechInitScript({ msPerWord: MS_PER_WORD }));
 
     execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
     let previewProcess: ChildProcess | undefined;
@@ -131,7 +139,7 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
         cwd: repoRoot,
         stdio: 'pipe',
       });
-      await waitForServer(`${PREVIEW_ORIGIN}${APP_PATH}`, 20_000);
+      await waitForServer(`${PREVIEW_ORIGIN}${APP_PATH}`, playwrightTimeouts.timeout);
 
       const pageErrors: string[] = [];
       page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -142,7 +150,7 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
       await page.reload();
       await page.getByRole('button', { name: /Tutor/ }).click();
 
-      await expect(page.getByRole('button', { name: 'Say it again' })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole('button', { name: 'Say it again' })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Tutor speech' })).toHaveCount(0);
       await page.getByRole('button', { name: 'Say it again' }).click();
 

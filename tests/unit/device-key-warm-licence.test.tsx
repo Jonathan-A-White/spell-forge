@@ -38,8 +38,8 @@ describe('Creating the device key warms the factory licence walk', () => {
     const server = makeServer();
     await createDeviceKey(server.fetch);
 
-    await waitFor(() => expect(meCalls(server)).toHaveLength(1), { timeout: 5000 });
-    // Give a stray second call time to show itself.
+    await waitFor(() => expect(meCalls(server)).toHaveLength(1));
+    // negative check: a stray second call would come in a later tick; 50 ms is the real time given for it to show itself.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(meCalls(server)).toHaveLength(1);
   });
@@ -49,12 +49,12 @@ describe('Creating the device key warms the factory licence walk', () => {
     vi.stubGlobal('fetch', server.fetch);
     render(<SettingsPanel {...baseProps} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: "Create this device's key" }, { timeout: 5000 }));
+    fireEvent.click(await screen.findByRole('button', { name: "Create this device's key" }));
 
-    const shown = await screen.findByTestId('bsv-device-public-key', {}, { timeout: 5000 });
+    const shown = await screen.findByTestId('bsv-device-public-key');
     const [row] = await db.bsvWallet.toArray();
     expect(shown.textContent).toBe(PrivateKey.fromWif(row.material).toPublicKey().toString());
-    await waitFor(() => expect(meCalls(server)).toHaveLength(1), { timeout: 5000 });
+    await waitFor(() => expect(meCalls(server)).toHaveLength(1));
   });
 
   it.each([
@@ -67,11 +67,12 @@ describe('Creating the device key warms the factory licence walk', () => {
       vi.stubGlobal('fetch', failingFetch);
       render(<SettingsPanel {...baseProps} />);
 
-      fireEvent.click(await screen.findByRole('button', { name: "Create this device's key" }, { timeout: 5000 }));
+      fireEvent.click(await screen.findByRole('button', { name: "Create this device's key" }));
 
-      const shown = await screen.findByTestId('bsv-device-public-key', {}, { timeout: 5000 });
+      const shown = await screen.findByTestId('bsv-device-public-key');
       expect(shown.textContent).toMatch(/^0[23][0-9a-f]{64}$/);
       expect(await db.bsvWallet.count()).toBe(1);
+      // negative check: a late alert would come in a later tick; 50 ms is the real time given for it to show itself
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(unhandled).not.toHaveBeenCalled();

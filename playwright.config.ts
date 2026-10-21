@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { playwrightTimeouts } from 'pwa-kit/test-preset';
 
 const PREVIEW_PORT = 4173;
 const PREVIEW_BASE_URL = `http://localhost:${PREVIEW_PORT}`;
@@ -30,7 +31,9 @@ if (!hasTestnetCredentials) {
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 120_000,
+  // timeouts sized for a loaded host (expect.timeout 20 s); a test here builds and serves the app, so its own is longer
+  ...playwrightTimeouts,
+  timeout: 2 * playwrightTimeouts.timeout,
   fullyParallel: false,
   reporter: 'list',
   use: {

@@ -145,7 +145,7 @@ describe('sending a maths turn', () => {
     send();
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     factory.answers.set('direct:1', { answer: { status: 'answered', answer: mathAnswer() }, next: 2 });
-    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
     await pickPhoto('IMG_2.jpg');
     send();
     await waitFor(() => expect(factory.sends).toHaveLength(2));
@@ -198,7 +198,7 @@ describe('the answer, by action', () => {
 
   it('math_probe: only the prompt to him is shown and spoken, none of the diagnosis, then Try again', async () => {
     const { say } = await answered({});
-    expect(await screen.findByText('Look at what Anna starts with. What happens when she buys more?', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText('Look at what Anna starts with. What happens when she buys more?')).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('Look at what Anna starts with. What happens when she buys more?'));
     expect(screen.queryByLabelText('Answer')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
@@ -215,8 +215,9 @@ describe('the answer, by action', () => {
   it('speaks the prompt once on arrival, and Say it again (an icon, no words) replays it', async () => {
     const prompt = 'Look at what Anna starts with. What happens when she buys more?';
     const { say } = await answered({});
-    await screen.findByText(prompt, undefined, { timeout: 3000 });
+    await screen.findByText(prompt);
     await waitFor(() => expect(say).toHaveBeenCalledWith(prompt));
+    // negative check: a second speak would come in a later tick; 100 ms is the time given for it to show itself
     await new Promise((r) => setTimeout(r, 100));
     expect((say.mock.calls as unknown[][]).filter(([line]) => line === prompt)).toHaveLength(1);
     const again = screen.getByRole('button', { name: 'Say it again' });
@@ -239,7 +240,7 @@ describe('the answer, by action', () => {
 
   it('no-answer guard: the screen never shows the answer to the problem', async () => {
     await answered({});
-    await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 });
+    await screen.findByRole('button', { name: 'Try again' });
     const shown = document.body.textContent ?? '';
     expect(shown).not.toMatch(new RegExp(`(?<![\\d.])${EXPECTED_ANSWER}(?![\\d.])`));
     // not even the method before he has got it
@@ -248,7 +249,7 @@ describe('the answer, by action', () => {
 
   it('encourage: the prompt spoken and the answer boxes ready for another go', async () => {
     const { say } = await answered({ action: 'encourage', math_diagnosis: undefined, prompt_to_child: 'Good try. Have another go.' });
-    expect(await screen.findByText('Good try. Have another go.', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText('Good try. Have another go.')).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith('Good try. Have another go.'));
     expect(screen.getByLabelText('Answer')).toBeInTheDocument();
   });
@@ -256,7 +257,7 @@ describe('the answer, by action', () => {
   it('rewrite: the tip spoken, no maths diagnosis shown, and the boxes ready for a new photo', async () => {
     const prompt = 'Your 3s face the other way. Write them again, then take a new photo.';
     const { say } = await answered({ action: 'rewrite', math_diagnosis: undefined, layer_diagnosis: 'none', prompt_to_child: prompt });
-    expect(await screen.findByText(prompt, undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText(prompt)).toBeInTheDocument();
     await waitFor(() => expect(say).toHaveBeenCalledWith(prompt));
     expect(screen.queryByRole('region', { name: 'What to look at' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Photo' })).toBeInTheDocument();
@@ -265,7 +266,7 @@ describe('the answer, by action', () => {
 
   it("confirm_answer: \"That's it\" and the prompt to him, not the method or its heading", async () => {
     const { say } = await answered({ action: 'confirm_answer', prompt_to_child: 'You got it by counting on.', layer_diagnosis: 'none' });
-    expect(await screen.findByText("That's it", undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText("That's it")).toBeInTheDocument();
     expect(screen.getByText('You got it by counting on.')).toBeInTheDocument();
     expect(screen.queryByText('The way you did it')).not.toBeInTheDocument();
     expect(screen.queryByText('counting on from the bigger number')).not.toBeInTheDocument();
@@ -277,7 +278,7 @@ describe('the answer, by action', () => {
   it('done: the closing line spoken and shown, and the session ends (endedAt set)', async () => {
     const { say, session } = await answered({ action: 'done', math_diagnosis: undefined, layer_diagnosis: 'none', prompt_to_child: 'Lovely work today. See you next time.' });
     // the line moves from the answer to the farewell as the session ends, so look it up afresh each time
-    await waitFor(() => expect(screen.getByText('Lovely work today. See you next time.')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(screen.getByText('Lovely work today. See you next time.')).toBeInTheDocument());
     await waitFor(() => expect(say).toHaveBeenCalledWith('Lovely work today. See you next time.'));
     await waitFor(async () => expect((await tutorRepo.getSession(session.id))?.endedAt).toBeInstanceOf(Date));
     expect((await tutorRepo.getSession(session.id))?.status).toBe('ended');
@@ -293,7 +294,7 @@ describe('the answer, by action', () => {
     send();
     await waitFor(() => expect(ctx.factory.sends).toHaveLength(1));
     ctx.factory.answers.set('direct:1', { answer: { status: 'failed', reason: 'The maths check was not working.' }, next: 2 });
-    expect(await screen.findByText('The maths check was not working.', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText('The maths check was not working.')).toBeInTheDocument();
     expect(screen.getByLabelText('Answer')).toBeInTheDocument();
   });
 
@@ -322,7 +323,7 @@ describe('the record keeps what the child does not see', () => {
     await waitFor(() => expect(factory.sends).toHaveLength(1));
     const answer = mathAnswer({ notes_for_parent: 'Subtracts when the story says "buys more".', teaching_method: 'counting on' });
     factory.answers.set('direct:1', { answer: { status: 'answered', answer }, next: 2 });
-    await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 });
+    await screen.findByRole('button', { name: 'Try again' });
     const turn = (await tutorRepo.listTurns(session.id)).find((t) => t.mode === 'math');
     expect(turn?.answer).toEqual(answer);
   });
