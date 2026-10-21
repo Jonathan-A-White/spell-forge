@@ -1,6 +1,7 @@
 // src/features/dashboard/practice-calendar.tsx — Calendar view showing practice history
 
 import { useState, useEffect, useMemo } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import type { SessionLog, StreakData } from '../../contracts/types';
 import { sessionRepo } from '../../data/repositories/session-repo';
 import { DayDetailView } from './day-detail-view';
@@ -16,13 +17,15 @@ export function PracticeCalendar({ profileId, streakData, onBack }: PracticeCale
   const [loading, setLoading] = useState(true);
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const alive = useAlive();
 
   useEffect(() => {
     sessionRepo.getByProfileId(profileId).then((logs) => {
+      if (!alive()) return;
       setSessions(logs);
       setLoading(false);
     });
-  }, [profileId]);
+  }, [profileId, alive]);
 
   const currentStreak = streakData?.currentStreak ?? 0;
   const longestStreak = streakData?.longestStreak ?? 0;

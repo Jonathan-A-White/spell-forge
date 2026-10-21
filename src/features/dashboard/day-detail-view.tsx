@@ -1,6 +1,7 @@
 // src/features/dashboard/day-detail-view.tsx — Detail view for a single day's activity
 
 import { useState, useEffect, useMemo } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import type { SessionLog, Word } from '../../contracts/types';
 import { db } from '../../data/db';
 
@@ -26,6 +27,7 @@ interface WordAttempt {
 export function DayDetailView({ profileId, dateKey, sessions, onBack }: DayDetailViewProps) {
   const [wordAttempts, setWordAttempts] = useState<WordAttempt[]>([]);
   const [loading, setLoading] = useState(true);
+  const alive = useAlive();
 
   const displayDate = useMemo(() => {
     const [y, m, d] = dateKey.split('-').map(Number);
@@ -74,11 +76,12 @@ export function DayDetailView({ profileId, dateKey, sessions, onBack }: DayDetai
       }
 
       attempts.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      if (!alive()) return;
       setWordAttempts(attempts);
       setLoading(false);
     }
     load();
-  }, [profileId, dateKey]);
+  }, [profileId, dateKey, alive]);
 
   // Day-level stats
   const totalWords = sessions.reduce((sum, s) => sum + s.wordsAttempted, 0);

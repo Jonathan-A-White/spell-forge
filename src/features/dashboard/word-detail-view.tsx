@@ -1,6 +1,7 @@
 // src/features/dashboard/word-detail-view.tsx — Detailed view for a single word's progress
 
 import { useState, useEffect } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import type { Word, WordStats, WordBucket, WordLearningProgress } from '../../contracts/types';
 import { db } from '../../data/db';
 
@@ -84,6 +85,7 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
   const [stats, setStats] = useState<WordStats | null>(null);
   const [learningProgress, setLearningProgress] = useState<WordLearningProgress | null>(null);
   const [now] = useState(() => Date.now());
+  const alive = useAlive();
 
   useEffect(() => {
     async function load() {
@@ -92,12 +94,13 @@ export function WordDetailView({ wordId, profileId, onBack, onPlayAudio, onPract
         db.wordStats.where({ wordId, profileId }).first(),
         db.learningProgress.where({ wordId, profileId }).first(),
       ]);
+      if (!alive()) return;
       setWord(loadedWord ?? null);
       setStats(loadedStats ?? null);
       setLearningProgress(loadedLp ?? null);
     }
     load();
-  }, [wordId, profileId]);
+  }, [wordId, profileId, alive]);
 
   if (!word) {
     return (

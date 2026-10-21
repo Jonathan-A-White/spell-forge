@@ -1,6 +1,7 @@
 // src/features/dashboard/coin-history.tsx — Coin history view: shows earning/spending log + how to earn
 
 import { useState, useEffect } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import type { CoinBalance, CoinTransaction, WordStats } from '../../contracts/types';
 import { coinTransactionRepo } from '../../data/repositories/coin-transaction-repo';
 import { allWordsAtLeastBucket } from '../../core/spaced-rep';
@@ -18,13 +19,15 @@ interface CoinHistoryProps {
 export function CoinHistory({ profileId, coinBalance, allStats, activeWordCount, onBack, onNavigate, onAddWords }: CoinHistoryProps) {
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const alive = useAlive();
 
   useEffect(() => {
     coinTransactionRepo.getByProfileId(profileId).then((txns) => {
+      if (!alive()) return;
       setTransactions(txns);
       setLoading(false);
     });
-  }, [profileId]);
+  }, [profileId, alive]);
 
   const coins = coinBalance?.coins ?? 0;
   const totalEarned = coinBalance?.totalEarned ?? 0;
