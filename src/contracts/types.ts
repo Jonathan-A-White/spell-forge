@@ -642,6 +642,8 @@ export interface TutorTurn {
   readingResult?: TutorReadingResult;
   /** The recorder's cap stopped this reading, not the child: the reply says only that much was heard. */
   capped?: boolean;
+  /** A reading's clip length in whole seconds: its deadline follows it (grist/limits.ts). Absent on turns kept before it was. */
+  clipSeconds?: number;
   /** A reading turn whose answer echoed no scorer result: the grist's own notes on the reading, kept in its place. */
   readingNotes?: string;
   answer?: TutorAnswer;

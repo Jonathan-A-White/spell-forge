@@ -7,6 +7,7 @@ import type { PrivateKey } from '@bsv/sdk';
 import { door } from 'bsv-kit/bsv';
 import { grist } from 'bsv-kit/grist';
 import { gristConfig } from './config';
+import { uploadTimeoutMs } from './limits';
 
 export type GristHeader = grist.GristHeader;
 /** A photo or a recording that travels with a grist: its bytes, its mime and, when it has one, its name. */
@@ -17,9 +18,15 @@ export type SentGrist = grist.SentGrist;
 /** The 32 bytes of the device key, which is what the door and bsv-kit/grist take. */
 export const keyBytes = (key: PrivateKey): Uint8Array => Uint8Array.from(key.toArray('be', 32));
 
-/** The factory's door for `key`. `fetchImpl` is the test seam; the door's own default is a safe call of the global fetch. */
-export function factoryDoor(key: PrivateKey, fetchImpl?: typeof fetch): InstanceType<typeof door.Door> {
-  return new door.Door({ baseUrl: gristConfig.backendUrl, key: keyBytes(key), ...(fetchImpl ? { fetch: fetchImpl } : {}) });
+/** The factory's door for `key`. `fetchImpl` is the test seam; the door's own default is a safe call of the global fetch.
+ *  `timeoutMs` is how long one request may go unanswered; the door's 30 s when absent. */
+export function factoryDoor(key: PrivateKey, fetchImpl?: typeof fetch, timeoutMs?: number): InstanceType<typeof door.Door> {
+  return new door.Door({
+    baseUrl: gristConfig.backendUrl,
+    key: keyBytes(key),
+    ...(fetchImpl ? { fetch: fetchImpl } : {}),
+    ...(timeoutMs ? { timeoutMs } : {}),
+  });
 }
 
 export interface SendGristParams {
@@ -40,7 +47,8 @@ export interface SendGristParams {
 export function sendGrist(params: SendGristParams): Promise<SentGrist> {
   const { key, header, input, files, fetchImpl } = params;
   return grist.sendGristRecord({
-    door: factoryDoor(key, fetchImpl),
+    // a clip or a photo is given the time its bytes need, not the door's 30 s
+    door: factoryDoor(key, fetchImpl, uploadTimeoutMs(files?.reduce((sum, file) => sum + file.bytes.length, 0) ?? 0)),
     key: keyBytes(key),
     app: header.app,
     kind: header.kind,

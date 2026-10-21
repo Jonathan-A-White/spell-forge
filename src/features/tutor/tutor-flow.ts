@@ -8,7 +8,7 @@ import { grist } from 'bsv-kit/grist';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { bsvWalletRepo, profileRepo, tutorRepo } from '../../data/repositories';
-import { TUTOR_TURN_GRIND, gristFileFromBlob, sendGrist, shrinkPhoto } from '../../grist';
+import { READING_AUDIO_BYTES_PER_SECOND, TUTOR_TURN_GRIND, gristFileFromBlob, sendGrist, shrinkPhoto, uploadTimeoutMs } from '../../grist';
 import type { GristInFlightDeps, GristPhoto } from '../../grist';
 
 /** The seams the screen runs on; each defaults to the real thing, tests replace them. */
@@ -33,6 +33,12 @@ export type ProblemSource = { kind: 'text'; text: string } | { kind: 'photo'; fi
 
 /** A turn still 'sending' this long after it was made was cut off (the app closed mid-send): it is failed on resume. */
 export const HALF_SENT_MS = 30_000;
+
+/** How long a turn may sit 'sending': 30 s, and for a reading the extra time its clip's upload is given (grist/limits.ts). */
+export function halfSentMs(turn: TutorTurn): number {
+  if (turn.mode !== 'reading' || !turn.clipSeconds) return HALF_SENT_MS;
+  return HALF_SENT_MS + uploadTimeoutMs(turn.clipSeconds * READING_AUDIO_BYTES_PER_SECOND) - uploadTimeoutMs(0);
+}
 
 /** Something the child (or his parent) can act on, worded for them. */
 export class TutorUserError extends Error {
@@ -192,6 +198,7 @@ export async function sendReading(
     request,
     attachments: [{ kind: 'audio', blobId: stored.id }],
     ...(recording.capped ? { capped: true } : {}),
+    clipSeconds: Math.ceil(recording.durationMs / 1000),
     sentAt: (deps.now ?? (() => new Date()))(),
   });
 
@@ -267,7 +274,7 @@ export async function sendMath(
 /** Fails the turns a closed app left half-sent, so a reload never waits on them for ever. */
 export async function failHalfSent(turns: TutorTurn[], now: Date = new Date()): Promise<void> {
   for (const turn of turns) {
-    if (turn.status === 'sending' && now.getTime() - turn.sentAt.getTime() >= HALF_SENT_MS) {
+    if (turn.status === 'sending' && now.getTime() - turn.sentAt.getTime() >= halfSentMs(turn)) {
       await tutorRepo.markFailed(turn.id, turn.mode === 'reading' ? READING_CUT_OFF : turn.mode === 'math' ? MATH_CUT_OFF : CUT_OFF);
     }
   }

@@ -26,6 +26,8 @@ export interface AddTurnParams {
   sentAt?: Date;
   /** A reading the recorder's cap stopped. */
   capped?: boolean;
+  /** A reading's clip length in whole seconds. */
+  clipSeconds?: number;
 }
 
 /** A turn can take an answer only while it is still out. */
@@ -105,6 +107,7 @@ export const tutorRepo = {
         request: params.request,
         attachments: params.attachments ?? [],
         ...(params.capped ? { capped: true } : {}),
+        ...(params.clipSeconds !== undefined ? { clipSeconds: params.clipSeconds } : {}),
         status: 'sending',
       };
       await db.tutorTurns.add(turn);

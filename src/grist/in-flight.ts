@@ -1,6 +1,6 @@
 // src/grist/in-flight.ts — Any number of tutor turns in flight at once, each answer applied to its own turn as
 // it arrives, in whatever order. One pass reads for every waiting txid (every 1 s while one is waiting, every 5 s
-// when none is, when the browser comes online, on load); a turn still unanswered 180 s after it was sent is failed.
+// when none is, when the browser comes online, on load); a turn still unanswered 180 s after it was sent is failed (a reading: after a time that follows its clip, limits.ts).
 // Everything a pass needs is in the tutorTurns table, never in memory, so a reload loses nothing.
 
 import type { PrivateKey } from '@bsv/sdk';
@@ -8,6 +8,7 @@ import type { TutorAnswer, TutorTurn, TutorTurnResult } from '../contracts/types
 import { tutorRepo } from '../data/repositories/tutor-repo';
 import { readAnswer } from './factory';
 import type { ReadAnswerParams, ReadAnswerResult } from './factory';
+import { TUTOR_TURN_DEADLINE_MS, readingDeadlineMs } from './limits';
 import { isTutorAnswer, pickReadingResult } from './tutor-answer';
 
 /** How often a pass runs when nothing is in flight. Such a pass reads Dexie only and asks the network nothing. */
@@ -45,10 +46,10 @@ export function startPolling(pass: () => Promise<void>, inFlight: () => boolean,
     window.removeEventListener('online', run);
   };
 }
-/** How long the factory has to answer one turn. */
-export const TUTOR_TURN_DEADLINE_MS = 180_000;
+export { TUTOR_TURN_DEADLINE_MS };
 
 const TOO_LONG = 'The tutor took too long to answer. You can try again.';
+const READING_TOO_LONG = 'That reading took too long to check. Try a shorter one.';
 
 export interface GristInFlightDeps {
   /** The device's key; none (no wallet yet) means nothing can be read, and nothing is asked. */
@@ -118,8 +119,10 @@ export class GristInFlight {
     } catch {
       // the factory cannot be reached right now: the next pass, or the deadline, decides
     }
-    if (now().getTime() - turn.sentAt.getTime() >= TUTOR_TURN_DEADLINE_MS) {
-      await tutorRepo.markFailed(turn.id, TOO_LONG);
+    const reading = turn.mode === 'reading';
+    const deadline = reading ? readingDeadlineMs(turn.clipSeconds) : TUTOR_TURN_DEADLINE_MS;
+    if (now().getTime() - turn.sentAt.getTime() >= deadline) {
+      await tutorRepo.markFailed(turn.id, reading ? READING_TOO_LONG : TOO_LONG);
     }
   }
 }

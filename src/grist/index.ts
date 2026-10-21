@@ -17,6 +17,7 @@ export type {
 export { TUTOR_TURN_GRIND, isTutorAnswer, pickReadingResult } from './tutor-answer';
 export { GristInFlight, TUTOR_POLL_IN_FLIGHT_MS, TUTOR_POLL_INTERVAL_MS, TUTOR_TURN_DEADLINE_MS } from './in-flight';
 export type { GristInFlightDeps } from './in-flight';
+export { READING_AUDIO_BYTES_PER_SECOND, readingDeadlineMs, uploadTimeoutMs } from './limits';
 export { PARENT_ASK_GRIND, isParentAskAnswer } from './parent-ask';
 export { PARENT_ASK_DEADLINE_MS, ParentAskInFlight } from './parent-ask-in-flight';
 export type { ParentAskInFlightDeps } from './parent-ask-in-flight';

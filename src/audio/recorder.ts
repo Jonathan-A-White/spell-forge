@@ -16,6 +16,9 @@ export interface Recording {
 /** The longest reading heard: a reading is cut here and sent as it stands, marked `capped`. */
 export const MAX_RECORDING_MS = 600_000;
 
+/** What the encoder is asked for: 32 kbit/s, so a reading takes 4000 bytes a second (the upload and deadline follow it, grist/limits.ts). */
+export const READING_AUDIO_BITS_PER_SECOND = 32_000;
+
 const PREFERRED = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'];
 const NO_MIC = 'The microphone is turned off for this page. Turn it on in the browser settings, then try again.';
 const NO_RECORDER = 'This browser cannot record your voice.';
@@ -60,7 +63,7 @@ export class ReadingRecorder implements HoldRecorder {
       throw new MicUnavailable();
     }
     const mime = pickMime();
-    this.recorder = new MediaRecorder(this.stream, mime ? { mimeType: mime, audioBitsPerSecond: 32_000 } : undefined);
+    this.recorder = new MediaRecorder(this.stream, mime ? { mimeType: mime, audioBitsPerSecond: READING_AUDIO_BITS_PER_SECOND } : undefined);
     this.chunks = [];
     this.recorder.ondataavailable = (event) => {
       if (event.data.size > 0) this.chunks.push(event.data);
