@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
+import { vitestTimeouts } from 'pwa-kit/test-preset';
 import config from '../../vitest.config';
 
 // The per-test limit must stay above Testing Library's asyncUtilTimeout
@@ -7,9 +8,9 @@ import config from '../../vitest.config';
 const ASYNC_UTIL_TIMEOUT = 5000;
 
 describe('vitest.config.ts', () => {
-  it('gives each test 20 s, above Testing Library\'s asyncUtilTimeout', () => {
+  it('gives each test the preset\'s time, above Testing Library\'s asyncUtilTimeout', () => {
     const timeout = config.test?.testTimeout;
-    expect(timeout).toBe(20000);
+    expect(timeout).toBe(vitestTimeouts.testTimeout);
     expect(timeout).toBeGreaterThan(ASYNC_UTIL_TIMEOUT);
   });
 });
