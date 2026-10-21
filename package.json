@@ -73,6 +73,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
     "jsdom": "^28.1.0",
+    "pwa-kit": "github:Jonathan-A-White/pwa-kit#1bcc9e9f14b4c3e28d7e3221080b9b29672c6fff",
     "scrypt-ord": "1.0.17",
     "scrypt-ts": "1.4.5",
     "sharp": "^0.34.5",
@@ -85,6 +86,7 @@
   },
   "allowScripts": {
     "github:Jonathan-A-White/bsv-kit#3016cfb2da4f3026f9af3a31f1dccf97dd03eca6": true,
+    "github:Jonathan-A-White/pwa-kit#1bcc9e9f14b4c3e28d7e3221080b9b29672c6fff": true,
     "github:Jonathan-A-White/voice-kit#38f203176a4db55a36ff48912dd14afbe74393cc": true
   }
 }
