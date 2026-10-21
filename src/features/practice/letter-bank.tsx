@@ -1,6 +1,7 @@
 // src/features/practice/letter-bank.tsx — Letter bank spelling component
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
 import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 
@@ -30,6 +31,7 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showU
   const [startTime] = useState(() => Date.now());
   const [wrongFlash, setWrongFlash] = useState(false);
   const [mistakeCount, setMistakeCount] = useState(0);
+  const alive = useAlive();
 
   const targetLetters = useMemo(() => word.toLowerCase().split(''), [word]);
   const bankLetters = useMemo(() => {
@@ -65,10 +67,12 @@ export function LetterBank({ word, onComplete, scaffolding, tapTargetSize, showU
         hapticError();
         setMistakeCount((prev) => prev + 1);
         setWrongFlash(true);
-        setTimeout(() => setWrongFlash(false), 300);
+        setTimeout(() => {
+          if (alive()) setWrongFlash(false);
+        }, 300);
       }
     },
-    [selected, targetLetters, onComplete, startTime, mistakeCount],
+    [selected, targetLetters, onComplete, startTime, mistakeCount, alive],
   );
 
   const handleUndo = useCallback(() => {

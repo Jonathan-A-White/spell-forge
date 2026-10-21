@@ -1,6 +1,7 @@
 // src/features/learning/keyboard-input.tsx — Free-form text input for boss levels and stage 3
 
 import { useState, useCallback } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import { SpellingField } from '../practice/custom-keyboard';
 import { hapticSuccess, hapticError } from '../../core/haptics';
 
@@ -15,6 +16,7 @@ export function KeyboardInput({ word, onComplete, tapTargetSize }: KeyboardInput
   const [wrongFlash, setWrongFlash] = useState(false);
   const [mistakeCount, setMistakeCount] = useState(0);
   const [startTime] = useState(() => Date.now());
+  const alive = useAlive();
 
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim();
@@ -29,10 +31,12 @@ export function KeyboardInput({ word, onComplete, tapTargetSize }: KeyboardInput
       hapticError();
       setMistakeCount((prev) => prev + 1);
       setWrongFlash(true);
-      setTimeout(() => setWrongFlash(false), 300);
+      setTimeout(() => {
+        if (alive()) setWrongFlash(false);
+      }, 300);
       setValue('');
     }
-  }, [value, word, onComplete, startTime, mistakeCount]);
+  }, [value, word, onComplete, startTime, mistakeCount, alive]);
 
   const fontSize = `${Math.max(16, tapTargetSize * 0.4)}px`;
 

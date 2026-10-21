@@ -1,6 +1,7 @@
 // src/features/practice/spell-catcher.tsx — Treasure Dive letter-catching spelling game
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
 import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
@@ -57,6 +58,7 @@ export function SpellCatcher({
   savedState,
   onProgress,
 }: SpellCatcherProps) {
+  const alive = useAlive();
   const gameWords = useMemo(() => {
     if (savedState) return savedState.words;
     return shuffle(words).slice(0, 10);
@@ -210,9 +212,11 @@ export function SpellCatcher({
       }
 
       // Clear feedback after a moment
-      setTimeout(() => setFeedback(null), 500);
+      setTimeout(() => {
+        if (alive()) setFeedback(null);
+      }, 500);
     },
-    [wordComplete, isFinished, currentWord, nextLetterIndex, lives, maxLives],
+    [wordComplete, isFinished, currentWord, nextLetterIndex, lives, maxLives, alive],
   );
 
   const handleNextWord = useCallback(() => {

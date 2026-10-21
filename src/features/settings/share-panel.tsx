@@ -1,6 +1,7 @@
 // src/features/settings/share-panel.tsx — Share the app via clipboard, native share, or QR code
 
 import { useState, useCallback } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import { generateQrSvg } from './qr-code';
 
 const APP_URL = 'https://jonathan-a-white.github.io/spell-forge/';
@@ -12,6 +13,7 @@ interface SharePanelProps {
 export function SharePanel({ onBack }: SharePanelProps) {
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const alive = useAlive();
 
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
 
@@ -19,7 +21,9 @@ export function SharePanel({ onBack }: SharePanelProps) {
     try {
       await navigator.clipboard.writeText(APP_URL);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => {
+        if (alive()) setCopied(false);
+      }, 2000);
     } catch {
       // Fallback: select + copy via input
       const input = document.createElement('input');
@@ -29,9 +33,11 @@ export function SharePanel({ onBack }: SharePanelProps) {
       document.execCommand('copy');
       document.body.removeChild(input);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => {
+        if (alive()) setCopied(false);
+      }, 2000);
     }
-  }, []);
+  }, [alive]);
 
   const handleNativeShare = useCallback(async () => {
     try {

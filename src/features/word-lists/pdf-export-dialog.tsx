@@ -1,6 +1,7 @@
 // src/features/word-lists/pdf-export-dialog.tsx — Modal for PDF export options
 
 import { useState, useCallback } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import type { PdfMode, PdfFontSize } from './pdf-generator';
 import { downloadWordListPdf } from './pdf-generator';
 
@@ -26,6 +27,7 @@ export function PdfExportDialog({ listName, words, onClose }: PdfExportDialogPro
   const [mode, setMode] = useState<PdfMode>('full');
   const [fontSize, setFontSize] = useState<PdfFontSize>('medium');
   const [generating, setGenerating] = useState(false);
+  const alive = useAlive();
 
   const handleGenerate = useCallback(() => {
     setGenerating(true);
@@ -34,10 +36,10 @@ export function PdfExportDialog({ listName, words, onClose }: PdfExportDialogPro
       try {
         downloadWordListPdf({ mode, fontSize, listName, words });
       } finally {
-        setGenerating(false);
+        if (alive()) setGenerating(false);
       }
     }, 50);
-  }, [mode, fontSize, listName, words]);
+  }, [mode, fontSize, listName, words, alive]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="pdf-export-dialog">

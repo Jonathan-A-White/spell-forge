@@ -1,6 +1,7 @@
 // src/features/practice/word-relay-race.tsx — Timed spelling relay race with bot opponents & themed visuals
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
 import {
   calcRunnerPosition,
@@ -69,6 +70,7 @@ export function WordRelayRace({
   onProgress,
   themeId = 'dragon-forge',
 }: WordRelayRaceProps) {
+  const alive = useAlive();
   // Difficulty selection state
   const [difficulty, setDifficulty] = useState<RaceDifficulty | null>(
     savedState?.difficulty ?? null,
@@ -150,6 +152,10 @@ export function WordRelayRace({
     setCountdownValue(3);
     let count = 3;
     const interval = setInterval(() => {
+      if (!alive()) {
+        clearInterval(interval);
+        return;
+      }
       count--;
       if (count > 0) {
         setCountdownValue(count);
@@ -162,7 +168,7 @@ export function WordRelayRace({
         setWordStartTime(now);
       }
     }, 700);
-  }, [difficulty, raceWords.length, themeId]);
+  }, [difficulty, raceWords.length, themeId, alive]);
 
   const handleSubmit = useCallback(() => {
     if (!currentWord || stumbling || !wordStartTime) return;
@@ -199,6 +205,7 @@ export function WordRelayRace({
       setWordTimes(newTimes);
 
       setTimeout(() => {
+        if (!alive()) return;
         setStumbling(false);
         setInputValue('');
         setLastCorrect(null);
@@ -206,7 +213,7 @@ export function WordRelayRace({
         setWordStartTime(Date.now());
       }, delay);
     }
-  }, [currentWord, inputValue, stumbling, wordStartTime, wordTimes]);
+  }, [currentWord, inputValue, stumbling, wordStartTime, wordTimes, alive]);
 
   // Finish handler
   const handleFinish = useCallback(() => {

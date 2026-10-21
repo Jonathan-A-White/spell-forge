@@ -1,6 +1,7 @@
 // src/features/practice/word-volcano.tsx — Eruption Builder spelling game
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
 import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
@@ -53,6 +54,7 @@ export function WordVolcano({
   savedState,
   onProgress,
 }: WordVolcanoProps) {
+  const alive = useAlive();
   const gameWords = useMemo(() => {
     if (savedState) return savedState.words;
     return shuffle(words).slice(0, 10);
@@ -134,7 +136,9 @@ export function WordVolcano({
         setWordsCompleted((prev) => prev + 1);
         setWordComplete(true);
         setFeedback('correct');
-        setTimeout(() => setFeedback(null), 800);
+        setTimeout(() => {
+          if (alive()) setFeedback(null);
+        }, 800);
       } else {
         hapticTap();
       }
@@ -144,13 +148,15 @@ export function WordVolcano({
       setFeedback('wrong');
       setWordMistakes((prev) => prev + 1);
       setMistakes((prev) => prev + 1);
-      setTimeout(() => setFeedback(null), 500);
+      setTimeout(() => {
+        if (alive()) setFeedback(null);
+      }, 500);
 
       if (wordMistakes + 1 >= maxMistakesPerWord) {
         setWordFailed(true);
       }
     }
-  }, [wordComplete, wordFailed, isFinished, selected, currentWord, wordMistakes, wordHints]);
+  }, [wordComplete, wordFailed, isFinished, selected, currentWord, wordMistakes, wordHints, alive]);
 
   const handleUseHint = useCallback(() => {
     if (wordComplete || wordFailed || isFinished) return;
@@ -160,8 +166,10 @@ export function WordVolcano({
     setHintRevealed(nextIndex);
     setWordHints((prev) => prev + 1);
     setHintsUsed((prev) => prev + 1);
-    setTimeout(() => setHintRevealed(null), 1500);
-  }, [wordComplete, wordFailed, isFinished, selected.length, currentWord]);
+    setTimeout(() => {
+      if (alive()) setHintRevealed(null);
+    }, 1500);
+  }, [wordComplete, wordFailed, isFinished, selected.length, currentWord, alive]);
 
   const handleNextWord = useCallback(() => {
     const nextIdx = currentWordIndex + 1;
