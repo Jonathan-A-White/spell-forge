@@ -50,6 +50,7 @@
     "dexie": "^4.3.0",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
+    "learn-kit": "github:Jonathan-A-White/learn-kit#4e3e6565dfa2754b813790d593f390f65403e22c",
     "pwa-kit": "github:Jonathan-A-White/pwa-kit#0b7d6d4603acaf7b954a8dc364f37b92dfe79fb7",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
@@ -93,6 +94,7 @@
   },
   "allowScripts": {
     "github:Jonathan-A-White/bsv-kit#918c441ce443dff052470de5671c2b1c430f8ebd": true,
+    "github:Jonathan-A-White/learn-kit#4e3e6565dfa2754b813790d593f390f65403e22c": true,
     "github:Jonathan-A-White/pwa-kit#0b7d6d4603acaf7b954a8dc364f37b92dfe79fb7": true,
     "github:Jonathan-A-White/voice-kit#e23b7909a12d2946b3ef52977aeadd7c09d6a5e7": true
   }

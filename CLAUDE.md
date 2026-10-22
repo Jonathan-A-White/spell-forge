@@ -86,6 +86,7 @@ src/
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks
+├── learn/              # spelling/: the spelling graph over learn-kit (nodes, items, grade bands); data and pure code
 ├── shell/              # worlds.ts (the four worlds, every screen's route, openView), Shell, WorldSwitch, screens/, app-state, last-route
 ├── bsv/                # licence token and chain code
 └── features/           # UI: practice, dashboard, profiles, onboarding, word-lists, tutor, settings, about, update, ...
@@ -133,6 +134,7 @@ One line per file under `docs/`: open the ones your story touches. `tests/unit/c
 docs/testing.md # the test seams: Playwright projects and ports, timing tests (the real-clock list), the nightly run, features/ and steps
 docs/lampas-sweep.md # every rule of Lampas's CLAUDE.md: taken, not for this app, or later (story number)
 docs/module-map.md # the module map (2026-10-10): modules, collisions, proposed refactors, rule breaks, library candidates
+docs/spelling-graph.md # the spelling graph (src/learn/spelling): grade bands, the node shape, how to add a node
 docs/best-practices-audit.md # the 2026-10-10 audit of SpellForge against the PWA best practices (31 checklist lines)
 docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain application data (BSV)
 docs/bsv-testnet.md # the two testnet scripts behind the BSV Debug screen: keys kept outside the repo
