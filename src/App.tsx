@@ -56,7 +56,7 @@ import { AboutScreen } from './features/about';
 import { BsvDebugScreen } from './features/bsv-debug';
 import { TutorScreen } from './features/tutor';
 import { SharePanel } from './features/settings/share-panel';
-import { AudioManagerImpl, useAudioBusy, warmUp as warmUpTts } from './audio';
+import { AudioManagerImpl, setSpeechVoice, useAudioBusy, warmUp as warmUpTts } from './audio';
 import { TtsDebugOverlay } from './audio/tts-debug-overlay';
 import { useTtsDebug } from './audio/tts-debug-state';
 import { useDebugMode, DebugOverlay } from './debug';
@@ -122,6 +122,9 @@ function App() {
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
 
   const audioBusy = useAudioBusy(audioManager);
+  // One voice for the tutor and the spelling words: the open profile's Tutor voice.
+  const tutorVoice = activeProfile?.settings.tutorVoice;
+  useEffect(() => setSpeechVoice(tutorVoice), [tutorVoice]);
   const [ttsDebugEnabled, toggleTtsDebug] = useTtsDebug();
   const [debugModeEnabled, toggleDebugMode] = useDebugMode();
 

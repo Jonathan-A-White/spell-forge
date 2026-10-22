@@ -56,7 +56,7 @@ src/
 │   ├── db.ts           # Dexie database schema (v1)
 │   ├── import-export.ts # JSON backup/restore with merge strategies
 │   └── repositories/   # Repository pattern: profile, word-list, word, stats, session, streak
-├── audio/              # Web Speech API TTS with robust retry logic
+├── audio/              # Speech through voice-kit/speech (word helpers, the tutor's voice), recorder
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks
@@ -67,7 +67,7 @@ src/
 
 - **Repository pattern** — all data access goes through `src/data/repositories/`. Never access Dexie tables directly from UI code.
 - **Event bus** — cross-module communication via `src/contracts/events.ts`. Events include `word:attempted`, `session:started`, `session:ended`, `reward:earned`, `streak:updated`, `profile:switched`, `settings:changed`.
-- **TTS retry pattern** — audio uses Web Speech API with exponential backoff, voice fallback, and cooldown recovery.
+- **One speech engine** — all speech (the tutor's and the spelling words') goes through `voice-kit/speech`'s `speak()`; no `synth.speak` or `new SpeechSynthesisUtterance` in `src/` (a test greps for it). The Tutor voice setting (`setSpeechVoice`) drives both; `rankVoice` is the rank given to the kit.
 - **Central contracts** — all entity types defined in `src/contracts/types.ts`. Import types from `src/contracts/`, not from individual modules.
 
 ### Database Schema (Dexie v1)
