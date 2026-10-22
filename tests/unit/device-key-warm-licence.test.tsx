@@ -1,3 +1,6 @@
+// covers: src/features/device-key/**, src/grist/**, src/features/settings/settings-panel.tsx (the one licence call a new device key makes).
+// A timing test: it needs a real clock. Each test waits a real 50 ms for a stray second call or a late alert to show itself, and a fake clock
+// cannot say whether something fails to happen 'later'. The rig's timing_tests leaves it out of every gate (MW_TIMING=skip) and runs it nightly.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { PrivateKey } from '@bsv/sdk';

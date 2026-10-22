@@ -1,4 +1,7 @@
 // tests/e2e/tutor-speech-bar.spec.ts
+// covers: src/features/tutor/speech-bar.tsx, src/features/tutor/speech-bar.css, src/audio/tutor-speech.ts, src/features/tutor/tutor-screen.tsx.
+// A timing test: it needs a real clock. The browser's own speech clock runs the (slowed) honest voice for the length of the spec, and the bar's
+// Pause, Resume and Restart are proved against it; a faked page clock would not time an utterance. The rig's timing_tests leaves it out of every gate.
 //
 // Proves mw-kuy7rx.20 in real Chromium on a 360x740 phone: while the tutor speaks, the speaking bar (Pause, Restart,
 // Stop) sits in the footer above 'Read the word', inside the viewport, with 48 px targets; Pause turns into Resume.
