@@ -53,8 +53,8 @@ import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { UpdateBanner } from './features/update';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { AboutScreen, WhatsNewOnUpdate } from './features/about';
-import { BsvDebugScreen } from './features/bsv-debug';
 import { TutorScreen } from './features/tutor';
+import { HOME_VIEW, TRANSIENT_VIEWS, openView, type ViewId } from './shell/worlds';
 import { shareIdFromHash, takeShare } from './share/share-target';
 import type { SharedItem } from './share/share-target';
 import { SharePanel } from './features/settings/share-panel';
@@ -74,7 +74,8 @@ import { presetToSettings } from './accessibility/presets';
 import type { NamedPreset } from './accessibility/presets';
 import { v4 as uuidv4 } from 'uuid';
 
-type AppView = 'loading' | 'db-blocked' | 'onboarding' | 'profile-select' | 'home' | 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'word-lists' | 'word-list-detail' | 'word-detail' | 'settings' | 'feedback' | 'share' | 'monster-stable' | 'qr-import' | 'coin-history' | 'practice-calendar' | 'record-test-results' | 'test-history' | 'test-result-detail' | 'trouble-words' | 'bsv-debug' | 'tutor' | 'about';
+// The screens and their worlds and routes are src/shell/worlds.ts's.
+type AppView = ViewId;
 
 const eventBus = createEventBus();
 
@@ -151,7 +152,7 @@ function App() {
 
   // Sync view state with browser history so the OS back button
   // navigates within the app instead of closing it.
-  useBackButton(view, setView, 'home', ['loading', 'db-blocked']);
+  useBackButton(view, setView, HOME_VIEW, TRANSIENT_VIEWS as AppView[]);
 
 
   const selectProfile = useCallback(async (profile: Profile) => {
@@ -1140,7 +1141,6 @@ function App() {
           onToggleTtsDebug={toggleTtsDebug}
           debugModeEnabled={debugModeEnabled}
           onToggleDebugMode={toggleDebugMode}
-          onOpenBsvDebug={() => setView('bsv-debug')}
           onOpenAbout={() => setView('about')}
           onBack={goBack}
         />
@@ -1148,9 +1148,6 @@ function App() {
 
     case 'about':
       return <AboutScreen onBack={goBack} />;
-
-    case 'bsv-debug':
-      return <BsvDebugScreen onBack={goBack} eventBus={eventBus} />;
 
     case 'tutor':
       if (!activeProfile) return null;
@@ -1299,7 +1296,7 @@ function App() {
           allStats={activeStats}
           activeWordCount={activeWords.length}
           onBack={goBack}
-          onNavigate={(v, wordFilter) => { if (wordFilter) setPracticeWordFilter(wordFilter); setView(v); }}
+          onNavigate={(v, wordFilter) => { if (wordFilter) setPracticeWordFilter(wordFilter); openView(v, setView); }}
           onAddWords={() => { setEditingList(null); setView('list-editor'); }}
         />
       );
@@ -1327,7 +1324,7 @@ function App() {
           coinBalance={coinBalance}
           learningProgress={learningProgress}
           gradeGoal={activeProfile?.gradeGoal}
-          onNavigate={(target, wordFilter) => { if (wordFilter) setPracticeWordFilter(wordFilter); setView(target); }}
+          onNavigate={(target, wordFilter) => { if (wordFilter) setPracticeWordFilter(wordFilter); openView(target, setView); }}
           onSwitchProfile={() => setView('profile-select')}
           hasMultipleProfiles={profiles.length > 1}
         />
