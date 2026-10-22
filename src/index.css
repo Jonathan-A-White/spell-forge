@@ -173,3 +173,11 @@ body {
 .animate-sf-shake {
   animation: sf-shake 0.4s ease-in-out;
 }
+
+/* pwa-kit's What's new sheet and Check for updates button take the theme's colours (mw-vmx5cb.3). */
+:root {
+  --bk-whats-new-surface: var(--sf-color-surface);
+  --bk-whats-new-fg: var(--sf-color-text);
+  --bk-whats-new-accent: var(--sf-color-primary);
+  --bk-whats-new-accent-fg: var(--sf-color-primary-text);
+}

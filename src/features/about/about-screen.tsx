@@ -1,9 +1,9 @@
 // src/features/about/about-screen.tsx — About: why we credit, then everything SpellForge builds on (mw-vtjxh4.4).
 
-import { APP_VERSION } from '../../version';
 import { CREDITS, NEWTON_ATTRIBUTION, NEWTON_QUOTE, WHY_WE_CREDIT } from './credits';
+import { WhatsNewSection, type WhatsNewSectionProps } from './WhatsNewSection';
 
-interface AboutScreenProps {
+interface AboutScreenProps extends WhatsNewSectionProps {
   onBack: () => void;
 }
 
@@ -17,7 +17,7 @@ function ExternalLink({ href, children }: { href: string; children: string }) {
   );
 }
 
-export function AboutScreen({ onBack }: AboutScreenProps) {
+export function AboutScreen({ onBack, fetchFn, registration }: AboutScreenProps) {
   return (
     <div className="min-h-screen bg-sf-bg">
       <div className="bg-sf-surface border-b border-sf-border px-4 py-4">
@@ -44,6 +44,8 @@ export function AboutScreen({ onBack }: AboutScreenProps) {
           <p className="text-sm text-sf-text mt-4">{WHY_WE_CREDIT}</p>
         </section>
 
+        <WhatsNewSection fetchFn={fetchFn} registration={registration} />
+
         <section>
           <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">Credits</h2>
           <ul className="space-y-3">
@@ -63,8 +65,6 @@ export function AboutScreen({ onBack }: AboutScreenProps) {
             ))}
           </ul>
         </section>
-
-        <p className="text-xs text-sf-muted text-center">{`SpellForge v${APP_VERSION}`}</p>
       </div>
     </div>
   );

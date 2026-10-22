@@ -52,7 +52,7 @@ import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
 import { UpdateBanner } from './features/update';
 import { SettingsPanel } from './features/settings/settings-panel';
-import { AboutScreen } from './features/about';
+import { AboutScreen, WhatsNewOnUpdate } from './features/about';
 import { BsvDebugScreen } from './features/bsv-debug';
 import { TutorScreen } from './features/tutor';
 import { SharePanel } from './features/settings/share-panel';
@@ -1315,6 +1315,7 @@ function App() {
   return (
     <>
       <UpdateBanner view={view} />
+      <WhatsNewOnUpdate view={view} />
       {renderView()}
       {showSyncBanner && <FeedbackSyncBanner />}
       <TtsDebugOverlay enabled={ttsDebugEnabled} />
