@@ -36,7 +36,7 @@ export function stalePackageCredits(credits: readonly CreditLike[], pkg: Package
 }
 
 // The app's own assets: not someone else's work, so no credit.
-const OWN_ASSETS = new Set(['public/manifest.json', 'public/spell-forge.svg']);
+const OWN_ASSETS = new Set(['public/manifest.json', 'public/spell-forge.svg', 'public/changelog.json']);
 const FONT_FILE = /\.(woff2?|ttf|otf|eot)$/i;
 
 function walk(dir: string, out: string[]): void {

@@ -1,0 +1,23 @@
+[
+  {
+    "version": "0.1.162",
+    "date": "2026-09-28",
+    "story": "pr-259",
+    "kind": "fixed",
+    "text": "The hidden chain-testing screen reads and writes its records more reliably."
+  },
+  {
+    "version": "0.1.161",
+    "date": "2026-06-11",
+    "story": "pr-257",
+    "kind": "fixed",
+    "text": "If the photo-reading engine fails to load, SpellForge now recovers instead of getting stuck."
+  },
+  {
+    "version": "0.1.160",
+    "date": "2026-06-11",
+    "story": "pr-256",
+    "kind": "new",
+    "text": "Reading words from a photo takes a second look that finds words lost in shadows."
+  }
+]
