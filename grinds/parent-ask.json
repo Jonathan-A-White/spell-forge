@@ -9,8 +9,8 @@
   "answerSchema": "grinds/parent-ask.answer.schema.json",
   "attachments": {
     "min": 0,
-    "max": 0,
-    "mime": [],
-    "maxBytes": 0
+    "max": 3,
+    "mime": ["image/jpeg", "image/png", "image/webp"],
+    "maxBytes": 4194304
   }
 }
