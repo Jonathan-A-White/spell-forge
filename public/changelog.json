@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.166",
+    "date": "2026-10-22",
+    "story": "mw-79en7t.33",
+    "kind": "new",
+    "text": "SpellForge now reopens on the screen you were on, and Back remembers the last twenty screens."
+  },
+  {
     "version": "0.1.163",
     "date": "2026-10-22",
     "story": "mw-79en7t.1",
