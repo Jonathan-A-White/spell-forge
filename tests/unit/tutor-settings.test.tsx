@@ -61,8 +61,9 @@ describe('Tutor settings: Voice', () => {
     const labels = radios.map((r) => r.closest('div')?.textContent ?? '');
     expect(labels[0]).toContain("Phone's default");
     expect(radios[0].checked).toBe(true);
-    expect(s.getByLabelText(/^Sam/)).toBeTruthy();
-    expect(s.getByLabelText(/^Gwen/)).toBeTruthy();
+    // the fake lists its voices 50 ms after install, so the first radio can show before them
+    expect(await s.findByLabelText(/^Sam/)).toBeTruthy();
+    expect(await s.findByLabelText(/^Gwen/)).toBeTruthy();
     expect(s.queryByLabelText(/^Fran/)).toBeNull();
   });
 
