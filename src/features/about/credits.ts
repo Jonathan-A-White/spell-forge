@@ -155,6 +155,15 @@ export const CREDITS: readonly Credit[] = [
   },
   {
     kind: 'package',
+    name: 'learn-kit',
+    url: 'https://github.com/Jonathan-A-White/learn-kit',
+    packages: ['learn-kit'],
+    use: 'Our own shared kit for learning graphs: it checks that each thing to learn rests only on things that come before it, which is how the spelling path is ordered from the first letter sounds up.',
+    licence: { name: 'MIT', url: 'https://github.com/Jonathan-A-White/learn-kit/blob/main/LICENSE' },
+    changes: 'Written by us; shared with our other apps.',
+  },
+  {
+    kind: 'package',
     name: 'Workbox',
     url: 'https://developer.chrome.com/docs/workbox',
     packages: ['workbox-precaching', 'workbox-routing'],
