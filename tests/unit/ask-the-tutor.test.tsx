@@ -56,9 +56,9 @@ describe('Ask the tutor box', () => {
     expect(s.queryByRole('button', { name: 'Send' })).toBeNull();
     expect(s.queryByText('Coming soon.')).toBeNull();
     expect(await s.findByText('No questions yet.')).toBeTruthy();
-    // voice-kit's Composer with the child's settings: a mic and Send, no attach and no camera
-    expect(s.queryByRole('button', { name: 'Attach files' })).toBeNull();
-    expect(s.queryByRole('button', { name: 'Take a photo' })).toBeNull();
+    // voice-kit's Composer with Ask the tutor's settings: a mic and Send, with attach and the camera (mw-vmx5cb.1)
+    expect(s.getByRole('button', { name: 'Attach files' })).toBeTruthy();
+    expect(s.getByRole('button', { name: 'Take a photo' })).toBeTruthy();
     expect(s.getByRole('button', { name: 'Speak a message' })).toBeTruthy();
     fireEvent.change(s.getByLabelText('Your question'), { target: { value: 'Hello?' } });
     expect((s.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(false);
@@ -182,5 +182,40 @@ describe('Ask the tutor box', () => {
     open(fakeClient().deps);
     const s = await box();
     expect(await s.findByText(/did not get sent/i)).toBeTruthy();
+  });
+});
+
+describe('Ask the tutor with pictures (mw-vmx5cb.1)', () => {
+  const photo = (name: string) => new File([new Uint8Array([1, 2, 3])], name, { type: 'image/jpeg' });
+
+  it('sends an attached picture with the question as a file, and shows it as a thumbnail in the ask', async () => {
+    const urls: string[] = [];
+    URL.createObjectURL = vi.fn(() => {
+      urls.push(`blob:picture-${urls.length}`);
+      return urls[urls.length - 1];
+    });
+    URL.revokeObjectURL = vi.fn();
+    const client = fakeClient();
+    open({ ...client.deps, shrink: async (blob: Blob) => ({ bytes: new Uint8Array(await blob.arrayBuffer()), mime: blob.type }) } as never);
+    const s = await box();
+    const picker = document.querySelector('input[type="file"]:not([capture])') as HTMLInputElement;
+    fireEvent.change(picker, { target: { files: [photo('page.jpg')] } });
+    fireEvent.change(await s.findByLabelText('Your question'), { target: { value: 'What is on this page?' } });
+    fireEvent.click(s.getByRole('button', { name: 'Send' }));
+
+    await vi.waitFor(() => expect(client.sendGrist).toHaveBeenCalledTimes(1));
+    expect(client.sent[0].files).toHaveLength(1);
+    expect(client.sent[0].files?.[0]).toMatchObject({ mime: 'image/jpeg', name: 'picture-1.jpg' });
+    expect(client.sent[0].input).toMatchObject({ question: 'What is on this page?', pictures: 1 });
+    const thumb = await s.findByAltText('Picture 1 of 1 sent with the question');
+    expect(thumb.getAttribute('src')).toMatch(/^blob:picture-/);
+  });
+
+  it('refuses a file that is not a picture, with the reason', async () => {
+    open(fakeClient().deps);
+    const s = await box();
+    const picker = document.querySelector('input[type="file"]:not([capture])') as HTMLInputElement;
+    fireEvent.change(picker, { target: { files: [new File(['x'], 'notes.txt', { type: 'text/plain' })] } });
+    expect(await s.findByText('Only pictures can be sent with a question.')).toBeTruthy();
   });
 });

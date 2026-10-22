@@ -11,6 +11,8 @@ import type { SessionWithTurns } from './parent-sessions';
 export const PARENT_ASK_SESSIONS = 20;
 /** The longest question sent; a longer one is refused with the reason, never cut (sendParentAsk). */
 export const PARENT_ASK_MAX_QUESTION = 1000;
+/** The most pictures one question carries; grinds/parent-ask.json allows the same. */
+export const PARENT_ASK_MAX_PICTURES = 3;
 /** The longest summary of one session; a longer one is cut. */
 const MAX_SUMMARY = 1500;
 
@@ -54,18 +56,18 @@ function summaryOf({ session, turns }: SessionWithTurns): string {
 }
 
 /** The question, trimmed and whole, and the latest sessions (those with at least one turn) as text, newest first. */
-export function buildParentAskRequest(question: string, rows: SessionWithTurns[]): ParentAskRequest {
+export function buildParentAskRequest(question: string, rows: SessionWithTurns[], pictures = 0): ParentAskRequest {
   const sessions = rows
     .filter((row) => row.turns.length > 0)
     .sort((a, b) => b.session.startedAt.getTime() - a.session.startedAt.getTime())
     .slice(0, PARENT_ASK_SESSIONS)
     .map(summaryOf);
-  return { question: question.trim(), sessions };
+  return { question: question.trim(), sessions, pictures };
 }
 
 /** The same, from the profile's sessions as Dexie holds them. */
-export async function buildParentAskRequestFor(profileId: string, question: string): Promise<ParentAskRequest> {
+export async function buildParentAskRequestFor(profileId: string, question: string, pictures = 0): Promise<ParentAskRequest> {
   const sessions = (await tutorRepo.listSessions(profileId)).slice(0, PARENT_ASK_SESSIONS * 2);
   const rows = await Promise.all(sessions.map(async (session) => ({ session, turns: await tutorRepo.listTurns(session.id) })));
-  return buildParentAskRequest(question, rows);
+  return buildParentAskRequest(question, rows, pictures);
 }

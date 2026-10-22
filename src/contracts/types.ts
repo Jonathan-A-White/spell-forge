@@ -671,6 +671,8 @@ export type ParentAskStatus = 'sending' | 'waiting' | 'answered' | 'refused' | '
 export interface ParentAskRequest {
   question: string;
   sessions: string[];
+  /** How many pictures travel with the question as files (0 to 3); the app always sends it. */
+  pictures?: number;
 }
 
 /** AI -> App: grinds/parent-ask.answer.schema.json. */
@@ -694,6 +696,8 @@ export interface ParentAsk {
   seq?: number;
   mill?: string;
   request: ParentAskRequest;
+  /** The pictures sent with the question, as ids of TutorBlobs, in the order they were sent. */
+  pictures?: string[];
   answer?: ParentAskAnswer;
   /** Why an ask was refused or failed. */
   failureReason?: string;

@@ -10,12 +10,12 @@ import type { ComposerLabels, ComposerMessage } from 'voice-kit/composer';
 import 'voice-kit/composer/styles.css';
 import '../composer/composer-theme.css';
 import type { ParentAsk } from '../../contracts/types';
-import { parentAskRepo } from '../../data/repositories';
+import { parentAskRepo, tutorRepo } from '../../data/repositories';
 import { ParentAskInFlight } from '../../grist';
-import { PARENT_ASK_MAX_QUESTION } from './parent-ask-request';
+import { PARENT_ASK_MAX_PICTURES, PARENT_ASK_MAX_QUESTION } from './parent-ask-request';
 import { PARENT_ASK_HISTORY, failHalfSentAsks, sendParentAsk } from './parent-ask-flow';
 import type { ParentAskDeps } from './parent-ask-flow';
-import { SPELLFORGE_COMPOSER_SETTINGS } from '../composer/composer-settings';
+import { ASK_THE_TUTOR_COMPOSER_SETTINGS } from '../composer/composer-settings';
 import { Waiting } from './pictures';
 import { TutorUserError, deviceKey } from './tutor-flow';
 
@@ -34,6 +34,44 @@ const LABELS: Partial<ComposerLabels> = {
   placeholder: 'For example: Which words does he get wrong most?',
   message: 'Your question',
 };
+
+/** Only pictures go with a question; anything else the picker or a paste brings is refused with this. */
+const refuseFile = (file: { type: string }) =>
+  file.type.startsWith('image/') ? undefined : 'Only pictures can be sent with a question.';
+
+/** The pictures a question went with, as small thumbnails; the shared viewer (mw-t49ebj.5) will open them. */
+function AskPictures({ ids }: { ids: string[] }) {
+  const [urls, setUrls] = useState<string[]>([]);
+  const key = ids.join(',');
+  useEffect(() => {
+    let cancelled = false;
+    const made: string[] = [];
+    void (async () => {
+      for (const id of key.split(',')) {
+        const blob = await tutorRepo.getBlob(id);
+        if (cancelled) return;
+        if (blob && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+          made.push(URL.createObjectURL(new Blob([blob.bytes], { type: blob.mime })));
+        }
+      }
+      if (!cancelled) setUrls(made);
+    })();
+    return () => {
+      cancelled = true;
+      for (const url of made) URL.revokeObjectURL?.(url);
+    };
+  }, [key]);
+  if (urls.length === 0) return null;
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="Pictures sent with the question">
+      {urls.map((url, i) => (
+        <li key={url}>
+          <img src={url} alt={`Picture ${i + 1} of ${urls.length} sent with the question`} className="h-20 w-20 rounded-lg object-cover border border-sf-border" />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
   const [asks, setAsks] = useState<ParentAsk[] | null>(null);
@@ -81,10 +119,11 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
   }, [out]);
 
   // The Composer clears its box when this returns, and keeps the words and shows the message when it throws.
-  const submit = async ({ text }: ComposerMessage) => {
+  const submit = async ({ text, files }: ComposerMessage) => {
     if (!text || out) return false;
+    const pictures = files.filter((file) => file.type.startsWith('image/')).map((file) => new Blob([new Uint8Array(file.bytes)], { type: file.type }));
     try {
-      await sendParentAsk({ profileId, question: text }, depsRef.current);
+      await sendParentAsk({ profileId, question: text, pictures }, depsRef.current);
     } catch (error) {
       throw error instanceof TutorUserError ? error : new Error('The question could not be sent. You can try again.');
     }
@@ -94,12 +133,13 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
     <section aria-labelledby="ask-the-tutor-title" className="rounded-xl bg-sf-surface border border-sf-border p-4 space-y-3">
       <h2 id="ask-the-tutor-title" className="text-sf-heading font-bold text-lg">Ask the tutor</h2>
       <p className="text-sf-muted text-sm">
-        Ask about how your child is getting on. The tutor answers from the last 20 sessions. Hold the microphone and say it, or type it.
+        Ask about how your child is getting on. The tutor answers from the last 20 sessions. Hold the microphone and say it, or type it. You can add up to {PARENT_ASK_MAX_PICTURES} pictures with the camera or the paper clip.
       </p>
       <Composer
         key={again.n}
         className="sf-composer"
-        settings={SPELLFORGE_COMPOSER_SETTINGS}
+        settings={ASK_THE_TUTOR_COMPOSER_SETTINGS}
+        refuseFile={refuseFile}
         labels={LABELS}
         appName="SpellForge"
         initialText={again.text}
@@ -113,6 +153,7 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
           {shown.map((ask) => (
             <li key={ask.id} className="rounded-xl border border-sf-border bg-sf-bg p-3 space-y-2">
               <p className="text-sf-heading font-bold">{ask.question}</p>
+              {ask.pictures && ask.pictures.length > 0 && <AskPictures ids={ask.pictures} />}
               {OUT.has(ask.status) && <Waiting label="Waiting for the answer" seconds={Math.max(0, Math.floor((nowMs - ask.askedAt.getTime()) / 1000))} />}
               {ask.status === 'answered' && ask.answer && (
                 <>

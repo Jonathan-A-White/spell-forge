@@ -59,7 +59,7 @@ describe('grinds/parent-ask.json', () => {
     expect(Object.keys(grind).sort()).toEqual(Object.keys(wordList).sort());
   });
 
-  it('has the values the story names, and takes no attachments', () => {
+  it('has the values the story names, and takes up to 3 pictures (mw-vmx5cb.1)', () => {
     expect(grind.grind).toBe(1);
     expect(grind.app).toBe(wordList.app);
     expect(grind.kind).toBe('parent-ask');
@@ -68,7 +68,7 @@ describe('grinds/parent-ask.json', () => {
     expect(grind.effort).toBe('high');
     expect(grind.instructions).toBe('grinds/parent-ask.instructions.md');
     expect(grind.answerSchema).toBe('grinds/parent-ask.answer.schema.json');
-    expect((grind.attachments as { max: number }).max).toBe(0);
+    expect((grind.attachments as { max: number }).max).toBe(3);
   });
 
   it('names instructions and an answer schema that exist', () => {
