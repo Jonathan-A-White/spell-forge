@@ -34,8 +34,11 @@ const NOTHING_TO_ASK = 'Type your question first.';
 const TOO_MANY_PICTURES = `A question takes at most ${PARENT_ASK_MAX_PICTURES} pictures. Take some away and send it again.`;
 const BAD_PICTURE = 'This picture could not be used. Try another one.';
 
-/** The file extension a picture's mime gives: image/jpeg -> jpg. */
-const extensionOf = (mime: string) => (mime === 'image/jpeg' ? 'jpg' : mime.split('/')[1] || 'jpg');
+/** The file extension a picture's mime gives: the subtype, with jpeg -> jpg. */
+const extensionOf = (mime: string) => {
+  const subtype = mime.split('/')[1] || 'jpg';
+  return subtype === 'jpeg' ? 'jpg' : subtype;
+};
 
 /**
  * Sends the question with the child's latest sessions as text, and up to PARENT_ASK_MAX_PICTURES pictures as the
