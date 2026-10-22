@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.163",
+    "date": "2026-10-22",
+    "story": "mw-79en7t.1",
+    "kind": "new",
+    "text": "With the Tutor preview on, you can share a picture from your phone's share sheet straight into SpellForge's Tutor."
+  },
+  {
     "version": "0.1.162",
     "date": "2026-09-28",
     "story": "pr-259",

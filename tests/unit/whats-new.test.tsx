@@ -47,7 +47,9 @@ describe('public/changelog.json', () => {
     await waitFor(() => expect(result.current).not.toBeNull());
     expect((fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe('/spell-forge/changelog.json');
     const groups = versionsSince(result.current ?? [], '0.1.160');
-    expect(groups.map((g) => g.version)).toEqual(['0.1.162', '0.1.161']);
+    // Releases are added at the top as the app ships, so the two this was written for are the oldest groups.
+    expect(groups.map((g) => g.version).slice(-2)).toEqual(['0.1.162', '0.1.161']);
+    expect(groups.map((g) => g.version)).not.toContain('0.1.160');
     expect(versionsSince(result.current ?? [], APP_VERSION)).toEqual([]);
   });
 
