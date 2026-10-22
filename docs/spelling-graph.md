@@ -11,7 +11,12 @@ need, no need of a higher level. It is data and pure code under `src/learn/spell
   node) and `spellingNode(...)`, the one way a node file builds a node.
 - `nodes-phonics.ts`: the phonics nodes for `preK`, `K` and `1-2`: letter sounds, short vowels, doubled letters, digraphs,
   blends, long vowels. Words and patterns come from the early entries of `src/core/phonics/patterns.ts` (`patternIds` names them).
-- `graph.ts`: assembles the node files into `SPELLING_NODES`, checks every node with `nodeProblems`, and validates the whole with
+- `nodes-patterns.ts`: the pattern nodes for `1-2` and `3-5`: short vowels in context (`ck`, `ng`, `tch`, `dge`), the rest of silent e,
+  vowel teams, r-controlled vowels, silent letters, doubled letters and the doubling and dropping rules, plurals, suffixes, prefixes,
+  the blends the phonics file leaves out and the irregular spellings. Every entry of `patterns.ts` is named by the `patternIds` of
+  one node (a test lists any that is not), and each node rests on the phonics nodes it builds on. The doubling, prefix and suffix
+  nodes follow `syllabifier.ts` (a doubled consonant sits at a syllable split; a prefix or suffix is a syllable of its own).
+- `graph.ts`: assembles the node files into `SPELLING_NODES` (youngest band first), checks every node with `nodeProblems`, and validates the whole with
   learn-kit's `validate` into `spellingGraph`. A node that breaks a rule stops the module from loading, so a test fails by name.
 - `index.ts`: the barrel; import from `src/learn/spelling`.
 
@@ -24,8 +29,8 @@ a later band.
 | --- | --- | --- |
 | `preK` | 0 | letter sounds (this story) |
 | `K` | 1 | short vowels, doubled letters at the end (this story) |
-| `1-2` | 2 | digraphs, blends, long vowels (this story) |
-| `3-5` | 3 | later node files |
+| `1-2` | 2 | digraphs, blends, long vowels, and the common patterns: vowel teams, r-controlled vowels, plurals, `-ing` and `-ed` |
+| `3-5` | 3 | rarer patterns, the doubling and dropping rules, suffixes and prefixes (`nodes-patterns.ts`) |
 | `6-8` | 4 | later node files |
 | `9-12` | 5 | later node files |
 
