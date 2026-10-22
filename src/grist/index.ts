@@ -21,5 +21,5 @@ export { READING_AUDIO_BYTES_PER_SECOND, readingDeadlineMs, uploadTimeoutMs } fr
 export { PARENT_ASK_GRIND, isParentAskAnswer } from './parent-ask';
 export { PARENT_ASK_DEADLINE_MS, ParentAskInFlight } from './parent-ask-in-flight';
 export type { ParentAskInFlightDeps } from './parent-ask-in-flight';
-export { GRIST_MAX_PHOTO_BYTES, GRIST_MIMES, browserPhotoEncoder, shrinkPhoto } from './shrink-photo';
+export { GRIST_MAX_PHOTO_BYTES, browserPhotoEncoder, shrinkPhoto } from './shrink-photo';
 export type { PhotoEncoder } from './shrink-photo';

@@ -7,7 +7,6 @@ import type { GristPhoto } from './factory';
 
 /** What the mill's grinds take of a photo (grinds/word-list.json, grinds/tutor-turn.json); bsv-kit's own cap is looser. */
 export const GRIST_MAX_PHOTO_BYTES = 4_194_304;
-export const GRIST_MIMES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** Re-encodes `blob` as JPEG bytes, trying to land at or under `maxBytes`. */
 export type PhotoEncoder = (blob: Blob, maxBytes: number) => Promise<Uint8Array>;
@@ -110,7 +109,7 @@ export const browserPhotoEncoder: PhotoEncoder = async (blob, maxBytes) => {
  * JPEG under that. Throws a GristInputError if the encoder cannot get it under.
  */
 export async function shrinkPhoto(blob: Blob, encode: PhotoEncoder = browserPhotoEncoder): Promise<GristPhoto> {
-  if (GRIST_MIMES.includes(blob.type) && blob.size <= GRIST_MAX_PHOTO_BYTES) {
+  if (grist.PHOTO_MIMES.includes(blob.type) && blob.size <= GRIST_MAX_PHOTO_BYTES) {
     return { bytes: await toBytes(blob), mime: blob.type };
   }
   const bytes = await encode(blob, GRIST_MAX_PHOTO_BYTES);
