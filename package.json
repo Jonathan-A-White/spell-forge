@@ -42,7 +42,7 @@
   "dependencies": {
     "@bsv/sdk": "^2.2.0",
     "@fontsource/patrick-hand": "^5.2.8",
-    "bsv-kit": "github:Jonathan-A-White/bsv-kit#3016cfb2da4f3026f9af3a31f1dccf97dd03eca6",
+    "bsv-kit": "github:Jonathan-A-White/bsv-kit#918c441ce443dff052470de5671c2b1c430f8ebd",
     "dexie": "^4.3.0",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
@@ -85,7 +85,7 @@
     "vitest": "^4.0.18"
   },
   "allowScripts": {
-    "github:Jonathan-A-White/bsv-kit#3016cfb2da4f3026f9af3a31f1dccf97dd03eca6": true,
+    "github:Jonathan-A-White/bsv-kit#918c441ce443dff052470de5671c2b1c430f8ebd": true,
     "github:Jonathan-A-White/pwa-kit#0b7d6d4603acaf7b954a8dc364f37b92dfe79fb7": true,
     "github:Jonathan-A-White/voice-kit#38f203176a4db55a36ff48912dd14afbe74393cc": true
   }
