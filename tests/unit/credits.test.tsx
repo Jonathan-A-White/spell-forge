@@ -170,7 +170,6 @@ describe('Settings', () => {
         settings={DEFAULT_SETTINGS}
         onContrastModeChange={vi.fn()}
         onPresetApply={vi.fn()}
-        onOpenBsvDebug={vi.fn()}
         onOpenAbout={onOpenAbout}
         onBack={vi.fn()}
       />,

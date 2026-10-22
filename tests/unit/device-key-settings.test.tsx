@@ -5,27 +5,17 @@ import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { chainConfig, generateTestnetKey } from '../../src/bsv';
 import { SettingsPanel } from '../../src/features/settings/settings-panel';
-import { BsvDebugScreen } from '../../src/features/bsv-debug/bsv-debug-screen';
 import { createDeviceKey } from '../../src/features/device-key';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
 import type { BsvWalletKey } from '../../src/contracts/types';
-import type { ChainProvider } from '../../src/bsv';
 
 const baseProps = {
   profile: { name: 'Rowan', themeId: 'dragon-forge' },
   settings: DEFAULT_SETTINGS,
   onContrastModeChange: vi.fn(),
   onPresetApply: vi.fn(),
-  onOpenBsvDebug: vi.fn(),
   onBack: vi.fn(),
 };
-
-const provider = {
-  getUtxos: async () => [],
-  getTransactionHex: async () => '',
-  broadcast: async () => '',
-  getTransactionHistory: async () => [],
-} as unknown as ChainProvider;
 
 async function seedWallet(): Promise<{ wallet: BsvWalletKey; publicKeyHex: string }> {
   const generated = generateTestnetKey();
@@ -83,7 +73,6 @@ describe("Settings: This device's key (debug mode off)", () => {
     const qr = await screen.findByRole('img', { name: "QR code of this device's public key" });
     expect(qr.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
     expect(screen.queryByRole('button', { name: "Create this device's key" })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'BSV Debug' })).not.toBeInTheDocument();
   });
 
   it('Copy writes exactly the hex and says Copied', async () => {
@@ -131,23 +120,5 @@ describe("Settings: This device's key (debug mode off)", () => {
     await screen.findByTestId('bsv-device-public-key');
     const [row] = await db.bsvWallet.toArray();
     expect(second.container.innerHTML).not.toContain(row.material);
-  });
-});
-
-describe('BSV Debug and Settings show the same key', () => {
-  it('BSV Debug renders the same hex Settings does', async () => {
-    const { publicKeyHex } = await seedWallet();
-    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
-    expect((await screen.findByTestId('bsv-device-public-key')).textContent).toBe(publicKeyHex);
-  });
-
-  it("BSV Debug's Generate key saves one wallet row and shows its key", async () => {
-    render(<BsvDebugScreen onBack={vi.fn()} chainProvider={provider} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate key' }));
-
-    const shown = await screen.findByTestId('bsv-device-public-key');
-    const rows = await db.bsvWallet.toArray();
-    expect(rows).toHaveLength(1);
-    expect(shown.textContent).toBe(PrivateKey.fromWif(rows[0].material).toPublicKey().toString());
   });
 });

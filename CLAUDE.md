@@ -49,7 +49,7 @@ npm run test:watch   # watch mode
 npm run check:claude-md  # this file's size and index
 ```
 
-Subsystem tests (run the relevant one after a change): `test:phonics` (src/core/phonics), `test:spaced-rep`, `test:data`, `test:audio`, `test:ocr`, `test:ocr-integration` (real Tesseract.js), `test:themes`, `test:a11y`, `test:adaptive`, `test:contracts`, `test:bsv` (src/bsv, src/features/bsv-debug, bsv-wallet-repo).
+Subsystem tests (run the relevant one after a change): `test:phonics` (src/core/phonics), `test:spaced-rep`, `test:data`, `test:audio`, `test:ocr`, `test:ocr-integration` (real Tesseract.js), `test:themes`, `test:a11y`, `test:adaptive`, `test:contracts`, `test:bsv` (src/bsv, bsv-wallet-repo).
 
 ## Tests
 
@@ -58,7 +58,7 @@ Subsystem tests (run the relevant one after a change): `test:phonics` (src/core/
 - **Phone width.** jsdom has no layout: a layout claim is a Playwright spec in `tests/e2e/` at 390x844 ending in `shot(page, name)` (`tests/e2e/phone-width.spec.ts` is the model; project `phone`, its own port per worktree, service workers blocked). Details and traps: `docs/testing.md`.
 - **Timing tests** (a real clock is the point) are listed in `docs/testing.md`, carry a `covers:` line, and leave every gate under `MW_TIMING=skip`; the nightly run keeps them.
 - Waits come from `pwa-kit/test-preset` (`ASYNC_WAIT_MS` in `tests/setup.ts`, timeouts in the configs): never pass a shorter one. Speech and the microphone are voice-kit's honest fakes (`voice-kit/testing/speech`), never a hand fake.
-- Playwright is pinned to 1.63.0 to match the Chromium build on the Laptop. Tests against the testnet (`two-install-validation.spec.ts`) skip without `SF_E2E_FUNDED_WIF` and `SF_E2E_ANCHOR_ADDRESS`.
+- Playwright is pinned to 1.63.0 to match the Chromium build on the Laptop.
 
 ## Architecture
 
@@ -66,7 +66,7 @@ Subsystem tests (run the relevant one after a change): `test:phonics` (src/core/
 - React 18 + TypeScript 5.9 + Vite 7 (`vite-plugin-pwa`, injectManifest: the worker is `src/sw.ts`)
 - Tailwind CSS 4 (via `@tailwindcss/vite` plugin)
 - Dexie.js 4 for IndexedDB (offline-first data layer)
-- Screens are a hand-made `switch (view)` in `src/App.tsx` (`type AppView`); `react-router-dom` is installed and unused
+- Screens are a hand-made `switch (view)` in `src/App.tsx` (`type AppView`, whose ids and routes are `src/shell/worlds.ts`); `react-router-dom` is installed and unused
 - Vitest 4 + React Testing Library + fake-indexeddb for testing; Playwright for e2e
 
 ### Source Layout
@@ -86,7 +86,8 @@ src/
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks
-├── bsv/                # licence token and chain code (the debug screen's alone)
+├── shell/              # worlds.ts: the four worlds, the route of every screen, openView(id)
+├── bsv/                # licence token and chain code
 └── features/           # UI: practice, dashboard, profiles, onboarding, word-lists, tutor, settings, about, update, ...
 ```
 

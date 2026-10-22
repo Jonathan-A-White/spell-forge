@@ -9,7 +9,7 @@ How the rig's tests are shaped (the vault's pwa-best-practices topics 20, 21 and
 | `npm test` | vitest: `tests/unit/**`, `tests/features/**` (the BSV rules) and `features/steps/**` (the Gherkin features of the app). jsdom, `fake-indexeddb`, `TZ=UTC`. |
 | `npm run test:bdd` | the Gherkin features alone (`features/steps`) |
 | `npx playwright test --project=phone` (`npm run test:phone`) | the phone-width specs (`tests/e2e/phone-width.spec.ts`) at 390x844 against the BUILT app: it runs `npm run build`, then `vite preview` on a port of its own, and blocks service workers |
-| `npx playwright test --project=chromium` | the older specs in `tests/e2e/`. Each starts its own build and preview on port 4173 (`SF_E2E_PORT`), so run them one at a time (`--workers=1`). `two-install-validation.spec.ts` skips unless `SF_E2E_FUNDED_WIF` and `SF_E2E_ANCHOR_ADDRESS` are set |
+| `npx playwright test --project=chromium` | the older specs in `tests/e2e/`. Each starts its own build and preview on port 4173 (`SF_E2E_PORT`), so run them one at a time (`--workers=1`). The testnet spec went with the BSV Debug screen |
 | `npm run test:nightly` | everything: `TZ=UTC vitest run`, then every Playwright spec (`PW_PHONE=1` starts the phone project's preview server), timing tests included |
 
 The phone project's port is derived from the worktree's path (4400 to 5399, `tests/support/preview-port.ts`), so landings on one host run side by side; `PREVIEW_PORT=<n>` overrides it and `PW_REUSE=1` reuses a preview you already started. A spec that asserts a phone's bounds sets its own viewport (`test.use({ viewport })`) and ends with `shot(page, name)` (`tests/e2e/shot.ts`, written to `shots/`, ignored by git).

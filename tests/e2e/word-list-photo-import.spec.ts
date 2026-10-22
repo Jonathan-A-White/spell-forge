@@ -7,10 +7,10 @@
 // The Postern backend (https://postern.allmymind.org) is answered by page.route: a challenge, /api/me
 // with a mill key, blobs, a delivered grist, and messages pages that never carry the answer, so the
 // import stays 'reading' for the whole run. The device has a wallet key, put in the bsvWallet table
-// the way the BSV Debug screen's Generate does (a testnet WIF), so the photo goes to the factory
+// the way the Settings screen's "Create this device's key" does (a testnet WIF), so the photo goes to the factory
 // instead of being read on the device at once. Screenshots land in test-results/.
 //
-// Same setup as bsv-debug-gated-read.spec.ts: builds dist/ itself (npx vite build), serves it with
+// Builds dist/ itself (npx vite build), serves it with
 // `vite preview` on port 4173. Not part of `npm test`; run by hand or from a story with:
 //
 //   npx vite build && npx playwright test tests/e2e/word-list-photo-import.spec.ts --workers=1
@@ -63,7 +63,7 @@ async function completeOnboarding(page: Page, name: string): Promise<void> {
   await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
 }
 
-/** A device wallet key, in the row shape the BSV Debug screen's Generate saves. */
+/** A device wallet key, in the row shape Settings' "Create this device's key" saves. */
 async function giveDeviceKey(page: Page): Promise<void> {
   const key = PrivateKey.fromRandom();
   const row = {

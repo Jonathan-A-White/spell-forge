@@ -17,7 +17,6 @@ const baseProps = {
   settings: DEFAULT_SETTINGS,
   onContrastModeChange: vi.fn(),
   onPresetApply: vi.fn(),
-  onOpenBsvDebug: vi.fn(),
   onBack: vi.fn(),
 };
 
