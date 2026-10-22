@@ -35,6 +35,12 @@ export function useBackButton<V extends string>(
     }
 
     if (!historySeeded.current) {
+      // A cold open already rebuilt the history under this view (src/shell/last-route.ts): its guard is there.
+      const current = window.history.state as { sfView?: string; i?: number } | null;
+      if (current?.sfView === view && typeof current.i === 'number') {
+        historySeeded.current = true;
+        return;
+      }
       // First real (non-transient) view — seed history with a guard entry
       // underneath so that pressing back on the home screen triggers
       // popstate instead of navigating away from the app.

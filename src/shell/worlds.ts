@@ -1,7 +1,7 @@
 // src/shell/worlds.ts: the four worlds and the route of every kept screen.
 // One table: App.tsx's view switch, its back button and the tutor's "go" answer all read it,
 // so a screen has one id, one world and one route, and a new screen is added here on purpose.
-// The screens themselves have not moved yet (story 14 builds the worlds shell).
+// The screens are drawn by src/shell/WorldSwitch.tsx, a world at a time.
 
 export type WorldId = 'front-door' | 'spelling' | 'maths' | 'grown-ups';
 
@@ -56,6 +56,19 @@ export function viewRoute(id: ViewId): string {
 
 export function viewWorld(id: ViewId): WorldId {
   return byId.get(id)!.world;
+}
+
+/** The screen at a route, or undefined for a route that no longer exists. */
+export function viewAtRoute(route: string): ViewEntry | undefined {
+  return byRoute.get(route);
+}
+
+/** The world a route is in, even a world with no screen yet (Maths); undefined when no world has the route. */
+export function worldAtRoute(route: string): WorldId | undefined {
+  const entry = byRoute.get(route);
+  if (entry) return entry.world;
+  const first = route.split('/')[1];
+  return WORLDS.find((w) => w.id === first)?.id;
 }
 
 /**
