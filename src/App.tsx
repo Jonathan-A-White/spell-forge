@@ -50,6 +50,7 @@ import { TroubleWords } from './features/word-lists/trouble-words';
 import type { QrWordListPayload } from './features/word-lists/qr-codec';
 import { FeedbackForm } from './features/feedback/feedback-form';
 import { FeedbackSyncBanner } from './features/feedback/feedback-sync-banner';
+import { UpdateBanner } from './features/update';
 import { SettingsPanel } from './features/settings/settings-panel';
 import { AboutScreen } from './features/about';
 import { BsvDebugScreen } from './features/bsv-debug';
@@ -1313,6 +1314,7 @@ function App() {
 
   return (
     <>
+      <UpdateBanner view={view} />
       {renderView()}
       {showSyncBanner && <FeedbackSyncBanner />}
       <TtsDebugOverlay enabled={ttsDebugEnabled} />
