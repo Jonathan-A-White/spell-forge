@@ -27,6 +27,7 @@
   },
   "include": ["src", "tests"],
   "exclude": [
+    "src/sw.ts",
     "tests/e2e",
     "src/bsv/contracts",
     "tests/unit/bsv-contracts-license.test.ts",
