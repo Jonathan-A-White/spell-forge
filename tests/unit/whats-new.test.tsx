@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testin
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { parseChangelog, useChangelog, versionsSince, type StorageLike } from 'pwa-kit/whats-new';
+import { compareVersions, parseChangelog, useChangelog, versionsSince, type StorageLike } from 'pwa-kit/whats-new';
 import { APP_VERSION } from '../../src/version';
 import { AboutScreen } from '../../src/features/about';
 import {
@@ -34,9 +34,11 @@ function memoryStorage(initial: Record<string, string> = {}): StorageLike & { da
 afterEach(cleanup);
 
 describe('public/changelog.json', () => {
-  it('lists the current version and the one before it', () => {
+  // mw raises the version once per batch and writes a line only from a closing comment, so a release with no
+  // What's new line has no entry: the file may lag APP_VERSION but never run ahead of it.
+  it('lists at least two versions, none newer than the current one', () => {
     const versions = new Set(ENTRIES.map((e) => e.version));
-    expect(versions.has(APP_VERSION)).toBe(true);
+    for (const version of versions) expect(compareVersions(version, APP_VERSION)).toBeLessThanOrEqual(0);
     expect(versions.size).toBeGreaterThanOrEqual(2);
     expect(ENTRIES.length).toBe((JSON.parse(changelogJson) as unknown[]).length); // every entry is well formed
   });
@@ -90,6 +92,45 @@ describe('the sheet once after an update', () => {
     render(<WhatsNewOnUpdate view="about" storage={fresh} fetchFn={changelogFetch()} />);
     await waitFor(() => expect(fresh.data[WHATS_NEW_STORAGE_KEY]).toBe(APP_VERSION));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('a release with no What\'s new line', () => {
+  // The changelog as it is when the current version has no entry: everything but APP_VERSION and anything newer.
+  const scratch = parseChangelog(JSON.parse(changelogJson)).filter((e) => compareVersions(e.version, APP_VERSION) < 0);
+  const scratchJson = JSON.stringify(scratch);
+  const newest = scratch.map((e) => e.version).sort(compareVersions).reverse()[0];
+  const scratchFetch = () => vi.fn(async () => new Response(scratchJson, { status: 200 })) as unknown as typeof fetch;
+
+  it('has an older newest entry, and versionsSince finds nothing new for the current version', async () => {
+    expect(compareVersions(newest, APP_VERSION)).toBeLessThan(0);
+    const fetchFn = scratchFetch();
+    const { result } = renderHook(() => useChangelog('/spell-forge/', fetchFn));
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(versionsSince(result.current ?? [], newest)).toEqual([]);
+    expect(versionsSince(result.current ?? [], APP_VERSION)).toEqual([]);
+  });
+
+  it('shows no sheet on the update, remembers the version, and does not reopen', async () => {
+    const storage = memoryStorage({ [WHATS_NEW_STORAGE_KEY]: newest });
+    const fetchFn = scratchFetch();
+    const first = render(<WhatsNewOnUpdate view="settings" storage={storage} fetchFn={fetchFn} />);
+    await waitFor(() => expect(storage.data[WHATS_NEW_STORAGE_KEY]).toBe(APP_VERSION));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    first.unmount();
+
+    render(<WhatsNewOnUpdate view="settings" storage={storage} fetchFn={fetchFn} />);
+    await waitFor(() => expect((fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(storage.data[WHATS_NEW_STORAGE_KEY]).toBe(APP_VERSION);
+  });
+
+  it('keeps About working: the What\'s new button still lists the older versions', async () => {
+    const fetchFn = scratchFetch();
+    render(<AboutScreen onBack={() => {}} fetchFn={fetchFn} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: "What's new" })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: "What's new" }));
+    expect(screen.getByRole('dialog').textContent).toContain(newest);
   });
 });
 
