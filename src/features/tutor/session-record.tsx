@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { liveQuery } from 'dexie';
+import { PictureViewer, usePictureViewer, type ShownPicture } from 'pwa-kit/picture-viewer';
 import type { ReadingResult, TutorBlob, TutorSession, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
 import { parentNotesOf, parentRecommendationsOf, secondsBetween, sessionAsJson } from './session-json';
@@ -78,7 +79,14 @@ function play(url: string) {
   }
 }
 
-function TurnCard({ turn, blobs, urls }: { turn: TutorTurn; blobs: Record<string, TutorBlob>; urls: Record<string, string> }) {
+interface TurnCardProps {
+  turn: TutorTurn;
+  blobs: Record<string, TutorBlob>;
+  urls: Record<string, string>;
+  openPicture: (picture: ShownPicture) => void;
+}
+
+function TurnCard({ turn, blobs, urls, openPicture }: TurnCardProps) {
   const took = secondsBetween(turn);
   const results = turn.readingResult ? [turn.readingResult.azure, turn.readingResult.local].filter((r): r is ReadingResult => r !== undefined) : [];
   return (
@@ -115,7 +123,17 @@ function TurnCard({ turn, blobs, urls }: { turn: TutorTurn; blobs: Record<string
                 Play
               </button>
             ) : (
-              url && <img src={url} alt={name} className="max-h-32 rounded-lg border border-sf-border" />
+              url && (
+                <button
+                  type="button"
+                  aria-label={`Open ${name}`}
+                  onClick={() => openPicture({ src: url, name, type: blob.mime })}
+                  className="inline-flex items-center justify-center rounded-lg"
+                  style={{ minHeight: 'var(--sf-tap-target-size)', minWidth: 'var(--sf-tap-target-size)' }}
+                >
+                  <img src={url} alt={name} className="max-h-32 rounded-lg border border-sf-border" />
+                </button>
+              )
             )}
           </div>
         );
@@ -161,6 +179,7 @@ export function SessionRecord({ sessionId }: SessionRecordProps) {
   }, [sessionId]);
 
   const urls = useBlobUrls(loaded?.blobs ?? {});
+  const viewer = usePictureViewer();
 
   if (!loaded) return <p className="text-sf-muted">Loading...</p>;
   const { session, turns, blobs } = loaded;
@@ -196,7 +215,7 @@ export function SessionRecord({ sessionId }: SessionRecordProps) {
       </div>
 
       {turns.map((turn) => (
-        <TurnCard key={turn.id} turn={turn} blobs={blobs} urls={urls} />
+        <TurnCard key={turn.id} turn={turn} blobs={blobs} urls={urls} openPicture={viewer.open} />
       ))}
 
       {(notes.length > 0 || recommendations.length > 0) && (
@@ -218,6 +237,8 @@ export function SessionRecord({ sessionId }: SessionRecordProps) {
           )}
         </section>
       )}
+
+      {viewer.shown && <PictureViewer {...viewer.shown} onClose={viewer.close} />}
     </div>
   );
 }

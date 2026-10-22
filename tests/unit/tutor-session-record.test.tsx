@@ -103,6 +103,47 @@ describe('the session record', () => {
     expect(img).toHaveAttribute('src', 'blob:fake');
   });
 
+  describe('a tap on a photo', () => {
+    // jsdom has no object URLs and no showModal; the viewer falls back to an open dialog
+    beforeEach(() => {
+      Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() });
+      window.history.replaceState(null, '');
+    });
+
+    const photoButton = async () => (await turnCard(5)).findByRole('button', { name: 'Open work-1.jpg' });
+
+    it('is a button named for the photo, at least the tap-target size', async () => {
+      await open();
+      const button = await photoButton();
+      expect(button).toHaveStyle({ minHeight: 'var(--sf-tap-target-size)', minWidth: 'var(--sf-tap-target-size)' });
+      expect(within(button).getByRole('img', { name: 'work-1.jpg' })).toHaveAttribute('src', 'blob:fake');
+    });
+
+    it("opens pwa-kit's viewer with that photo, and Close puts the record back as it was", async () => {
+      await open();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      fireEvent.click(await photoButton());
+      const viewer = await screen.findByRole('dialog', { name: 'Picture' });
+      expect(within(viewer).getByTestId('viewer-image')).toHaveAttribute('src', 'blob:fake');
+      expect(within(viewer).getByText('work-1.jpg')).toBeInTheDocument();
+      fireEvent.click(within(viewer).getByRole('button', { name: 'Close picture' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      await waitFor(() => expect(window.history.state?.pictureViewer).toBeUndefined());
+      expect(await screen.findAllByRole('article')).toHaveLength(5);
+      expect(await photoButton()).toBeInTheDocument();
+    });
+
+    it('closes on Back, which leaves the record as it was', async () => {
+      await open();
+      fireEvent.click(await photoButton());
+      await screen.findByRole('dialog', { name: 'Picture' });
+      expect(window.history.state?.pictureViewer).toBeDefined();
+      window.history.back();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(screen.getAllByRole('article')).toHaveLength(5);
+    });
+  });
+
   it('shows the answer as the grist returned it', async () => {
     await open();
     const math = await turnCard(5);
