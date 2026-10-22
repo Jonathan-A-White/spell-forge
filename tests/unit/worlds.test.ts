@@ -82,9 +82,13 @@ describe('worlds.ts: the four worlds and the route of every kept view', () => {
     }
   });
 
-  it('App.tsx declares no list of views of its own: its AppView is the one in worlds.ts', () => {
+  it('App.tsx declares no list of views of its own: the shell reads the one in worlds.ts', () => {
     const app = readFileSync(join(__dirname, '../../src/App.tsx'), 'utf8');
     expect(app).not.toMatch(/type AppView\s*=\s*'/);
-    expect(app).toContain("from './shell/worlds'");
+    const state = readFileSync(join(__dirname, '../../src/shell/app-state.ts'), 'utf8');
+    expect(state).not.toMatch(/type AppView\s*=\s*'/);
+    expect(state).toContain("from './worlds'");
+    const switchSource = readFileSync(join(__dirname, '../../src/shell/WorldSwitch.tsx'), 'utf8');
+    expect(switchSource).toContain("from './worlds'");
   });
 });

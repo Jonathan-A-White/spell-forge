@@ -27,7 +27,7 @@ The owner's standing rules for his phone apps are the vault's `seats/builder/pwa
 ## Rules for 2.0
 
 - **A kit before building.** A proven open-source component or one of the kits (pwa-kit, voice-kit, bsv-kit) first; build only a real gap, then as a library others can use. Integrate with what the phone does well (share sheet, `sms:`, `mailto:`).
-- **One module per concern.** A folder under `src/` with a barrel `index.ts` and one reason to change; two stories must be able to change two modules at once. `src/App.tsx` (a hand-made view switch of 1100+ lines) is the hot file: edit it minimally; story 14 replaces it with the worlds shell. `docs/module-map.md` says where each concern lives.
+- **One module per concern.** A folder under `src/` with a barrel `index.ts` and one reason to change; two stories must be able to change two modules at once. `src/App.tsx` is only the providers and the Shell (under 150 lines, a test holds it): the state is `src/shell/app-state.ts` and its `use-*` hooks, a screen is drawn by its world in `src/shell/screens/`. `docs/module-map.md` says where each concern lives.
 - **Never the answer.** The tutor works with the child and diagnoses the gap; it never gives the homework answer (VISION.md). A change to a grind that could hand an answer over stops and says so; story 25 adds the red-team test.
 - **Licence-free use.** The AI is the licensed part; everything else works with no licence (his word: "incredibly useful even if you don't have a license"). Today SpellForge has no client-side licence check, only the mill's `LICENCE_REQUIRED` refusal; a story that gates the tutor's entry points decides the gate first (story 19).
 - **The share practice.** SpellForge is in the phone's share sheet and shares itself out (topic 34). The manifest's `share_target` (POST multipart, `image/*` files, title, text, url) names a path relative to the scope, held equal to the worker's `SHARE_TARGET_PATH` by a test; `src/sw.ts` parks the share and redirects; `src/share/share-target.ts` hands it over once; the picture waits for a tap, never sent by itself. Out: `src/share/share-out.ts` (`navigator.share`, else copy the link; closing the sheet is not a failure). The parked share lives in its own small Dexie database (`src/share/share-store.ts`) so the worker imports no app code.
@@ -66,7 +66,7 @@ Subsystem tests (run the relevant one after a change): `test:phonics` (src/core/
 - React 18 + TypeScript 5.9 + Vite 7 (`vite-plugin-pwa`, injectManifest: the worker is `src/sw.ts`)
 - Tailwind CSS 4 (via `@tailwindcss/vite` plugin)
 - Dexie.js 4 for IndexedDB (offline-first data layer)
-- Screens are a hand-made `switch (view)` in `src/App.tsx` (`type AppView`, whose ids and routes are `src/shell/worlds.ts`); `react-router-dom` is installed and unused
+- Screens: `src/shell/WorldSwitch.tsx` picks the world of a route and `src/shell/screens/<world>.tsx` the screen (ids and routes are `src/shell/worlds.ts`); a reopen lands where he left off (`src/shell/last-route.ts`); `react-router-dom` is installed and unused
 - Vitest 4 + React Testing Library + fake-indexeddb for testing; Playwright for e2e
 
 ### Source Layout
@@ -86,7 +86,7 @@ src/
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks
-├── shell/              # worlds.ts: the four worlds, the route of every screen, openView(id)
+├── shell/              # worlds.ts (the four worlds, every screen's route, openView), Shell, WorldSwitch, screens/, app-state, last-route
 ├── bsv/                # licence token and chain code
 └── features/           # UI: practice, dashboard, profiles, onboarding, word-lists, tutor, settings, about, update, ...
 ```
