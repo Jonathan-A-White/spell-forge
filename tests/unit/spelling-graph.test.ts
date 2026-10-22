@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { GraphError, order, validate } from 'learn-kit/graph';
-import { findPatternById } from '../../src/core/phonics';
+import { findPatternById, patterns } from '../../src/core/phonics';
 import {
   GRADE_BANDS,
   MIN_ITEMS,
@@ -11,6 +11,7 @@ import {
   bandLevel,
   itemShowsPattern,
   nodeProblems,
+  PATTERN_NODES,
   nodesInBand,
   spellingGraph,
   type SpellingNode,
@@ -123,6 +124,33 @@ describe('the spelling graph', () => {
   });
 });
 
+describe('the pattern nodes (1-2 and 3-5)', () => {
+  it('maps every pattern of src/core/phonics/patterns.ts to a node, naming any that is not', () => {
+    const mapped = new Set(SPELLING_NODES.flatMap((n) => n.patternIds));
+    const unmapped = patterns.filter((p) => !mapped.has(p.id)).map((p) => `${p.id} (${p.category})`);
+    expect(unmapped, `patterns with no node: ${unmapped.join(', ')}`).toEqual([]);
+  });
+
+  it('has pattern nodes in bands 1-2 and 3-5, all resting on something and in the graph', () => {
+    const ids = new Set(SPELLING_NODES.map((n) => n.id));
+    for (const band of ['1-2', '3-5'] as const) {
+      expect(PATTERN_NODES.filter((n) => n.band === band).length, band).toBeGreaterThan(0);
+    }
+    for (const node of PATTERN_NODES) {
+      expect(['1-2', '3-5'], node.id).toContain(node.band);
+      expect(node.needs.length, `${node.id} rests on something`).toBeGreaterThan(0);
+      expect(ids.has(node.id), `${node.id} is in the graph`).toBe(true);
+    }
+  });
+
+  it('covers vowel teams, r-controlled vowels, silent letters, doubling and dropping rules, plurals, prefixes and suffixes', () => {
+    const ids = PATTERN_NODES.map((n) => n.id).join(' ');
+    for (const part of ['vowel-team', 'r-controlled', 'silent', 'doubling', 'drop', 'plural', 'prefix', 'suffix']) {
+      expect(ids, part).toContain(part);
+    }
+  });
+});
+
 describe('docs/spelling-graph.md', () => {
   it('names every grade band', () => {
     for (const band of GRADE_BANDS) expect(doc, band).toContain(`\`${band}\``);
@@ -138,7 +166,7 @@ describe('docs/spelling-graph.md', () => {
   });
 
   it('names every node file and the learn-kit graph it is validated over', () => {
-    for (const file of ['graph.ts', 'items.ts', 'nodes-phonics.ts']) expect(doc, file).toContain(file);
+    for (const file of ['graph.ts', 'items.ts', 'nodes-phonics.ts', 'nodes-patterns.ts']) expect(doc, file).toContain(file);
     expect(doc).toContain('learn-kit/graph');
   });
 });
