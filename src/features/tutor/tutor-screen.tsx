@@ -14,6 +14,8 @@ import { MathLoop } from './math-loop';
 import { ParentGate } from './parent-gate';
 import { ReadingLoop } from './reading-loop';
 import { SayAgainButton, Waiting } from './pictures';
+import { SharedPicture } from './shared-picture';
+import type { SharedItem } from '../../share/share-target';
 import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
 import type { ProblemSource, TutorDeps } from './tutor-flow';
 import { TutorSpeechBar } from './speech-bar';
@@ -26,6 +28,10 @@ export interface TutorScreenProps {
   /** Called with the profile as it now stands after the Grown-ups screen changes its settings. */
   onProfileChange?: (profile: Profile) => void;
   deps?: TutorDeps;
+  /** What another app shared with SpellForge (src/share): its first picture waits to be sent, its words wait in the typed box. */
+  shared?: SharedItem | null;
+  /** Called once the shared picture has been sent or dropped. */
+  onSharedUsed?: () => void;
 }
 
 interface Snapshot {
@@ -57,11 +63,11 @@ function currentProblemTurn(turns: TutorTurn[]): TutorTurn | undefined {
   return turns.filter((t) => t.mode === 'problem-in').sort((a, b) => b.index - a.index)[0];
 }
 
-export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: TutorScreenProps) {
+export function TutorScreen({ profile, onBack, onProfileChange, deps = {}, shared, onSharedUsed }: TutorScreenProps) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [strictness, setStrictness] = useState<TutorStrictness>(profile.settings.tutorStrictness ?? 'meaning-gated');
-  const [text, setText] = useState('');
-  const [typing, setTyping] = useState(false);
+  const [text, setText] = useState(shared?.text ?? '');
+  const [typing, setTyping] = useState(!!shared?.text);
   const [sending, setSending] = useState(false);
   const [problemError, setProblemError] = useState('');
   const [retyping, setRetyping] = useState<string | null>(null);
@@ -297,8 +303,20 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {} }: Tut
     );
   } else {
     const canSend = !sending && text.trim().length > 0;
+    const sharedPicture = shared?.pictures[0];
     body = (
       <div className="space-y-5">
+        {sharedPicture && (
+          <SharedPicture
+            file={sharedPicture}
+            onSend={(file) => {
+              void send({ kind: 'photo', file });
+              onSharedUsed?.();
+            }}
+            onDrop={() => onSharedUsed?.()}
+            className={{ primary: PRIMARY, secondary: SECONDARY, tap: TAP }}
+          />
+        )}
         <input
           ref={photoInput}
           type="file"

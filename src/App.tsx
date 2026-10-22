@@ -1,6 +1,6 @@
 // src/App.tsx — Root component: routing, state management, event bus wiring
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { APP_VERSION } from './version';
 import { useBackButton } from './hooks/use-back-button';
 import type {
@@ -55,11 +55,13 @@ import { SettingsPanel } from './features/settings/settings-panel';
 import { AboutScreen, WhatsNewOnUpdate } from './features/about';
 import { BsvDebugScreen } from './features/bsv-debug';
 import { TutorScreen } from './features/tutor';
+import { shareIdFromHash, takeShare } from './share/share-target';
+import type { SharedItem } from './share/share-target';
 import { SharePanel } from './features/settings/share-panel';
 import { AudioManagerImpl, setSpeechVoice, useAudioBusy, warmUp as warmUpTts } from './audio';
 import { TtsDebugOverlay } from './audio/tts-debug-overlay';
 import { useTtsDebug } from './audio/tts-debug-state';
-import { useDebugMode, DebugOverlay } from './debug';
+import { useDebugMode, isTutorFlagOn, DebugOverlay } from './debug';
 import { createOcrManager } from './ocr';
 import { addWordsToList } from './features/word-lists/add-words';
 import { forgetSettledPhotoImports, startPhotoImportQueue, useOnPhotoImportSettled } from './features/word-lists/photo-import';
@@ -101,6 +103,9 @@ const ocrManager = createOcrManager();
 
 function App() {
   const [view, setView] = useState<AppView>('loading');
+  // Something another app shared with SpellForge (src/share), taken at boot: the tutor opens with it waiting instead of Home.
+  const [shared, setShared] = useState<SharedItem | null>(null);
+  const shareLanding = useRef(false);
 
   // Photo imports waiting on the factory: one pass now, on 'online', and every 20 s while any waits.
   useEffect(() => startPhotoImportQueue({ ocrManager }), []);
@@ -196,7 +201,8 @@ function App() {
       // If loading profile data fails, proceed with empty data
     }
 
-    setView('home');
+    setView(shareLanding.current ? 'tutor' : 'home');
+    shareLanding.current = false;
     eventBus.emit({ type: 'profile:switched', payload: { profileId: profile.id } });
   }, []);
 
@@ -220,6 +226,19 @@ function App() {
       }
 
       if (cancelled) return;
+
+      // A share from another app opened the page (src/share/share-target.ts): take it once. While the Tutor is off it is dropped, and Home opens as usual.
+      const shareId = shareIdFromHash(window.location.hash);
+      if (shareId) {
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+        const item = await takeShare(shareId);
+        // Kept even when this run was cancelled (React's strict remount): the address is already cleared, so the next run would not find the share.
+        if (item && isTutorFlagOn()) {
+          shareLanding.current = true;
+          setShared(item);
+        }
+        if (cancelled) return;
+      }
 
       // Step 2: DB is open — load profiles
       try {
@@ -1135,7 +1154,7 @@ function App() {
 
     case 'tutor':
       if (!activeProfile) return null;
-      return <TutorScreen profile={activeProfile} onBack={goBack} onProfileChange={setActiveProfile} />;
+      return <TutorScreen profile={activeProfile} onBack={goBack} onProfileChange={setActiveProfile} shared={shared} onSharedUsed={() => setShared(null)} />;
 
     case 'share':
       return <SharePanel onBack={goBack} />;
