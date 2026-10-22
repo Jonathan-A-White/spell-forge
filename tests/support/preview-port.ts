@@ -1,0 +1,22 @@
+// Which port the phone project's preview server binds. Landings on one host run side by side, each in its own worktree,
+// so the port is derived from the worktree's absolute path: the same in Playwright's main process and its workers (both
+// read the config), different between worktrees. 4400..5399 stays clear of 4173, the fixed port the older specs in
+// tests/e2e start their own preview on, one spec at a time.
+type Env = Record<string, string | undefined>;
+
+const PORT_BASE = 4400;
+const PORT_SPAN = 1000;
+
+export function previewPort(cwd: string, env: Env = process.env): number {
+  const fromEnv = Number(env.PREVIEW_PORT);
+  if (Number.isInteger(fromEnv) && fromEnv > 0 && fromEnv < 65536) return fromEnv;
+  let hash = 0;
+  for (const ch of cwd) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return PORT_BASE + (hash % PORT_SPAN);
+}
+
+// A person working by hand with a preview already running can set PW_REUSE=1;
+// a gate run never reuses another run's server.
+export function reuseExistingPreview(env: Env = process.env): boolean {
+  return env.PW_REUSE === '1';
+}

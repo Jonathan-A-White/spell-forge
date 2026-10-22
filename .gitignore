@@ -39,3 +39,6 @@ src/bsv/contracts/.check-*
 
 # npm run bsv:pack output (scripts/bsv-pack.sh)
 packages/bsv/*.tgz
+
+# Phone-width screenshots (tests/e2e/shot.ts)
+/shots/
