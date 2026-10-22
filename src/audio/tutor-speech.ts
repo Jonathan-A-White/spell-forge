@@ -5,49 +5,32 @@
 // sentence: Android Chrome does not honour speechSynthesis.pause()).  A hidden page pauses it; leaving the Tutor screen
 // pauses it (usePauseTutorOnLeave).  The bar is the package's SpeakingBar (src/features/tutor/speech-bar.tsx).
 //
-// The one thing the package does not do is speak in a voice the child picked in Tutor settings: it chooses a voice for
-// each sentence's language.  The picked voice is put on the tutor's utterances as they are queued (see applyPickedVoice).
+// The voice is the one picked in Tutor settings (see voice.ts), handed to the package as speak's `voice`; the same
+// setting drives the spelling words (speech.ts).
 
 import { isSpeaking, isSupported, getSpeech, pause, speak, subscribe, whenDone } from 'voice-kit/speech';
+import { findVoice, speechVoiceURI, voicesListed } from './voice.ts';
 
 /** Who the tutor's speech is, in the package: what a screen and the bar ask about. */
 export const TUTOR_SPEECH_KEY = 'tutor';
 
-let pickedVoiceURI: string | null = null;
-const patched = new WeakSet<object>();
-
 /**
- * Puts the voice picked in Tutor settings on each of the tutor's utterances as the package queues them (also when it
- * queues them again after a Resume or Restart).  Only while the tutor is the one playing: a word spoken by spelling
- * practice, or a tutor speech that is paused, keeps its own voice.  A picked voice the phone no longer lists is ignored,
- * and the package's choice for the language stands.
- */
-function applyPickedVoice(synth: SpeechSynthesis): void {
-  if (patched.has(synth)) return;
-  patched.add(synth);
-  const queue = synth.speak.bind(synth);
-  synth.speak = (utterance) => {
-    const speech = getSpeech();
-    if (pickedVoiceURI && speech.key === TUTOR_SPEECH_KEY && speech.status === 'playing') {
-      const voice = synth.getVoices().find((v) => v.voiceURI === pickedVoiceURI);
-      if (voice) {
-        utterance.voice = voice;
-        utterance.lang = voice.lang;
-      }
-    }
-    queue(utterance);
-  };
-}
-
-/**
- * Say a text in the tutor's voice: the picked one (by voiceURI), else the phone's voice for its language.  It replaces
- * any tutor speech playing or paused; the first is not spoken to its end.  Resolves when the speech is over for good
- * (played out, stopped or replaced), not when it is only paused.
+ * Say a text in the tutor's voice: `voiceURI` (a sample of a voice in Tutor settings; null for the phone's default), else
+ * the voice set with setSpeechVoice, else the phone's voice for its language.  A voice the phone no longer lists is
+ * ignored, and the package's choice for the language stands.  It replaces any tutor speech playing or paused; the first
+ * is not spoken to its end.  Resolves when the speech is over for good (played out, stopped or replaced), not when it is
+ * only paused.
  */
 export function sayAsTutor(text: string, voiceURI?: string | null): Promise<void> {
   if (!isSupported()) return Promise.resolve();
-  pickedVoiceURI = voiceURI ?? null;
-  applyPickedVoice(window.speechSynthesis);
+  const uri = voiceURI === undefined ? speechVoiceURI() : voiceURI;
+  // A voice is found only among the voices the phone has listed; a pick made before that waits for them (up to a second).
+  if (uri && window.speechSynthesis.getVoices().length === 0) return voicesListed().then(() => speakAsTutor(text, uri));
+  return speakAsTutor(text, uri);
+}
+
+function speakAsTutor(text: string, voiceURI: string | null): Promise<void> {
+  const voice = findVoice(voiceURI);
   return new Promise<void>((resolve) => {
     const unsubscribe = subscribe(() => {
       if (!isSpeaking(TUTOR_SPEECH_KEY)) done();
@@ -56,7 +39,7 @@ export function sayAsTutor(text: string, voiceURI?: string | null): Promise<void
       unsubscribe();
       resolve();
     }
-    speak(text, { key: TUTOR_SPEECH_KEY });
+    speak(text, { key: TUTOR_SPEECH_KEY, voice, lang: voice?.lang });
     if (isSpeaking(TUTOR_SPEECH_KEY)) whenDone(TUTOR_SPEECH_KEY, done);
     else done();
   });

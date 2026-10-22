@@ -137,16 +137,24 @@ describe('new tutor speech replaces old', () => {
   });
 });
 
-describe('single words keep their own engine', () => {
-  it('a word spoken while the tutor plays pauses the tutor, leaving Resume', async () => {
+describe('single words share the kit\'s engine', () => {
+  it('a word spoken while the tutor plays replaces the tutor, which cannot be resumed any more', async () => {
     render(<TutorSpeechBar />);
-    act(() => void sayAsTutor(THREE));
+    const tutor = sayAsTutor(THREE);
     await move(10);
     let wordDone = false;
     act(() => void sayWord('cat').then(() => (wordDone = true)));
     await move(500);
+    await tutor; // replaced for good
     expect(wordDone).toBe(true);
-    expect(screen.getByRole('button', { name: 'Resume' })).toBeInTheDocument();
+    expect(bar()).toBeNull();
     expect(speech.spoken()).toEqual(['First sentence.', 'cat']);
+  });
+
+  it('a word shows no tutor bar while it speaks', async () => {
+    render(<TutorSpeechBar />);
+    act(() => void sayWord('cat'));
+    await move(10);
+    expect(bar()).toBeNull();
   });
 });

@@ -1,9 +1,10 @@
 // mw-kuy7rx.8 / mw-m7v5kc.4: the tutor speaks (through voice-kit/speech) with the phone's default voice for its language
-// unless a voice is picked; spelling practice keeps its en-US/GB/AU ranking. The synthesiser is voice-kit/testing's honest fake.
+// unless a voice is picked; spelling practice's words rank voices en-US, en-GB, en-AU (rankVoice, given to the kit's
+// preferredVoice) and take the same picked voice (mw-vmx5cb.5). The synthesiser is voice-kit/testing's honest fake.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resume, stop } from 'voice-kit/speech';
 import { installSpeech, type FakeVoice, type SpeechFake } from 'voice-kit/testing/speech';
-import { listTutorVoices, pauseTutorSpeech, sayAsTutor, sayWord } from '../../src/audio';
+import { listTutorVoices, pauseTutorSpeech, rankVoice, sayAsTutor, sayWord, setSpeechVoice } from '../../src/audio';
 
 const v = (name: string, lang: string, isDefault = false): FakeVoice => ({
   name,
@@ -95,31 +96,117 @@ describe('sayAsTutor', () => {
 });
 
 describe('listTutorVoices', () => {
-  it("lists the device's voices for the phone's language", async () => {
-    await install([v('US', 'en-US', true), v('FR', 'fr-FR'), v('GB', 'en-GB')], 'en-GB');
-    expect(listTutorVoices().map((x) => x.name)).toEqual(['US', 'GB']);
+  it("lists the device's voices for the phone's language, best first by the words' rank", async () => {
+    await install([v('AU', 'en-AU'), v('FR', 'fr-FR'), v('GB', 'en-GB', true), v('US', 'en-US')], 'en-GB');
+    expect(listTutorVoices().map((x) => x.name)).toEqual(['US', 'GB', 'AU']);
+  });
+
+  it('keeps the phone\'s order among voices the rank does not tell apart', async () => {
+    await install([v('NZ', 'en-NZ'), v('IN', 'en-IN'), v('US', 'en-US')], 'en-GB');
+    expect(listTutorVoices().map((x) => x.name)).toEqual(['US', 'NZ', 'IN']);
+  });
+
+  it('is empty when the phone cannot speak', () => {
+    expect(listTutorVoices('en-US')).toEqual([]);
   });
 });
 
-describe('spelling practice keeps its voice ranking', () => {
-  it('sayWord still prefers en-US, then en-GB, then en-AU, and forces the lang', async () => {
+describe('rankVoice', () => {
+  const score = (name: string, lang: string, want: string) => rankVoice(v(name, lang), want);
+
+  it('prefers en-US, then en-GB, then en-AU, then any other English', () => {
+    const scores = ['en-US', 'en-GB', 'en-AU', 'en-NZ'].map((lang) => score(lang, lang, 'en-US'));
+    expect(scores[0]).toBeGreaterThan(scores[1]);
+    expect(scores[1]).toBeGreaterThan(scores[2]);
+    expect(scores[2]).toBeGreaterThan(scores[3]);
+  });
+
+  it('prefers es-ES, then es-MX for Spanish', () => {
+    expect(score('ES', 'es-ES', 'es-ES')).toBeGreaterThan(score('MX', 'es-MX', 'es-ES'));
+    expect(score('MX', 'es-MX', 'es-ES')).toBeGreaterThan(score('CO', 'es-CO', 'es-ES'));
+  });
+
+  it('reads a voice tag with an underscore or capitals as the phone writes it', () => {
+    expect(score('GB', 'en_GB', 'en-US')).toBe(score('GB', 'en-gb', 'en-US'));
+  });
+
+  it('scores every voice alike for a language it has no preferences for', () => {
+    expect(score('A', 'el-GR', 'el-GR')).toBe(score('B', 'el-CY', 'el-GR'));
+  });
+});
+
+describe("spelling practice's words", () => {
+  it('sayWord prefers a same-language voice by rank when the phone has no exact tag: US, then GB, then AU', async () => {
     await install([v('AU', 'en-AU'), v('GB', 'en-GB'), v('US', 'en-US')], 'en-AU');
     void sayWord('cat');
     await vi.advanceTimersByTimeAsync(500);
     expect(given()).toEqual([{ voice: 'US', lang: 'en-US' }]);
   });
 
-  it('the first three strategies are still the ranked voices', async () => {
-    await install([v('AU', 'en-AU'), v('GB', 'en-GB'), v('US', 'en-US')], 'en-AU');
-    // an engine that fails every utterance: it is cancelled the moment it is queued, which the honest fake reports as an error
-    const queue = speech.synth.speak.bind(speech.synth);
-    vi.spyOn(speech.synth, 'speak').mockImplementation((utterance) => {
-      queue(utterance);
-      speech.synth.cancel();
-    });
-    const p = sayWord('cat');
-    await vi.advanceTimersByTimeAsync(10_000);
-    await p;
-    expect(given().slice(0, 3).map((g) => g.voice)).toEqual(['US', 'GB', 'AU']);
+  it('with only en-GB and en-AU voices, sayWord ranks en-GB first (the kit takes a rank over the first match)', async () => {
+    await install([v('AU', 'en-AU'), v('GB', 'en-GB')], 'en-AU');
+    void sayWord('cat');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()[0].voice).toBe('GB');
+  });
+});
+
+describe('one Tutor voice for the tutor and the words', () => {
+  afterEach(() => setSpeechVoice(null));
+
+  it('the voice set in Tutor settings reaches the tutor and a word alike', async () => {
+    await install([v('US', 'en-US', true), v('GB', 'en-GB'), v('AU', 'en-AU')], 'en-GB');
+    setSpeechVoice('uri:AU');
+    void sayAsTutor('Hello there');
+    await vi.advanceTimersByTimeAsync(500);
+    void sayWord('cat');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()).toEqual([
+      { voice: 'AU', lang: 'en-AU' },
+      { voice: 'AU', lang: 'en-AU' },
+    ]);
+  });
+
+  it('every word helper takes it', async () => {
+    await install([v('US', 'en-US', true), v('AU', 'en-AU')], 'en-US');
+    setSpeechVoice('uri:AU');
+    const { sayWordSlowly, spellWord, sayThenSpell } = await import('../../src/audio');
+    for (const say of [sayWordSlowly, spellWord, sayThenSpell]) {
+      void say('cat');
+      await vi.advanceTimersByTimeAsync(2000);
+    }
+    expect(given().map((g) => g.voice)).toEqual(['AU', 'AU', 'AU']);
+  });
+
+  it('with none picked, words and tutor both take the default rule', async () => {
+    await install([v('US', 'en-US', true), v('GB', 'en-GB')], 'en-GB');
+    void sayWord('cat');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()[0].voice).toBe('US');
+  });
+
+  it('a picked voice the phone no longer lists is ignored by the word', async () => {
+    await install([v('US', 'en-US', true), v('GB', 'en-GB')], 'en-GB');
+    setSpeechVoice('uri:Gone');
+    void sayWord('cat');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()[0].voice).toBe('US');
+  });
+
+  it('a picked voice of another language is not used for a word of this one', async () => {
+    await install([v('ES', 'es-ES'), v('US', 'en-US', true)], 'en-US');
+    setSpeechVoice('uri:ES');
+    void sayWord('cat');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given()).toEqual([{ voice: 'US', lang: 'en-US' }]);
+  });
+
+  it('Try (a sample in a given voice) does not change the voice the words use', async () => {
+    await install([v('US', 'en-US', true), v('AU', 'en-AU')], 'en-US');
+    void sayAsTutor('Hello', 'uri:AU');
+    await vi.advanceTimersByTimeAsync(500);
+    void sayWord('cat');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(given().map((g) => g.voice)).toEqual(['AU', 'US']);
   });
 });

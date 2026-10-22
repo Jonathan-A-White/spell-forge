@@ -1,5 +1,6 @@
 // src/features/tutor/tutor-voice.ts — The tutor speaks in the voice picked for the child's profile (Tutor settings,
-// mw-kuy7rx.8); with none picked, the phone's default voice by Postern's rule (see sayAsTutor in src/audio/speech.ts).
+// mw-kuy7rx.8); with none picked, the phone's default voice by the kit's rule (see sayAsTutor in src/audio/tutor-speech.ts).
+// The spelling words take the same setting (setSpeechVoice, called from App).
 
 import { sayAsTutor } from '../../audio';
 import { profileRepo } from '../../data/repositories';
@@ -8,6 +9,6 @@ import { profileRepo } from '../../data/repositories';
 export function tutorSayFor(profileId: string): (text: string) => Promise<void> {
   return async (text) => {
     const profile = await profileRepo.getById(profileId).catch(() => null);
-    await sayAsTutor(text, profile?.settings.tutorVoice);
+    await sayAsTutor(text, profile?.settings.tutorVoice ?? null);
   };
 }

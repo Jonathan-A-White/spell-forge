@@ -1,8 +1,13 @@
-// Spelling practice's single words: sayWord, sayWordSlowly, spellWord, sayThenSpell, warmUp and the retry logic behind them.
-// The synthesiser is voice-kit/testing's honest fake; an engine that sticks or errors is made by wrapping its speak().
+// Spelling practice's single words: sayWord, sayWordSlowly, spellWord, sayThenSpell and warmUp, thin helpers over
+// voice-kit/speech's speak() (mw-vmx5cb.5). The synthesiser is voice-kit/testing's honest fake; an engine that sticks or
+// errors is made by wrapping its speak().
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { stop } from 'voice-kit/speech';
 import { installSpeech, type SpeechFake } from 'voice-kit/testing/speech';
 import { AudioManagerImpl } from '../../src/audio/manager.ts';
+import { sayThenSpell, sayWord, sayWordSlowly, spellWord, warmUp } from '../../src/audio/speech.ts';
 
 let speech: SpeechFake;
 
@@ -12,58 +17,77 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  stop();
   speech.uninstall();
 });
 
-async function getSpeech() {
-  vi.resetModules();
-  return await import('../../src/audio/speech.ts');
-}
-
 describe('sayWord', () => {
   it('should speak a word via SpeechSynthesis', async () => {
-    const { sayWord } = await getSpeech();
     await sayWord('hello');
 
     expect(speech.log).toHaveLength(1);
-    expect(speech.log[0]).toMatchObject({ text: 'hello', rate: 1, outcome: 'ended' });
+    expect(speech.log[0]).toMatchObject({ text: 'hello', rate: 1, lang: 'en-US', outcome: 'ended' });
   });
 
-  it('should NOT cancel before speak (Chrome Android synthesis-failed bug)', async () => {
-    const cancel = vi.spyOn(speech.synth, 'cancel');
-    const { sayWord } = await getSpeech();
-    await sayWord('hello');
-    expect(cancel).not.toHaveBeenCalled();
+  it('speaks a Spanish word in Spanish', async () => {
+    await sayWord('hola', 'es');
+    expect(speech.log[0]).toMatchObject({ text: 'hola', lang: 'es-ES' });
   });
 
-  it('should speak slowly at reduced rate', async () => {
-    const { sayWordSlowly } = await getSpeech();
+  it('resolves when the word is over, not before', async () => {
+    let done = false;
+    const p = sayWord('hello').then(() => (done = true));
+    expect(done).toBe(false);
+    await p;
+    expect(done).toBe(true);
+  });
+});
+
+describe('sayWordSlowly', () => {
+  it('should speak slowly at a rate below 1', async () => {
     await sayWordSlowly('world');
 
     expect(speech.log).toHaveLength(1);
-    expect(speech.log[0]).toMatchObject({ text: 'world', rate: 0.6 });
+    expect(speech.log[0].text).toBe('world');
+    expect(speech.log[0].rate).toBeLessThan(1);
+    expect(speech.log[0].rate).toBe(0.6);
   });
 });
 
 describe('spellWord', () => {
   it('should build a single utterance with comma-separated letters', async () => {
-    const { spellWord } = await getSpeech();
     await spellWord('cat');
 
     expect(speech.spoken()).toEqual(['c, a, t']);
+    expect(speech.log[0].rate).toBe(1);
   });
 });
 
 describe('sayThenSpell', () => {
   it('should build a single utterance with word then spelled letters', async () => {
-    const { sayThenSpell } = await getSpeech();
     await sayThenSpell('hi');
 
     expect(speech.spoken()).toEqual(['hi,,,, h, i']);
+    expect(speech.log[0].rate).toBe(1);
   });
 });
 
-describe('long utterances (the tutor read-aloud)', () => {
+describe('the engine is the kit\'s alone', () => {
+  const sources = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name);
+      return statSync(path).isDirectory() ? sources(path) : /\.(ts|tsx)$/.test(name) ? [path] : [];
+    });
+
+  it('has no synth.speak and no new SpeechSynthesisUtterance anywhere in src/', () => {
+    const offenders = sources(join(__dirname, '../../src')).filter((file) =>
+      /\.speak\s*(\(|=)|new\s+SpeechSynthesisUtterance|SpeechSynthesisUtterance\s*\(/.test(readFileSync(file, 'utf8')),
+    );
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('long and failing speech', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -72,9 +96,7 @@ describe('long utterances (the tutor read-aloud)', () => {
     vi.useRealTimers();
   });
 
-  it('speaks once and never cancels when an utterance has started and runs 25 s before onend', async () => {
-    const cancel = vi.spyOn(speech.synth, 'cancel');
-    const { sayWord } = await getSpeech();
+  it('speaks once and holds the word until its onend when an utterance runs 25 s', async () => {
     let resolved = false;
     const p = sayWord(Array(400).fill('word').join(' ')).then(() => {
       resolved = true;
@@ -83,65 +105,43 @@ describe('long utterances (the tutor read-aloud)', () => {
     await vi.advanceTimersByTimeAsync(24_000);
     expect(resolved).toBe(false);
     expect(speech.log).toHaveLength(1);
-    expect(cancel).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1_500);
     await p;
     expect(resolved).toBe(true);
     expect(speech.log).toHaveLength(1);
-    expect(cancel).not.toHaveBeenCalled();
   });
 
-  it('still fails a started utterance that errors, and retries', async () => {
+  it('resolves, without a second try, when the engine errors on the word', async () => {
     const queue = speech.synth.speak.bind(speech.synth);
-    let calls = 0;
     vi.spyOn(speech.synth, 'speak').mockImplementation((utterance) => {
       queue(utterance);
-      calls += 1;
-      if (calls === 1) setTimeout(() => speech.synth.cancel(), 100); // interrupted while speaking: onerror
+      setTimeout(() => speech.synth.cancel(), 100); // interrupted while speaking: onerror
     });
-    const cancel = vi.spyOn(speech.synth, 'cancel');
-
-    const { sayWord } = await getSpeech();
     const p = sayWord('hello');
     await vi.advanceTimersByTimeAsync(5_000);
     await p;
-    expect(speech.log).toHaveLength(2);
-    expect(speech.log.map((entry) => entry.outcome)).toEqual(['interrupted', 'ended']);
-    expect(cancel).toHaveBeenCalled();
+    expect(speech.log.map((entry) => entry.outcome)).toEqual(['interrupted']);
   });
 
-  it('still times out an utterance that never starts, and retries with the next voice', async () => {
-    const queue = speech.synth.speak.bind(speech.synth);
-    let calls = 0;
-    vi.spyOn(speech.synth, 'speak').mockImplementation((utterance) => {
-      calls += 1;
-      if (calls === 1) return; // engine stuck: no onstart, no onend
-      queue(utterance);
-    });
-    const cancel = vi.spyOn(speech.synth, 'cancel');
-
-    const { sayWord } = await getSpeech();
-    const p = sayWord('hello');
-
+  it('lets go of a word the engine never starts, so the audio manager is not busy for ever', async () => {
+    vi.spyOn(speech.synth, 'speak').mockImplementation(() => undefined); // engine stuck: no onstart, no onend
+    const manager = new AudioManagerImpl();
+    const ran = manager.runExclusive(() => manager.sayWord('hello'));
     await vi.advanceTimersByTimeAsync(9_000);
-    expect(calls).toBe(1);
-    expect(cancel).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(3_000);
-    await p;
-    expect(cancel).toHaveBeenCalled();
-    expect(calls).toBe(2);
-    expect(speech.spoken()).toEqual(['hello']);
+    expect(manager.isBusy()).toBe(true);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await ran;
+    expect(manager.isBusy()).toBe(false);
   });
 });
 
 describe('warmUp', () => {
   it('should speak a silent utterance to prime the TTS engine', async () => {
-    const { warmUp } = await getSpeech();
-    void warmUp();
-    // warmUp speaks one silent utterance (volume=0) to unlock audio.
-    expect(speech.log).toHaveLength(1);
+    const primed = warmUp();
+    await vi.waitFor(() => expect(speech.log).toHaveLength(1));
+    expect(speech.log[0].text.trim()).toBe('');
+    await primed;
   });
 });
 
