@@ -95,11 +95,64 @@ body {
   letter-spacing: var(--sf-letter-spacing, normal);
   line-height: var(--sf-line-height, 1.5);
   background-color: var(--sf-background-color, var(--sf-color-bg));
-  /* Safe areas for standalone/fullscreen mode on notched devices */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ─── The page never scrolls: one scroll box inside #root ─────────── */
+
+/* clip, not hidden: script, focus and the keyboard can still move a hidden box. The Shell (src/shell/Shell.tsx) draws
+   every screen in .sf-scroll-box; src/shell/focus.ts puts back what a keyboard or a focus moves anyway. */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100dvh;
+  overflow: clip;
+  overscroll-behavior: none;
+}
+
+/* The background is on #root so the safe-area bars below are not white behind a translucent status bar. */
+#root {
+  background-color: var(--sf-background-color, var(--sf-color-bg));
+}
+
+.sf-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: clip;
+  /* left and right only: the top and bottom insets are the bars' */
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+}
+
+/* The safe-area insets sit on the bars, once. The top needs no floor (a status bar that is not drawn under reports 0);
+   the bottom has one: Android Chrome does not always report its navigation bar in env(safe-area-inset-bottom), and a
+   three-button bar is 48 px tall, so a gesture bar's 24 px would cut the last row. */
+.sf-bar-top {
+  flex: none;
+  height: max(env(safe-area-inset-top), 0px);
+}
+
+.sf-bar-bottom {
+  flex: none;
+  height: max(env(safe-area-inset-bottom), 48px);
+}
+
+.sf-scroll-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A screen that asks for the screen's height asks for the scroll box's. */
+.sf-scroll-box .min-h-screen {
+  min-height: 100%;
+}
+
+/* A word held to be heard (src/shell/HearAnyWord.tsx). */
+::highlight(hear-word) {
+  background-color: var(--sf-color-surface-active);
+  color: var(--sf-color-text-heading);
 }
 
 /* ─── Success flash animation ─────────────────────────────────── */
