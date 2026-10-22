@@ -144,6 +144,24 @@ export const CREDITS: readonly Credit[] = [
     licence: { name: 'MIT', url: 'https://github.com/Jonathan-A-White/voice-kit/blob/main/LICENSE' },
     changes: 'Written by us; shared with our other apps.',
   },
+  {
+    kind: 'package',
+    name: 'pwa-kit',
+    url: 'https://github.com/Jonathan-A-White/pwa-kit',
+    packages: ['pwa-kit'],
+    use: 'Our own shared kit for installed web apps: it finds each new version of SpellForge and offers it in a quiet bar, and it holds the picture viewer and a few small helpers.',
+    licence: { name: 'MIT', url: 'https://github.com/Jonathan-A-White/pwa-kit/blob/main/LICENSE' },
+    changes: 'Written by us; shared with our other apps.',
+  },
+  {
+    kind: 'package',
+    name: 'Workbox',
+    url: 'https://developer.chrome.com/docs/workbox',
+    packages: ['workbox-precaching', 'workbox-routing'],
+    use: 'Keeps the app on the device so it opens with no connection.',
+    licence: { name: 'MIT', url: 'https://github.com/GoogleChrome/workbox/blob/v7/LICENSE' },
+    changes: 'None; used as published.',
+  },
   // Build tools whose output ships in the app
   {
     kind: 'tool',
@@ -159,6 +177,15 @@ export const CREDITS: readonly Credit[] = [
     url: 'https://vite.dev',
     use: 'Builds and bundles the app.',
     licence: { name: 'MIT', url: 'https://github.com/vitejs/vite/blob/main/LICENSE' },
+    changes: 'None; used as published.',
+  },
+  {
+    kind: 'tool',
+    name: 'vite-plugin-pwa',
+    url: 'https://vite-pwa-org.netlify.app',
+    packages: ['vite-plugin-pwa'],
+    use: 'Builds the service worker that keeps the app available offline.',
+    licence: { name: 'MIT', url: 'https://github.com/vite-pwa/vite-plugin-pwa/blob/main/LICENSE' },
     changes: 'None; used as published.',
   },
   // Fonts and icons
