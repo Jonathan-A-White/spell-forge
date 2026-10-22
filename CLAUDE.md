@@ -1,82 +1,106 @@
 # CLAUDE.md
 
-Development guide for AI assistants working on SpellForge.
+Development guide for AI assistants (Builders) working on SpellForge: an offline-first PWA that tutors a child (spelling first, then reading and maths), React 18 / TypeScript / Vite / Dexie. It is being rebuilt as 2.0 under the Land Rush (epic mw-79en7t); this file is the law for that work. Every push to `main` still deploys to production GitHub Pages (`.github/workflows/deploy.yml`) and real children use the app: never change an existing screen's behaviour unless the story says so, and keep new things behind their flag. Do not edit `.github/workflows/` unless a story says so (this host's token cannot push workflow changes). Never bump `package.json`'s version (the landing does).
 
 VISION.md is the Governor's vision for this app: a change that would cross one of its lines stops and says so.
 
-## Quick Reference
+## Gate command
 
 ```bash
-npm run dev          # start dev server
-npm run build        # typecheck + build
+npm ci --no-audit --no-fund && TZ=UTC npm test && npm run typecheck && npm run lint && npm run build
+```
+
+All must pass clean before a story is done. A fresh worktree has no `node_modules`: `npm ci` first (Node 20+; it takes minutes, run it with nohup). `node scripts/check-claude-md.mjs` holds this file under 16,000 bytes (it runs inside `npm test`).
+
+## Read first, by sheet topic
+
+The owner's standing rules for his phone apps are the vault's `seats/builder/pwa-best-practices/` (its README is the index) and `library-best-practices/`. Read the README, then only the topics your story touches. A screen or module that breaks a rule there is not done.
+
+- Any screen or layout: 05 safe areas, 06 viewport, 07 scroll/zoom/keyboard, 08 native-feel CSS and touch, 21 testing at phone width.
+- Worker, install, updates, share: 01 manifest, 09 service worker caching, 10 updates, 34 share in and out.
+- Speech and audio: 12; camera and photos: 13; timers and battery: 11; storage, sync, drafts: 15, 16.
+- Any test: 20 testing offline-first logic, 21 phone width, 35 the Land Rush and test practices.
+- Modules and libraries: 27 modular boundaries, library 01 when code becomes a library.
+- The tutor: 30 the tutor over grinds, 31 conversations, 32 searchable settings, 33 request to the maker.
+- Licence and chain: 24; version and credits: 25, 29; pitfalls: 26.
+
+## Rules for 2.0
+
+- **A kit before building.** A proven open-source component or one of the kits (pwa-kit, voice-kit, bsv-kit) first; build only a real gap, then as a library others can use. Integrate with what the phone does well (share sheet, `sms:`, `mailto:`).
+- **One module per concern.** A folder under `src/` with a barrel `index.ts` and one reason to change; two stories must be able to change two modules at once. `src/App.tsx` (a hand-made view switch of 1100+ lines) is the hot file: edit it minimally; story 14 replaces it with the worlds shell. `docs/module-map.md` says where each concern lives.
+- **Never the answer.** The tutor works with the child and diagnoses the gap; it never gives the homework answer (VISION.md). A change to a grind that could hand an answer over stops and says so; story 25 adds the red-team test.
+- **Licence-free use.** The AI is the licensed part; everything else works with no licence (his word: "incredibly useful even if you don't have a license"). Today SpellForge has no client-side licence check, only the mill's `LICENCE_REQUIRED` refusal; a story that gates the tutor's entry points decides the gate first (story 19).
+- **The share practice.** SpellForge is in the phone's share sheet and shares itself out (topic 34). The manifest's `share_target` (POST multipart, `image/*` files, title, text, url) names a path relative to the scope, held equal to the worker's `SHARE_TARGET_PATH` by a test; `src/sw.ts` parks the share and redirects; `src/share/share-target.ts` hands it over once; the picture waits for a tap, never sent by itself. Out: `src/share/share-out.ts` (`navigator.share`, else copy the link; closing the sheet is not a failure). The parked share lives in its own small Dexie database (`src/share/share-store.ts`) so the worker imports no app code.
+- **Stories name files.** Every story's `files` key lists the files it touches (the Land Rush overlap guard holds back a story that names a file a running story names). Split a file every story edits; append-mostly docs (`CLAUDE.md`, `docs/`) union-merge at landing. Commit small, plainly; no AI attribution lines.
+- **Lines from VISION.md.** Never end a session in frustration; the child reads little and is not expected to type; children's names never go on chain.
+
+## Quick reference
+
+```bash
+npm run dev          # dev server
+npm run build        # tsc -b + vite build -> dist/ (including dist/sw.js)
 npm run typecheck    # tsc strict checking
 npm run lint         # eslint
-npm test             # all tests
+npm test             # vitest run: unit tests and feature specs (features/steps)
+npm run test:bdd     # the Gherkin features alone
+npm run test:phone   # Playwright at 390x844 against the built app (builds it first)
+npm run test:nightly # everything: the whole vitest run, then every Playwright spec, timing tests included
 npm run test:watch   # watch mode
+npm run check:claude-md  # this file's size and index
 ```
 
-### Subsystem Tests
+Subsystem tests (run the relevant one after a change): `test:phonics` (src/core/phonics), `test:spaced-rep`, `test:data`, `test:audio`, `test:ocr`, `test:ocr-integration` (real Tesseract.js), `test:themes`, `test:a11y`, `test:adaptive`, `test:contracts`, `test:bsv` (src/bsv, src/features/bsv-debug, bsv-wallet-repo).
 
-```bash
-npm run test:phonics     # src/core/phonics/
-npm run test:spaced-rep  # src/core/spaced-rep/ + difficulty scoring
-npm run test:data        # src/data/
-npm run test:audio       # src/audio/
-npm run test:ocr         # src/ocr/ (unit tests)
-npm run test:ocr-integration  # src/ocr/ (real Tesseract.js + fixture image)
-npm run test:themes      # src/themes/
-npm run test:a11y        # src/accessibility/
-npm run test:adaptive    # src/core/adaptive/
-npm run test:contracts   # src/contracts/
-npm run test:bsv         # src/bsv/, src/features/bsv-debug/, bsv-wallet-repo
-```
+## Tests
 
-Always run the relevant subsystem test after making changes. Run `npm run typecheck` and `npm run lint` before committing.
+- **Test first.** Write the failing test or Gherkin scenario before the code. Every behaviour is a scenario in `features/*.feature` with steps in `features/steps/*.steps.ts(x)` (`@amiceli/vitest-cucumber`), run inside `npm test`. Put the acceptance id in the Scenario title. Each step is a test of its own: reset state in `BeforeEachScenario`, not `beforeEach`. `tests/setup.ts` imports `@testing-library/dom`, not `/react`, so a step file's `@testing-library/react/dont-cleanup-after-each` can switch the auto-unmount off. The older `tests/features/bsv/*.feature` are the BSV rules and stay.
+- Unit tests in `tests/unit/` (`*.test.ts(x)`), fixtures in `tests/fixtures/`, shared fakes in `tests/support/`. jsdom plus `fake-indexeddb` (global; `db.delete(); db.open()` in `beforeEach` isolates rows), `TZ=UTC`. Tests never touch the network: stub `fetch` or pass a fake provider.
+- **Phone width.** jsdom has no layout: a layout claim is a Playwright spec in `tests/e2e/` at 390x844 ending in `shot(page, name)` (`tests/e2e/phone-width.spec.ts` is the model; project `phone`, its own port per worktree, service workers blocked). Details and traps: `docs/testing.md`.
+- **Timing tests** (a real clock is the point) are listed in `docs/testing.md`, carry a `covers:` line, and leave every gate under `MW_TIMING=skip`; the nightly run keeps them.
+- Waits come from `pwa-kit/test-preset` (`ASYNC_WAIT_MS` in `tests/setup.ts`, timeouts in the configs): never pass a shorter one. Speech and the microphone are voice-kit's honest fakes (`voice-kit/testing/speech`), never a hand fake.
+- Playwright is pinned to 1.63.0 to match the Chromium build on the Laptop. Tests against the testnet (`two-install-validation.spec.ts`) skip without `SF_E2E_FUNDED_WIF` and `SF_E2E_ANCHOR_ADDRESS`.
 
 ## Architecture
 
 ### Tech Stack
-- React 18 + TypeScript 5.9 + Vite 7
+- React 18 + TypeScript 5.9 + Vite 7 (`vite-plugin-pwa`, injectManifest: the worker is `src/sw.ts`)
 - Tailwind CSS 4 (via `@tailwindcss/vite` plugin)
 - Dexie.js 4 for IndexedDB (offline-first data layer)
-- React Router DOM 7 for routing
-- Vitest 4 + React Testing Library + fake-indexeddb for testing
+- Screens are a hand-made `switch (view)` in `src/App.tsx` (`type AppView`); `react-router-dom` is installed and unused
+- Vitest 4 + React Testing Library + fake-indexeddb for testing; Playwright for e2e
 
 ### Source Layout
 
 ```
 src/
 ├── contracts/          # Central type definitions (types.ts) and event bus (events.ts)
-├── core/
-│   ├── phonics/        # Phoneme-grapheme engine, syllabifier, pattern DB, hints
-│   ├── spaced-rep/     # SM-2 scheduler, bucket transitions, difficulty scoring
-│   ├── word-selection/  # Session word mix algorithm
-│   └── adaptive/       # Engagement detection (fatigue, frustration, boredom)
+├── core/               # phonics/, spaced-rep/ (SM-2), word-selection/, adaptive/, learning/, memory-aids/
 ├── data/
-│   ├── db.ts           # Dexie database schema (v1)
+│   ├── db.ts           # Dexie schema (v15; each bump repeats the full stores map with a // vN: comment)
 │   ├── import-export.ts # JSON backup/restore with merge strategies
-│   └── repositories/   # Repository pattern: profile, word-list, word, stats, session, streak
-├── audio/              # Speech through voice-kit/speech (word helpers, the tutor's voice), recorder
+│   └── repositories/   # plain exported objects; UI imports the repository, never `db`
+├── audio/              # word helpers over voice-kit/speech, the tutor's voice, recorder
+├── grist/              # the factory door: sealed asks to the mill, limits by size
+├── share/              # Share > SpellForge in (share-target.ts, share-store.ts) and out (share-out.ts)
+├── sw.ts               # the service worker (precache, update, share target)
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks
-└── features/           # UI components: practice, dashboard, profiles, onboarding, word-lists, feedback, rewards
+├── bsv/                # licence token and chain code (the debug screen's alone)
+└── features/           # UI: practice, dashboard, profiles, onboarding, word-lists, tutor, settings, about, update, ...
 ```
+
+Dexie tables: profiles, wordLists, words, wordStats, sessionLogs, streaks, syncQueue, activityProgress, learningProgress, coinBalances, coinTransactions, themeProgress, completedCreatures, testResults, bsvWallet, bsvPendingSpends, bsvTokens, photoImports, tutorSessions, tutorTurns, tutorBlobs, parentAsks.
 
 ### Key Design Patterns
 
-- **Repository pattern** — all data access goes through `src/data/repositories/`. Never access Dexie tables directly from UI code.
-- **Event bus** — cross-module communication via `src/contracts/events.ts`. Events include `word:attempted`, `session:started`, `session:ended`, `reward:earned`, `streak:updated`, `profile:switched`, `settings:changed`.
-- **One speech engine** — all speech (the tutor's and the spelling words') goes through `voice-kit/speech`'s `speak()`; no `synth.speak` or `new SpeechSynthesisUtterance` in `src/` (a test greps for it). The Tutor voice setting (`setSpeechVoice`) drives both; `rankVoice` is the rank given to the kit.
-- **Central contracts** — all entity types defined in `src/contracts/types.ts`. Import types from `src/contracts/`, not from individual modules.
-
-### Database Schema (Dexie v1)
-
-Tables: `profiles`, `wordLists`, `words`, `wordStats`, `sessionLogs`, `streaks`, `syncQueue`
+- **Repository pattern**: all data access goes through `src/data/repositories/`. Never touch Dexie tables from UI code.
+- **Event bus**: cross-module communication via `src/contracts/events.ts` (`word:attempted`, `session:started`, `session:ended`, `reward:earned`, `streak:updated`, `profile:switched`, `settings:changed`, ...).
+- **One speech engine**: all speech goes through `voice-kit/speech`'s `speak()`; no `synth.speak` or `new SpeechSynthesisUtterance` in `src/` (a test greps for it). The Tutor voice setting drives both the tutor and the spelling words.
+- **Central contracts**: all entity types in `src/contracts/types.ts`; import from `src/contracts/`.
 
 ### Accessibility CSS Variables
 
-All accessibility settings map to CSS custom properties:
 `--sf-font-size`, `--sf-font-weight`, `--sf-font-family`, `--sf-letter-spacing`, `--sf-line-height`, `--sf-background-color`, `--sf-tap-target-size`, `--sf-reduced-motion`
 
 ## Grind examples
@@ -91,21 +115,25 @@ Every grind in `grinds/` keeps one or more example scenarios, `grinds/examples/<
 
 ## Code Conventions
 
-- TypeScript strict mode — no `any` types without justification
-- Functional React components with hooks
+- TypeScript strict mode, no `any` without justification; functional React components with hooks
 - Barrel exports via `index.ts` in each module directory
-- Test files live in `tests/unit/` with `.test.ts` suffix
-- Test fixtures in `tests/fixtures/`
+- Credits: a package added or removed, or a new file under `public/` (font or data), changes `src/features/about/credits.ts` and the README's Credits in the same commit (`tests/unit/credits.test.tsx`)
+- The update bar shows only on the grown-up views in `src/features/update/update-views.ts`; a new screen is added there on purpose
 
 ## CI/CD
 
-- **test.yml** uses `dorny/paths-filter` to run only affected subsystem tests. Changing `src/contracts/` triggers all dependent tests.
-- **deploy.yml** deploys to GitHub Pages on push to `main`: typecheck → test → build → deploy.
-- **ci-pass** gate job aggregates results for branch protection.
+- **test.yml** uses `dorny/paths-filter` to run only affected subsystem tests. **deploy.yml** deploys to GitHub Pages on push to `main`: typecheck, test, build, deploy. **ci-pass** aggregates for branch protection. Story 24 moves the app to its own domain and retires these.
 
-## Testing Notes
+## Read by need
 
-- Tests use `fake-indexeddb` for IndexedDB simulation (auto-polyfilled in `tests/setup.ts`)
-- Tests use `jsdom` environment
-- When adding tests, follow existing patterns in `tests/unit/`
-- Test fixtures in `tests/fixtures/` provide reusable profiles, word lists, and session histories
+One line per file under `docs/`: open the ones your story touches. `tests/unit/claude-md.test.ts` fails when a docs/ file is missing here.
+
+```
+docs/testing.md # the test seams: Playwright projects and ports, timing tests (the real-clock list), the nightly run, features/ and steps
+docs/lampas-sweep.md # every rule of Lampas's CLAUDE.md: taken, not for this app, or later (story number)
+docs/module-map.md # the module map (2026-10-10): modules, collisions, proposed refactors, rule breaks, library candidates
+docs/best-practices-audit.md # the 2026-10-10 audit of SpellForge against the PWA best practices (31 checklist lines)
+docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain application data (BSV)
+docs/bsv-testnet.md # the two testnet scripts behind the BSV Debug screen: keys kept outside the repo
+docs/bsv-wire-formats.md # the nftgate wire formats pinned byte for byte (spec section 8 Q14)
+```
