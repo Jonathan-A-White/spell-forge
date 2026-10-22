@@ -1,5 +1,5 @@
 // mw-06ggew.9: Ask the tutor and the feedback form take voice-kit's Composer in place of their plain textareas: hold the
-// bar to talk, letting go leaves the words in the box (send 'button'), Send sends them. Type on, attach and camera off,
+// bar to talk, letting go leaves the words in the box (send 'button'), Send sends them. Type on, attach and camera off (Ask the tutor alone has them on, mw-vmx5cb.1),
 // all from the one SPELLFORGE_COMPOSER_SETTINGS. The microphone is voice-kit's honest fake (real timers, quick to open).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
@@ -57,8 +57,8 @@ describe('Ask the tutor takes the Composer', () => {
     const client = fakeSend();
     render(<ParentScreen profileId={paulProfile.id} onBack={() => undefined} deps={client.deps} />);
     const s = within(await screen.findByRole('region', { name: 'Ask the tutor' }));
-    expect(s.queryByRole('button', { name: 'Attach files' })).toBeNull();
-    expect(s.queryByRole('button', { name: 'Take a photo' })).toBeNull();
+    expect(s.getByRole('button', { name: 'Attach files' })).toBeTruthy();
+    expect(s.getByRole('button', { name: 'Take a photo' })).toBeTruthy();
     await holdAndRelease(await s.findByRole('button', { name: 'Hold to ask' }));
 
     const field = (await s.findByLabelText('Your question')) as HTMLTextAreaElement;

@@ -16,6 +16,12 @@
       "type": "array",
       "maxItems": 20,
       "items": { "type": "string", "maxLength": 1500 }
+    },
+    "pictures": {
+      "description": "How many pictures (0 to 3) the parent attached to the question. They travel as the grist's files, in order: a page of the child's work, a note, a worksheet. Absent means none.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
     }
   }
 }

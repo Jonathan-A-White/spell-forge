@@ -6,6 +6,8 @@ export interface AddParentAskParams {
   profileId: string;
   question: string;
   request: ParentAskRequest;
+  /** Ids of the TutorBlobs holding the pictures sent with the question. */
+  pictures?: string[];
   askedAt?: Date;
 }
 
@@ -21,6 +23,7 @@ export const parentAskRepo = {
       question: params.question,
       askedAt: params.askedAt ?? new Date(),
       request: params.request,
+      ...(params.pictures && params.pictures.length > 0 ? { pictures: params.pictures } : {}),
       status: 'sending',
     };
     await db.parentAsks.add(ask);

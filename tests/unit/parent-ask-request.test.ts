@@ -85,9 +85,9 @@ describe('buildParentAskRequest', () => {
     expect(buildParentAskRequest('x'.repeat(PARENT_ASK_MAX_QUESTION + 50), []).question).toHaveLength(PARENT_ASK_MAX_QUESTION + 50);
   });
 
-  it('sends no names, ids or keys: only the question and text summaries', () => {
+  it('sends no names, ids or keys: only the question, text summaries and a count of pictures', () => {
     const request = buildParentAskRequest('q', [readRight]);
-    expect(Object.keys(request).sort()).toEqual(['question', 'sessions']);
+    expect(Object.keys(request).sort()).toEqual(['pictures', 'question', 'sessions']);
     expect(JSON.stringify(request)).not.toContain('s1');
     expect(JSON.stringify(request)).not.toContain('p1');
   });

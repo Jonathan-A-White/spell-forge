@@ -1,0 +1,15 @@
+{
+  "about": "A parent photographs a page of the child's subtraction working and asks what it shows; the answer names the sum and the answer written on the page, and does not use the sessions as if they were the picture.",
+  "request": {
+    "schemaVersion": "1",
+    "question": "What is on this page he did? Did he get it right?",
+    "pictures": 1,
+    "sessions": [
+      "2026-10-08.\nProblem (math): A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?\nTurns: 3.\nMath: Takes the smaller digit from the bigger in each column (gap: regrouping)."
+    ]
+  },
+  "photos": ["subtraction-work.png"],
+  "expect": {
+    "answer": {"all":[{"matches":"(?i)52"},{"matches":"(?i)25"},{"matches":"(?i)33|27"}]}
+  }
+}
