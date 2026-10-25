@@ -138,6 +138,7 @@ docs/spelling-graph.md # the spelling graph (src/learn/spelling): grade bands, t
 docs/maths-graph.md # the maths graph (src/learn/maths): grade bands, the node shape and item checker, the number nodes, how to add a node
 docs/typed-text-sweep.md # every place the old app took typed text from a child, with its fate: spoken, a picture, a game's own input, or a grown-up's (2026-10-25)
 docs/kestrel-sweeps.md # the Spelling world's two sweeps (2026-10-25): every caller of the old SM-2 scheduler and adaptive engine (kept, and why), and every game and drill's speech (voice-kit only, language named)
+docs/motion.md # the motion rules (src/look/motion.ts): what moves, how long (named durations and easings held equal to index.css's tokens by a test), reduced motion, pause when hidden, native-feel CSS
 docs/never-the-answer.md # the never-the-answer rule, the teaching turn that replaces a leak, the red-team list, the parent-ask decision, and the sweep of every grind
 docs/what-the-tutor-is-told.md # the table of what a tutor-talk turn carries (settings, learner, goal, progress, screen) and why the rest is not sent
 docs/hosting.md # where the app is served (GitHub Pages at /spell-forge/, the VPS at the root of kestrel.allmymind.org), how the base is chosen at build time, the VPS deploy, the nginx site and certificate it needs

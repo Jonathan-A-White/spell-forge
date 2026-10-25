@@ -97,6 +97,22 @@ body {
   background-color: var(--sf-background-color, var(--sf-color-bg));
 }
 
+/* ─── Native feel (topic 08): a tap acts at once, shows no grey flash, and a control's label is not selected by a long press ── */
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a, button, summary, select, input, textarea, label, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, summary, [role="button"], [role="tab"], [role="switch"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* ─── The page never scrolls: one scroll box inside #root ─────────── */
 
 /* clip, not hidden: script, focus and the keyboard can still move a hidden box. The Shell (src/shell/Shell.tsx) draws
@@ -155,7 +171,50 @@ html, body, #root {
   color: var(--sf-color-text-heading);
 }
 
-/* ─── Success flash animation ─────────────────────────────────── */
+/* ─── Motion (docs/motion.md): every duration and easing is a token; src/look/motion.ts holds the same numbers ── */
+
+@theme static {
+  --sf-duration-instant: 150ms;
+  --sf-duration-quick: 200ms;
+  --sf-duration-base: 300ms;
+  --sf-duration-deliberate: 400ms;
+  --sf-duration-slow: 500ms;
+  --sf-duration-slower: 700ms;
+  --sf-duration-blink: 800ms;
+  --sf-duration-second: 1000ms;
+  --sf-duration-drift: 1500ms;
+  --sf-duration-breath: 2000ms;
+  --sf-duration-reduced: 1ms;
+  --ease-sf-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-sf-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-sf-linear: linear;
+  --default-transition-duration: var(--sf-duration-instant);
+}
+
+/* transition-all and the like take their time from these, as Tailwind's duration-N would. */
+@utility sf-duration-quick { --tw-duration: var(--sf-duration-quick); transition-duration: var(--sf-duration-quick); }
+@utility sf-duration-base { --tw-duration: var(--sf-duration-base); transition-duration: var(--sf-duration-base); }
+@utility sf-duration-slow { --tw-duration: var(--sf-duration-slow); transition-duration: var(--sf-duration-slow); }
+@utility sf-duration-slower { --tw-duration: var(--sf-duration-slower); transition-duration: var(--sf-duration-slower); }
+
+@keyframes sf-pulse {
+  50% { opacity: 0.5; }
+}
+
+@keyframes sf-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sf-bounce {
+  0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+  50% { transform: none; animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+}
+
+@utility animate-sf-pulse { animation: sf-pulse var(--sf-duration-breath) var(--ease-sf-in-out) infinite; }
+@utility animate-sf-spin { animation: sf-spin var(--sf-duration-second) var(--ease-sf-linear) infinite; }
+@utility animate-sf-bounce { animation: sf-bounce var(--sf-duration-second) infinite; }
+
+/* Success flash animation */
 
 @keyframes success-flash {
   0% { opacity: 0; transform: scale(0.5); }
@@ -170,20 +229,45 @@ html, body, #root {
   100% { stroke-dashoffset: 0; }
 }
 
-.animate-success-flash {
-  animation: success-flash 1s ease-out forwards;
-}
+@utility animate-sf-success-flash { animation: success-flash var(--sf-duration-second) var(--ease-sf-out) forwards; }
 
-.animate-success-check {
+@utility animate-sf-success-check {
   stroke-dasharray: 30;
-  animation: success-check 0.4s ease-out 0.15s forwards;
+  animation: success-check var(--sf-duration-deliberate) var(--ease-sf-out) var(--sf-duration-instant) forwards;
   stroke-dashoffset: 30;
 }
 
+/* Letter Invasion (src/features/practice/letter-invasion.tsx): the stars, the ship, its beam and the explosion. */
+
+@keyframes sf-twinkle {
+  0% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+@keyframes sf-ship-hover {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes sf-beam-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes sf-explosion {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@utility animate-sf-ship-hover { animation: sf-ship-hover var(--sf-duration-drift) var(--ease-sf-in-out) infinite; }
+@utility animate-sf-beam-pulse { animation: sf-beam-pulse var(--sf-duration-breath) var(--ease-sf-in-out) infinite; }
+@utility animate-sf-explosion { animation: sf-explosion var(--sf-duration-slow) var(--ease-sf-out); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: var(--sf-duration-reduced) !important;
+    transition-duration: var(--sf-duration-reduced) !important;
   }
 }
 
@@ -223,9 +307,7 @@ html, body, #root {
   80% { transform: translateX(6px); }
 }
 
-.animate-sf-shake {
-  animation: sf-shake 0.4s ease-in-out;
-}
+@utility animate-sf-shake { animation: sf-shake var(--sf-duration-deliberate) var(--ease-sf-in-out); }
 
 /* pwa-kit's What's new sheet and Check for updates button take the theme's colours (mw-vmx5cb.3). */
 :root {
