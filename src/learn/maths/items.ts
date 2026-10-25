@@ -3,12 +3,15 @@
 
 import type { GraphNode } from 'learn-kit/graph';
 
-/** The grade bands, youngest first. A band's index in this list is the level of the nodes in it. */
-export const GRADE_BANDS = ['preK', 'K', '1-2', '3-5', '6-8', '9-12'] as const;
+/**
+ * The grade bands, youngest first. A band's index in this list is the level of the nodes in it. `competition` is the tier above 9-12:
+ * the AMC 8 and AMC 10 kind of problem, resting on nodes of every band below.
+ */
+export const GRADE_BANDS = ['preK', 'K', '1-2', '3-5', '6-8', '9-12', 'competition'] as const;
 
 export type GradeBand = (typeof GRADE_BANDS)[number];
 
-/** The graph level of a grade band: 0 for preK up to 5 for 9-12. A node may not need a node of a higher level. */
+/** The graph level of a grade band: 0 for preK up to 5 for 9-12 and 6 for competition. A node may not need a node of a higher level. */
 export function bandLevel(band: GradeBand): number {
   return GRADE_BANDS.indexOf(band);
 }
@@ -192,4 +195,5 @@ const DEFAULT_SOLID: Record<GradeBand, SolidRule> = {
   '3-5': { right: 4, of: 5 },
   '6-8': { right: 4, of: 5 },
   '9-12': { right: 4, of: 5 },
+  competition: { right: 4, of: 5 },
 };
