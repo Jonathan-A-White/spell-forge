@@ -10,7 +10,9 @@ import { setParentPin } from '../../src/features/tutor/parent-pin';
 import { HowIsItGoing } from '../../src/worlds/grown-ups/HowIsItGoing';
 import { GrownUps } from '../../src/worlds/grown-ups/GrownUps';
 import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
+import { Settings } from '../../src/worlds/grown-ups/Settings';
 import { WhoIsLearning } from '../../src/worlds/grown-ups/WhoIsLearning';
+import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
 import { paulProfile } from '../fixtures/profiles';
 
 const DIR = join(__dirname, '../../src/worlds/grown-ups');
@@ -30,6 +32,9 @@ const SCREENS: Record<string, { draw: () => ReactElement; open?: () => Promise<v
     },
   },
   'HowIsItGoing.tsx': { draw: () => <HowIsItGoing /> },
+  'Settings.tsx': {
+    draw: () => <Settings profile={paulProfile} settings={DEFAULT_SETTINGS} onContrastModeChange={noop} onPresetApply={noop} />,
+  },
   'WhoIsLearning.tsx': {
     draw: () => (
       <WhoIsLearning
