@@ -11,10 +11,7 @@ import { profileRepo } from '../../data/repositories';
 import { NO_LICENCE_LINE, gateGrind } from '../../shell/licence-gate';
 import { openWorld, type ViewId } from '../../shell/worlds';
 import { foldProfileUpdate, turnRef, type ProfileUpdate } from './getting-to-know';
-import { TUTOR_TALK_SCHEMA_VERSION, buildTutorTalkRequest, type TutorTalkInput, type TutorTalkRequest } from './tutor-talk-request';
-
-/** The grind's header, as sendGrist takes it. */
-export const TUTOR_TALK_GRIND = { app: 'spellforge', kind: 'tutor-talk', v: TUTOR_TALK_SCHEMA_VERSION } as const;
+import { buildTutorTalkRequest, type TutorTalkInput, type TutorTalkRequest } from './tutor-talk-request';
 
 /** The IndexedDB database the front door's talks are kept in (the kit's own, beside the app's). */
 export const FRONT_DOOR_TALKS_DB = 'spell-forge-talks';
