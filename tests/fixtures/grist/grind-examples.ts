@@ -332,9 +332,10 @@ export function listGrinds(root: string): GrindFile[] {
     .filter((grind) => typeof grind.kind === 'string');
 }
 
-/** The grind's input schema: grinds/<kind>.request.schema.json, or grinds/<kind>-request-<v>.schema.json. */
-export function requestSchemaPath(root: string, grind: GrindFile): string | undefined {
-  return [`grinds/${grind.kind}.request.schema.json`, ...grind.versions.map((v) => `grinds/${grind.kind}-request-${v}.schema.json`)].find((rel) =>
+/** The grind's input schema: grinds/<kind>.request.schema.json, or grinds/<kind>-request-<v>.schema.json (of version `version` when given, else the first there is). */
+export function requestSchemaPath(root: string, grind: GrindFile, version?: string): string | undefined {
+  const versions = version === undefined ? grind.versions : [version];
+  return [`grinds/${grind.kind}.request.schema.json`, ...versions.map((v) => `grinds/${grind.kind}-request-${v}.schema.json`)].find((rel) =>
     existsSync(join(root, rel)),
   );
 }

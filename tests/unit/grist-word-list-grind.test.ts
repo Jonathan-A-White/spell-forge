@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isWordListAnswer, WORD_LIST_GRIND } from '../../src/grist/word-list-answer';
+import { requestNodes } from '../../src/learn/spelling/place-words';
 import samples from '../fixtures/grist/word-list-answers.json';
 
 const root = process.cwd();
@@ -25,11 +26,12 @@ describe('grinds/word-list.json', () => {
     expect(grind.grind).toBe(1);
     expect(grind.app).toBe('spellforge');
     expect(grind.kind).toBe('word-list');
-    expect(grind.versions).toEqual(['1']);
+    expect(grind.versions).toEqual(['1', '2']);
     expect(grind.model).toBe('sonnet');
     expect(grind.effort).toBe('medium');
     expect(grind.instructions).toBe('grinds/word-list.md');
-    expect(grind.answerSchema).toBe('grinds/word-list-answer-1.schema.json');
+    // one answer schema for both versions: version 2 is version 1 and an optional `placed`, so a version 1 request is answered validly too
+    expect(grind.answerSchema).toBe('grinds/word-list-answer-2.schema.json');
     expect(grind.attachments).toEqual({
       min: 1,
       max: 4,
@@ -51,8 +53,16 @@ describe('grinds/word-list.json', () => {
     expect(existsSync(join(root, grind.answerSchema as string))).toBe(true);
   });
 
-  it('agrees with the constants the app sends and checks', () => {
-    expect(WORD_LIST_GRIND).toEqual({ app: grind.app, kind: grind.kind, v: (grind.versions as string[])[0] });
+  it('agrees with the constants the app sends and checks: the newest version', () => {
+    const versions = grind.versions as string[];
+    expect(WORD_LIST_GRIND).toEqual({ app: grind.app, kind: grind.kind, v: versions[versions.length - 1] });
+  });
+
+  it('keeps every version\'s request and answer schema beside it', () => {
+    for (const v of grind.versions as string[]) {
+      expect(existsSync(join(root, `grinds/word-list-request-${v}.schema.json`)), `request ${v}`).toBe(true);
+      expect(existsSync(join(root, `grinds/word-list-answer-${v}.schema.json`)), `answer ${v}`).toBe(true);
+    }
   });
 });
 
@@ -75,6 +85,61 @@ describe('word-list request schema', () => {
     expect(schema.properties.requestType.const).toBe('word-list');
     expect(schema.properties.language.enum).toEqual(['en', 'es']);
     expect(schema.properties.listName.type).toBe('string');
+  });
+});
+
+describe('word-list request schema 2', () => {
+  const schema = readJson('grinds/word-list-request-2.schema.json') as {
+    required: string[];
+    additionalProperties: boolean;
+    properties: Record<string, Record<string, unknown> & { items?: { required: string[]; properties: Record<string, unknown> } }>;
+  };
+
+  it('is request 1 with the graph\'s nodes: an id, a name and the patterns each teaches', () => {
+    expect(schema.additionalProperties).toBe(false);
+    expect([...schema.required].sort()).toEqual(['language', 'nodes', 'requestType', 'schemaVersion']);
+    expect(Object.keys(schema.properties).sort()).toEqual(['language', 'listName', 'nodes', 'requestType', 'schemaVersion']);
+    expect(schema.properties.schemaVersion.const).toBe('2');
+    expect(schema.properties.language.enum).toEqual(['en', 'es']);
+    expect(schema.properties.nodes.type).toBe('array');
+    expect(schema.properties.nodes.items?.required).toEqual(['id', 'name', 'patterns']);
+  });
+
+  it('accepts what the app sends, nodes and all', () => {
+    const nodes = requestNodes();
+    expect(nodes.length).toBeLessThanOrEqual(schema.properties.nodes.maxItems as number);
+    for (const n of nodes) expect(n.patterns.length).toBeLessThanOrEqual((schema.properties.nodes.items as unknown as { properties: { patterns: { maxItems: number } } }).properties.patterns.maxItems);
+  });
+});
+
+describe('word-list answer schema 2', () => {
+  const schema = readJson('grinds/word-list-answer-2.schema.json') as {
+    required: string[];
+    additionalProperties: boolean;
+    properties: {
+      words: unknown;
+      placed: { type: string; maxItems: number; items: { required: string[]; additionalProperties: boolean; properties: { word: { minLength: number }; node: { type: string } } } };
+    };
+  };
+  const v1 = readJson('grinds/word-list-answer-1.schema.json') as { properties: Record<string, unknown> };
+
+  it('is answer 1 and an optional `placed`: a word and, unless none fits, the node id', () => {
+    expect(schema.additionalProperties).toBe(false);
+    expect(schema.required).toEqual(['words']);
+    expect(Object.keys(schema.properties).sort()).toEqual(['confidence', 'notes', 'placed', 'words']);
+    expect(schema.properties.words).toEqual(v1.properties.words);
+    expect(schema.properties.placed).toMatchObject({ type: 'array', maxItems: 200 });
+    expect(schema.properties.placed.items.required).toEqual(['word']);
+    expect(schema.properties.placed.items.additionalProperties).toBe(false);
+    expect(schema.properties.placed.items.properties.word.minLength).toBe(1);
+    expect(schema.properties.placed.items.properties.node.type).toBe('string');
+  });
+
+  it('agrees with the guard on the boundary it states', () => {
+    const { maxItems } = schema.properties.placed;
+    const placed = (n: number) => Array(n).fill({ word: 'a' });
+    expect(isWordListAnswer({ words: [], placed: placed(maxItems) })).toBe(true);
+    expect(isWordListAnswer({ words: [], placed: placed(maxItems + 1) })).toBe(false);
   });
 });
 

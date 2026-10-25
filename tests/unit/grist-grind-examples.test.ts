@@ -61,7 +61,9 @@ describe.each(grinds)('grind $kind', (grind) => {
     it('has a request that fits the input schema, with schemaVersion set', () => {
       expect(requestSchema).toBeDefined();
       expect(grind.versions).toContain(scenario.request.schemaVersion);
-      expect(validate(scenario.request, readSchema(requestSchema as string))).toEqual([]);
+      const schemaOfVersion = requestSchemaPath(root, grind, String(scenario.request.schemaVersion));
+      expect(schemaOfVersion, `no request schema for version ${String(scenario.request.schemaVersion)}`).toBeDefined();
+      expect(validate(scenario.request, readSchema(schemaOfVersion as string))).toEqual([]);
     });
 
     it('has photos that exist, fit the grind, are under 200 KB and sit beside it', () => {

@@ -4,6 +4,8 @@
 // (planDrill), and each node is handed to one of the games of drill-forms.ts (15a) with some of its own words. A game ends with `correct` of
 // `total` words; each word is a try, and a node is solid when its own rule holds over its last tries (`right` of `of`, 4 of 5 for most), and
 // then it leaves the frontier. A round with every word right is the review's right answer, so a solid node comes back when its review is due.
+// A word list read from a photo has placed its words on the graph (mw-79en7t.16): the nodes the list's words practise (`focus`) are asked before the
+// frontier, one round each, until they are solid.
 // Nothing here touches the network or the screen: SpellingWorld.tsx draws what this returns.
 import { answerPlacement, applyPlacement, createForms, placementItem, planDrill, startPlacementFromStore, type DrillItem, type ItemMaker, type PlacementState } from 'learn-kit/drill';
 import { review, setLevel, type Graph, type GraphStore } from 'learn-kit/graph';
@@ -23,8 +25,8 @@ const pickForms = createForms([{ id: PICK_FORM, render: 'pick the right spelling
 /** The words of a node a game is given: MIN_ITEMS, so every node has that many different ones. */
 export const ROUND_WORDS = 3;
 
-/** Why a node is being asked: the placement, a node at the frontier, or a review that is due. */
-export type SpellingStage = 'placement' | 'frontier' | 'due';
+/** Why a node is being asked: the placement, a node of the child's word list, a node at the frontier, or a review that is due. */
+export type SpellingStage = 'placement' | 'list' | 'frontier' | 'due';
 
 /** One turn for the child, and everything the screen needs to draw it: a placement pick (one item) or a game round (several). */
 export interface SpellingTurn {
@@ -74,6 +76,8 @@ export interface SpellingFlowDeps {
   now?: () => number;
   /** Seeds the items a sitting picks; the clock's second when absent. */
   seed?: number;
+  /** The ids of the nodes the child's word list practises, in the list's order: asked first, until solid. A node the graph does not have is skipped. */
+  focus?: () => Promise<readonly string[]>;
   /** The games a sitting rotates its nodes through: all seven of drill-forms.ts when absent. */
   forms?: readonly DrillFormId[];
 }
@@ -96,7 +100,7 @@ const makePick: ItemMaker<SpellingItem> = (node, ask) =>
   wordsOf(node as SpellingNode, ask.count, ask.seed).map((item) => ({ key: `${node.id}:${item.word}`, form: PICK_FORM, payload: item }));
 
 interface Queued {
-  role: 'frontier' | 'due';
+  role: Exclude<SpellingStage, 'placement'>;
   nodeId: string;
   items: DrillItem<SpellingItem>[];
 }
@@ -156,6 +160,19 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
     await save({ ...kept0, placement: state });
   }
 
+  /** A round for each node of the child's list that is not solid yet, in the list's order. */
+  async function listRounds(seed: number): Promise<Queued[]> {
+    const ids = [...new Set((await deps.focus?.()) ?? [])];
+    const rounds: Queued[] = [];
+    for (const nodeId of ids) {
+      const node = graph.byId.get(nodeId);
+      if (!node || (await store.get(nodeId))?.level === 'solid') continue;
+      const items = (await makeRound(node, { count: ROUND_WORDS, seed })).map((item) => ({ ...item, nodeId }));
+      if (items.length > 0) rounds.push({ role: 'list', nodeId, items });
+    }
+    return rounds;
+  }
+
   async function nextTurn(): Promise<SpellingTurn | null> {
     const k = await load();
     if (k.placement === null) {
@@ -170,7 +187,7 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
       while (queue.length > 0) {
         const next = queue.shift() as Queued;
         const level = (await store.get(next.nodeId))?.level;
-        if (next.role === 'frontier' && level === 'solid') continue; // made solid by this sitting: no more of it
+        if (next.role !== 'due' && level === 'solid') continue; // made solid by this sitting: no more of it
         return turnOf(next.role, next.nodeId, next.items);
       }
       const plan = await planDrill<SpellingItem>({
@@ -183,7 +200,9 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
         now: now(),
       });
       sittings += 1;
-      queue = plan.entries.filter((e) => e.items.length > 0).map((e) => ({ role: e.role, nodeId: e.nodeId, items: e.items }));
+      const listed = await listRounds(seedOf() + (sittings - 1) * 131);
+      const taken = new Set(listed.map((q) => q.nodeId));
+      queue = [...listed, ...plan.entries.filter((e) => e.items.length > 0 && !taken.has(e.nodeId)).map((e) => ({ role: e.role, nodeId: e.nodeId, items: e.items }))];
     }
     return null;
   }

@@ -154,7 +154,7 @@ describe('Scenario: a photographed word list goes out through bsv-kit and its wo
 
     const [sent] = delivered(fake);
     expect(sent.grist).toEqual(WORD_LIST_GRIND);
-    expect(sent.input).toEqual({ language: 'en' });
+    expect(sent.input).toMatchObject({ schemaVersion: '2', requestType: 'word-list', language: 'en' });
     expect(sent.attachments).toHaveLength(1);
     expect(sent.attachments[0].mime).toBe('image/jpeg');
     expect(uploaded(fake)[0]).toEqual(new Uint8Array([1, 2, 3, 4]));

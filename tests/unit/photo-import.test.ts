@@ -11,6 +11,8 @@ import type { OcrManager } from '../../src/ocr';
 import type { OcrResult } from '../../src/contracts/types';
 import { door } from 'bsv-kit/bsv';
 import type { GristAnswer, ReadAnswerResult } from '../../src/grist';
+import { WORD_LIST_GRIND } from '../../src/grist';
+import { spellingGraph } from '../../src/learn/spelling';
 import type { WordListAnswer } from '../../src/grist';
 import {
   PHOTO_IMPORT_DEADLINE_MS,
@@ -26,6 +28,10 @@ const T0 = new Date('2026-10-01T10:00:00Z');
 const minutes = (n: number) => new Date(T0.getTime() + n * 60_000);
 
 type Read = ReadAnswerResult<WordListAnswer>;
+const answeredPlaced = (placed: { word: string; node?: string }[]): Read => ({
+  answer: { status: 'answered', answer: { words: placed.map((p) => p.word), placed } } as GristAnswer<WordListAnswer>,
+  next: 1,
+});
 const answered = (words: string[]): Read => ({ answer: { status: 'answered', answer: { words } } as GristAnswer<WordListAnswer>, next: 1 });
 const verdictOf = (status: 'refused' | 'failed'): Read => ({ answer: { status, reason: 'no' }, next: 1 });
 const pending: Read = { pending: true, next: 1 };
@@ -118,6 +124,63 @@ describe('sending a photo to the factory', () => {
     expect(new Uint8Array(row.photo as ArrayBuffer)).toEqual(new Uint8Array([1, 2, 3, 4]));
     expect(deps.ocrManager.extractWords).not.toHaveBeenCalled();
     expect(await wordTexts()).toEqual([]);
+  });
+});
+
+describe('placing the words on the spelling graph (mw-79en7t.16)', () => {
+  const nodeOfWord = async (text: string) => (await wordRepo.getByListId(listId)).find((w) => w.text === text);
+
+  it('asks version 2 and passes the nodes of the graph in the request', async () => {
+    const deps = makeDeps();
+    await start(deps);
+    const [params] = deps.sendGrist.mock.calls[0];
+    expect(params.header).toEqual(WORD_LIST_GRIND);
+    expect(WORD_LIST_GRIND.v).toBe('2');
+    expect(params.input).toMatchObject({ schemaVersion: '2', requestType: 'word-list', language: 'en' });
+    const ids = (params.input.nodes as { id: string }[]).map((n) => n.id);
+    expect(ids).toContain('short-vowel-dge');
+    expect(ids.every((id) => spellingGraph.byId.has(id))).toBe(true);
+  });
+
+  it("keeps the node the factory named for each word it lands, and no reason", async () => {
+    const deps = makeDeps({ readAnswer: vi.fn(async () => answeredPlaced([{ word: 'badge', node: 'short-vowel-dge' }, { word: 'light', node: 'vowel-team-igh' }])) });
+    await start(deps);
+    await pollPhotoImports(T0, deps);
+    expect(await nodeOfWord('badge')).toMatchObject({ nodeId: 'short-vowel-dge' });
+    expect((await nodeOfWord('badge'))?.nodeReason).toBeUndefined();
+    expect(await nodeOfWord('light')).toMatchObject({ nodeId: 'vowel-team-igh' });
+  });
+
+  it('places a word whose node the graph does not have by its pattern, and keeps why', async () => {
+    const deps = makeDeps({ readAnswer: vi.fn(async () => answeredPlaced([{ word: 'badge', node: 'made-up-node' }])) });
+    await start(deps);
+    await pollPhotoImports(T0, deps);
+    const word = await nodeOfWord('badge');
+    expect(word?.nodeId).toBe('short-vowel-dge');
+    expect(word?.nodeReason).toContain('made-up-node');
+  });
+
+  it('places the words of a version 1 answer by their pattern', async () => {
+    const v1 = makeDeps({ readAnswer: vi.fn(async () => answered(['shop'])) });
+    await start(v1);
+    await pollPhotoImports(T0, v1);
+    expect(await nodeOfWord('shop')).toMatchObject({ nodeId: 'digraph-sh' });
+    expect((await theImport()).status).toBe('factory');
+  });
+
+  it('places the words the device reads by their pattern too', async () => {
+    const deps = makeDeps({ ocrManager: ocrOf(['shop']) });
+    await start(deps);
+    await pollPhotoImports(minutes(2), deps);
+    expect((await theImport()).status).toBe('device');
+    expect(await nodeOfWord('shop')).toMatchObject({ nodeId: 'digraph-sh' });
+  });
+
+  it('leaves a word no pattern shows in with no node', async () => {
+    const deps = makeDeps({ readAnswer: vi.fn(async () => answered(['zap'])) });
+    await start(deps);
+    await pollPhotoImports(T0, deps);
+    expect((await nodeOfWord('zap'))?.nodeId).toBeUndefined();
   });
 });
 

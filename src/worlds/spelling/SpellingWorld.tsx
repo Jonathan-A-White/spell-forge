@@ -16,6 +16,8 @@ export interface SpellingWorldProps {
   /** The flow to take turns of; one over the child's own place on the phone when absent (needs `profileId`). */
   flow?: SpellingFlow;
   profileId?: string;
+  /** The ids of the spelling-graph nodes the child's word lists practise, asked before the frontier (spelling-flow.ts's `focus`). */
+  focus?: () => Promise<readonly string[]>;
   /** Says a word aloud; the placement asks for it. */
   onSpeak?: (word: string) => void;
   audioBusy?: boolean;
@@ -45,9 +47,11 @@ function pickOrder(turn: SpellingTurn): string[] {
   return odd ? [distractor, word] : [word, distractor];
 }
 
-export function SpellingWorld({ flow: given, profileId, onSpeak, audioBusy, picture = mnemonicPicture, openGame = openForm, tapTargetSize = DEFAULT_TAP_TARGET, themeId, onBack }: SpellingWorldProps) {
+export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBusy, picture = mnemonicPicture, openGame = openForm, tapTargetSize = DEFAULT_TAP_TARGET, themeId, onBack }: SpellingWorldProps) {
   const flow = useMemo(
-    () => given ?? createSpellingFlow({ store: storageGraphStore(profileId ?? 'learner'), keep: storageKeep(profileId ?? 'learner') }),
+    () => given ?? createSpellingFlow({ store: storageGraphStore(profileId ?? 'learner'), keep: storageKeep(profileId ?? 'learner'), focus }),
+    // focus reads the lists when it is called, so a new closure each render must not start the flow again
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [given, profileId],
   );
   const [round, setRound] = useState(0);

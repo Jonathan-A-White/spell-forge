@@ -236,3 +236,65 @@ describe('triesSolid', () => {
     expect(triesSolid([true, true, true, false, false, true], rule)).toBe(false);
   });
 });
+
+// mw-79en7t.16: a word list read from a photo has placed its words on the graph; the drill takes those nodes first.
+describe("the list's nodes, taken first", () => {
+  const LIST = ['short-vowel-dge', 'vowel-team-igh'];
+
+  async function placedWithList(focus: () => Promise<readonly string[]>): Promise<SpellingFlow> {
+    const flow = flowOver({ focus });
+    await placeChild(flow, -1);
+    return flow;
+  }
+
+  it("asks the list's nodes before the frontier, in the list's order, as the list stage", async () => {
+    const flow = await placedWithList(async () => LIST);
+    const first = (await flow.question())!;
+    expect([first.stage, first.nodeId]).toEqual(['list', LIST[0]]);
+    await flow.answer(noneRight(first));
+    const second = (await flow.question())!;
+    expect([second.stage, second.nodeId]).toEqual(['list', LIST[1]]);
+    await flow.answer(noneRight(second));
+    expect((await flow.question())!.stage).not.toBe('list');
+  });
+
+  it('hands the node some of its own words in a game form of the drill', async () => {
+    const flow = await placedWithList(async () => LIST);
+    const q = (await flow.question())!;
+    expect(q.nodeId).toBe(LIST[0]);
+    expect(drillForms.has(q.form)).toBe(true);
+    const words = nodeOf(q.nodeId).items.map((i) => i.word);
+    for (const item of q.items) expect(words).toContain(item.word);
+    expect(q.items.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('stops asking a list node once it is solid', async () => {
+    const flow = await placedWithList(async () => ['short-vowel-dge']);
+    let listRounds = 0;
+    for (let i = 0; i < 40 && (await store.get('short-vowel-dge'))?.level !== 'solid'; i += 1) {
+      const q = (await flow.question())!;
+      if (q.stage === 'list') listRounds += 1;
+      await flow.answer(allRight(q));
+    }
+    expect((await store.get('short-vowel-dge'))?.level).toBe('solid');
+    expect(listRounds).toBeGreaterThanOrEqual(2);
+    for (let i = 0; i < 12; i += 1) {
+      const q = await flow.question();
+      if (!q) break;
+      expect(q.stage === 'list').toBe(false);
+      await flow.answer(allRight(q));
+    }
+  });
+
+  it('skips a node the graph does not have, and asks nothing special of a list with no nodes', async () => {
+    const flow = await placedWithList(async () => ['not-a-node']);
+    expect((await flow.question())!.stage).toBe('frontier');
+    const bare = await placedWithList(async () => []);
+    expect((await bare.question())!.stage).toBe('frontier');
+  });
+
+  it('asks the placement first, whatever the list says', async () => {
+    const flow = flowOver({ focus: async () => LIST });
+    expect((await flow.question())!.stage).toBe('placement');
+  });
+});

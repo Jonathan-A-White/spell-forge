@@ -3,11 +3,14 @@
 
 import type { Word } from '../../contracts/types';
 import { wordRepo, statsRepo } from '../../data/repositories';
+import type { PlacedWord } from '../../learn/spelling';
 
 export interface AddWordsParams {
   listId: string;
   profileId: string;
   words: string[];
+  /** Where each word sits on the spelling graph (a photo import places them); a word without an entry has no node. */
+  placed?: readonly PlacedWord[];
 }
 
 /** Trim, lowercase, drop blanks and repeats: what the editor's Save and a photo import both keep. */
@@ -21,7 +24,8 @@ export function normalizeWords(words: string[]): string[] {
 }
 
 /** Adds each word the list does not hold yet; returns the Word rows it created. */
-export async function addWordsToList({ listId, profileId, words }: AddWordsParams): Promise<Word[]> {
+export async function addWordsToList({ listId, profileId, words, placed = [] }: AddWordsParams): Promise<Word[]> {
+  const placement = new Map(placed.map((p) => [p.word, p]));
   const held = new Set((await wordRepo.getByListId(listId)).map((w) => w.text));
   const added: Word[] = [];
 
@@ -37,6 +41,7 @@ export async function addWordsToList({ listId, profileId, words }: AddWordsParam
       imageUrl: null,
       imageCached: false,
       createdAt: new Date(),
+      ...nodeFields(placement.get(text)),
     });
     await statsRepo.create({
       wordId: word.id,
@@ -57,4 +62,10 @@ export async function addWordsToList({ listId, profileId, words }: AddWordsParam
     added.push(word);
   }
   return added;
+}
+
+/** The node a word was placed on, and the reason when the factory's answer was not used; nothing for a word with no node. */
+function nodeFields(placed: PlacedWord | undefined): Pick<Word, 'nodeId' | 'nodeReason'> {
+  if (!placed) return {};
+  return { ...(placed.nodeId ? { nodeId: placed.nodeId } : {}), ...(placed.reason ? { nodeReason: placed.reason } : {}) };
 }

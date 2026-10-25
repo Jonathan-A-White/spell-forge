@@ -2,11 +2,11 @@
   "grind": 1,
   "app": "spellforge",
   "kind": "word-list",
-  "versions": ["1"],
+  "versions": ["1", "2"],
   "model": "sonnet",
   "effort": "medium",
   "instructions": "grinds/word-list.md",
-  "answerSchema": "grinds/word-list-answer-1.schema.json",
+  "answerSchema": "grinds/word-list-answer-2.schema.json",
   "attachments": {
     "min": 1,
     "max": 4,
