@@ -29,8 +29,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** Draws the world and lets its first question arrive. */
-const renderWorld = () => act(async () => void render(<MathsWorld flow={flow} report={(r) => reports.push(r)} />));
+/** Draws the world (in the type form, the box these tests fill: 19b's other forms are tried in maths-flow.test.ts) and lets its first question arrive. */
+const renderWorld = () => act(async () => void render(<MathsWorld flow={flow} forms={['type']} report={(r) => reports.push(r)} />));
 
 /** A tap on a button, with the promises it starts let run. */
 const tap = (name: string) => act(async () => void fireEvent.click(screen.getByRole('button', { name })));

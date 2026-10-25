@@ -1,9 +1,11 @@
 // src/worlds/maths/MathsWorld.tsx — The Maths world (Kestrel 19a): hosts the flow's questions one at a time, tells the tutor where the child
 // is (M37: the screen's name and a few facts, never the answer or the hint), and runs its one timer through the shell's visible-interval
-// helper (M10). What is asked, and how an answer counts, is maths-flow.ts's; this draws it. The child reads little and is not expected to
+// helper (M10). What is asked, and how an answer counts, is maths-flow.ts's; this draws it, each question in one of drill-forms.ts's forms
+// (type, hear, see, do; 19b), the same form every time for the same question. The child reads little and is not expected to
 // type: "Not sure" is an answer, and a wrong one is met with a nudge and a way on, never a dead end.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useVisibleInterval } from '../../shell/visible-interval';
+import { MATHS_FORM_IDS, formFor, openForm, type MathsFormId } from './drill-forms';
 import { createMathsFlow, storageGraphStore, storageKeep, type MathsAnswer, type MathsFlow, type MathsQuestion } from './maths-flow';
 import { IDLE_LOOK_MS, MATHS_SCREEN_NAME, screenReport, type ScreenReport } from './maths-report';
 
@@ -13,6 +15,10 @@ export interface MathsWorldProps {
   profileId?: string;
   /** Where the world tells the tutor where the child is: called with each new question and when there is none. */
   report?: (screen: ScreenReport) => void;
+  /** The app language a problem is spoken in; English when absent. */
+  language?: string;
+  /** The forms a question may be put in (drill-forms.ts); all four when absent. */
+  forms?: readonly MathsFormId[];
   onBack?: () => void;
 }
 
@@ -20,7 +26,7 @@ const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 
 const BUTTON = 'px-5 rounded-xl font-bold active:scale-[0.97] transition-transform';
 
-export function MathsWorld({ flow: given, profileId, report, onBack }: MathsWorldProps) {
+export function MathsWorld({ flow: given, profileId, report, language = 'en', forms = MATHS_FORM_IDS, onBack }: MathsWorldProps) {
   const flow = useMemo(
     () => given ?? createMathsFlow({ store: storageGraphStore(profileId ?? 'learner'), keep: storageKeep(profileId ?? 'learner') }),
     [given, profileId],
@@ -100,24 +106,19 @@ export function MathsWorld({ flow: given, profileId, report, onBack }: MathsWorl
               <p className="text-sf-muted text-sm">Let&apos;s see what you know. Tap &ldquo;Not sure&rdquo; if you want to skip one.</p>
             )}
             <p className="text-sf-muted text-sm">{question.nodeName}</p>
-            <p className="text-sf-heading text-2xl font-bold">{question.item.problem}</p>
+            {openForm(formFor(question, forms), {
+              item: question.item,
+              language,
+              value: text,
+              onChange: setText,
+              onSpoken: (said) => {
+                setText(said);
+                if (said !== '') void check(said, hint);
+              },
+              disabled: result !== null,
+            })}
 
             {hint && !result && <p className="text-sf-text">{question.item.hint}</p>}
-
-            <label className="flex flex-col gap-1 text-sf-text">
-              <span className="text-sm">Your answer</span>
-              <input
-                type="text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                disabled={result !== null}
-                autoComplete="off"
-                autoCapitalize="off"
-                enterKeyHint="done"
-                style={TAP}
-                className="px-3 rounded-xl border border-sf-border bg-sf-surface text-sf-heading text-xl"
-              />
-            </label>
 
             {result ? (
               <>
