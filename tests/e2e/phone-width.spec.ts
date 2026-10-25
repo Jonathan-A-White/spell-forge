@@ -3,11 +3,13 @@
 // Run: npx playwright test --project=phone (it builds the app and serves it on this worktree's own port, tests/support/preview-port.ts).
 import { expect, test } from '@playwright/test';
 import { shot } from './shot';
+import { noTapGuard } from './tap-guard';
 
 // The spec sets its own viewport, so it passes in any project.
 test.use({ viewport: { width: 390, height: 844 } });
 
 test('the first screen fits a 390x844 phone with no horizontal scroll', async ({ page }) => {
+  await noTapGuard(page);
   await page.goto('/spell-forge/');
   await expect(page.getByRole('heading', { name: 'Welcome to SpellForge!' })).toBeVisible();
 

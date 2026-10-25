@@ -15,6 +15,7 @@ import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { previewPort } from '../support/preview-port';
 import { STORE_URL } from '../../src/shell/store';
 import { shot } from './shot';
+import { noTapGuard } from './tap-guard';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
 
@@ -89,8 +90,8 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
     route.fulfill({ status: 200, contentType: 'text/html', body: '<title>store</title>' }),
   );
 
-  // The tap guard swallows a tap for 300 ms after a screen change (src/shell/tap-guard.ts); the walk taps faster than a child, so it is set to 0 (its own test seam).
-  await page.addInitScript(() => localStorage.setItem('sf-tap-guard-ms', '0'));
+  // the walk taps faster than a child, so the tap guard is off (tests/e2e/tap-guard.ts)
+  await noTapGuard(page);
 
   // --- Front door: a new child is welcomed, then Home ---
   await page.goto(`${ORIGIN}${APP_PATH}`);
