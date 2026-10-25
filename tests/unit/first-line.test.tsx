@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { setParentPin } from '../../src/features/tutor/parent-pin';
+import { HowIsItGoing } from '../../src/worlds/grown-ups/HowIsItGoing';
 import { GrownUps } from '../../src/worlds/grown-ups/GrownUps';
 import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
 import { WhoIsLearning } from '../../src/worlds/grown-ups/WhoIsLearning';
@@ -28,6 +29,7 @@ const SCREENS: Record<string, { draw: () => ReactElement; open?: () => Promise<v
       await screen.findByRole('heading', { name: 'Grown-ups' });
     },
   },
+  'HowIsItGoing.tsx': { draw: () => <HowIsItGoing /> },
   'WhoIsLearning.tsx': {
     draw: () => (
       <WhoIsLearning
