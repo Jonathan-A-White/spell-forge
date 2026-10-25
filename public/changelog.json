@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.1.178",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.60",
+    "kind": "new",
+    "text": "Maths now shows a small picture beside each concept to help a child remember it, and the homework page shows one too."
+  },
+  {
+    "version": "0.1.178",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.67",
+    "kind": "new",
+    "text": "the tutor is now the first screen you talk to, and a picture shared from your phone lands in the talk."
+  },
+  {
+    "version": "0.1.178",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.68",
+    "kind": "new",
+    "text": "The Grown-ups screen now shows how it is going in Spelling and Maths, in plain words."
+  },
+  {
     "version": "0.1.177",
     "date": "2026-10-25",
     "story": "mw-79en7t.48",
