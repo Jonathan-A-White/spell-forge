@@ -20,6 +20,7 @@ import { usePauseTutorOnLeave } from '../tutor/use-pause-tutor-on-leave';
 import { TALK_WORLDS, type FrontDoorFlow, type TalkWorld } from './front-door-flow';
 import { TutorText } from './TutorText';
 import { sharedTurn } from './share-landing';
+import { TutorTalkError } from './tutor-talk-send';
 
 export interface FrontDoorProps {
   flow: FrontDoorFlow;
@@ -43,6 +44,9 @@ const LABELS: Partial<ComposerLabels> = {
 };
 
 const ASK_FAILED = 'The tutor could not answer just now. Hold the button and try again.';
+
+/** What a turn that failed says: the words the send chose for the child (offline, too slow, no licence), else the plain one. */
+const whyNot = (error: unknown): string => (error instanceof TutorTalkError ? error.message : ASK_FAILED);
 
 interface Line {
   id: number;
@@ -194,8 +198,8 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
       const reply = await flow.ask(await talk.current, text, pictures.length > 0 ? { pictures } : undefined);
       if (reply.kind === 'offer-worlds') setOffered(true);
       else add('tutor', reply.words);
-    } catch {
-      throw Object.assign(new Error(ASK_FAILED), { line });
+    } catch (error) {
+      throw Object.assign(new Error(whyNot(error)), { line, words: whyNot(error) });
     }
     return line;
   };
@@ -216,9 +220,9 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
       await exchange(message, pictures);
       onSharedUsed?.();
     } catch (error) {
-      const line = (error as { line?: number }).line;
+      const { line, words } = error as { line?: number; words?: string };
       if (line !== undefined) setLines((previous) => previous.filter((entry) => entry.id !== line));
-      add('tutor', ASK_FAILED);
+      add('tutor', words ?? ASK_FAILED);
     } finally {
       setSendingShared(false);
     }
