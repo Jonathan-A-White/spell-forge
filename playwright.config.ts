@@ -19,22 +19,6 @@ const browserEnv = existsSync(extraLibDir)
   ? { ...process.env, LD_LIBRARY_PATH: [extraLibDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':') }
   : undefined;
 
-const hasTestnetCredentials =
-  !!process.env.SF_E2E_FUNDED_WIF && !!process.env.SF_E2E_ANCHOR_ADDRESS;
-
-// The phone project drives the built app on a preview server, so a run that asks for it (--project=phone, or npm run test:phone)
-// builds and serves one; the testnet-only run below keeps skipping the build when it has nothing to run.
-const phoneRun = process.env.PW_PHONE === '1' || process.argv.some((arg) => arg === 'phone' || arg === '--project=phone');
-
-if (!hasTestnetCredentials) {
-  // Print at config-load time (not just inside the test) so the reason is visible
-  // even though we skip starting a production build + preview server below.
-  console.log(
-    'SF_E2E_FUNDED_WIF and/or SF_E2E_ANCHOR_ADDRESS are not set — the two-install ' +
-      'testnet validation will skip. See tests/e2e/two-install-validation.spec.ts for details.',
-  );
-}
-
 const PHONE_SPEC = '**/phone-width.spec.ts';
 const NOT_PHONE_SPEC = '**/!(phone-width).spec.ts';
 const DEFAULT_TEST_MATCH = '**/*.@(spec|test).?(c|m)[jt]s?(x)';
@@ -45,6 +29,8 @@ export default defineConfig({
   ...playwrightTimeouts,
   timeout: 2 * playwrightTimeouts.timeout,
   fullyParallel: false,
+  // One worker: the specs share the one built dist/ and preview server below, and worlds.spec.ts starts a vite of its own.
+  workers: 1,
   reporter: 'list',
   use: {
     baseURL: PREVIEW_BASE_URL,
@@ -76,15 +62,11 @@ export default defineConfig({
       },
     },
   ],
-  // Skip building/serving a production bundle entirely when we already know every
-  // test will skip for lack of credentials (and the phone project is not asked for) — npm run test:e2e
-  // should stay fast and exit 0 without a network-dependent build in that case.
-  webServer: hasTestnetCredentials || phoneRun
-    ? {
-        command: `npm run build && npm run preview -- --port ${PREVIEW_PORT} --strictPort`,
-        url: `${PREVIEW_BASE_URL}/spell-forge/`,
-        reuseExistingServer: reuseExistingPreview(),
-        timeout: 180_000,
-      }
-    : undefined,
+  // The app is built and served once, here, for every spec (the phone project and the older chromium specs reach it by baseURL).
+  webServer: {
+    command: `npm run build && npm run preview -- --port ${PREVIEW_PORT} --strictPort`,
+    url: `${PREVIEW_BASE_URL}/spell-forge/`,
+    reuseExistingServer: reuseExistingPreview(),
+    timeout: 180_000,
+  },
 });
