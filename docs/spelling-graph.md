@@ -16,6 +16,8 @@ need, no need of a higher level. It is data and pure code under `src/learn/spell
   the blends the phonics file leaves out and the irregular spellings. Every entry of `patterns.ts` is named by the `patternIds` of
   one node (a test lists any that is not), and each node rests on the phonics nodes it builds on. The doubling, prefix and suffix
   nodes follow `syllabifier.ts` (a doubled consonant sits at a syllable split; a prefix or suffix is a syllable of its own).
+- `nodes-strategies.ts`: the strategy nodes for `3-5`, `6-8` and `9-12`: the ways of working a word out that are not rote memory (see
+  "The strategy nodes" below), and `MEMORY_AID_STRATEGIES`, the sweep of every kind of memory aid with the node it became.
 - `graph.ts`: assembles the node files into `SPELLING_NODES` (youngest band first), checks every node with `nodeProblems`, and validates the whole with
   learn-kit's `validate` into `spellingGraph`. A node that breaks a rule stops the module from loading, so a test fails by name.
 - `index.ts`: the barrel; import from `src/learn/spelling`.
@@ -31,8 +33,8 @@ a later band.
 | `K` | 1 | short vowels, doubled letters at the end (this story) |
 | `1-2` | 2 | digraphs, blends, long vowels, and the common patterns: vowel teams, r-controlled vowels, plurals, `-ing` and `-ed` |
 | `3-5` | 3 | rarer patterns, the doubling and dropping rules, suffixes and prefixes (`nodes-patterns.ts`) |
-| `6-8` | 4 | later node files |
-| `9-12` | 5 | later node files |
+| `6-8` | 4 | the strategy nodes of the second step: long words, affixes at the join, Latin roots, relatives, phrases, odd shapes (`nodes-strategies.ts`) |
+| `9-12` | 5 | the strategy nodes of the third step: very long words, assimilated prefixes, Greek and Latin roots, derived words, hard words (`nodes-strategies.ts`) |
 
 ## The node shape
 
@@ -47,6 +49,7 @@ A `SpellingNode` is a learn-kit `GraphNode` plus what spelling adds:
 | `items` | At least 3 (`MIN_ITEMS`). Each is a `word`, the `pattern` it shows and a `distractor`. |
 | `name` | One line the child reads, in words a child of the band knows ("Short a, like cat"). |
 | `patternIds` | The `patterns.ts` entries the node is built from (none for letter sounds). |
+| `strategy` | Only on a strategy node: one of `STRATEGY_KINDS` (`syllables`, `roots-affixes`, `analogy`, `mnemonic`, `visual-check`); the node is also tagged `strategy`. |
 
 An item holds three things:
 
@@ -55,9 +58,55 @@ An item holds three things:
 - `distractor`: a wrong choice to put beside the word, a plausible misspelling or, for a letter sound, a word that begins
   otherwise. It must not show the pattern: that is what makes it wrong. A test holds all of this.
 
+## The strategy nodes
+
+"The teacher is trying to show him like spelling strategies and not just ... rote memory", so the strategies are nodes of the graph, in
+`nodes-strategies.ts`, from `3-5` up. There are five, each in three steps (one node a band, `3-5`, `6-8`, `9-12`; the later node needs
+the earlier of its strategy, so a child is not given the harder way before the easier):
+
+| Strategy | `3-5` | `6-8` | `9-12` |
+| --- | --- | --- | --- |
+| `syllables`: clap the parts and write every part | `strategy-syllables-clap` | `strategy-syllables-long` | `strategy-syllables-academic` |
+| `roots-affixes`: the word parts | `strategy-words-inside` | `strategy-affix-joins`, `strategy-roots-latin` | `strategy-affix-assimilation`, `strategy-roots-greek-latin` |
+| `analogy`: spell it like a word you know | `strategy-analogy-rhyme` | `strategy-analogy-related` | `strategy-analogy-derived` |
+| `mnemonic`: a trick to remember it | `strategy-mnemonic-tricks` | `strategy-mnemonic-phrases` | `strategy-mnemonic-hard-words` |
+| `visual-check`: look at the tricky part, cover, write, check | `strategy-visual-check` | `strategy-visual-odd-shapes` | `strategy-visual-rare` |
+
+A strategy node's items are as any node's: the `pattern` is the part the strategy catches (the syllable people drop, the doubled
+letter at a prefix join, the root) and the `distractor` is the misspelling the strategy prevents. Each rests on pattern nodes it uses
+(a prefix node for the word parts, `vowel-team-igh` for analogy) and, from `6-8`, on its strategy a band lower.
+
+### The sweep of memory-aid kinds
+
+Every kind of aid in `src/core/memory-aids` and the node that teaches the same thing (`MEMORY_AID_STRATEGIES` in
+`nodes-strategies.ts`; a test reads the aids' source and fails for a type or trick label not listed here):
+
+| Memory aid | Kind | Strategy node |
+| --- | --- | --- |
+| `phonetic-aid.ts`, "Sound It Out" | aid type `phonetic` | `strategy-syllables-clap` |
+| `pattern-aid.ts`, "Pattern Spotter" | aid type `pattern` | `strategy-analogy-rhyme` |
+| `mnemonic-aid.ts`, "Memory Tricks" | aid type `mnemonic`, and its tricks `Story` and `Remember` | `strategy-mnemonic-tricks` |
+| `mnemonic-aid.ts` | trick `Words inside` | `strategy-words-inside` |
+| `mnemonic-aid.ts` | trick `Clap it out` | `strategy-syllables-clap` |
+| `mnemonic-aid.ts` | tricks `Watch out` (double letters), `Silent letter` and `Silent letters` | `strategy-visual-check` |
+| `tricky-part.ts`, the spotlight on the chunk most likely to be misspelled | `findTrickyPart` | `strategy-visual-check` |
+
+The `3-5` items of `strategy-syllables-clap`, `strategy-words-inside`, `strategy-mnemonic-tricks` and `strategy-visual-check` are words
+the matching aid really gives that help for (a test asks the aid), so the node and the aid teach the same words.
+
+## The placement
+
+The placement is learn-kit's (`learn-kit/drill`, pinned with the graph): `startPlacement(spellingGraph, [])`, then `placementItem` with an
+item maker over a node's `items` (the word beside its distractor) and `answerPlacement` for each answer. It bisects over the levels
+(the bands), then confirms what lies below the ceiling it found, so it marks passed nodes tested out and finds the gap.
+`tests/unit/spelling-placement.test.ts` sits it with a scripted 8th grader who misses the vowel-team and suffix nodes: they and what
+rests on them are the gap, and the learner starts there. A strategy node rests on pattern nodes, so it stays untested until the
+patterns it uses are passed.
+
 ## How to add a node
 
-1. Pick the band. Open the node file for it, or start `nodes-<strand>.ts` for a new strand (spelling rules, endings, word parts).
+1. Pick the band. Open the node file for it, or start `nodes-<strand>.ts` for a new strand (spelling rules, endings, word parts). A new
+   way of working a word out is a strategy node: give it a `strategy` (a new kind goes in `STRATEGY_KINDS` and the table above).
 2. Add `spellingNode({ id, band, name, needs, patternIds, items })`. List at least 3 `[word, pattern, distractor]` items; take
    words from the `patterns.ts` entry's `examples` where there is one. Name every node it rests on in `needs` (no cycle, nothing
    from a later band).

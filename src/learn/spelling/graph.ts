@@ -5,9 +5,10 @@ import { validate } from 'learn-kit/graph';
 import { nodeProblems, type GradeBand, type SpellingNode } from './items.ts';
 import { PATTERN_NODES } from './nodes-patterns.ts';
 import { PHONICS_NODES } from './nodes-phonics.ts';
+import { STRATEGY_NODES } from './nodes-strategies.ts';
 
 /** Every node of the spelling graph, the youngest band first. */
-export const SPELLING_NODES: readonly SpellingNode[] = [...PHONICS_NODES, ...PATTERN_NODES].sort((a, b) => a.level - b.level);
+export const SPELLING_NODES: readonly SpellingNode[] = [...PHONICS_NODES, ...PATTERN_NODES, ...STRATEGY_NODES].sort((a, b) => a.level - b.level);
 
 const problems = SPELLING_NODES.flatMap(nodeProblems);
 if (problems.length > 0) throw new Error(`Not a spelling graph: ${problems.join('; ')}`);
