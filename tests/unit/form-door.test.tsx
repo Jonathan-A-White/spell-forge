@@ -3,12 +3,11 @@
 // can see, and ends with Send, which runs the form's own Save: the handler is called once, with what the form holds. A form with no
 // tutor given has no door, and the hand path is the one the forms' own tests hold.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createFakeGrind, createFakeTalkStore } from 'voice-kit/testing/talks';
 import { FORM_START } from 'voice-kit/forms';
 import type { Word, WordList } from '../../src/contracts/types';
-import { themeEngine } from '../../src/themes/engine';
-import { FirstRun } from '../../src/features/onboarding/first-run';
 import { PdfExportDialog } from '../../src/features/word-lists/pdf-export-dialog';
 import { RecordTestResults } from '../../src/features/word-lists/record-test-results';
 import { ListEditor } from '../../src/features/word-lists/list-editor';
@@ -17,6 +16,9 @@ import { PARENT_PIN_STORAGE_KEY, getRecoveryQuestion, hasParentPin } from '../..
 import { QUESTIONS } from '../../src/features/tutor/form-commands';
 import { START_LABEL, type FormTalkAnswer, type FormTalkRequest } from '../../src/features/tutor/form-door';
 import { setLicenceStatus } from '../../src/shell/licence-gate';
+import { validate, type Schema } from '../fixtures/grist/grind-examples';
+
+const requestSchema = JSON.parse(readFileSync('grinds/tutor-talk.request.schema.json', 'utf8')) as Schema;
 
 const pdf = vi.hoisted(() => ({ download: vi.fn() }));
 vi.mock('../../src/features/word-lists/pdf-generator', () => ({ downloadWordListPdf: pdf.download }));
@@ -78,6 +80,8 @@ describe('the door on the list editor', () => {
     expect(grind.calls).toHaveLength(1);
     const first = grind.calls[0].request;
     expect(first.message).toBe(FORM_START);
+    // what is sent is what the tutor-talk grind takes
+    expect(validate(first, requestSchema)).toEqual([]);
     expect(first.form.name).toBe('Word list');
     expect(first.form.command).toBe('saveList');
     expect(first.form.fields.map((f) => f.label)).toEqual(['List Name', 'Language', 'Test Date', 'Words']);
@@ -196,6 +200,7 @@ describe('the door on Pick a question', () => {
     fireEvent.click(screen.getByRole('button', { name: START_LABEL }));
     await waitFor(() => expect(tutorLine()).toBe('Which question will help you remember?'));
     const first = grind.calls[0].request;
+    expect(validate(first, requestSchema)).toEqual([]);
     expect(first.form.name).toBe('Pick a question');
     expect(first.form.fields.map((f) => f.label)).toEqual(['Question', 'Write your question', 'Your answer']);
     expect(first.form.fields[0].options).toContain('Write your own');
@@ -247,7 +252,7 @@ describe('the door on Pick a question', () => {
   });
 });
 
-describe('the door on the other three forms', () => {
+describe('the door on two more forms', () => {
   it('Print Practice Sheet: fills Practice Mode and Letter Size, and Send downloads as Download PDF does', async () => {
     const { grind, tutor } = fakeTutor([
       { words: 'Which sheet do you want?', form_values: [{ field: 'mode', value: 'Trace Only' }, { field: 'size', value: 'Giant' }], form_ask: 'size' },
@@ -256,6 +261,7 @@ describe('the door on the other three forms', () => {
     render(<PdfExportDialog listName="Week 1" words={['cat', 'dog']} onClose={() => undefined} tutor={tutor} />);
     fireEvent.click(screen.getByRole('button', { name: START_LABEL }));
     await waitFor(() => expect((screen.getByRole('radio', { name: /Trace Only/ }) as HTMLInputElement).checked).toBe(true));
+    expect(validate(grind.calls[0].request, requestSchema)).toEqual([]);
     expect(grind.calls[0].request.form.fields.map((f) => f.label)).toEqual(['Practice Mode', 'Letter Size']);
     // the dialog opens on Full Practice and Medium, which are not choices yet: the tutor is told both are empty
     expect(grind.calls[0].request.form.fields.map((f) => f.value)).toEqual(['', '']);
@@ -287,31 +293,5 @@ describe('the door on the other three forms', () => {
       [{ wordId: 'w1', word: 'cat', correct: true }, { wordId: 'w2', word: 'dog', correct: false }],
       85,
     );
-  });
-
-  it('the Welcome wizard: the tutor asks the name and the theme, the panel stays open into step two, and Send starts forging', async () => {
-    const themes = themeEngine.getAllThemes();
-    const pick = themes[themes.length - 1];
-    const onComplete = vi.fn();
-    const { grind, tutor } = fakeTutor([
-      { words: 'What is your name?', form_ask: 'name' },
-      { words: 'Everything required is filled in. You can also pick a theme.', form_values: [{ field: 'name', value: 'Ada' }, { field: 'theme', value: pick.name }] },
-    ]);
-    render(<FirstRun onComplete={onComplete} tutor={tutor} />);
-    fireEvent.click(screen.getByRole('button', { name: START_LABEL }));
-    await waitFor(() => expect(tutorLine()).toBe('What is your name?'));
-    expect(grind.calls[0].request.form.fields.find((f) => f.name === 'theme')?.options).toEqual(themes.map((t) => t.name));
-
-    await say('Ada, and the last theme');
-    await waitFor(() => expect((screen.getByPlaceholderText('Enter your name') as HTMLInputElement).value).toBe('Ada'));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    await screen.findByRole('heading', { name: 'Pick Your Theme, Ada!' });
-    // the same panel, not a new one, with the theme the tutor chose shown as chosen
-    expect(tutorLine()).toMatch(/pick a theme/);
-    expect(screen.getByText(pick.name).closest('button')?.className).toMatch(/border-sf-primary/);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
-    expect(onComplete).toHaveBeenCalledWith('Ada', pick.id, expect.objectContaining({}));
   });
 });

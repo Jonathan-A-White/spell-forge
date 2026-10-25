@@ -52,6 +52,26 @@
         "remove": { "type": "array", "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
         "summary": { "type": "string", "maxLength": 1500 }
       }
+    },
+    "form_values": {
+      "description": "When the request has `form`: the values this turn gives the form's fields, each a field by its name and the whole new value. Never a pictures field, and a choice only ever one of its options.",
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "value"],
+        "properties": {
+          "field": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "value": { "type": "string", "maxLength": 4000 }
+        }
+      }
+    },
+    "form_ask": {
+      "description": "When the request has `form`: the name of the field `words` asks about; absent when every required field holds something.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
     }
   }
 }

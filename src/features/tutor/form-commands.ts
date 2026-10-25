@@ -201,6 +201,9 @@ export const savePdfCommand = (generate: (mode: PdfMode, fontSize: PdfFontSize) 
   });
 
 // The Welcome wizard -------------------------------------------------------------------------------------------------------------
+// Spec and command only, and NOT on the wizard (first-run.tsx has no door): the name it asks is the child's, and VISION.md's line is
+// "children's names never go on chain" (docs/what-the-tutor-is-told.md: profile.name never leaves the phone for the mill). A tutor that asks
+// for it, or is told it in a reply, sends it to the mill. The Governor decides whether the wizard gets a door before this is wired.
 
 type ThemeName = Pick<Theme, 'id' | 'name'>;
 

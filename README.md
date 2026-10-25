@@ -91,6 +91,18 @@ Built for children like Paul — a 3rd grader with double vision who loves creat
 - Named presets for common needs (e.g., dyslexia-friendly, high-contrast)
 - Per-profile accessibility settings
 
+### Let the tutor do it (the form door)
+
+A grown-up who would rather not fill in a form can let the tutor do it: a **Let the tutor do it** button at the top of a form opens a
+panel where the tutor asks one question at a time (said or typed), fills the fields on the screen, and ends with **Send**, which runs the
+very handler the form's own Save runs. The tutor never sends. The door is `FormDoor` (`src/features/tutor/form-door.tsx`) over a
+`voice-kit` talk and `@voice-kit/forms`; each form's spec and confirm command are in `src/features/tutor/form-commands.ts`. The door is on
+**Pick a question** (the PIN's recovery question), **New Word List / Edit List**, **Record Test Results** (the teacher's grade; the marks on
+each word stay by hand) and **Print Practice Sheet**; the **Welcome** wizard has its spec and command but no door, because its name is the
+child's and never leaves the phone for the mill. A form shows the door only when it is given a `tutor` (the grind to talk through); with
+none, it is exactly as it was. The grind part is Part 11 of `grinds/tutor-talk.instructions.md`; `docs/what-the-tutor-is-told.md` says what
+a form turn carries.
+
 ### Data and Offline
 
 - **IndexedDB via Dexie.js** — all data persists locally across browser restarts

@@ -1,67 +1,27 @@
 // src/features/onboarding/first-run.tsx — First-time setup wizard
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import type { AccessibilitySettings } from '../../contracts/types';
 import { DEFAULT_SETTINGS } from '../../accessibility/defaults';
 import { themeEngine } from '../../themes/engine';
-import { FormDoor, type FormTutor } from '../tutor/form-door';
-import { welcomeCommand, welcomeForm } from '../tutor/form-commands';
 
 interface FirstRunProps {
   onComplete: (name: string, themeId: string, settings: AccessibilitySettings) => void;
-  /** Offers 'Let the tutor do it' on the wizard: the tutor asks the name and the theme, and Send starts forging as the button does. No door when absent. */
-  tutor?: FormTutor;
 }
 
-export function FirstRun({ onComplete, tutor }: FirstRunProps) {
+export function FirstRun({ onComplete }: FirstRunProps) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [themeId, setThemeId] = useState('dragon-forge');
-  const themes = useMemo(() => themeEngine.getAllThemes(), []);
-
-  /** The one finish: Start Forging! and the tutor's Send both end here. */
-  const finish = useCallback((finalName: string, finalThemeId: string) => {
-    onComplete(finalName, finalThemeId, { ...DEFAULT_SETTINGS });
-  }, [onComplete]);
+  const themes = themeEngine.getAllThemes();
 
   const handleFinish = useCallback(() => {
     if (name.trim() === '') return;
-    finish(name.trim(), themeId);
-  }, [name, themeId, finish]);
-
-  const finishCommand = useMemo(() => welcomeCommand(themes, finish), [themes, finish]);
-
-  /** What the tutor fills in is shown in the fields as if he had typed it. */
-  const fillFromTutor = (field: string, value: string) => {
-    if (field === 'name') setName(value);
-    else if (field === 'theme') {
-      const chosen = themes.find((t) => t.name === value);
-      if (chosen) setThemeId(chosen.id);
-    }
-  };
-
-  const door = tutor ? (
-    <div className="bg-sf-bg px-8 pt-8 max-w-sm md:max-w-2xl lg:max-w-4xl mx-auto w-full">
-      <FormDoor
-        form={welcomeForm(themes)}
-        command={finishCommand}
-        values={{ name, theme: themes.find((t) => t.id === themeId)?.name ?? '' }}
-        onFill={fillFromTutor}
-        tutor={tutor}
-      />
-    </div>
-  ) : null;
-
-  // The door comes first in both steps, in the same place, so it stays open as the wizard turns to the themes.
-  const page = (content: React.ReactNode) => (
-    <>
-      {door}
-      {content}
-    </>
-  );
+    onComplete(name.trim(), themeId, { ...DEFAULT_SETTINGS });
+  }, [name, themeId, onComplete]);
 
   if (step === 0) {
-    return page(
+    return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-8">
         <h1 className="text-4xl font-bold text-sf-heading mb-4">Welcome to SpellForge!</h1>
         <p className="text-sf-text mb-8 text-center max-w-md">
@@ -87,11 +47,11 @@ export function FirstRun({ onComplete, tutor }: FirstRunProps) {
         >
           Next
         </button>
-      </div>,
+      </div>
     );
   }
 
-  return page(
+  return (
     <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-8">
       <h2 className="text-2xl font-bold text-sf-heading mb-2">Pick Your Theme, {name}!</h2>
       <p className="text-sf-muted mb-6">How do you want to earn rewards?</p>
@@ -122,6 +82,6 @@ export function FirstRun({ onComplete, tutor }: FirstRunProps) {
       >
         Start Forging!
       </button>
-    </div>,
+    </div>
   );
 }
