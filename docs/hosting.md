@@ -20,33 +20,36 @@ millwright's `contrib/site-deploy` (`docs/site-deploy.md` there): the new tree i
 `/var/www/kestrel` is always one complete build and `/var/www/kestrel.prev` the last one. Roll back with
 `mv /var/www/kestrel /var/www/kestrel.bad && mv /var/www/kestrel.prev /var/www/kestrel`.
 
-The `[after_landing]` line for `~/.config/mw/config.toml` (the Mayor sets it; the lampas line is the model):
+The `[after_landing]` line in `~/.config/mw/config.toml` (set by the Governor's tap on the hands step `after-landing` of mw-79en7t.75; mw runs
+it after each landing, and it does nothing while `scripts/deploy-vps.sh` is missing):
 
 ```toml
-spell-forge = "npm ci --no-audit --no-fund && scripts/deploy-vps.sh"
+spell-forge = "[ ! -x scripts/deploy-vps.sh ] || { npm ci --no-audit --no-fund && scripts/deploy-vps.sh; }"
 ```
 
-## What the VPS needs (once)
+## The VPS site (set up once, by hands steps)
 
-An nginx site for `kestrel.allmymind.org`, next to Lampas's (`/etc/nginx/sites-enabled/lampas*`), and a certbot certificate:
+The server is set up by two hands steps on mw-79en7t.75, run as root on the VPS and never by a Builder (a Builder has no ssh to it):
 
-```nginx
-server {
-    server_name kestrel.allmymind.org;
-    root /var/www/kestrel;
-    index index.html;
+1. `kestrel-site`: `/etc/nginx/sites-available/kestrel.allmymind.org`, linked into `sites-enabled`, a port-80 server for
+   `kestrel.allmymind.org` with `root /var/www/kestrel`, the SPA fallback, `sw.js` and `index.html` with `Cache-Control: no-cache`, and
+   `/assets/` cached for a year (immutable). It also put a placeholder `index.html` in `/var/www/kestrel`, which the first deploy replaces.
+   (The step also tried `certbot`; this server has none.)
+2. `kestrel-cert`: the certificate comes from **acme.sh**, as Lampas's does, not certbot: `acme.sh --issue --server letsencrypt
+   -d kestrel.allmymind.org -w /var/www/kestrel --keylength ec-256`, which leaves it in
+   `/etc/letsencrypt/kestrel.allmymind.org_ecc/`. The site file then becomes a copy of Lampas's own
+   (`sites-enabled/lampas.allmymind.org.conf` with `lampas` changed to `kestrel`), named `kestrel.allmymind.org.conf`, so it has what Lampas
+   has (the 443 server, the redirect from 80, the `.well-known` location, headers). If `nginx -t` refuses the copy the step puts the
+   port-80 block back.
 
-    location / { try_files $uri $uri/ /index.html; }                       # SPA fallback: /spelling opens the app
-    location = /sw.js { add_header Cache-Control "no-cache"; try_files $uri =404; }
-    location = /index.html { add_header Cache-Control "no-cache"; }
-    location /assets/ { add_header Cache-Control "public, max-age=31536000, immutable"; try_files $uri =404; }
-}
-```
+Way back, as root: remove `sites-enabled/kestrel.allmymind.org.conf` and `sites-available/kestrel.allmymind.org`, `nginx -t && nginx -s reload`, and
+`acme.sh --remove -d kestrel.allmymind.org --ecc`.
 
-then `certbot --nginx -d kestrel.allmymind.org` (which adds the 443 server and the redirect from 80). This block is written from the
-brief, not copied from Lampas's file: compare it with `/etc/nginx/sites-enabled/lampas*` before using it, and keep whatever Lampas
-does that this does not (headers, gzip, the `.well-known` location).
+## Live checks (after landing, the Mayor's)
 
-Check: `curl -sI https://kestrel.allmymind.org/` is 200 with a valid certificate; `curl -s https://kestrel.allmymind.org/ | grep '<title>'`
-shows `SpellForge`; `curl -sI https://kestrel.allmymind.org/spelling` is 200; `curl -sI https://kestrel.allmymind.org/sw.js` carries
-`Cache-Control: no-cache`; the Pages address still opens.
+- `curl -sI https://kestrel.allmymind.org/` is 200 with a valid certificate (no `-k`);
+- `curl -s https://kestrel.allmymind.org/ | grep '<title>'` shows `SpellForge`, not "Welcome to nginx!" or the placeholder;
+- `curl -sI https://kestrel.allmymind.org/spelling` is 200 (the SPA fallback);
+- `curl -sI https://kestrel.allmymind.org/sw.js` carries `Cache-Control: no-cache`;
+- the Pages address opens unchanged;
+- sweep: every `allmymind.org` host on the VPS answers with a valid certificate and none shows the stock nginx page.
