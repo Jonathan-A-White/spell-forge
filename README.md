@@ -231,6 +231,7 @@ Tables: `profiles`, `wordLists`, `words`, `wordStats`, `sessionLogs`, `streaks`,
 - **deploy.yml** — automatic build and deploy to GitHub Pages on push to `main`
 - **version-bump.yml** — automated version updates
 - **ci-pass** gate job aggregates all test results for branch protection
+- **VPS** — the same source also serves at the root of `https://kestrel.allmymind.org/` (`npm run build:vps`, `scripts/deploy-vps.sh`); see [`docs/hosting.md`](docs/hosting.md)
 
 ## Credits
 

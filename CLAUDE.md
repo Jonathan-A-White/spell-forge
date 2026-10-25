@@ -140,6 +140,7 @@ docs/typed-text-sweep.md # every place the old app took typed text from a child,
 docs/kestrel-sweeps.md # the Spelling world's two sweeps (2026-10-25): every caller of the old SM-2 scheduler and adaptive engine (kept, and why), and every game and drill's speech (voice-kit only, language named)
 docs/never-the-answer.md # the never-the-answer rule, the teaching turn that replaces a leak, the red-team list, the parent-ask decision, and the sweep of every grind
 docs/what-the-tutor-is-told.md # the table of what a tutor-talk turn carries (settings, learner, goal, progress, screen) and why the rest is not sent
+docs/hosting.md # where the app is served (GitHub Pages at /spell-forge/, the VPS at the root of kestrel.allmymind.org), how the base is chosen at build time, the VPS deploy, the nginx site and certificate it needs
 docs/best-practices-audit.md # the 2026-10-10 audit of SpellForge against the PWA best practices (31 checklist lines)
 docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain application data (BSV)
 docs/bsv-testnet.md # the two testnet scripts behind the BSV Debug screen: keys kept outside the repo
