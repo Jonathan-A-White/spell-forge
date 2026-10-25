@@ -34,6 +34,16 @@
       }
     },
     {
+      "name": "a maths turn naming the node of the graph the problem is about",
+      "answer": {
+        "action": "math_probe",
+        "focus_words": [],
+        "prompt_to_child": "Look at the ones column again. Which number is on top?",
+        "layer_diagnosis": "math",
+        "node": "subtract-two-digit"
+      }
+    },
+    {
       "name": "a handwriting rewrite request, with no maths diagnosis yet",
       "answer": {
         "action": "rewrite",
@@ -55,6 +65,7 @@
     { "name": "an extra field", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "none", "the_answer": "7" } },
     { "name": "a layer_diagnosis outside reading, math, both, none", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "spelling" } },
     { "name": "a focus word with no chunks", "answer": { "action": "reread_word", "focus_words": [{ "word": "character" }], "prompt_to_child": "Again.", "layer_diagnosis": "reading" } },
+    { "name": "an empty node", "answer": { "action": "math_probe", "focus_words": [], "prompt_to_child": "Look again.", "layer_diagnosis": "math", "node": "" } },
     { "name": "a problem_kind that is not word or plain", "answer": { "action": "continue", "focus_words": [], "prompt_to_child": "Go on.", "layer_diagnosis": "none", "problem_kind": "riddle" } },
     { "name": "a math_diagnosis missing its gap", "answer": { "action": "math_probe", "focus_words": [], "prompt_to_child": "Look again.", "layer_diagnosis": "math", "math_diagnosis": { "where_wrong": "the carry", "method": "blocks" } } },
     { "name": "a recommendation that is a bare string", "answer": { "action": "done", "focus_words": [], "prompt_to_child": "Done.", "layer_diagnosis": "none", "recommendations_for_parent": ["practise"] } },

@@ -608,6 +608,8 @@ export interface TutorAnswer {
   math_diagnosis?: { where_wrong: string; gap: string; method: string };
   target_text?: string;
   problem_kind?: 'word' | 'plain';
+  /** Mode math: the node of the maths graph the problem is about, copied from the request's `node`; check it against the graph before use. */
+  node?: string;
   notes_for_parent?: string;
   recommendations_for_parent?: { what: string; why: string; where: string }[];
   teaching_method?: string;

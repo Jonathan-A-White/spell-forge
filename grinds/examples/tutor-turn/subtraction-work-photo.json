@@ -17,6 +17,7 @@
   "expect": {
     "action": "math_probe",
     "layer_diagnosis": "math",
+    "node": "subtract-two-digit",
     "math_diagnosis.gap": {"matches":"(?i)regroup|borrow|exchang|trade|smaller|bigger|larger|ones|swap|rename"},
     "prompt_to_child": {"all":[{"matches":"(?i)^(?:[^2]|22*[^27])*(?:|22*)$"},{"matches":"(?i)^(?:[^t]|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:[^tw]|w(?:entw)*(?:[^te]|e(?:[^tn]|n(?:[^t]|t(?:[^twy]|y(?:[^t\\-]|-(?:[^ts]|s(?:[^te]|e(?:[^tv]|v(?:[^te]|e[^tn])))))))))))*(?:|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:|w(?:entw)*(?:|e(?:|n(?:|t(?:|y(?:|-(?:|s(?:|e(?:|v(?:|e)))))))))))$"}]}
   }
