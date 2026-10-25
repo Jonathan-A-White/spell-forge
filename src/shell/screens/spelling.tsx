@@ -47,10 +47,15 @@ export function SpellingWorld({ view }: { view: ViewId | null }) {
   const { activeProfile, setView, goBack, audioManager, audioBusy } = app;
   if (!activeProfile) return null;
 
-  const onSpeak = (word: string) => {
-    console.log(`[Audio] onSpeak("${word}")`);
-    return audioManager.runExclusive(() => audioManager.sayWord(word));
+  // A game or drill says its word in a language it names: the active list's, and the spelling graph's words are English.
+  const speakIn = (language: string) => (word: string) => {
+    console.log(`[Audio] onSpeak("${word}", ${language})`);
+    return audioManager.runExclusive(() => audioManager.sayWord(word, language));
   };
+  const onSpeak = speakIn(app.activeList?.language ?? 'en');
+  const listLanguageOfWord = (wordId: string | null) =>
+    app.wordLists.find((l) => l.id === app.allWords.find((w) => w.id === wordId)?.listId)?.language ?? 'en';
+  const onSpeakGraphWord = speakIn('en');
   const practiceThese = (wordIds: Iterable<string>) => {
     app.setPracticeWordFilter(new Set(wordIds));
     setView('practice');
@@ -122,6 +127,7 @@ export function SpellingWorld({ view }: { view: ViewId | null }) {
         <LearningScreen
           profile={activeProfile}
           audioManager={audioManager}
+          languageOfList={(listId) => wordLists.find((l) => l.id === listId)?.language ?? 'en'}
           onBack={goBack}
           onWordMastered={app.handleWordMasteredInLearning}
         />
@@ -176,7 +182,7 @@ export function SpellingWorld({ view }: { view: ViewId | null }) {
           wordId={app.selectedWordId}
           profileId={activeProfile.id}
           onBack={goBack}
-          onPlayAudio={(word) => audioManager.runExclusive(() => audioManager.sayWord(word))}
+          onPlayAudio={(word) => audioManager.runExclusive(() => audioManager.sayWord(word, listLanguageOfWord(app.selectedWordId)))}
           onPracticeWord={(wordId) => practiceThese([wordId])}
         />
       );
@@ -262,7 +268,7 @@ export function SpellingWorld({ view }: { view: ViewId | null }) {
         <Spelling
           key={activeProfile.id}
           profileId={activeProfile.id}
-          onSpeak={(word) => void onSpeak(word)}
+          onSpeak={(word) => void onSpeakGraphWord(word)}
           audioBusy={audioBusy}
           tapTargetSize={activeProfile.settings.tapTargetSize}
           themeId={activeProfile.themeId}

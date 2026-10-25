@@ -28,14 +28,14 @@ describe('sayAndSpell', () => {
   });
 
   it('delegates to sayThenSpell via runExclusive', async () => {
-    await sayAndSpell(mockAudioManager, 'cat');
+    await sayAndSpell(mockAudioManager, 'cat', 'en');
     expect(mockAudioManager.runExclusive).toHaveBeenCalledTimes(1);
-    expect(mockAudioManager.sayThenSpell).toHaveBeenCalledWith('cat');
+    expect(mockAudioManager.sayThenSpell).toHaveBeenCalledWith('cat', 'en');
   });
 
   it('handles single-character words', async () => {
-    await sayAndSpell(mockAudioManager, 'a');
-    expect(mockAudioManager.sayThenSpell).toHaveBeenCalledWith('a');
+    await sayAndSpell(mockAudioManager, 'a', 'en');
+    expect(mockAudioManager.sayThenSpell).toHaveBeenCalledWith('a', 'en');
   });
 });
 

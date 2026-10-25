@@ -6,13 +6,15 @@ import type { AudioManager } from '../../audio/manager';
 export async function sayAndSpell(
   audioManager: AudioManager,
   word: string,
+  language: string,
 ): Promise<void> {
-  await audioManager.runExclusive(() => audioManager.sayThenSpell(word));
+  await audioManager.runExclusive(() => audioManager.sayThenSpell(word, language));
 }
 
 export async function sayWordOnly(
   audioManager: AudioManager,
   word: string,
+  language: string,
 ): Promise<void> {
-  await audioManager.runExclusive(() => audioManager.sayWord(word));
+  await audioManager.runExclusive(() => audioManager.sayWord(word, language));
 }

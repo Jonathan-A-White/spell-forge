@@ -138,14 +138,14 @@ describe('rankVoice', () => {
 describe("spelling practice's words", () => {
   it('sayWord prefers a same-language voice by rank when the phone has no exact tag: US, then GB, then AU', async () => {
     await install([v('AU', 'en-AU'), v('GB', 'en-GB'), v('US', 'en-US')], 'en-AU');
-    void sayWord('cat');
+    void sayWord('cat', 'en');
     await vi.advanceTimersByTimeAsync(500);
     expect(given()).toEqual([{ voice: 'US', lang: 'en-US' }]);
   });
 
   it('with only en-GB and en-AU voices, sayWord ranks en-GB first (the kit takes a rank over the first match)', async () => {
     await install([v('AU', 'en-AU'), v('GB', 'en-GB')], 'en-AU');
-    void sayWord('cat');
+    void sayWord('cat', 'en');
     await vi.advanceTimersByTimeAsync(500);
     expect(given()[0].voice).toBe('GB');
   });
@@ -159,7 +159,7 @@ describe('one Tutor voice for the tutor and the words', () => {
     setSpeechVoice('uri:AU');
     void sayAsTutor('Hello there');
     await vi.advanceTimersByTimeAsync(500);
-    void sayWord('cat');
+    void sayWord('cat', 'en');
     await vi.advanceTimersByTimeAsync(500);
     expect(given()).toEqual([
       { voice: 'AU', lang: 'en-AU' },
@@ -172,7 +172,7 @@ describe('one Tutor voice for the tutor and the words', () => {
     setSpeechVoice('uri:AU');
     const { sayWordSlowly, spellWord, sayThenSpell } = await import('../../src/audio');
     for (const say of [sayWordSlowly, spellWord, sayThenSpell]) {
-      void say('cat');
+      void say('cat', 'en');
       await vi.advanceTimersByTimeAsync(2000);
     }
     expect(given().map((g) => g.voice)).toEqual(['AU', 'AU', 'AU']);
@@ -180,7 +180,7 @@ describe('one Tutor voice for the tutor and the words', () => {
 
   it('with none picked, words and tutor both take the default rule', async () => {
     await install([v('US', 'en-US', true), v('GB', 'en-GB')], 'en-GB');
-    void sayWord('cat');
+    void sayWord('cat', 'en');
     await vi.advanceTimersByTimeAsync(500);
     expect(given()[0].voice).toBe('US');
   });
@@ -188,7 +188,7 @@ describe('one Tutor voice for the tutor and the words', () => {
   it('a picked voice the phone no longer lists is ignored by the word', async () => {
     await install([v('US', 'en-US', true), v('GB', 'en-GB')], 'en-GB');
     setSpeechVoice('uri:Gone');
-    void sayWord('cat');
+    void sayWord('cat', 'en');
     await vi.advanceTimersByTimeAsync(500);
     expect(given()[0].voice).toBe('US');
   });
@@ -196,7 +196,7 @@ describe('one Tutor voice for the tutor and the words', () => {
   it('a picked voice of another language is not used for a word of this one', async () => {
     await install([v('ES', 'es-ES'), v('US', 'en-US', true)], 'en-US');
     setSpeechVoice('uri:ES');
-    void sayWord('cat');
+    void sayWord('cat', 'en');
     await vi.advanceTimersByTimeAsync(500);
     expect(given()).toEqual([{ voice: 'US', lang: 'en-US' }]);
   });
@@ -205,7 +205,7 @@ describe('one Tutor voice for the tutor and the words', () => {
     await install([v('US', 'en-US', true), v('AU', 'en-AU')], 'en-US');
     void sayAsTutor('Hello', 'uri:AU');
     await vi.advanceTimersByTimeAsync(500);
-    void sayWord('cat');
+    void sayWord('cat', 'en');
     await vi.advanceTimersByTimeAsync(500);
     expect(given().map((g) => g.voice)).toEqual(['AU', 'US']);
   });
