@@ -164,6 +164,8 @@ export function mathsNode(spec: {
   /** How many items to list on the node (the start of what `item` makes). */
   count?: number;
   solid?: SolidRule;
+  /** Tags to add to the node's own `maths` and band tags (a SAT Math domain, for one). */
+  tags?: readonly string[];
 }): MathsNode {
   const item = (index: number): MathsItem => {
     const [problem, answer, hint] = spec.item(index);
@@ -173,7 +175,7 @@ export function mathsNode(spec: {
     id: spec.id,
     needs: spec.needs ?? [],
     level: bandLevel(spec.band),
-    tags: ['maths', spec.band],
+    tags: ['maths', spec.band, ...(spec.tags ?? [])],
     band: spec.band,
     solid: spec.solid ?? DEFAULT_SOLID[spec.band],
     items: Array.from({ length: spec.count ?? DEFAULT_ITEM_COUNT }, (_, i) => item(i)),

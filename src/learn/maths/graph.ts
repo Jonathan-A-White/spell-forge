@@ -3,10 +3,12 @@
 
 import { validate } from 'learn-kit/graph';
 import { nodeProblems, type GradeBand, type MathsNode } from './items.ts';
+import { ALGEBRA_NODES } from './nodes-algebra.ts';
 import { NUMBER_NODES } from './nodes-number.ts';
+import { OPERATION_NODES } from './nodes-operations.ts';
 
 /** Every node of the maths graph, the youngest band first. */
-export const MATHS_NODES: readonly MathsNode[] = [...NUMBER_NODES];
+export const MATHS_NODES: readonly MathsNode[] = [...NUMBER_NODES, ...OPERATION_NODES, ...ALGEBRA_NODES];
 
 const problems = MATHS_NODES.flatMap(nodeProblems);
 if (problems.length > 0) throw new Error(`Not a maths graph: ${problems.join('; ')}`);
