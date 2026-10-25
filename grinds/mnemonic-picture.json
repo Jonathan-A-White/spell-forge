@@ -1,0 +1,14 @@
+{
+  "grind": 1,
+  "app": "spellforge",
+  "kind": "mnemonic-picture",
+  "versions": ["1"],
+  "model": "sonnet",
+  "effort": "high",
+  "instructions": "grinds/mnemonic-picture.instructions.md",
+  "answerSchema": "grinds/mnemonic-picture.answer.schema.json",
+  "attachments": {
+    "min": 0,
+    "max": 0
+  }
+}
