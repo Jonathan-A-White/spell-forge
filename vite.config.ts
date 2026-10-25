@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'node:url'
+import { appBase } from './scripts/app-base.mjs'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
@@ -28,7 +29,8 @@ export default defineConfig({
       },
     }),
   ],
-  base: '/spell-forge/',
+  // /spell-forge/ for GitHub Pages; SF_BASE=/ for the VPS (scripts/app-base.mjs).
+  base: appBase(process.env),
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
