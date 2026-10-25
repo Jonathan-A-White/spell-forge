@@ -1,12 +1,17 @@
-// The maths graph's shape and its nodes: the number nodes (preK to 5, mw-79en7t.54) and the operations and algebra nodes (K to 12,
-// mw-79en7t.55). The graph validates through learn-kit, all six bands have nodes, every node carries what docs/maths-graph.md says it
-// does, and every item checks its own answer.
+// The maths graph's shape and its nodes: the number nodes (preK to 5, mw-79en7t.54), the operations and algebra nodes (K to 12,
+// mw-79en7t.55), and the geometry, data and competition nodes (K to 12 and the competition tier, mw-79en7t.56). The graph validates
+// through learn-kit, all seven bands have nodes, every node carries what docs/maths-graph.md says it does, and every item checks its
+// own answer.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { GraphError, order, validate } from 'learn-kit/graph';
 import { ALGEBRA_NODES, HEART_OF_ALGEBRA, PASSPORT_TO_ADVANCED_MATH } from '../../src/learn/maths/nodes-algebra.ts';
 import { OPERATION_NODES } from '../../src/learn/maths/nodes-operations.ts';
+import { ADDITIONAL_TOPICS_IN_MATH, GEOMETRY_NODES } from '../../src/learn/maths/nodes-geometry.ts';
+import { DATA_NODES } from '../../src/learn/maths/nodes-data.ts';
+import { AMC_TOPICS } from '../../src/learn/maths/nodes-competition.ts';
 import {
+  COMPETITION_NODES,
   GRADE_BANDS,
   MATHS_NODES,
   MIN_ITEMS,
@@ -50,14 +55,14 @@ describe('the maths graph', () => {
     expect(() => validate(unknown)).toThrow(/lonely needs nowhere/);
   });
 
-  it('has nodes in every band, preK up to 9-12', () => {
+  it('has nodes in every band, preK up to 9-12 and the competition tier', () => {
     for (const band of GRADE_BANDS) expect(nodesInBand(band).length, band).toBeGreaterThan(0);
-    expect(nodesInBand('6-8').length).toBeGreaterThan(0);
     expect(nodesInBand('9-12').length).toBeGreaterThan(0);
+    expect(nodesInBand('competition').length).toBeGreaterThan(0);
   });
 
-  it('lists the six grade bands from the youngest up, each a level above the one before', () => {
-    expect(GRADE_BANDS).toEqual(['preK', 'K', '1-2', '3-5', '6-8', '9-12']);
+  it('lists the seven grade bands from the youngest up, each a level above the one before', () => {
+    expect(GRADE_BANDS).toEqual(['preK', 'K', '1-2', '3-5', '6-8', '9-12', 'competition']);
     GRADE_BANDS.forEach((band, i) => expect(bandLevel(band)).toBe(i));
   });
 
@@ -189,12 +194,20 @@ describe('docs/maths-graph.md', () => {
   });
 
   it('names every node file and the learn-kit graph it is validated over', () => {
-    for (const file of ['graph.ts', 'items.ts', 'nodes-number.ts', 'nodes-operations.ts', 'nodes-algebra.ts']) expect(doc, file).toContain(file);
+    for (const file of ['graph.ts', 'items.ts', 'nodes-number.ts', 'nodes-operations.ts', 'nodes-algebra.ts', 'nodes-geometry.ts', 'nodes-data.ts', 'nodes-competition.ts', 'goals.ts']) {
+      expect(doc, file).toContain(file);
+    }
     expect(doc).toContain('learn-kit/graph');
   });
 
-  it('names every number, operations and algebra node', () => {
-    for (const node of [...NUMBER_NODES, ...OPERATION_NODES, ...ALGEBRA_NODES]) expect(doc, node.id).toContain(`\`${node.id}\``);
+  it('names every node of the graph', () => {
+    for (const node of MATHS_NODES) expect(doc, node.id).toContain(`\`${node.id}\``);
+  });
+
+  it('names the other SAT Math domains and the AMC topic lists it cites', () => {
+    expect(doc).toContain('Problem Solving and Data Analysis');
+    expect(doc).toContain('Additional Topics in Math');
+    for (const name of ['AMC 8', 'AMC 10', 'Number Theory', 'Counting and Probability']) expect(doc, name).toContain(name);
   });
 
   it('names the two SAT Math domains the algebra nodes cite', () => {
@@ -302,10 +315,13 @@ describe('the algebra nodes (6-8 to 9-12)', () => {
     const passport = ALGEBRA_NODES.filter((n) => n.tags?.includes(PASSPORT_TO_ADVANCED_MATH));
     expect(heart.length).toBeGreaterThanOrEqual(5);
     expect(passport.length).toBeGreaterThanOrEqual(5);
-    for (const node of nodesInBand('9-12')) {
+    for (const node of ALGEBRA_NODES.filter((n) => n.band === '9-12')) {
       const cited = node.tags?.includes(HEART_OF_ALGEBRA) || node.tags?.includes(PASSPORT_TO_ADVANCED_MATH);
       expect(cited, `${node.id} names its SAT domain`).toBe(true);
     }
+    // the geometry and data strands cite the other two domains, so every 9-12 node of the graph names one
+    const domains = [HEART_OF_ALGEBRA, PASSPORT_TO_ADVANCED_MATH, ADDITIONAL_TOPICS_IN_MATH, 'sat:problem-solving-and-data-analysis'];
+    for (const node of nodesInBand('9-12')) expect(domains.some((d) => node.tags?.includes(d)), `${node.id} names its SAT domain`).toBe(true);
     for (const node of [...heart, ...passport]) expect(node.tags, node.id).toContain('maths');
   });
 
@@ -334,5 +350,112 @@ describe('the algebra nodes (6-8 to 9-12)', () => {
     expect(itemAt(byId('exponential-growth'), 0).answer).toBe('16');
     const sqrt = itemAt(byId('square-roots'), 0);
     expect(Number(sqrt.answer) ** 2).toBe(Number(/√(\d+)/.exec(sqrt.problem)![1]));
+  });
+});
+
+describe('the geometry nodes (K to 9-12)', () => {
+  it('are in the graph, from K up to 9-12, and rest on nodes that came before', () => {
+    expect(GEOMETRY_NODES.length).toBeGreaterThan(0);
+    for (const node of GEOMETRY_NODES) expect(MATHS_NODES, node.id).toContain(node);
+    const bands = bandsOf(GEOMETRY_NODES.filter((n) => n.band !== 'competition'));
+    for (const band of ['K', '1-2', '3-5', '6-8', '9-12'] as const) expect(bands.has(band), band).toBe(true);
+  });
+
+  it('go from shapes to trigonometry', () => {
+    const ids = GEOMETRY_NODES.map((n) => n.id).join(' ');
+    for (const part of ['shape', 'perimeter', 'area', 'angle', 'volume', 'pythagorean', 'circle', 'similar', 'trig', 'radians']) {
+      expect(ids, part).toContain(part);
+    }
+  });
+
+  it('cites the SAT Math domain Additional Topics in Math on its 9-12 nodes', () => {
+    expect(ADDITIONAL_TOPICS_IN_MATH).toBe('sat:additional-topics-in-math');
+    const cited = GEOMETRY_NODES.filter((n) => n.tags?.includes(ADDITIONAL_TOPICS_IN_MATH));
+    expect(cited.length).toBeGreaterThanOrEqual(5);
+    for (const node of GEOMETRY_NODES.filter((n) => n.band === '9-12')) expect(node.tags, node.id).toContain(ADDITIONAL_TOPICS_IN_MATH);
+  });
+
+  it('puts the sides, the area, the hypotenuse and the sine right', () => {
+    expect(itemAt(byId('shape-sides'), 0)).toMatchObject({ answer: '3' });
+    expect(itemAt(byId('perimeter'), 0)).toMatchObject({ problem: 'A rectangle is 3 long and 2 wide. What is its perimeter?', answer: '10' });
+    for (const item of everyItem(byId('area-rectangles'))) {
+      const sides = /is (\d+) long and (\d+) wide/.exec(item.problem);
+      if (sides) expect(item.answer, item.problem).toBe(String(Number(sides[1]) * Number(sides[2])));
+    }
+    for (const item of everyItem(byId('pythagorean-theorem'))) {
+      const legs = /legs (\d+) and (\d+)/.exec(item.problem);
+      if (legs) expect(Number(item.answer) ** 2, item.problem).toBe(Number(legs[1]) ** 2 + Number(legs[2]) ** 2);
+    }
+    expect(itemAt(byId('trig-ratios'), 0).answer).toMatch(/^\d+\/\d+$/);
+  });
+});
+
+describe('the data nodes (K to 9-12)', () => {
+  it('are in the graph, from K up to 9-12', () => {
+    expect(DATA_NODES.length).toBeGreaterThan(0);
+    for (const node of DATA_NODES) expect(MATHS_NODES, node.id).toContain(node);
+    const bands = bandsOf(DATA_NODES.filter((n) => n.band !== 'competition'));
+    for (const band of ['K', '1-2', '3-5', '6-8', '9-12'] as const) expect(bands.has(band), band).toBe(true);
+  });
+
+  it('cover graphs, statistics, probability and counting', () => {
+    const ids = DATA_NODES.map((n) => n.id).join(' ');
+    for (const part of ['graph', 'mean', 'median', 'probability', 'counting']) expect(ids, part).toContain(part);
+  });
+
+  it('cites the SAT Math domain Problem Solving and Data Analysis on its 9-12 nodes', () => {
+    for (const node of DATA_NODES.filter((n) => n.band === '9-12')) expect(node.tags, node.id).toContain('sat:problem-solving-and-data-analysis');
+  });
+
+  it('works out the mean, median and mode of the numbers it lists', () => {
+    const stats = byId('mean-median-mode');
+    let seen = 0;
+    for (const item of everyItem(stats)) {
+      const list = /: ([\d, ]+)\. /.exec(item.problem);
+      if (!list) continue;
+      const nums = list[1].split(',').map(Number).sort((a, b) => a - b);
+      seen += 1;
+      if (/mean/.test(item.problem)) expect(Number(item.answer), item.problem).toBe(nums.reduce((a, b) => a + b, 0) / nums.length);
+      if (/median/.test(item.problem)) expect(Number(item.answer), item.problem).toBe(nums[(nums.length - 1) / 2]);
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+});
+
+describe('the competition nodes (AMC 8 and AMC 10 topics)', () => {
+  it('are in the competition band, in the graph, and rest on earlier bands', () => {
+    expect(COMPETITION_NODES.length).toBeGreaterThanOrEqual(8);
+    expect(bandLevel('competition')).toBe(6);
+    for (const node of COMPETITION_NODES) {
+      expect(node.band, node.id).toBe('competition');
+      expect(MATHS_NODES, node.id).toContain(node);
+    }
+    expect(nodesInBand('competition')).toEqual(MATHS_NODES.filter((n) => n.band === 'competition'));
+    for (const node of nodesInBand('competition')) expect(node.needs.length, node.id).toBeGreaterThan(0);
+  });
+
+  it('cite the four AMC topic lists by name: each has nodes, and every competition node is in one', () => {
+    expect(AMC_TOPICS.map((t) => t.name)).toEqual(['Number Theory', 'Algebra', 'Geometry', 'Counting and Probability']);
+    for (const topic of AMC_TOPICS) {
+      expect(topic.tag).toMatch(/^amc:/);
+      expect(nodesInBand('competition').filter((n) => n.tags?.includes(topic.tag)).length, topic.name).toBeGreaterThanOrEqual(2);
+    }
+    for (const node of nodesInBand('competition')) {
+      expect(AMC_TOPICS.some((t) => node.tags?.includes(t.tag)), `${node.id} is in an AMC topic`).toBe(true);
+    }
+  });
+
+  it('works out the number theory it asks', () => {
+    const lcm = /least common multiple of (\d+) and (\d+)/;
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+    let seen = 0;
+    for (const item of everyItem(byId('gcd-lcm'))) {
+      const m = lcm.exec(item.problem);
+      if (!m) continue;
+      seen += 1;
+      expect(Number(item.answer), item.problem).toBe((Number(m[1]) * Number(m[2])) / gcd(Number(m[1]), Number(m[2])));
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect(itemAt(byId('difference-of-squares'), 0).answer).toMatch(/^\d+$/);
   });
 });
