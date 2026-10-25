@@ -11,8 +11,9 @@ const SPECS = readdirSync(join(root, 'tests', 'e2e')).filter((name) => name.ends
 // worlds.spec.ts serves the app with vite (dev) on a port of its own, because it needs the app's live modules; front-door.spec.ts does the same for its test page
 // (tests/e2e/harness/front-door.html: the app does not draw the front door yet); spelling-world.spec.ts serves the app with vite for the same reason as worlds.spec.ts
 // (the app's live modules put pictures, words and a coin in Dexie); grown-ups.spec.ts does too, for How is it going
-// (tests/e2e/harness/grown-ups.html: no screen draws it yet). Every other spec uses the config's server.
-const OWN_SERVER = ['worlds.spec.ts', 'front-door.spec.ts', 'spelling-world.spec.ts', 'grown-ups.spec.ts'];
+// (tests/e2e/harness/grown-ups.html: no screen draws it yet); maths-world.spec.ts does too, to keep a picture for every concept and a homework problem.
+// Every other spec uses the config's server.
+const OWN_SERVER = ['worlds.spec.ts', 'front-door.spec.ts', 'spelling-world.spec.ts', 'grown-ups.spec.ts', 'maths-world.spec.ts'];
 const CONFIG_SERVER = SPECS.filter((name) => !OWN_SERVER.includes(name));
 
 describe('the e2e specs and the Playwright config (mw-79en7t.66)', () => {
