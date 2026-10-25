@@ -1,5 +1,6 @@
 // src/contracts/types.ts — the contract all modules implement against
 
+import type { Profile as LearnerProfile } from 'learn-kit/learner';
 import type { BsvEvent } from '../bsv/types';
 
 // ─── Core Entities ─────────────────────────────────────────────
@@ -17,6 +18,7 @@ export interface Profile {
   importFilterWords?: string[];  // words/phrases to auto-exclude from camera import
   status?: ProfileStatus; // defaults to 'active' for backward compat
   gradeGoal?: number; // target % of words at familiar+ for readiness (80, 90, or 100; default 100)
+  learner?: LearnerProfile; // what the tutor knows of the child (@learn-kit/learner); absent on a profile made before Kestrel
 }
 
 /**

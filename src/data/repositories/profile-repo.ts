@@ -1,12 +1,26 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
-import type { Profile, ProfileStatus } from '../../contracts/types';
+import { emptyProfile } from 'learn-kit/learner';
+import type { AccessibilitySettings, Profile, ProfileStatus } from '../../contracts/types';
 
 export const profileRepo = {
   async create(data: Omit<Profile, 'id'>): Promise<Profile> {
     const profile: Profile = { ...data, id: uuidv4(), status: data.status ?? 'active' };
     await db.profiles.add(profile);
     return profile;
+  },
+
+  /** A new learner: an active profile whose learner profile (what the tutor knows of the child) starts empty. */
+  async createLearner(name: string, themeId: string, settings: AccessibilitySettings): Promise<Profile> {
+    return profileRepo.create({
+      name,
+      avatar: `${themeId}-1`,
+      themeId,
+      createdAt: new Date(),
+      settings,
+      status: 'active',
+      learner: emptyProfile(),
+    });
   },
 
   async getById(id: string): Promise<Profile | null> {
