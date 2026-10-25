@@ -8,8 +8,9 @@ import { describe, expect, it } from 'vitest';
 const root = join(__dirname, '..', '..');
 const read = (path: string): string => readFileSync(join(root, path), 'utf-8');
 const SPECS = readdirSync(join(root, 'tests', 'e2e')).filter((name) => name.endsWith('.spec.ts'));
-// worlds.spec.ts serves the app with vite (dev) on a port of its own, because it needs the app's live modules; every other spec uses the config's server.
-const OWN_SERVER = ['worlds.spec.ts'];
+// worlds.spec.ts serves the app with vite (dev) on a port of its own, because it needs the app's live modules; front-door.spec.ts does the same for its test page
+// (tests/e2e/harness/front-door.html: the app does not draw the front door yet). Every other spec uses the config's server.
+const OWN_SERVER = ['worlds.spec.ts', 'front-door.spec.ts'];
 const CONFIG_SERVER = SPECS.filter((name) => !OWN_SERVER.includes(name));
 
 describe('the e2e specs and the Playwright config (mw-79en7t.66)', () => {
