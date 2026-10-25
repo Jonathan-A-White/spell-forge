@@ -16,7 +16,7 @@ const CHECKED_AT = '2026-10-24T10:00:00Z';
 const held = { state: 'held', outpoint: { txid: 'ab', vout: 0 }, collection: 'spell-forge', checkedAt: CHECKED_AT } as const;
 const none = { state: 'none', checkedAt: CHECKED_AT } as const;
 
-/** Every route of worlds.ts, and each world's own front (Maths has no screen yet). */
+/** Every route of worlds.ts, and each world's own front. */
 const ROUTES = [...VIEWS.map((v) => v.route), ...WORLDS.map((w) => `/${w.id}`)];
 const TUTOR = viewRoute('tutor');
 

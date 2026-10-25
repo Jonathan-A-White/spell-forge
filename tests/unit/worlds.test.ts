@@ -29,6 +29,9 @@ const DROPPED: Record<string, string> = {
   [DROPPED_BSV_SCREEN]: 'the hidden BSV Debug screen is deleted (M25); src/bsv stays for the licence',
 };
 
+// The views added since, with the story that added them.
+const ADDED = ['maths-home']; // the Maths world's screen (mw-79en7t.57)
+
 describe('worlds.ts: the four worlds and the route of every kept view', () => {
   it('names the four worlds', () => {
     expect(WORLDS.map((w) => w.id)).toEqual(['front-door', 'spelling', 'maths', 'grown-ups']);
@@ -40,7 +43,8 @@ describe('worlds.ts: the four worlds and the route of every kept view', () => {
       if (id in DROPPED) expect(kept).not.toContain(id);
       else expect(kept, `view ${id} has no route in worlds.ts`).toContain(id);
     }
-    expect(kept.length).toBe(APP_VIEWS_BEFORE_12A.length - Object.keys(DROPPED).length);
+    for (const id of ADDED) expect(kept).toContain(id);
+    expect(kept.length).toBe(APP_VIEWS_BEFORE_12A.length - Object.keys(DROPPED).length + ADDED.length);
   });
 
   it('gives every kept view a world and a distinct route under that world', () => {

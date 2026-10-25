@@ -36,7 +36,7 @@ export const VIEWS = [
     'word-list-detail', 'word-detail', 'monster-stable', 'qr-import', 'coin-history',
     'practice-calendar', 'record-test-results', 'test-history', 'test-result-detail', 'trouble-words',
   ]),
-  // Maths has no screen yet.
+  ...inWorld('maths', ['maths-home']),
   ...inWorld('grown-ups', ['settings', 'feedback', 'share', 'about']),
 ] as const satisfies readonly ViewEntry[];
 
@@ -63,7 +63,7 @@ export function viewAtRoute(route: string): ViewEntry | undefined {
   return byRoute.get(route);
 }
 
-/** The world a route is in, even a world with no screen yet (Maths); undefined when no world has the route. */
+/** The world a route is in, even a world with no screen yet; undefined when no world has the route. */
 export function worldAtRoute(route: string): WorldId | undefined {
   const entry = byRoute.get(route);
   if (entry) return entry.world;
@@ -75,7 +75,7 @@ export function worldAtRoute(route: string): WorldId | undefined {
 export const WORLD_ENTRY: Readonly<Record<WorldId, ViewId | undefined>> = {
   'front-door': 'home',
   spelling: 'progress',
-  maths: undefined,
+  maths: 'maths-home',
   'grown-ups': 'settings',
 };
 

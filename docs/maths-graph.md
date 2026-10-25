@@ -4,7 +4,7 @@ What a child can do with numbers, as a graph of small things to learn, "from beg
 for "somebody who knows no Greek", brought up step by step. Each node is one thing to learn (counting to 5, tens and ones, which
 fraction is bigger), each node says which nodes it rests on, and the graph is validated over `@learn-kit/graph`
 (`learn-kit/graph`, pinned by commit in `package.json`): a directed acyclic graph, no unknown need, no need of a higher level. It is
-data and pure code under `src/learn/maths/`; no screen reads it yet. It is the twin of the spelling graph (`docs/spelling-graph.md`)
+data and pure code under `src/learn/maths/`; the Maths world (`src/worlds/maths/`, below) is the screen that reads it. It is the twin of the spelling graph (`docs/spelling-graph.md`)
 and the two share no code, so each can change on its own.
 
 ## The files
@@ -71,6 +71,19 @@ An item holds three things:
 value (`2/4` is `1/2`, `0.5` is `1/2`, `3 to 2` is `3:2`, `1,500` is `1500`), number words up to `twenty` (`five` is `5`),
 anything else as words without case. A ratio is never a fraction (`3:2` refuses `3/2`). It compares the value, not the form, so a
 problem that asks for a form ("in simplest form") needs a check of its own.
+
+## The Maths world (`src/worlds/maths/`)
+
+The screen over the graph, reached from Home's Maths card (`maths-home` in `src/shell/worlds.ts`). `maths-flow.ts` runs learn-kit's
+placement on the first entry (a bisection over the levels, two questions a node, written as solid with `applyPlacement`), then each
+sitting is `planDrill`'s mix of the frontier and the reviews that are due, two items a node. The answer is checked on the phone with
+`checkAnswer`, no network: a right answer without a hint is a counted try, a node is solid when its own `solid` rule holds over its
+last tries (`triesSolid`), and a wrong answer or a right one after a hint does not count. The kit's review schedule runs beside it, so a
+solid node comes back when due. `maths-store.ts` keeps the child's place in localStorage (`sf-maths-graph:<profile id>`,
+`sf-maths-keep:<profile id>`), because the graph's node states are small. `MathsWorld.tsx` draws one question at a time ("Not sure" is
+an answer, a wrong one gets the hint and a way on), tells the tutor where the child is through its `report` prop (the screen's name,
+the node, its problem; never the answer or the hint; the `screen` of `docs/what-the-tutor-is-told.md`) and looks again for a due review
+on `useVisibleInterval` when there is nothing to ask. Its one drill form is `type`; hear, see and do are 19b's.
 
 ## What the maths loop handles today
 

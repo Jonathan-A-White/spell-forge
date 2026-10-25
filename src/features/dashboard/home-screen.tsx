@@ -29,7 +29,7 @@ interface HomeScreenProps {
   coinBalance: CoinBalance | null;
   learningProgress: WordLearningProgress[];
   gradeGoal?: number;
-  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history' | 'practice-calendar' | 'tutor', wordFilter?: Set<string>) => void;
+  onNavigate: (view: 'progress' | 'practice' | 'practice-games' | 'quiz' | 'learning' | 'list-editor' | 'settings' | 'word-lists' | 'share' | 'monster-stable' | 'coin-history' | 'practice-calendar' | 'tutor' | 'maths-home', wordFilter?: Set<string>) => void;
   onSwitchProfile: () => void;
   hasMultipleProfiles: boolean;
 }
@@ -252,6 +252,16 @@ export function HomeScreen({
             />
           </div>
 
+          {/* Maths — its own world, placed on first entry */}
+          <NavCard
+            title="Maths"
+            subtitle="Numbers and problems"
+            icon={<MathsIcon />}
+            onClick={() => onNavigate('maths-home')}
+            accent="from-sky-500/20 to-blue-500/10"
+            iconColor="text-sky-500"
+          />
+
           {/* Tutor — only while the sf-tutor flag is on */}
           {tutorOn && (
             <NavCard
@@ -399,6 +409,15 @@ function GamesIcon() {
       <rect x="13" y="2" width="9" height="9" rx="1" />
       <rect x="2" y="13" width="9" height="9" rx="1" />
       <path d="M17.5 13v9M13 17.5h9" />
+    </svg>
+  );
+}
+
+function MathsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-7 h-7">
+      <path d="M12 5v14M5 12h14" />
+      <path d="M4 20h4M16 18h4" />
     </svg>
   );
 }

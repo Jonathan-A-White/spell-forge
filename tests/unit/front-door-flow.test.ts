@@ -100,12 +100,12 @@ describe('the front door flow (mw-79en7t.39)', () => {
     });
   });
 
-  it('a world with no screen yet (maths) is named but opens nothing', async () => {
+  it('the maths world opens on its own screen', async () => {
     const flow = flowWith(fakeGrind({ words: 'Maths! Here we go.', world: 'maths' }));
     const reply = await flow.ask(await flow.start(), 'maths please');
 
-    expect(reply).toMatchObject({ kind: 'answer', world: 'maths', opened: false });
-    expect(opened).toEqual([]);
+    expect(reply).toMatchObject({ kind: 'answer', world: 'maths', opened: true });
+    expect(opened).toEqual(['maths-home']);
   });
 
   it('a guessed field is kept as a guess, and a told one later replaces it', async () => {

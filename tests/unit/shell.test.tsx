@@ -30,9 +30,12 @@ describe('WorldSwitch', () => {
     }
   });
 
-  it("shows Maths' placeholder, since Maths has no screen yet", () => {
-    render(<WorldSwitch route="/maths" />);
-    expect(screen.getByRole('heading', { name: 'Maths is coming' })).toBeInTheDocument();
+  it("draws Maths' own world on its route, and a bare /maths falls back to Home like any world's missing screen", () => {
+    const { unmount } = render(<WorldSwitch route={viewRoute('maths-home')} worlds={stubs} />);
+    expect(screen.getByTestId('world-maths')).toHaveTextContent('maths:maths-home');
+    unmount();
+    render(<WorldSwitch route="/maths" worlds={stubs} />);
+    expect(screen.getByTestId('world-front-door')).toHaveTextContent('front-door:home');
   });
 
   it('falls back to the front door for a route that does not exist', () => {

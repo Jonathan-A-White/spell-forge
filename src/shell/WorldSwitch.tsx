@@ -22,7 +22,7 @@ function GetLicence() {
 export function WorldSwitch({ route, worlds = WORLD_SCREENS }: { route: string; worlds?: WorldScreens }) {
   const entry = viewAtRoute(route);
   const world = worldAtRoute(route);
-  // A world with no screen yet (Maths) shows its own placeholder; any other route that no longer exists is the front door's Home.
+  // A route in a world that names none of its screens, or one that no longer exists, is the front door's Home.
   const hasScreens = VIEWS.some((v) => v.world === world);
   if (!world || (!entry && hasScreens)) {
     const FrontDoor = worlds['front-door'];

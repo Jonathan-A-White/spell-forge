@@ -1,10 +1,10 @@
 // tests/e2e/worlds.spec.ts: the four worlds walked in a real browser at a phone's 390x844. A new child is welcomed (Front door), opens
-// My Words (Spelling) and Settings (Grown-ups); a stand-in for the tutor's "go" answer opens an old screen through the shell's openView;
+// My Words (Spelling), Maths (placement's first question) and Settings (Grown-ups); a stand-in for the tutor's "go" answer opens an old screen through the shell's openView;
 // Get a licence opens STORE_URL; each screen sits inside the window with nothing to scroll sideways.
 //
 // Two things the built app cannot show, so this spec serves the app with `vite` (dev), whose modules are the app's own live instances:
 //  - nothing in the app reads a licence yet (mw-6ww.111), so the licence state is handed to src/shell/licence-gate.ts the way that story will;
-//  - the Maths world has no screen and no route a tap reaches, so it is drawn by features/worlds.feature (jsdom) and not here.
+//  - (nothing else: Maths is reached by a tap on Home's Maths card, like the other worlds).
 // No tutor answer says "go" yet, so the "go" function is taken from the shell's own context provider (React's fiber tree).
 // The store itself is answered by page.route: the test never reaches the network.
 //
@@ -109,6 +109,18 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
   await expect(page.getByRole('heading', { name: 'Word Lists' })).toBeVisible();
   await fitsThePhone(page);
   await shot(page, 'worlds-spelling');
+
+  // --- Maths: the card on Home, a tap a child can make; it starts by finding out what he knows, with the first question ---
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+  await page.getByRole('button', { name: /Maths/ }).click();
+  await expect(page.getByRole('heading', { name: 'Maths' })).toBeVisible();
+  await expect(page.getByText(/see what you know/i)).toBeVisible();
+  await expect(page.getByLabel('Your answer')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Not sure' })).toBeVisible();
+  await fitsThePhone(page);
+  await shot(page, 'worlds-maths');
 
   // --- Grown-ups: Settings reached from Home ---
   await page.goBack();

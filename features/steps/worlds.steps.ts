@@ -1,13 +1,11 @@
 // features/steps/worlds.steps.ts: runs features/worlds.feature, the four worlds. The whole app is rendered in jsdom; a stand-in
-// button plays the tutor's "go" answer (no tutor answer says go yet), and the Maths world is drawn from its route since no screen
-// of the app leads to it.
+// button plays the tutor's "go" answer (no tutor answer says go yet); Maths is reached from Home by a tap.
 import '@testing-library/react/dont-cleanup-after-each';
 import { createElement } from 'react';
 import { afterAll, expect, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { describeFeature, loadFeature } from '@amiceli/vitest-cucumber';
 import { Shell } from '../../src/shell/Shell';
-import { WorldSwitch } from '../../src/shell/WorldSwitch';
 import { AppProvider } from '../../src/shell/app-context';
 import { useApp } from '../../src/shell/app-state';
 import { setLicenceStatus } from '../../src/shell/licence-gate';
@@ -128,12 +126,15 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     Then('the screen {string} is shown', screenShown);
   });
 
-  Scenario('AC1: Maths says it is coming', ({ Given, Then }) => {
-    Given('the route {string}', (_ctx, route: string) => {
-      render(createElement(WorldSwitch, { route }));
+  Scenario('AC1: Home opens Maths, which starts by finding out what the child knows', ({ Given, When, And, Then }) => {
+    Given('a phone that holds the profile {string}', holdProfile);
+    When('SpellForge opens', renderApp);
+    And('{string} is tapped on Home', async (_ctx, label: string) => {
+      fireEvent.click(await screen.findByRole('button', { name: new RegExp(label) }));
     });
-    Then('the screen {string} is shown', (_ctx, heading: string) => {
-      expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
+    Then('the screen {string} is shown', screenShown);
+    And('Maths asks {string}', async (_ctx, line: string) => {
+      expect(await screen.findByText(new RegExp(line))).toBeInTheDocument();
     });
   });
 

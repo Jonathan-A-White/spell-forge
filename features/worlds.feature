@@ -32,9 +32,12 @@ Feature: The four worlds
     And the tutor says go to "about"
     Then the screen "About & Credits" is shown
 
-  Scenario: AC1: Maths says it is coming
-    Given the route "/maths"
-    Then the screen "Maths is coming" is shown
+  Scenario: AC1: Home opens Maths, which starts by finding out what the child knows
+    Given a phone that holds the profile "Rowan"
+    When SpellForge opens
+    And "Maths" is tapped on Home
+    Then the screen "Maths" is shown
+    And Maths asks "Let's see what you know"
 
   Scenario: AC1: Get a licence opens the store where there is no licence
     Given a phone that holds the profile "Rowan"
