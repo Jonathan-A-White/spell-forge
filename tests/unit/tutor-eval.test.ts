@@ -37,7 +37,7 @@ describe('grinds/tutor-turn.instructions.md', () => {
   });
 
   it('puts handwriting first: a rewrite before the maths is checked, a new photo, erasing thoroughly in pencil', () => {
-    expect(instructions).toMatch(/^## Mode math: handwriting first$/m);
+    expect(instructions).toMatch(/^## Part \d+ · Mode math: handwriting first$/m);
     expect(instructions).toContain('`rewrite`');
     expect(instructions).toMatch(/erase it thoroughly/i);
     expect(instructions).toMatch(/new photo/i);
