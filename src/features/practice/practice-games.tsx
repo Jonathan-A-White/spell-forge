@@ -2,12 +2,13 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Word, WordList, SessionLog, Profile, ActivityType, CoinBalance } from '../../contracts/types';
-import { WordSearch, type WordSearchSavedState } from './word-search';
+import type { WordSearchSavedState } from './word-search';
 import type { WordSearchDifficulty } from './word-search-difficulty';
-import { WordRelayRace, type RelayRaceResults, type RelayRaceSavedState } from './word-relay-race';
-import { SpellCatcher, type SpellCatcherResults, type SpellCatcherSavedState } from './spell-catcher';
-import { WordVolcano, type WordVolcanoResults, type WordVolcanoSavedState } from './word-volcano';
-import { LetterInvasion, type LetterInvasionResults, type LetterInvasionSavedState } from './letter-invasion';
+import type { RelayRaceSavedState } from './word-relay-race';
+import type { SpellCatcherSavedState } from './spell-catcher';
+import type { WordVolcanoSavedState } from './word-volcano';
+import type { LetterInvasionSavedState } from './letter-invasion';
+import { drillForms, openGame, type DrillFormId, type GameItem, type GameResult } from '../../worlds/spelling/drill-forms';
 import { activityProgressRepo } from '../../data/repositories/activity-progress-repo';
 import { learningProgressRepo } from '../../data/repositories/learning-progress-repo';
 import { statsRepo } from '../../data/repositories/stats-repo';
@@ -23,6 +24,15 @@ interface GameSavedState {
   wordVolcano?: WordVolcanoSavedState;
   letterInvasion?: LetterInvasionSavedState;
 }
+
+/** The drill form each game mode opens (src/worlds/spelling/drill-forms.ts) and the key its saved state is kept under. */
+const GAME_FORMS: Partial<Record<GameMode, { form: DrillFormId; savedKey: keyof GameSavedState }>> = {
+  'word-search': { form: 'word-search', savedKey: 'wordSearch' },
+  'relay-race': { form: 'word-relay-race', savedKey: 'relayRace' },
+  'spell-catcher': { form: 'spell-catcher', savedKey: 'spellCatcher' },
+  'word-volcano': { form: 'word-volcano', savedKey: 'wordVolcano' },
+  'letter-invasion': { form: 'letter-invasion', savedKey: 'letterInvasion' },
+};
 
 interface PracticeGamesProps {
   profile: Profile;
@@ -129,6 +139,9 @@ export function PracticeGames({
     // For word search, limit to a reasonable number
     return texts.slice(0, 12);
   }, [gameWords]);
+
+  // The words as the items a game form takes (src/worlds/spelling/drill-forms.ts)
+  const gameItems = useMemo<GameItem[]>(() => wordTexts.map((word) => ({ word })), [wordTexts]);
 
   // When a game mode is selected, check for saved progress for that game
   useEffect(() => {
@@ -275,167 +288,50 @@ export function PracticeGames({
     [profile.id, wordSearchDifficulty],
   );
 
-  const handleWordSearchProgress = useCallback(
-    (wsState: WordSearchSavedState) => {
-      saveGameState('word-search', 'word-search', { wordSearch: wsState });
+  const handleGameProgress = useCallback(
+    (state: unknown) => {
+      const game = GAME_FORMS[mode];
+      const activityType = game && drillForms.get(game.form).render.activityType;
+      if (!game || !activityType) return;
+      saveGameState(activityType, mode, { [game.savedKey]: state });
     },
-    [saveGameState],
+    [mode, saveGameState],
   );
 
-  const handleRelayRaceProgress = useCallback(
-    (rrState: RelayRaceSavedState) => {
-      saveGameState('relay-race', 'relay-race', { relayRace: rrState });
-    },
-    [saveGameState],
-  );
-
-  const handleWordSearchComplete = useCallback(
-    (found: number, total: number) => {
-      const percentage = Math.round((found / total) * 100);
-      setGameResult({ correct: found, total, percentage });
+  const handleGameComplete = useCallback(
+    (result: GameResult) => {
+      const game = GAME_FORMS[mode];
+      if (!game) return;
+      const { activityType, idPrefix } = drillForms.get(game.form).render;
+      const percentage = Math.round((result.correct / result.total) * 100);
+      setGameResult({ correct: result.correct, total: result.total, percentage });
 
       const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `ws-${Date.now()}`,
+        id: crypto.randomUUID?.() ?? `${idPrefix}-${Date.now()}`,
         profileId: profile.id,
-        startedAt: new Date(),
+        startedAt: new Date(result.totalTimeMs === undefined ? Date.now() : Date.now() - result.totalTimeMs),
         endedAt: new Date(),
-        wordsAttempted: total,
-        wordsCorrect: found,
-        engagementScore: found / Math.max(total, 1),
+        wordsAttempted: result.total,
+        wordsCorrect: result.correct,
+        engagementScore: result.correct / Math.max(result.total, 1),
         endReason: 'completed',
         rewardEarned: null,
       };
       onSessionEnd(log);
       // Clear saved progress on completion
-      activityProgressRepo.clear(profile.id, 'word-search');
+      if (activityType) activityProgressRepo.clear(profile.id, activityType);
     },
-    [profile.id, onSessionEnd],
+    [mode, profile.id, onSessionEnd],
   );
 
-  const handleSpellCatcherProgress = useCallback(
-    (scState: SpellCatcherSavedState) => {
-      saveGameState('spell-catcher', 'spell-catcher', { spellCatcher: scState });
-    },
-    [saveGameState],
-  );
-
-  const handleSpellCatcherComplete = useCallback(
-    (results: SpellCatcherResults) => {
-      const percentage = Math.round((results.wordsCompleted / results.totalWords) * 100);
-      setGameResult({
-        correct: results.wordsCompleted,
-        total: results.totalWords,
-        percentage,
-      });
-
-      const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `sc-${Date.now()}`,
-        profileId: profile.id,
-        startedAt: new Date(),
-        endedAt: new Date(),
-        wordsAttempted: results.totalWords,
-        wordsCorrect: results.wordsCompleted,
-        engagementScore: results.wordsCompleted / Math.max(results.totalWords, 1),
-        endReason: 'completed',
-        rewardEarned: null,
-      };
-      onSessionEnd(log);
-      activityProgressRepo.clear(profile.id, 'spell-catcher');
-    },
-    [profile.id, onSessionEnd],
-  );
-
-  const handleWordVolcanoProgress = useCallback(
-    (wvState: WordVolcanoSavedState) => {
-      saveGameState('word-volcano', 'word-volcano', { wordVolcano: wvState });
-    },
-    [saveGameState],
-  );
-
-  const handleWordVolcanoComplete = useCallback(
-    (results: WordVolcanoResults) => {
-      const percentage = Math.round((results.wordsCompleted / results.totalWords) * 100);
-      setGameResult({
-        correct: results.wordsCompleted,
-        total: results.totalWords,
-        percentage,
-      });
-
-      const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `wv-${Date.now()}`,
-        profileId: profile.id,
-        startedAt: new Date(),
-        endedAt: new Date(),
-        wordsAttempted: results.totalWords,
-        wordsCorrect: results.wordsCompleted,
-        engagementScore: results.wordsCompleted / Math.max(results.totalWords, 1),
-        endReason: 'completed',
-        rewardEarned: null,
-      };
-      onSessionEnd(log);
-      activityProgressRepo.clear(profile.id, 'word-volcano');
-    },
-    [profile.id, onSessionEnd],
-  );
-
-  const handleLetterInvasionProgress = useCallback(
-    (liState: LetterInvasionSavedState) => {
-      saveGameState('letter-invasion', 'letter-invasion', { letterInvasion: liState });
-    },
-    [saveGameState],
-  );
-
-  const handleLetterInvasionComplete = useCallback(
-    (results: LetterInvasionResults) => {
-      const percentage = Math.round((results.wavesCleared / results.totalWords) * 100);
-      setGameResult({
-        correct: results.wavesCleared,
-        total: results.totalWords,
-        percentage,
-      });
-
-      const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `li-${Date.now()}`,
-        profileId: profile.id,
-        startedAt: new Date(),
-        endedAt: new Date(),
-        wordsAttempted: results.totalWords,
-        wordsCorrect: results.wavesCleared,
-        engagementScore: results.wavesCleared / Math.max(results.totalWords, 1),
-        endReason: 'completed',
-        rewardEarned: null,
-      };
-      onSessionEnd(log);
-      activityProgressRepo.clear(profile.id, 'letter-invasion');
-    },
-    [profile.id, onSessionEnd],
-  );
-
-  const handleRelayRaceComplete = useCallback(
-    (results: RelayRaceResults) => {
-      const percentage = Math.round((results.wordsCorrect / results.totalWords) * 100);
-      setGameResult({
-        correct: results.wordsCorrect,
-        total: results.totalWords,
-        percentage,
-      });
-
-      const log: SessionLog = {
-        id: crypto.randomUUID?.() ?? `rr-${Date.now()}`,
-        profileId: profile.id,
-        startedAt: new Date(Date.now() - results.totalTimeMs),
-        endedAt: new Date(),
-        wordsAttempted: results.totalWords,
-        wordsCorrect: results.wordsCorrect,
-        engagementScore: results.wordsCorrect / Math.max(results.totalWords, 1),
-        endReason: 'completed',
-        rewardEarned: null,
-      };
-      onSessionEnd(log);
-      activityProgressRepo.clear(profile.id, 'relay-race');
-    },
-    [profile.id, onSessionEnd],
-  );
+  const activeGame = GAME_FORMS[mode];
+  const savedStates: Partial<Record<keyof GameSavedState, unknown>> = {
+    wordSearch: wordSearchSaved,
+    relayRace: relayRaceSaved,
+    spellCatcher: spellCatcherSaved,
+    wordVolcano: wordVolcanoSaved,
+    letterInvasion: letterInvasionSaved,
+  };
 
   if (loading) {
     return (
@@ -744,65 +640,16 @@ export function PracticeGames({
           </button>
         </div>
 
-        {mode === 'word-search' && !gameResult && (
-          <WordSearch
-            words={wordTexts}
-            difficulty={wordSearchDifficulty}
-            onComplete={handleWordSearchComplete}
-            tapTargetSize={profile.settings.tapTargetSize}
-            savedState={wordSearchSaved}
-            onProgress={handleWordSearchProgress}
-          />
-        )}
-
-        {mode === 'relay-race' && !gameResult && (
-          <WordRelayRace
-            words={wordTexts}
-            onComplete={handleRelayRaceComplete}
-            onSpeak={onSpeak}
-            audioBusy={audioBusy}
-            tapTargetSize={profile.settings.tapTargetSize}
-            savedState={relayRaceSaved}
-            onProgress={handleRelayRaceProgress}
-            themeId={profile.themeId}
-          />
-        )}
-
-        {mode === 'spell-catcher' && !gameResult && (
-          <SpellCatcher
-            words={wordTexts}
-            onComplete={handleSpellCatcherComplete}
-            onSpeak={onSpeak}
-            audioBusy={audioBusy}
-            tapTargetSize={profile.settings.tapTargetSize}
-            savedState={spellCatcherSaved}
-            onProgress={handleSpellCatcherProgress}
-          />
-        )}
-
-        {mode === 'word-volcano' && !gameResult && (
-          <WordVolcano
-            words={wordTexts}
-            onComplete={handleWordVolcanoComplete}
-            onSpeak={onSpeak}
-            audioBusy={audioBusy}
-            tapTargetSize={profile.settings.tapTargetSize}
-            savedState={wordVolcanoSaved}
-            onProgress={handleWordVolcanoProgress}
-          />
-        )}
-
-        {mode === 'letter-invasion' && !gameResult && (
-          <LetterInvasion
-            words={wordTexts}
-            onComplete={handleLetterInvasionComplete}
-            onSpeak={onSpeak}
-            audioBusy={audioBusy}
-            tapTargetSize={profile.settings.tapTargetSize}
-            savedState={letterInvasionSaved}
-            onProgress={handleLetterInvasionProgress}
-          />
-        )}
+        {activeGame && !gameResult && openGame(activeGame.form, gameItems, {
+          tapTargetSize: profile.settings.tapTargetSize,
+          difficulty: wordSearchDifficulty,
+          themeId: profile.themeId,
+          onSpeak,
+          audioBusy,
+          savedState: savedStates[activeGame.savedKey],
+          onProgress: handleGameProgress,
+          onComplete: handleGameComplete,
+        })}
 
         {gameResult && (
           <div className="flex flex-col items-center gap-6 p-6 max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
