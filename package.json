@@ -58,7 +58,7 @@
     "react-router-dom": "^7.13.1",
     "tesseract.js": "^7.0.0",
     "uuid": "^13.0.0",
-    "voice-kit": "github:Jonathan-A-White/voice-kit#e23b7909a12d2946b3ef52977aeadd7c09d6a5e7",
+    "voice-kit": "github:Jonathan-A-White/voice-kit#d87188227886ec15e7c34f674992f4a63ea69215",
     "workbox-precaching": "7.4.1",
     "workbox-routing": "^7.4.1"
   },
@@ -96,6 +96,6 @@
     "github:Jonathan-A-White/bsv-kit#918c441ce443dff052470de5671c2b1c430f8ebd": true,
     "github:Jonathan-A-White/learn-kit#993ac91b74ca4b34493f734bff2ca1ec61f22b63": true,
     "github:Jonathan-A-White/pwa-kit#0b7d6d4603acaf7b954a8dc364f37b92dfe79fb7": true,
-    "github:Jonathan-A-White/voice-kit#e23b7909a12d2946b3ef52977aeadd7c09d6a5e7": true
+    "github:Jonathan-A-White/voice-kit#d87188227886ec15e7c34f674992f4a63ea69215": true
   }
 }
