@@ -9,6 +9,7 @@ export const IDLE_LOOK_MS = 60_000;
 
 const STAGE_FACT: Record<SpellingStage, string> = {
   placement: 'Finding out what the child already knows',
+  list: 'Practising the words on a spelling list',
   frontier: 'Learning something new',
   due: 'Going over something learned before',
 };

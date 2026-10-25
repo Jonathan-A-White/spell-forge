@@ -18,6 +18,11 @@ need, no need of a higher level. It is data and pure code under `src/learn/spell
   nodes follow `syllabifier.ts` (a doubled consonant sits at a syllable split; a prefix or suffix is a syllable of its own).
 - `nodes-strategies.ts`: the strategy nodes for `3-5`, `6-8` and `9-12`: the ways of working a word out that are not rote memory (see
   "The strategy nodes" below), and `MEMORY_AID_STRATEGIES`, the sweep of every kind of memory aid with the node it became.
+- `place-words.ts`: puts the words of a word list on the graph (mw-79en7t.16). `requestNodes()` is the `nodes` of a word-list request (every
+  node but the strategy nodes: its id, name and the patterns its words show); `placeWords(claims)` takes the node the factory's answer
+  named for each word if the graph has it, else `matchPattern` (the node that holds the word, else the longest pattern the word shows),
+  and keeps the reason. A photo import stores the result on the word (`nodeId`, `nodeReason`); the Spelling flow's `focus` takes those
+  nodes first (stage `list`) until they are solid.
 - `graph.ts`: assembles the node files into `SPELLING_NODES` (youngest band first), checks every node with `nodeProblems`, and validates the whole with
   learn-kit's `validate` into `spellingGraph`. A node that breaks a rule stops the module from loading, so a test fails by name.
 - `index.ts`: the barrel; import from `src/learn/spelling`.

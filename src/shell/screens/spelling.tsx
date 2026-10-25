@@ -10,6 +10,7 @@ import { LearningScreen } from '../../features/learning';
 import { ListEditor } from '../../features/word-lists/list-editor';
 import { WordListsView } from '../../features/word-lists/word-lists-view';
 import { WordListDetail } from '../../features/word-lists/word-list-detail';
+import { listNodeIds } from '../../features/word-lists/list-nodes';
 import { QrImport } from '../../features/word-lists/qr-import';
 import { RecordTestResults } from '../../features/word-lists/record-test-results';
 import { TestHistory } from '../../features/word-lists/test-history';
@@ -268,6 +269,7 @@ export function SpellingWorld({ view }: { view: ViewId | null }) {
         <Spelling
           key={activeProfile.id}
           profileId={activeProfile.id}
+          focus={() => listNodeIds(activeProfile.id)}
           onSpeak={(word) => void onSpeakGraphWord(word)}
           audioBusy={audioBusy}
           tapTargetSize={activeProfile.settings.tapTargetSize}
