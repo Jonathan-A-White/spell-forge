@@ -12,6 +12,11 @@ export function bandLevel(band: GradeBand): number {
   return GRADE_BANDS.indexOf(band);
 }
 
+/** The spelling strategies a child is taught beside the patterns, so that spelling is not rote memory: each is a way to work a word out. */
+export const STRATEGY_KINDS = ['syllables', 'roots-affixes', 'analogy', 'mnemonic', 'visual-check'] as const;
+
+export type StrategyKind = (typeof STRATEGY_KINDS)[number];
+
 /** The fewest items a node may have: enough to ask the child a few different ways before it is called solid. */
 export const MIN_ITEMS = 3;
 
@@ -44,6 +49,8 @@ export interface SpellingNode extends GraphNode {
   name: string;
   /** The entries of src/core/phonics/patterns.ts this node is built from (none for the letter sounds). */
   patternIds: readonly string[];
+  /** Set on a strategy node (nodes-strategies.ts): the way of working a word out that it teaches. A pattern node has none. */
+  strategy?: StrategyKind;
 }
 
 /** Does this word show this pattern? A pattern with `_` (`a_e`) is its two ends around one consonant (`cake`); any other is found in the word. */
@@ -77,6 +84,7 @@ export function spellingNode(spec: {
   name: string;
   needs?: readonly string[];
   patternIds?: readonly string[];
+  strategy?: StrategyKind;
   items: readonly (readonly [word: string, pattern: string, distractor: string])[];
   solid?: SolidRule;
 }): SpellingNode {
@@ -84,12 +92,13 @@ export function spellingNode(spec: {
     id: spec.id,
     needs: spec.needs ?? [],
     level: bandLevel(spec.band),
-    tags: ['spelling', spec.band],
+    tags: spec.strategy ? ['spelling', spec.band, 'strategy', spec.strategy] : ['spelling', spec.band],
     band: spec.band,
     solid: spec.solid ?? DEFAULT_SOLID[spec.band],
     items: spec.items.map(([word, pattern, distractor]) => ({ word, pattern, distractor })),
     name: spec.name,
     patternIds: spec.patternIds ?? [],
+    ...(spec.strategy ? { strategy: spec.strategy } : {}),
   };
 }
 
