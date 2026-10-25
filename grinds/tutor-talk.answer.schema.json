@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tutor Talk Answer 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["words"],
+  "properties": {
+    "words": {
+      "description": "What the tutor says to the child: shown on the screen and read aloud. Plain words he can hear; never the answer to his homework.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "profile_update": {
+      "description": "What this turn taught you about him, in learn-kit's profile fields. Only what he said or showed in this talk.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "age": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "gender": { "enum": ["boy", "girl"] },
+        "experience": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "learnerKind": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "speed": { "enum": ["quick", "steady", "slow"] },
+        "notes": { "type": "array", "maxItems": 3, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+        "guessed": {
+          "description": "The fields above you guessed from how he talks, rather than were told in so many words.",
+          "type": "array",
+          "items": { "enum": ["age", "gender", "experience", "learnerKind", "speed"] }
+        }
+      }
+    },
+    "goal_suggestion": {
+      "description": "A goal to offer him, by the id of one of the request's goals, and why, in a few words.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "why"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "why": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "world": {
+      "description": "The world to open now, when he chose one in this turn. Absent otherwise.",
+      "enum": ["spelling", "maths"]
+    },
+    "memory_update": {
+      "description": "What the talk should remember beyond its turns: facts to add or remove, and the summary so far.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "add": { "type": "array", "maxItems": 5, "items": { "type": "string", "minLength": 1, "maxLength": 300 } },
+        "remove": { "type": "array", "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
+        "summary": { "type": "string", "maxLength": 1500 }
+      }
+    }
+  }
+}

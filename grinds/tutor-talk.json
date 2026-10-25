@@ -1,0 +1,16 @@
+{
+  "grind": 1,
+  "app": "spellforge",
+  "kind": "tutor-talk",
+  "versions": ["1"],
+  "model": "opus",
+  "effort": "high",
+  "instructions": "grinds/tutor-talk.instructions.md",
+  "answerSchema": "grinds/tutor-talk.answer.schema.json",
+  "attachments": {
+    "min": 0,
+    "max": 3,
+    "mime": ["image/jpeg", "image/png", "image/webp"],
+    "maxBytes": 4194304
+  }
+}

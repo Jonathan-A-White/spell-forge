@@ -1,0 +1,31 @@
+{
+  "about": "Asked about himself, he says he is thirteen and a boy who likes hard maths: the age and gender land in the profile update, told, and no world opens yet.",
+  "request": {
+    "schemaVersion": "1",
+    "message": "I'm thirteen and I'm a boy. I like really hard maths.",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Hello! I'd love to get to know you. How old are you, and what do you like to learn?"
+      }
+    ],
+    "strictness": "meaning-gated",
+    "goals": [
+      {
+        "id": "sat-maths-800",
+        "title": "An 800 on the maths SAT"
+      },
+      {
+        "id": "competition",
+        "title": "A maths competition"
+      }
+    ]
+  },
+  "expect": {
+    "profile_update.age": 13,
+    "profile_update.gender": "boy",
+    "world": {
+      "present": false
+    }
+  }
+}
