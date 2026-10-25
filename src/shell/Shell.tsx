@@ -2,13 +2,14 @@
 // Shell root are clipped, with a top bar and a bottom bar that carry the safe-area insets, and between them ONE scroll box that
 // every screen is drawn in. The update bar and the What's new sheet sit above the screen, the offline-feedback banner and the
 // debug overlays below. The Shell also starts what is app-wide: the scroll guard, the tap guard, the long press that says a word,
-// and the one request to keep the storage.
+// and the one request to keep the storage. Above the bottom bar sits the Ask button, once a screen has told the tutor where he is.
 import { useEffect } from 'react';
 import { UpdateBanner } from '../features/update';
 import { WhatsNewOnUpdate } from '../features/about';
 import { FeedbackSyncBanner } from '../features/feedback/feedback-sync-banner';
 import { TtsDebugOverlay } from '../audio/tts-debug-overlay';
 import { DebugOverlay } from '../debug';
+import { AskTutorButton } from './AskTutorButton';
 import { useApp } from './app-state';
 import { installScrollGuard } from './focus';
 import { HearAnyWord } from './HearAnyWord';
@@ -21,7 +22,7 @@ import { viewRoute, type ViewId } from './worlds';
 const DRILL_VIEWS: readonly ViewId[] = ['practice', 'practice-games', 'quiz', 'learning'];
 
 export function Shell() {
-  const { view, profiles, activeProfile, ttsDebugEnabled, debugModeEnabled } = useApp();
+  const { view, setView, profiles, activeProfile, ttsDebugEnabled, debugModeEnabled } = useApp();
 
   useEffect(() => installScrollGuard(), []);
   useTapGuard(view);
@@ -39,6 +40,7 @@ export function Shell() {
       <main data-scroll-box data-drill={DRILL_VIEWS.includes(view) ? '' : undefined} className="sf-scroll-box">
         <WorldSwitch route={viewRoute(view)} />
       </main>
+      {showSyncBanner && <AskTutorButton view={view} open={setView} />}
       {showSyncBanner && <FeedbackSyncBanner />}
       <div data-shell-bar="bottom" className="sf-bar-bottom" aria-hidden="true" />
       <TtsDebugOverlay enabled={ttsDebugEnabled} />
