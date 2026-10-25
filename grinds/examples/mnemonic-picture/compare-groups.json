@@ -1,0 +1,45 @@
+{
+  "about": "The maths concept 'Which group has more' (words group, more): the answer is one SVG on the 96 grid with its own tile, and no text, image, script, href or data URI.",
+  "request": {
+    "schemaVersion": "1",
+    "nodeId": "compare-groups",
+    "name": "Which group has more",
+    "words": [
+      "group",
+      "more"
+    ]
+  },
+  "expect": {
+    "svg": {
+      "all": [
+        {
+          "matches": "^\\s*<svg\\b"
+        },
+        {
+          "matches": "xmlns=\"http://www\\.w3\\.org/2000/svg\""
+        },
+        {
+          "matches": "viewBox=\"0 0 96 96\""
+        },
+        {
+          "matches": "(?i)<rect\\b"
+        },
+        {
+          "matches": "(?i)^(?:[^<]|<(?:<|t(?:<|e(?:<|x<)))*(?:[^<t]|t(?:[^<e]|e(?:[^<x]|x[^<t]))))*(?:|<(?:<|t(?:<|e(?:<|x<)))*(?:|t(?:|e(?:|x))))$"
+        },
+        {
+          "matches": "(?i)^(?:[^<]|<(?:<|i(?:<|m(?:<|a(?:<|g<))))*(?:[^<i]|i(?:[^<m]|m(?:[^<a]|a(?:[^<g]|g[^<e])))))*(?:|<(?:<|i(?:<|m(?:<|a(?:<|g<))))*(?:|i(?:|m(?:|a(?:|g)))))$"
+        },
+        {
+          "matches": "(?i)^(?:[^<]|<(?:<|s(?:<|c(?:<|r(?:<|i(?:<|p<)))))*(?:[^<s]|s(?:[^<c]|c(?:[^<r]|r(?:[^<i]|i(?:[^<p]|p[^<t]))))))*(?:|<(?:<|s(?:<|c(?:<|r(?:<|i(?:<|p<)))))*(?:|s(?:|c(?:|r(?:|i(?:|p))))))$"
+        },
+        {
+          "matches": "(?i)^(?:[^h]|h(?:h|r(?:h|eh))*(?:[^hr]|r(?:[^he]|e[^hf])))*(?:|h(?:h|r(?:h|eh))*(?:|r(?:|e)))$"
+        },
+        {
+          "matches": "(?i)^(?:[^d]|d(?:d|a(?:d|t(?:d|ad)))*(?:[^da]|a(?:[^dt]|t(?:[^da]|a[^d:]))))*(?:|d(?:d|a(?:d|t(?:d|ad)))*(?:|a(?:|t(?:|a))))$"
+        }
+      ]
+    }
+  }
+}

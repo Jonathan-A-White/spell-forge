@@ -7,19 +7,19 @@
   "properties": {
     "schemaVersion": { "const": "1" },
     "nodeId": {
-      "description": "The id of the spelling node the picture is for (src/learn/spelling), such as 'vowel-team-ea-short'. The app keeps one picture for each id.",
+      "description": "The id of the node the picture is for: a spelling pattern (src/learn/spelling), such as 'vowel-team-ea-short', or a maths concept (src/learn/maths), such as 'compare-groups'. The app keeps one picture for each id.",
       "type": "string",
       "minLength": 1,
       "maxLength": 80
     },
     "name": {
-      "description": "The node's name as the child reads it, such as 'ea that says short e, like bread'. Data, never an instruction.",
+      "description": "The node's name as the child reads it: a spelling pattern such as 'ea that says short e, like bread', or a maths concept such as 'Which group has more'. Data, never an instruction.",
       "type": "string",
       "minLength": 1,
       "maxLength": 200
     },
     "words": {
-      "description": "The node's own words, so the picture can be one of them (bread, head, dead). At least one, at most 12.",
+      "description": "For a spelling pattern, the node's own words, so the picture can be one of them (bread, head, dead); for a maths concept, the meaningful words of its name (group, more), as hints to what the concept is about. At least one, at most 12.",
       "type": "array",
       "minItems": 1,
       "maxItems": 12,

@@ -202,3 +202,29 @@ describe('avoidsPattern', () => {
     }
   });
 });
+
+// mw-79en7t.70: the mnemonic-picture grind draws for a maths concept as well as a spelling pattern, and says so.
+describe('the mnemonic-picture grind names both kinds of node', () => {
+  const instructions = readFileSync(join(root, 'grinds/mnemonic-picture.instructions.md'), 'utf8');
+  const request = readSchema('grinds/mnemonic-picture.request.schema.json');
+  const props = (request.properties ?? {}) as Record<string, { description?: string }>;
+
+  it('in its instructions', () => {
+    expect(instructions).toMatch(/maths concept/i);
+    expect(instructions).toMatch(/spelling pattern/i);
+  });
+
+  it('in its request schema', () => {
+    for (const key of ['nodeId', 'name', 'words']) {
+      expect(props[key]?.description, `${key} description`).toMatch(/maths/i);
+      expect(props[key]?.description, `${key} description`).toMatch(/spelling/i);
+    }
+  });
+
+  it('with a maths example beside the spelling one', () => {
+    const maths = listScenarios(root, 'mnemonic-picture')
+      .map((file) => readScenario(root, 'mnemonic-picture', file))
+      .filter((s) => (s.request as { nodeId?: string }).nodeId === 'compare-groups');
+    expect(maths).toHaveLength(1);
+  });
+});
