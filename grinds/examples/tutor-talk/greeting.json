@@ -1,0 +1,37 @@
+{
+  "about": "He has just opened the front door and the tutor knows nothing of him yet: it greets him and asks one easy question, and opens no world.",
+  "request": {
+    "schemaVersion": "1",
+    "message": "",
+    "history": [],
+    "strictness": "meaning-gated",
+    "goals": [
+      {
+        "id": "sat-maths-800",
+        "title": "An 800 on the maths SAT"
+      },
+      {
+        "id": "competition",
+        "title": "A maths competition"
+      }
+    ]
+  },
+  "expect": {
+    "words": {
+      "all": [
+        {
+          "matches": "(?i)\\b(hi|hello|hey|welcome|good (morning|afternoon|evening))\\b"
+        },
+        {
+          "matches": "\\?"
+        }
+      ]
+    },
+    "world": {
+      "present": false
+    },
+    "goal_suggestion": {
+      "present": false
+    }
+  }
+}

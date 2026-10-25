@@ -1,0 +1,23 @@
+{
+  "about": "After the greeting he says he wants to do spelling: the tutor says it is taking him there and opens the spelling world.",
+  "request": {
+    "schemaVersion": "1",
+    "message": "I want to do spelling",
+    "history": [
+      { "role": "assistant", "text": "Hi! I'm your tutor. Would you like to do some spelling or some maths today?" }
+    ],
+    "strictness": "meaning-gated",
+    "learner": { "age": 9 },
+    "goals": [
+      { "id": "sat-maths-800", "title": "An 800 on the maths SAT" },
+      { "id": "competition", "title": "A maths competition" }
+    ],
+    "progress": {
+      "spelling": { "band": "3-5", "next": ["Silent e", "Vowel teams"] }
+    }
+  },
+  "expect": {
+    "world": "spelling",
+    "words": { "matches": "(?i)spell" }
+  }
+}
