@@ -7,3 +7,5 @@ export { PHONICS_NODES } from './nodes-phonics.ts';
 export { PATTERN_NODES } from './nodes-patterns.ts';
 export { MEMORY_AID_STRATEGIES, STRATEGY_NODES } from './nodes-strategies.ts';
 export type { MemoryAidStrategy } from './nodes-strategies.ts';
+export { matchPattern, placeWords, requestNodes } from './place-words.ts';
+export type { PlacedWord, RequestNode, WordClaim } from './place-words.ts';
