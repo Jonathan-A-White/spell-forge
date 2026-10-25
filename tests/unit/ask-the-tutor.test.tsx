@@ -7,7 +7,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { parentAskRepo, tutorRepo } from '../../src/data/repositories';
-import { ParentScreen } from '../../src/features/tutor/parent-screen';
+import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
 import { door } from 'bsv-kit/bsv';
 import { PARENT_ASK_GRIND } from '../../src/grist';
 import type { ReadAnswerParams, ReadAnswerResult, SendGristParams } from '../../src/grist';

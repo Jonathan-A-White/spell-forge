@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { sessionLine, sessionLines, weekSummary } from '../../src/features/tutor/parent-sessions';
-import { ParentSessions, ParentThisWeek } from '../../src/features/tutor/parent-sessions-view';
-import { ParentScreen } from '../../src/features/tutor/parent-screen';
+import { ParentSessions, ParentThisWeek } from '../../src/worlds/grown-ups/parent-sessions-view';
+import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
 import { NOW, mathFound, old, readRight, session, stopped, turn } from '../fixtures/parent-sessions';
 
 const all = [readRight, mathFound, stopped, old];

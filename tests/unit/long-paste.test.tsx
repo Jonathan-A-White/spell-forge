@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
-import { ParentScreen } from '../../src/features/tutor/parent-screen';
+import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
 import { MAX_TUTOR_NOTE_LENGTH } from '../../src/accessibility/settings';
 import { PARENT_ASK_MAX_QUESTION, buildParentAskRequest } from '../../src/features/tutor/parent-ask-request';
 import { sendParentAsk } from '../../src/features/tutor/parent-ask-flow';

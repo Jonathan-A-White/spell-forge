@@ -1,15 +1,16 @@
-// src/features/tutor/parent-screen.tsx — The Grown-ups screen, behind the PIN gate (parent-gate.tsx): 'This week'
+// src/worlds/grown-ups/parent-screen.tsx — The Grown-ups screen, behind the PIN gate (src/features/tutor/parent-gate.tsx): 'This week'
 // and 'Sessions' are filled (mw-kuy7rx.3), a session line opens its page (mw-kuy7rx.4), 'Tutor settings' is
 // filled (mw-kuy7rx.8), and so are 'Notes for the tutor' (mw-kuy7rx.11) and 'Ask the tutor' (mw-kuy7rx.13).
 
 import { useState } from 'react';
-import { AskTheTutor } from './ask-the-tutor';
-import type { ParentAskDeps } from './parent-ask-flow';
-import { ParentSessionPage } from './parent-session-page';
-import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
-import { TutorNotes } from './tutor-notes';
-import { TutorSettings } from './tutor-settings';
+import { AskTheTutor } from '../../features/tutor/ask-the-tutor';
+import type { ParentAskDeps } from '../../features/tutor/parent-ask-flow';
+import { ParentSessionPage } from '../../features/tutor/parent-session-page';
+import { TutorNotes } from '../../features/tutor/tutor-notes';
+import { TutorSettings } from '../../features/tutor/tutor-settings';
 import type { Profile } from '../../contracts';
+import { FirstLine } from './first-line';
+import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
 
 export interface ParentScreenProps {
   profileId: string;
@@ -41,6 +42,7 @@ export function ParentScreen({ profileId, onBack, onProfileChange, deps }: Paren
           <ParentSessionPage sessionId={openId} onBack={() => setOpenId(null)} />
         ) : (
           <>
+            <FirstLine>How your child is getting on, and how to help the tutor help them.</FirstLine>
             <ParentThisWeek profileId={profileId} />
             <ParentSessions profileId={profileId} onOpen={setOpenId} />
             <AskTheTutor profileId={profileId} deps={deps} />

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { hapticError } from '../../core/haptics';
 import type { Profile } from '../../contracts';
 import { PinPad } from './pin-pad';
-import { ParentScreen } from './parent-screen';
+import { ParentScreen } from '../../worlds/grown-ups/parent-screen';
 import type { ParentAskDeps } from './parent-ask-flow';
 import {
   checkParentPin,

@@ -12,7 +12,7 @@ import { tutorRepo } from '../../data/repositories';
 import { useVisibleInterval } from '../../shell/visible-interval';
 import { GristInFlight } from '../../grist';
 import { MathLoop } from './math-loop';
-import { ParentGate } from './parent-gate';
+import { GrownUps } from '../../worlds/grown-ups/GrownUps';
 import { ReadingLoop } from './reading-loop';
 import { SayAgainButton, Waiting } from './pictures';
 import { SharedPicture } from './shared-picture';
@@ -388,7 +388,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {}, share
 
   if (view.kind === 'parent') {
     return (
-      <ParentGate
+      <GrownUps
         profileId={profile.id}
         onExit={() => setView({ kind: 'tutor' })}
         deps={{ sendGrist: deps.sendGrist, getKey: deps.getKey, fetchImpl: deps.fetchImpl, pollIntervalMs: deps.pollIntervalMs, now: deps.now }}
