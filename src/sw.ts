@@ -9,7 +9,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { isShareRequest, receiveShare } from './share/share-target';
 
 declare const self: ServiceWorkerGlobalScope;
-// The build's base (vite.config.ts): /spell-forge/ on Pages, / on the VPS. This config has no vite/client types.
+// The build's base (vite.config.ts), a different path on Pages and on the VPS. This config has no vite/client types.
 declare global {
   interface ImportMeta {
     readonly env: { readonly BASE_URL: string };
