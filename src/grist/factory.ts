@@ -8,6 +8,7 @@ import { door } from 'bsv-kit/bsv';
 import { grist } from 'bsv-kit/grist';
 import { gristConfig } from './config';
 import { uploadTimeoutMs } from './limits';
+import { LicenceRequiredError, gateGrind } from '../shell/licence-gate';
 
 export type GristHeader = grist.GristHeader;
 /** A photo or a recording that travels with a grist: its bytes, its mime and, when it has one, its name. */
@@ -57,6 +58,8 @@ export interface SendGristParams {
  */
 export async function sendGrist(params: SendGristParams): Promise<SentGrist> {
   const { key, files, fetchImpl } = params;
+  // the licence gate: with no licence no grind goes out (src/shell/licence-gate.ts)
+  if (!gateGrind().allowed) throw new LicenceRequiredError();
   // a clip or a photo is given the time its bytes need, not the door's 30 s
   const sendDoor = factoryDoor(key, fetchImpl, uploadTimeoutMs(files?.reduce((sum, file) => sum + file.bytes.length, 0) ?? 0));
   // bsv-kit uploads every file, then posts the grist: a timeout between the first upload and the post is the upload's
