@@ -126,17 +126,17 @@ export function forgetTrail(): void {
 }
 
 /**
- * Called once at boot. Returns the screen to open on: the last one he was at, else Home. The browser's history is
+ * Called once at boot. Returns the screen to open on: the last one he was at, else `fallback` (Home). The browser's history is
  * rebuilt from the kept trail (a guard, then each place, the last one current) so Back walks it, past the oldest
  * landing on the guard, which stays on Home. A reload or a remount (the history is still there, numbered) only
  * re-learns where in the trail he is.
  */
-export function restoreLastRoute(): ViewId {
+export function restoreLastRoute(fallback: ViewId = HOME_VIEW): ViewId {
   forgetTrail();
   let entries = readTrail();
   const legacy = readLastRoute();
   if (entries.length === 0 && legacy) entries = [legacy];
-  if (entries.length === 0) return HOME_VIEW;
+  if (entries.length === 0) return fallback;
 
   const here = entries[entries.length - 1];
   const view = viewAtRoute(here)!.id as ViewId;

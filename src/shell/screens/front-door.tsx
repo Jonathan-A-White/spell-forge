@@ -1,11 +1,36 @@
 // src/shell/screens/front-door.tsx: the front door's screens: the moments before a child is in (loading, a blocked
-// database, the welcome, the choice of child), Home, and the tutor.
+// database, the welcome, the choice of child), the door (the tutor to talk to, the world's landing view), Home, and the old
+// Tutor screen (the last two stay until the sweep removes them).
+import { useCallback, useMemo } from 'react';
 import { FirstRun } from '../../features/onboarding/first-run';
 import { WhoIsLearning } from '../../worlds/grown-ups/WhoIsLearning';
 import { HomeScreen } from '../../features/dashboard/home-screen';
 import { TutorScreen } from '../../features/tutor';
+import { FrontDoor } from '../../features/front-door/FrontDoor';
+import { createFrontDoorFlow } from '../../features/front-door/front-door-flow';
+import { createTutorTalkSend } from '../../features/front-door/tutor-talk-send';
+import { MATHS_GOALS } from '../../learn/maths';
 import { useApp } from '../app-state';
+import { screenContext } from '../report-screen';
 import { openView, type ViewId } from '../worlds';
+
+/** The door: the tutor, drawn by FrontDoor over the real flow and the mill. A share taken at boot waits on it for a tap. */
+function Door({ profileId }: { profileId: string }) {
+  const { setView, shared, setShared } = useApp();
+  const send = useMemo(() => createTutorTalkSend(), []);
+  const flow = useMemo(
+    () =>
+      createFrontDoorFlow({
+        send,
+        profileId,
+        open: setView,
+        context: () => ({ goals: MATHS_GOALS.map(({ id, title }) => ({ id, title })), ...screenContext() }),
+      }),
+    [send, profileId, setView],
+  );
+  const sharedUsed = useCallback(() => setShared(null), [setShared]);
+  return <FrontDoor flow={flow} open={setView} shared={shared} onSharedUsed={sharedUsed} />;
+}
 
 export function FrontDoorWorld({ view }: { view: ViewId | null }) {
   const app = useApp();
@@ -53,6 +78,10 @@ export function FrontDoorWorld({ view }: { view: ViewId | null }) {
           onDelete={app.handleDeleteProfile}
         />
       );
+
+    case 'door':
+      if (!activeProfile) return null;
+      return <Door key={activeProfile.id} profileId={activeProfile.id} />;
 
     case 'tutor':
       if (!activeProfile) return null;

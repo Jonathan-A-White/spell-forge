@@ -9,6 +9,9 @@ import {
   viewRoute,
   viewWorld,
   openView,
+  openWorld,
+  viewAtRoute,
+  WORLD_ENTRY,
 } from '../../src/shell/worlds';
 
 // The hidden BSV Debug screen's id, built in pieces so a grep for the deleted screen finds nothing.
@@ -33,6 +36,7 @@ const DROPPED: Record<string, string> = {
 const ADDED = [
   'maths-home', // the Maths world's screen (mw-79en7t.57)
   'spelling-home', // the Spelling world's screen (mw-79en7t.47)
+  'door', // the front door: the tutor to talk to (mw-79en7t.67)
 ];
 
 describe('worlds.ts: the four worlds and the route of every kept view', () => {
@@ -65,6 +69,21 @@ describe('worlds.ts: the four worlds and the route of every kept view', () => {
   it('knows the home view and the transient ones', () => {
     expect(HOME_VIEW).toBe('home');
     expect(TRANSIENT_VIEWS).toEqual(['loading', 'db-blocked']);
+  });
+
+  it('AC2: the front-door world lands on the door; home and tutor remain routes', () => {
+    expect(WORLD_ENTRY['front-door']).toBe('door');
+    expect(viewWorld('door')).toBe('front-door');
+    expect(viewRoute('door')).toBe('/front-door/door');
+    for (const id of ['home', 'tutor']) {
+      expect(viewAtRoute(`/front-door/${id}`)?.id).toBe(id);
+      const open = vi.fn();
+      expect(openView(id, open)).toBe(true);
+      expect(open).toHaveBeenCalledExactlyOnceWith(id);
+    }
+    const open = vi.fn();
+    expect(openWorld('front-door', open)).toBe(true);
+    expect(open).toHaveBeenCalledExactlyOnceWith('door');
   });
 
   it('openView(id) opens each kept screen by id, and by route', () => {

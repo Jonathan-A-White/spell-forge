@@ -1,6 +1,7 @@
 // src/shell/use-boot.ts: opening the app. The database first (a second tab holding an older version blocks it), a
 // share another app parked, then the profiles: none is the welcome, one or the last-used opens at once, else the
-// choice. It opens on the screen he was on when he left (last-route.ts), unless a share is waiting for the tutor.
+// choice. It opens on the screen he was on when he left (last-route.ts), unless a share is waiting for the tutor: that
+// lands on the front door's talk (landing.ts), as does an app with nothing kept while the Tutor is on.
 import { useState, useEffect, useCallback, useRef, type MutableRefObject } from 'react';
 import type { AccessibilitySettings } from '../contracts/types';
 import { openDatabase } from '../data/db';
@@ -9,12 +10,13 @@ import { shareIdFromHash, takeShare } from '../share/share-target';
 import type { SharedItem } from '../share/share-target';
 import { isTutorFlagOn } from '../debug';
 import { restoreLastRoute } from './last-route';
+import { DOOR_VIEW, isTutorView, landingView } from './landing';
 import type { Learner } from './use-learner';
 import type { ViewId } from './worlds';
 
 export function useBoot(learner: Learner, setView: (view: ViewId) => void, landingRef: MutableRefObject<ViewId | null>) {
   const { selectProfile, setProfiles, setArchivedProfiles } = learner;
-  // Something another app shared with SpellForge (src/share), taken at boot: the tutor opens with it waiting instead of Home.
+  // Something another app shared with SpellForge (src/share), taken at boot: the front door opens with it waiting instead of Home.
   const [shared, setShared] = useState<SharedItem | null>(null);
   const shareLanding = useRef(false);
 
@@ -39,12 +41,15 @@ export function useBoot(learner: Learner, setView: (view: ViewId) => void, landi
 
       if (cancelled) return;
 
-      // Where he was when he left; the history he walked is put back under it.
-      let resume = restoreLastRoute();
-      if (resume === 'tutor' && !isTutorFlagOn()) resume = 'home';
-
-      // A share from another app opened the page (src/share/share-target.ts): take it once. While the Tutor is off it is dropped, and Home opens as usual.
+      // A share from another app opened the page (src/share/share-target.ts): its id is in the address, which rebuilding the history
+      // below rewrites without the hash, so it is read first.
       const shareId = shareIdFromHash(window.location.hash);
+
+      // Where he was when he left; the history he walked is put back under it.
+      let resume = restoreLastRoute(landingView());
+      if (isTutorView(resume) && !isTutorFlagOn()) resume = 'home';
+
+      // Take the share once. While the Tutor is off it is dropped, and Home opens as usual.
       if (shareId) {
         window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
         const item = await takeShare(shareId);
@@ -57,7 +62,7 @@ export function useBoot(learner: Learner, setView: (view: ViewId) => void, landi
       }
       // A share waiting for the tutor wins over where he left off.
       const open = async (profile: Parameters<typeof selectProfile>[0]) => {
-        landingRef.current = shareLanding.current ? 'tutor' : resume;
+        landingRef.current = shareLanding.current ? DOOR_VIEW : resume;
         shareLanding.current = false;
         await selectProfile(profile);
       };
@@ -98,7 +103,7 @@ export function useBoot(learner: Learner, setView: (view: ViewId) => void, landi
   // A share that came with the page but no profile was chosen yet still lands on the tutor once he picks one.
   const pickProfile = useCallback(
     async (profile: Parameters<typeof selectProfile>[0]) => {
-      landingRef.current = shareLanding.current ? 'tutor' : null;
+      landingRef.current = shareLanding.current ? DOOR_VIEW : null;
       shareLanding.current = false;
       await selectProfile(profile);
     },

@@ -25,7 +25,8 @@ import { rewardTracker, monsterCollection } from '../features/rewards';
 import { useOnPhotoImportSettled } from '../features/word-lists/photo-import';
 import { themeEngine } from '../themes';
 import { eventBus, setBusProfile } from './services';
-import { HOME_VIEW, type ViewId } from './worlds';
+import { landingView } from './landing';
+import type { ViewId } from './worlds';
 
 export function useLearner(setView: (view: ViewId) => void, landingRef: MutableRefObject<ViewId | null>) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -86,8 +87,8 @@ export function useLearner(setView: (view: ViewId) => void, landingRef: MutableR
       // If loading profile data fails, proceed with empty data
     }
 
-    // Where he lands: a share waiting for the tutor, or the screen he was on when he left, else Home.
-    setView(landingRef.current ?? HOME_VIEW);
+    // Where he lands: a share waiting for the tutor, or the screen he was on when he left, else the front door (Tutor on) or Home.
+    setView(landingRef.current ?? landingView());
     landingRef.current = null;
     eventBus.emit({ type: 'profile:switched', payload: { profileId: profile.id } });
   }, [setView, landingRef]);

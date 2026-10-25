@@ -13,7 +13,8 @@ import { useLearner } from './use-learner';
 import { useLists } from './use-lists';
 import { useProfileActions } from './use-profile-actions';
 import { useBoot } from './use-boot';
-import { HOME_VIEW, TRANSIENT_VIEWS, openView, viewRoute, type ViewId } from './worlds';
+import { landingView } from './landing';
+import { TRANSIENT_VIEWS, openView, viewRoute, type ViewId } from './worlds';
 
 export function useAppState() {
   const [view, setView] = useState<ViewId>('loading');
@@ -54,7 +55,7 @@ export function useAppState() {
 
   // Sync view state with browser history so the OS back button
   // navigates within the app instead of closing it.
-  useBackButton(view, setView, HOME_VIEW, TRANSIENT_VIEWS as ViewId[]);
+  useBackButton(view, setView, landingView(), TRANSIENT_VIEWS as ViewId[]);
 
   // Keep the place he is at, so a reopen lands there (declared after useBackButton: the entry is pushed first).
   useEffect(() => {
