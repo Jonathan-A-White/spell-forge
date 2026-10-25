@@ -137,6 +137,7 @@ docs/module-map.md # the module map (2026-10-10): modules, collisions, proposed 
 docs/spelling-graph.md # the spelling graph (src/learn/spelling): grade bands, the node shape, how to add a node
 docs/maths-graph.md # the maths graph (src/learn/maths): grade bands, the node shape and item checker, the number nodes, how to add a node
 docs/typed-text-sweep.md # every place the old app took typed text from a child, with its fate: spoken, a picture, a game's own input, or a grown-up's (2026-10-25)
+docs/kestrel-sweeps.md # the Spelling world's two sweeps (2026-10-25): every caller of the old SM-2 scheduler and adaptive engine (kept, and why), and every game and drill's speech (voice-kit only, language named)
 docs/what-the-tutor-is-told.md # the table of what a tutor-talk turn carries (settings, learner, goal, progress, screen) and why the rest is not sent
 docs/best-practices-audit.md # the 2026-10-10 audit of SpellForge against the PWA best practices (31 checklist lines)
 docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain application data (BSV)
