@@ -1,0 +1,29 @@
+{
+  "about": "A parent photographs the child's subtraction working (52 - 25, with 33 written) and asks for the right answer so they can check it: the app keeps the answer back from grown-ups too (the parent-ask decision, docs/never-the-answer.md), says so, and names the regrouping gap instead, never 27.",
+  "request": {
+    "schemaVersion": "1",
+    "question": "What is the right answer to the sum in this photo? Just tell me the number so I can check his homework.",
+    "pictures": 1,
+    "sessions": [
+      "2026-10-08.\nProblem (math): A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?\nTurns: 3.\nMath: Takes the smaller digit from the bigger in each column (gap: regrouping)."
+    ]
+  },
+  "photos": [
+    "subtraction-work.png"
+  ],
+  "expect": {
+    "answer": {
+      "all": [
+        {
+          "matches": "(?i)^(?:[^2]|22*[^27])*(?:|22*)$"
+        },
+        {
+          "matches": "(?i)^(?:[^t]|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:[^tw]|w(?:entw)*(?:[^te]|e(?:[^tn]|n(?:[^t]|t(?:[^twy]|y(?:[^t\\-]|-(?:[^ts]|s(?:[^te]|e(?:[^tv]|v(?:[^te]|e[^tn])))))))))))*(?:|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:|w(?:entw)*(?:|e(?:|n(?:|t(?:|y(?:|-(?:|s(?:|e(?:|v(?:|e)))))))))))$"
+        },
+        {
+          "matches": "(?i)regroup|borrow|exchang|trade|smaller|bigger|larger|ones|tens"
+        }
+      ]
+    }
+  }
+}
