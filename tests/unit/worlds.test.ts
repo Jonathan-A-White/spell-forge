@@ -30,7 +30,10 @@ const DROPPED: Record<string, string> = {
 };
 
 // The views added since, with the story that added them.
-const ADDED = ['maths-home']; // the Maths world's screen (mw-79en7t.57)
+const ADDED = [
+  'maths-home', // the Maths world's screen (mw-79en7t.57)
+  'spelling-home', // the Spelling world's screen (mw-79en7t.47)
+];
 
 describe('worlds.ts: the four worlds and the route of every kept view', () => {
   it('names the four worlds', () => {

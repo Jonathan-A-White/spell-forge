@@ -35,6 +35,7 @@ export const VIEWS = [
     'progress', 'practice', 'practice-games', 'quiz', 'learning', 'list-editor', 'word-lists',
     'word-list-detail', 'word-detail', 'monster-stable', 'qr-import', 'coin-history',
     'practice-calendar', 'record-test-results', 'test-history', 'test-result-detail', 'trouble-words',
+    'spelling-home',
   ]),
   ...inWorld('maths', ['maths-home']),
   ...inWorld('grown-ups', ['settings', 'feedback', 'share', 'about']),

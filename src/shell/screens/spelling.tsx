@@ -17,6 +17,7 @@ import { TestResultDetail } from '../../features/word-lists/test-result-detail';
 import { TroubleWords } from '../../features/word-lists/trouble-words';
 import { MonsterStable } from '../../features/rewards/monster-stable';
 import { monsterCollection } from '../../features/rewards';
+import { SpellingWorld as Spelling } from '../../worlds/spelling';
 import { useApp } from '../app-state';
 import { openView, type ViewId } from '../worlds';
 
@@ -251,6 +252,20 @@ export function SpellingWorld({ view }: { view: ViewId | null }) {
           testResult={viewingTestResult}
           list={wordLists.find((l) => l.id === viewingTestResult.wordListId) ?? null}
           onPracticeMissed={practiceThese}
+          onBack={goBack}
+        />
+      );
+
+    case 'spelling-home':
+      // keyed by child: another child starts from his own place
+      return (
+        <Spelling
+          key={activeProfile.id}
+          profileId={activeProfile.id}
+          onSpeak={(word) => void onSpeak(word)}
+          audioBusy={audioBusy}
+          tapTargetSize={activeProfile.settings.tapTargetSize}
+          themeId={activeProfile.themeId}
           onBack={goBack}
         />
       );
