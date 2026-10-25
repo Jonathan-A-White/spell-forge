@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.1.176",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.52",
+    "kind": "new",
+    "text": "Settings now has a search box that finds a setting by its name."
+  },
+  {
+    "version": "0.1.176",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.58",
+    "kind": "new",
+    "text": "Maths problems can now be heard aloud, drawn as a picture, or answered by dragging number tiles or saying the answer."
+  },
+  {
     "version": "0.1.175",
     "date": "2026-10-25",
     "story": "mw-79en7t.51",
