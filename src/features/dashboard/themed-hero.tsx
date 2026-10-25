@@ -207,7 +207,7 @@ export function ThemedHero({ profileId, themeId }: ThemedHeroProps) {
           <div className="mt-1.5 flex items-center gap-2">
             <div className="flex-1 h-2 rounded-full bg-sf-border overflow-hidden">
               <div
-                className="h-full rounded-full transition-all duration-500"
+                className="h-full rounded-full transition-all sf-duration-slow"
                 style={{
                   width: `${progressPercent}%`,
                   background: vfx.progressGradient,

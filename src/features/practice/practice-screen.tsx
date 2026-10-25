@@ -470,7 +470,7 @@ export function PracticeScreen({
       {/* Progress bar */}
       <div className="w-full bg-sf-track rounded-full h-2 mb-8">
         <div
-          className="bg-sf-track-fill h-2 rounded-full transition-all duration-300"
+          className="bg-sf-track-fill h-2 rounded-full transition-all sf-duration-base"
           style={{ width: `${progress}%` }}
         />
       </div>

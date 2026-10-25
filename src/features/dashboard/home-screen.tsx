@@ -166,7 +166,7 @@ export function HomeScreen({
               onClick={() => practiceReady > 0 ? onNavigate('practice') : onNavigate('learning')}
               className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-sf-primary to-sf-primary-hover p-4 text-left shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
             >
-              <div className="absolute inset-0 opacity-20">
+              <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/20 -translate-y-1/2 translate-x-1/4" />
               </div>
               <div className="relative flex items-center justify-between">
@@ -279,7 +279,7 @@ export function HomeScreen({
             onClick={() => onNavigate('word-lists')}
             className="group w-full relative overflow-hidden rounded-xl bg-sf-surface border border-sf-border p-3 text-left hover:border-sf-border-strong hover:shadow-md transition-all active:scale-[0.97]"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-violet-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-violet-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="text-blue-500"><ListIcon /></div>
@@ -338,7 +338,7 @@ function NavCard({ title, subtitle, icon, onClick, accent, iconColor }: NavCardP
       onClick={onClick}
       className="group relative overflow-hidden rounded-xl bg-sf-surface border border-sf-border p-3 text-left hover:border-sf-border-strong hover:shadow-md transition-all active:scale-[0.97]"
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-0 group-hover:opacity-100 transition-opacity`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none`} />
       <div className="relative">
         <div className={`${iconColor} mb-2`}>{icon}</div>
         <p className="font-bold text-sf-heading text-sm">{title}</p>

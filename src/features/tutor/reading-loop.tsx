@@ -413,7 +413,7 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
             <span>Let go to drop</span>
           ) : ready ? (
             <>
-              <span data-testid="recording-dot" aria-hidden="true" className="inline-block w-4 h-4 rounded-full bg-white animate-pulse" />
+              <span data-testid="recording-dot" aria-hidden="true" className="inline-block w-4 h-4 rounded-full bg-white animate-sf-pulse" />
               <span>{seconds(heldMs)}</span>
             </>
           ) : (

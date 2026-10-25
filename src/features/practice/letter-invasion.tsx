@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
 import { setVisibleInterval } from '../../shell/visible-interval';
+import { DURATION } from '../../look';
 import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
   createWaveConfig,
@@ -87,30 +88,11 @@ function SpaceBackground() {
             width: `${star.size}px`,
             height: `${star.size}px`,
             backgroundColor: star.size > 2 ? '#E0E7FF' : '#94A3B8',
-            animation: `sf-twinkle ${1.5 + star.delay}s ease-in-out infinite alternate`,
-            animationDelay: `${star.delay}s`,
+            animation: `sf-twinkle calc(var(--sf-duration-drift) * ${1 + star.delay / 1.5}) var(--ease-sf-in-out) infinite alternate`,
+            animationDelay: `calc(var(--sf-duration-drift) * ${star.delay / 1.5})`,
           }}
         />
       ))}
-      <style>{`
-        @keyframes sf-twinkle {
-          0% { opacity: 0.3; }
-          100% { opacity: 1; }
-        }
-        @keyframes sf-ship-hover {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-2px); }
-        }
-        @keyframes sf-beam-pulse {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.8; }
-        }
-        @keyframes sf-explosion {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.5); opacity: 0.8; }
-          100% { transform: scale(2); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -127,14 +109,14 @@ function AlienShip({ letter, isTarget, size }: { letter: string; isTarget: boole
       <svg
         viewBox="0 0 48 48"
         fill="none"
-        className="absolute inset-0"
-        style={{ animation: 'sf-ship-hover 1.5s ease-in-out infinite', filter: `drop-shadow(0 0 6px ${glowColor})` }}
+        className="absolute inset-0 animate-sf-ship-hover"
+        style={{ filter: `drop-shadow(0 0 6px ${glowColor})` }}
       >
         {/* Tractor beam */}
         <path
           d="M16 32 L24 44 L32 32"
           fill={`${glowColor}33`}
-          style={{ animation: 'sf-beam-pulse 2s ease-in-out infinite' }}
+          className="animate-sf-beam-pulse"
         />
         {/* Saucer body */}
         <ellipse cx="24" cy="26" rx="16" ry="6" fill={shipColor} opacity="0.9" />
@@ -144,16 +126,16 @@ function AlienShip({ letter, isTarget, size }: { letter: string; isTarget: boole
         <ellipse cx="24" cy="20" rx="6" ry="5" fill={cockpitColor} opacity="0.3" />
         {/* Port lights */}
         <circle cx="12" cy="26" r="2" fill="#FACC15" opacity="0.9">
-          <animate attributeName="opacity" values="0.4;1;0.4" dur="0.8s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.4;1;0.4" dur={`${DURATION.blink}ms`} repeatCount="indefinite" />
         </circle>
         <circle cx="20" cy="28" r="1.5" fill="#FB923C" opacity="0.9">
-          <animate attributeName="opacity" values="1;0.4;1" dur="0.8s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="1;0.4;1" dur={`${DURATION.blink}ms`} repeatCount="indefinite" />
         </circle>
         <circle cx="28" cy="28" r="1.5" fill="#FB923C" opacity="0.9">
-          <animate attributeName="opacity" values="0.4;1;0.4" dur="0.8s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.4;1;0.4" dur={`${DURATION.blink}ms`} repeatCount="indefinite" />
         </circle>
         <circle cx="36" cy="26" r="2" fill="#FACC15" opacity="0.9">
-          <animate attributeName="opacity" values="1;0.4;1" dur="0.8s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="1;0.4;1" dur={`${DURATION.blink}ms`} repeatCount="indefinite" />
         </circle>
       </svg>
       {/* Letter on the cockpit */}
@@ -631,7 +613,7 @@ export function LetterInvasion({
         <span className="text-xs text-slate-400">Wave {currentWaveIndex + 1}</span>
         <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
           <div
-            className="h-full rounded-full transition-all duration-500"
+            className="h-full rounded-full transition-all sf-duration-slow"
             style={{
               width: `${Math.round((nextLetterIndex / currentWord.length) * 100)}%`,
               background: 'linear-gradient(90deg, #06B6D4, #8B5CF6)',
@@ -740,13 +722,12 @@ export function LetterInvasion({
             }}
           >
             <span
-              className="text-5xl font-bold"
+              className="text-5xl font-bold animate-sf-explosion"
               style={{
                 color: feedback.type === 'hit' ? '#22D3EE' : '#F87171',
                 textShadow: feedback.type === 'hit'
                   ? '0 0 20px rgba(34,211,238,0.8)'
                   : '0 0 20px rgba(239,68,68,0.8)',
-                animation: 'sf-explosion 0.5s ease-out',
               }}
             >
               {feedback.type === 'hit' ? '\u2713' : '\u2717'}
@@ -795,7 +776,7 @@ export function InvaderIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 64 64" fill="none" className={className}>
       {/* Tractor beam */}
       <path d="M20 40 L32 58 L44 40" fill="rgba(34,211,238,0.15)">
-        <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.1;0.3;0.1" dur={`${DURATION.breath}ms`} repeatCount="indefinite" />
       </path>
       {/* Saucer body */}
       <ellipse cx="32" cy="32" rx="22" ry="8" fill="#0E7490" />
@@ -805,16 +786,16 @@ export function InvaderIcon({ className }: { className?: string }) {
       <ellipse cx="32" cy="23" rx="8" ry="7" fill="#A5F3FC" opacity="0.3" />
       {/* Port lights */}
       <circle cx="14" cy="31" r="2.5" fill="#FACC15">
-        <animate attributeName="opacity" values="0.4;1;0.4" dur="0.7s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.4;1;0.4" dur={`${DURATION.slower}ms`} repeatCount="indefinite" />
       </circle>
       <circle cx="24" cy="34" r="2" fill="#FB923C">
-        <animate attributeName="opacity" values="1;0.4;1" dur="0.7s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="1;0.4;1" dur={`${DURATION.slower}ms`} repeatCount="indefinite" />
       </circle>
       <circle cx="40" cy="34" r="2" fill="#FB923C">
-        <animate attributeName="opacity" values="0.4;1;0.4" dur="0.7s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.4;1;0.4" dur={`${DURATION.slower}ms`} repeatCount="indefinite" />
       </circle>
       <circle cx="50" cy="31" r="2.5" fill="#FACC15">
-        <animate attributeName="opacity" values="1;0.4;1" dur="0.7s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="1;0.4;1" dur={`${DURATION.slower}ms`} repeatCount="indefinite" />
       </circle>
       {/* Alien eyes on dome */}
       <ellipse cx="27" cy="22" rx="3" ry="4" fill="#0F172A" opacity="0.7" />

@@ -279,7 +279,7 @@ export function UnscrambleDragDrop({
                 placed
                   ? 'border-sf-primary bg-sf-primary/10'
                   : isDropTarget
-                    ? 'border-sf-primary border-dashed bg-sf-primary/5 animate-pulse'
+                    ? 'border-sf-primary border-dashed bg-sf-primary/5 animate-sf-pulse'
                     : 'border-dashed border-sf-border-strong bg-sf-surface'
               } ${disabled ? 'opacity-60' : ''}`}
               style={{ width: sizeStr, height: sizeStr, minWidth: sizeStr }}

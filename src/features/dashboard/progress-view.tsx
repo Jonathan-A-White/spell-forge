@@ -157,7 +157,7 @@ export function ProgressView({
             <>
               <div className="w-full bg-sf-track rounded-full h-2">
                 <div
-                  className="bg-sf-primary h-2 rounded-full transition-all duration-300"
+                  className="bg-sf-primary h-2 rounded-full transition-all sf-duration-base"
                   style={{ width: `${Math.max(5, Math.round(((themeEngine.UNITS_PER_MILESTONE - milestone.progressToNext) / themeEngine.UNITS_PER_MILESTONE) * 100))}%` }}
                 />
               </div>

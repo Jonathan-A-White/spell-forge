@@ -68,7 +68,7 @@ export function CheckIcon({ size = 24 }: { size?: number }) {
 export function Waiting({ seconds, label }: { seconds?: number; label: string }) {
   return (
     <div role="status" aria-label={label} className="flex flex-col items-center py-10 gap-3 text-sf-heading">
-      <svg {...SVG} strokeLinecap="round" width="96" height="96" className="motion-safe:animate-spin">
+      <svg {...SVG} strokeLinecap="round" width="96" height="96" className="motion-safe:animate-sf-spin">
         <path d="M12 3a9 9 0 1 0 9 9" />
       </svg>
       {seconds !== undefined && <p className="text-sf-muted text-xl">{`${seconds} second${seconds === 1 ? '' : 's'}`}</p>}

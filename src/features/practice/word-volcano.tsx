@@ -390,7 +390,7 @@ export function WordVolcano({
       {/* Volcano visual */}
       <div className="w-full relative h-20 rounded-xl overflow-hidden border border-sf-border bg-gradient-to-t from-orange-100 to-sf-surface">
         <div
-          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-red-500 via-orange-400 to-yellow-300 transition-all duration-700"
+          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-red-500 via-orange-400 to-yellow-300 transition-all sf-duration-slower"
           style={{ height: `${lavaFill}%` }}
         />
         <div className="absolute inset-0 flex items-center justify-center">
@@ -447,7 +447,7 @@ export function WordVolcano({
                   isPlaced
                     ? 'bg-orange-100 border border-orange-300 text-orange-700'
                     : isHinted
-                      ? 'bg-yellow-100 border border-yellow-400 text-yellow-700 animate-pulse'
+                      ? 'bg-yellow-100 border border-yellow-400 text-yellow-700 animate-sf-pulse'
                       : 'bg-sf-surface border-2 border-dashed border-sf-border text-sf-muted'
                 }`}
               >

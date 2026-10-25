@@ -403,7 +403,7 @@ export function WordRelayRace({
         <div className="relative z-10 flex flex-col items-center gap-4">
           <p className="text-white/70 text-lg font-medium">Get ready...</p>
           <div
-            className="w-32 h-32 rounded-full flex items-center justify-center animate-pulse"
+            className="w-32 h-32 rounded-full flex items-center justify-center animate-sf-pulse"
             style={{ background: `linear-gradient(135deg, ${trackStyle.accentColor}cc, ${trackStyle.accentColor}66)` }}
           >
             <span className="text-6xl font-black text-white">{countdownValue}</span>
@@ -460,7 +460,7 @@ export function WordRelayRace({
             <p className={`text-4xl font-black ${trackStyle.headerGlow}`}>{formatTime(totalTimeMs)}</p>
 
             {isNewBest && (
-              <p className="text-yellow-400 font-bold text-lg animate-pulse">New Personal Best!</p>
+              <p className="text-yellow-400 font-bold text-lg animate-sf-pulse">New Personal Best!</p>
             )}
 
             {bestTimeMs !== null && !isNewBest && (
@@ -661,7 +661,7 @@ export function WordRelayRace({
             />
 
             {stumbling && (
-              <p className="text-red-400 font-medium animate-pulse">
+              <p className="text-red-400 font-medium animate-sf-pulse">
                 Stumbled! Keep going...
               </p>
             )}
@@ -727,7 +727,7 @@ function RaceLane({
       <div className={`flex-1 h-10 relative rounded-full overflow-hidden border ${trackStyle.trackBorder} ${trackStyle.trackBg}`}>
         {/* Progress fill */}
         <div
-          className={`absolute inset-y-0 left-0 ${trackStyle.progressFill} transition-all duration-300`}
+          className={`absolute inset-y-0 left-0 ${trackStyle.progressFill} transition-all sf-duration-base`}
           style={{ width: `${position}%` }}
         />
 
@@ -743,8 +743,8 @@ function RaceLane({
 
         {/* Runner */}
         <div
-          className={`absolute top-1/2 -translate-y-1/2 transition-all duration-300 ${
-            stumbling ? 'animate-bounce' : ''
+          className={`absolute top-1/2 -translate-y-1/2 transition-all sf-duration-base ${
+            stumbling ? 'animate-sf-bounce' : ''
           }`}
           style={{ left: `calc(${Math.min(position, 93)}% - 12px)` }}
         >

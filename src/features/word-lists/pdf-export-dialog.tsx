@@ -162,7 +162,7 @@ export function PdfExportDialog({ listName, words, onClose, tutor }: PdfExportDi
           >
             {generating ? (
               <>
-                <span className="w-4 h-4 border-2 border-sf-primary-text border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-sf-primary-text border-t-transparent rounded-full animate-sf-spin" />
                 Generating…
               </>
             ) : (

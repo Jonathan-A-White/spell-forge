@@ -60,7 +60,7 @@ export function PackOpening({ pack, onDone }: PackOpeningProps) {
             key={creature.id}
             onClick={() => revealCard(i)}
             disabled={revealed[i]}
-            className="relative transition-transform duration-300"
+            className="relative transition-transform sf-duration-base"
             style={{
               transform: revealed[i] ? 'rotateY(0deg) scale(1)' : 'rotateY(0deg) scale(0.95)',
             }}

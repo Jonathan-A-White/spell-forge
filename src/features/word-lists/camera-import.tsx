@@ -171,7 +171,7 @@ export function CameraImport({ ocrManager, importFilterPhrases, onWordsAccepted,
 
       {status === 'processing' && (
         <div className="text-center py-12 space-y-4">
-          <div className="inline-block w-10 h-10 border-4 border-sf-primary border-t-transparent rounded-full animate-spin" />
+          <div className="inline-block w-10 h-10 border-4 border-sf-primary border-t-transparent rounded-full animate-sf-spin" />
           <p className="text-sf-heading font-bold">Reading words from image...</p>
           <p className="text-sf-muted text-sm">This may take a few seconds</p>
         </div>

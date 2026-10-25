@@ -343,7 +343,7 @@ function ProgressBar({ label, current, target }: { label: string; current: numbe
       </div>
       <div className="w-full bg-sf-track rounded-full h-2.5">
         <div
-          className="bg-green-500 h-2.5 rounded-full transition-all duration-300"
+          className="bg-green-500 h-2.5 rounded-full transition-all sf-duration-base"
           style={{ width: `${pct}%` }}
         />
       </div>

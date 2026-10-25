@@ -478,7 +478,7 @@ export function SpellCatcher({
         <span className="text-xs text-sf-muted">Depth {depthLevel}</span>
         <div className="flex-1 h-1.5 bg-sf-border rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-500"
+            className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all sf-duration-slow"
             style={{ width: `${Math.round((wordsCompleted / gameWords.length) * 100)}%` }}
           />
         </div>

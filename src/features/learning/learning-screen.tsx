@@ -141,7 +141,7 @@ function CollapsibleHints({
           {label}
         </span>
         <span
-          className="text-sf-muted transition-transform duration-200"
+          className="text-sf-muted transition-transform sf-duration-quick"
           style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
           aria-hidden="true"
         >
@@ -534,7 +534,7 @@ export function LearningScreen({
       {/* Progress bar */}
       <div className="w-full bg-sf-track rounded-full h-2 mb-3">
         <div
-          className="bg-sf-track-fill h-2 rounded-full transition-all duration-300"
+          className="bg-sf-track-fill h-2 rounded-full transition-all sf-duration-base"
           style={{ width: `${completionPercent}%` }}
         />
       </div>

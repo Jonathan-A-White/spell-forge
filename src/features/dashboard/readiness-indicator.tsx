@@ -70,7 +70,7 @@ export function ReadinessIndicator({
           {/* Track */}
           <div className="w-full h-4 bg-sf-track rounded-full overflow-hidden">
             <div
-              className={`h-full ${barColor} rounded-full transition-all duration-500 ease-out`}
+              className={`h-full ${barColor} rounded-full transition-all sf-duration-slow ease-sf-out`}
               style={{ width: `${Math.max(percentage, 2)}%` }}
             />
           </div>

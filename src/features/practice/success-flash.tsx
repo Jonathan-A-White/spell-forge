@@ -1,15 +1,16 @@
 // src/features/practice/success-flash.tsx — Brief success animation after a correct answer
 
 import { useEffect, useState } from 'react';
+import { DURATION } from '../../look';
 
 interface SuccessFlashProps {
   /** Called when the animation finishes and the next word should appear */
   onDone: () => void;
-  /** How long to display in ms (default 1000) */
+  /** How long to display in ms (default DURATION.second, the flash's own length) */
   duration?: number;
 }
 
-export function SuccessFlash({ onDone, duration = 1000 }: SuccessFlashProps) {
+export function SuccessFlash({ onDone, duration = DURATION.second }: SuccessFlashProps) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -29,11 +30,11 @@ export function SuccessFlash({ onDone, duration = 1000 }: SuccessFlashProps) {
       aria-live="assertive"
       aria-label="Correct!"
     >
-      <div className="animate-success-flash flex flex-col items-center gap-3">
+      <div className="animate-sf-success-flash flex flex-col items-center gap-3">
         {/* Checkmark circle */}
         <div className="w-24 h-24 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/30">
           <svg
-            className="w-14 h-14 text-white animate-success-check"
+            className="w-14 h-14 text-white animate-sf-success-check"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

@@ -38,7 +38,7 @@ export function QrShare({ listName, words, testDate, onClose }: QrShareProps) {
 
         {!error && !qrDataUrl && (
           <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-4 border-sf-primary border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-sf-primary border-t-transparent rounded-full animate-sf-spin" />
           </div>
         )}
 
