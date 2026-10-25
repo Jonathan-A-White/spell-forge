@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Maker Request 1",
+  "description": "Something the app cannot do, asked for by a child or a grown-up in a talk with the tutor and sent on their tap (Send this to the maker). Forwarded to the Mayor. The learner is only an id: a child's name never goes on chain.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "text", "summary", "reference", "who", "app_version"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "kind": {
+      "description": "tutor-ask is an ask the tutor offered to pass on; the others are an expected ask picked on Requests (game, subject, look, setting, other).",
+      "enum": ["tutor-ask", "game", "subject", "look", "setting", "other"]
+    },
+    "text": {
+      "description": "What was asked, in the person's words.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "summary": {
+      "description": "The tutor's one-line summary of the ask, or the start of the words.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "reference": {
+      "description": "The talk it was filed from.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "who": {
+      "description": "Who asked: a learner's id on the phone, or grown-up.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "app_version": {
+      "description": "The SpellForge build it was sent from.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    }
+  }
+}

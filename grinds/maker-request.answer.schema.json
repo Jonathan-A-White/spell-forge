@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Maker Request Answer 1",
+  "description": "The grind forwards the request to the Mayor (no model reads it): the mill answers that it was sent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status"],
+  "properties": {
+    "status": { "const": "sent" }
+  }
+}
