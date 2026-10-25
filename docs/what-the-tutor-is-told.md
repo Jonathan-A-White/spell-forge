@@ -39,6 +39,24 @@ how the screen looks or anything that names him.
 | `screen.name` | the screen he asked from (M37) | the tutor answers about where he is |
 | `screen.facts` | what that screen shows, a few short lines | what he is looking at; cut after the turns over the budget |
 
+## Which parts are fed
+
+The door fills `goal`, `goals`, `progress` and `screen` in `src/features/front-door/door-context.ts` (`doorContext`, with the screen's own
+report from `src/shell/report-screen.ts`), once per turn, from what the app keeps on the phone for that child. A part the app does not hold
+is left out; nothing is guessed from a graph's roots.
+
+| Part | Fed from | Left out when |
+| --- | --- | --- |
+| `goals` | `MATHS_GOALS` | never: the app always has them |
+| `goal` | the goal id kept for the child (`keepChosenGoal`, localStorage `sf-door-goal:<profile id>`), looked up in `MATHS_GOALS`; `progress` is `goalProgress` over the maths graph's solid nodes | no goal is kept, or the kept id is not one of `MATHS_GOALS` |
+| `progress.spelling` | the spelling world's graph store (`sf-spelling-graph:<profile id>`): the nodes ready to learn now (the frontier), `band` that of the lowest of them and `next` their names, at most 5 | the store holds nothing of him (he has not entered the world), or nothing is left to learn |
+| `progress.maths` | the maths world's graph store (`sf-maths-graph:<profile id>`), the same way | the same |
+| `screen` | the screen that reported itself | no screen has |
+
+Today nothing in the app writes a chosen goal: the tutor's `goal_suggestion` is shown, not kept (`src/worlds/grown-ups/world-progress.ts` says
+the same of How is it going). So `goal` is in a request only once a story keeps the child's choice with `keepChosenGoal`;
+`tests/unit/door-context.test.ts` holds each part present when kept and absent when not.
+
 Over the budget (`TUTOR_TALK_MAX_BYTES`, 9000 bytes of JSON in UTF-8), the request loses its oldest turns first, then
 the screen's last facts, and the memory's oldest facts only last of all.
 

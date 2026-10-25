@@ -9,7 +9,7 @@ import { TutorScreen } from '../../features/tutor';
 import { FrontDoor } from '../../features/front-door/FrontDoor';
 import { createFrontDoorFlow } from '../../features/front-door/front-door-flow';
 import { createTutorTalkSend } from '../../features/front-door/tutor-talk-send';
-import { MATHS_GOALS } from '../../learn/maths';
+import { doorContext } from '../../features/front-door/door-context';
 import { useApp } from '../app-state';
 import { screenContext } from '../report-screen';
 import { openView, type ViewId } from '../worlds';
@@ -24,7 +24,7 @@ function Door({ profileId }: { profileId: string }) {
         send,
         profileId,
         open: setView,
-        context: () => ({ goals: MATHS_GOALS.map(({ id, title }) => ({ id, title })), ...screenContext() }),
+        context: async () => ({ ...(await doorContext(profileId)), ...screenContext() }),
       }),
     [send, profileId, setView],
   );
