@@ -1,20 +1,25 @@
 // src/features/front-door/FrontDoor.tsx — the front door's screen (Kestrel 13c). The tutor greets him by voice; he holds the
 // big bar to talk (and has the camera) and there is no keyboard: what he says goes to the front door's flow, and every answer
 // is drawn and spoken through TutorText (M16). With no licence the tutor is asleep: the worlds are offered as big pictures
-// under the gate's one line, and nothing is sent. The flow is given (front-door-flow.ts); the route that draws this is 13d's.
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+// under the gate's one line, and nothing is sent. The flow is given (front-door-flow.ts). Something another app shared with
+// SpellForge (Share > SpellForge, src/share) waits on this screen with a tap to send it, and lands in the talk as his turn
+// (share-landing.ts); it is never sent by itself.
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Composer } from 'voice-kit/composer';
 import type { ComposerLabels, ComposerMessage } from 'voice-kit/composer';
+import type { OutgoingPicture } from 'voice-kit/talks';
 import 'voice-kit/composer/styles.css';
 import '../composer/composer-theme.css';
 import { FRONT_DOOR_COMPOSER_SETTINGS } from '../composer/composer-settings';
 import { LicenceLine } from '../../shell/LicenceLine';
 import { licenceState, subscribeLicence } from '../../shell/licence-gate';
 import { WORLDS, WORLD_ENTRY, openWorld, type ViewId } from '../../shell/worlds';
+import type { SharedItem } from '../../share/share-target';
 import { TutorSpeechBar } from '../tutor/speech-bar';
 import { usePauseTutorOnLeave } from '../tutor/use-pause-tutor-on-leave';
 import { TALK_WORLDS, type FrontDoorFlow, type TalkWorld } from './front-door-flow';
 import { TutorText } from './TutorText';
+import { sharedTurn } from './share-landing';
 
 export interface FrontDoorProps {
   flow: FrontDoorFlow;
@@ -22,6 +27,10 @@ export interface FrontDoorProps {
   open: (view: ViewId) => void;
   /** What the tutor says on opening; spoken and drawn. */
   greeting?: string;
+  /** What another app shared with SpellForge, taken at boot: it waits here for a tap. */
+  shared?: SharedItem | null;
+  /** Called once the shared item has been sent or turned away (or the tutor is asleep and cannot take it). */
+  onSharedUsed?: () => void;
 }
 
 export const FRONT_DOOR_GREETING = 'Hello! I am your tutor. Hold the big button and tell me what you would like to do.';
@@ -94,6 +103,51 @@ function Worlds({ open }: { open: (view: ViewId) => void }) {
   );
 }
 
+/** What was shared, waiting: its first picture and its words, to send on a tap or to turn away. Nothing goes until he taps. */
+function SharedCard({ item, sending, onSend, onDrop }: { item: SharedItem; sending: boolean; onSend: () => void; onDrop: () => void }) {
+  const picture = item.pictures[0];
+  const url = useMemo(
+    () => (picture && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(picture) : undefined),
+    [picture],
+  );
+  useEffect(
+    () => () => {
+      if (url && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(url);
+    },
+    [url],
+  );
+  return (
+    <section
+      aria-label={picture ? 'Shared picture' : 'Shared words'}
+      data-testid={picture ? 'shared-picture' : 'shared-words'}
+      className="space-y-3 rounded-xl border border-sf-border bg-sf-surface p-3"
+    >
+      {url && <img src={url} alt="The picture shared with SpellForge" className="mx-auto max-h-64 rounded-lg" />}
+      {item.text && <p className="text-sf-text whitespace-pre-line break-words">{item.text}</p>}
+      <div className="flex gap-3">
+        <button
+          type="button"
+          disabled={sending}
+          onClick={onSend}
+          className="flex-1 rounded-xl bg-sf-primary text-white font-bold px-4 py-3 disabled:opacity-60"
+          style={{ minHeight: 'var(--sf-tap-target-size, 48px)' }}
+        >
+          {picture ? 'Send this picture' : 'Send these words'}
+        </button>
+        <button
+          type="button"
+          disabled={sending}
+          onClick={onDrop}
+          className="flex-1 rounded-xl border border-sf-border bg-sf-input-bg text-sf-text font-bold px-4 py-3 disabled:opacity-60"
+          style={{ minHeight: 'var(--sf-tap-target-size, 48px)' }}
+        >
+          Not this one
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function Bubble({ who, children }: { who: Line['who']; children: ReactNode }) {
   return (
     <div className={who === 'child' ? 'flex justify-end' : 'flex justify-start'}>
@@ -102,10 +156,11 @@ function Bubble({ who, children }: { who: Line['who']; children: ReactNode }) {
   );
 }
 
-export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING }: FrontDoorProps) {
+export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, onSharedUsed }: FrontDoorProps) {
   const asleep = useSyncExternalStore(subscribeLicence, licenceState) === 'unlicensed';
   const [lines, setLines] = useState<Line[]>([]);
   const [offered, setOffered] = useState(false);
+  const [sendingShared, setSendingShared] = useState(false);
   const talk = useRef<Promise<string> | null>(null);
   const nextId = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
@@ -116,24 +171,56 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING }: FrontD
     if (!asleep && !talk.current) talk.current = flow.start();
   }, [asleep, flow]);
 
+  // With the tutor asleep nothing is sent, and a share is not kept waiting for a tutor who cannot take it.
+  useEffect(() => {
+    if (asleep && shared) onSharedUsed?.();
+  }, [asleep, shared, onSharedUsed]);
+
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'end' });
   }, [lines]);
 
-  const add = (who: Line['who'], text: string) => setLines((previous) => [...previous, { id: nextId.current++, who, text }]);
+  const add = (who: Line['who'], text: string): number => {
+    const id = nextId.current++;
+    setLines((previous) => [...previous, { id, who, text }]);
+    return id;
+  };
 
-  // The Composer clears itself when this returns, and keeps the picture and shows the message when it throws.
-  const submit = async ({ text, files }: ComposerMessage) => {
-    const pictures = files.filter((file) => file.type.startsWith('image/')).map((file) => ({ bytes: file.bytes, mime: file.type, name: file.name }));
-    if (!text && pictures.length === 0) return false;
-    add('child', text || (pictures.length === 1 ? 'A photo' : `${pictures.length} photos`));
+  /** One turn of the talk: what he said and any pictures, and the tutor's answer drawn. A throw leaves his line for the caller to keep or drop. */
+  const exchange = async (text: string, pictures: OutgoingPicture[]): Promise<number> => {
+    const line = add('child', text || (pictures.length === 1 ? 'A photo' : `${pictures.length} photos`));
     try {
       talk.current ??= flow.start();
       const reply = await flow.ask(await talk.current, text, pictures.length > 0 ? { pictures } : undefined);
       if (reply.kind === 'offer-worlds') setOffered(true);
       else add('tutor', reply.words);
     } catch {
-      throw new Error(ASK_FAILED);
+      throw Object.assign(new Error(ASK_FAILED), { line });
+    }
+    return line;
+  };
+
+  // The Composer clears itself when this returns, and keeps the picture and shows the message when it throws.
+  const submit = async ({ text, files }: ComposerMessage) => {
+    const pictures = files.filter((file) => file.type.startsWith('image/')).map((file) => ({ bytes: file.bytes, mime: file.type, name: file.name }));
+    if (!text && pictures.length === 0) return false;
+    await exchange(text, pictures);
+  };
+
+  // The share waits for this tap. If the tutor cannot answer, his line is taken back and the share stays to be tapped again.
+  const sendShared = async () => {
+    if (!shared || sendingShared) return;
+    setSendingShared(true);
+    try {
+      const { message, pictures } = await sharedTurn(shared);
+      await exchange(message, pictures);
+      onSharedUsed?.();
+    } catch (error) {
+      const line = (error as { line?: number }).line;
+      if (line !== undefined) setLines((previous) => previous.filter((entry) => entry.id !== line));
+      add('tutor', ASK_FAILED);
+    } finally {
+      setSendingShared(false);
     }
   };
 
@@ -151,6 +238,7 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING }: FrontD
               {line.who === 'tutor' ? <TutorText text={line.text} /> : <p>{line.text}</p>}
             </Bubble>
           ))}
+          {shared && <SharedCard item={shared} sending={sendingShared} onSend={() => void sendShared()} onDrop={() => onSharedUsed?.()} />}
           <TutorSpeechBar />
           <div ref={endRef} />
           <Composer
