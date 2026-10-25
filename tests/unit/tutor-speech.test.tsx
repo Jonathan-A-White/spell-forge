@@ -143,7 +143,7 @@ describe('single words share the kit\'s engine', () => {
     const tutor = sayAsTutor(THREE);
     await move(10);
     let wordDone = false;
-    act(() => void sayWord('cat').then(() => (wordDone = true)));
+    act(() => void sayWord('cat', 'en').then(() => (wordDone = true)));
     await move(500);
     await tutor; // replaced for good
     expect(wordDone).toBe(true);
@@ -153,7 +153,7 @@ describe('single words share the kit\'s engine', () => {
 
   it('a word shows no tutor bar while it speaks', async () => {
     render(<TutorSpeechBar />);
-    act(() => void sayWord('cat'));
+    act(() => void sayWord('cat', 'en'));
     await move(10);
     expect(bar()).toBeNull();
   });

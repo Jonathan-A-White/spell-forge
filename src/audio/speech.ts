@@ -120,23 +120,26 @@ function say(text: string, language: string, rate?: number): Promise<void> {
 
 const spelled = (word: string) => word.split('').join(', ');
 
-/** Say a word out loud. Optionally specify language for correct pronunciation. */
-export function sayWord(word: string, language: string = 'en'): Promise<void> {
+// Every helper below is given the language of the words (an app language code: 'en', 'es'): a call that does not name it does not compile,
+// so no game or drill speaks in a language it did not choose.
+
+/** Say a word out loud in `language`. */
+export function sayWord(word: string, language: string): Promise<void> {
   return say(word, language);
 }
 
 /** Say a word slowly (0.6x speed). */
-export function sayWordSlowly(word: string, language: string = 'en'): Promise<void> {
+export function sayWordSlowly(word: string, language: string): Promise<void> {
   return say(word, language, 0.6);
 }
 
 /** Spell a word letter-by-letter (single utterance, commas create pauses). */
-export function spellWord(word: string, language: string = 'en'): Promise<void> {
+export function spellWord(word: string, language: string): Promise<void> {
   return say(spelled(word), language);
 }
 
 /** Say the word, pause, then spell it (single utterance). */
-export function sayThenSpell(word: string, language: string = 'en'): Promise<void> {
+export function sayThenSpell(word: string, language: string): Promise<void> {
   return say(`${word},,,, ${spelled(word)}`, language);
 }
 

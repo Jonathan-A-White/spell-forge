@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe('sayWord', () => {
   it('should speak a word via SpeechSynthesis', async () => {
-    await sayWord('hello');
+    await sayWord('hello', 'en');
 
     expect(speech.log).toHaveLength(1);
     expect(speech.log[0]).toMatchObject({ text: 'hello', rate: 1, lang: 'en-US', outcome: 'ended' });
@@ -36,7 +36,7 @@ describe('sayWord', () => {
 
   it('resolves when the word is over, not before', async () => {
     let done = false;
-    const p = sayWord('hello').then(() => (done = true));
+    const p = sayWord('hello', 'en').then(() => (done = true));
     expect(done).toBe(false);
     await p;
     expect(done).toBe(true);
@@ -45,7 +45,7 @@ describe('sayWord', () => {
 
 describe('sayWordSlowly', () => {
   it('should speak slowly at a rate below 1', async () => {
-    await sayWordSlowly('world');
+    await sayWordSlowly('world', 'en');
 
     expect(speech.log).toHaveLength(1);
     expect(speech.log[0].text).toBe('world');
@@ -56,7 +56,7 @@ describe('sayWordSlowly', () => {
 
 describe('spellWord', () => {
   it('should build a single utterance with comma-separated letters', async () => {
-    await spellWord('cat');
+    await spellWord('cat', 'en');
 
     expect(speech.spoken()).toEqual(['c, a, t']);
     expect(speech.log[0].rate).toBe(1);
@@ -65,7 +65,7 @@ describe('spellWord', () => {
 
 describe('sayThenSpell', () => {
   it('should build a single utterance with word then spelled letters', async () => {
-    await sayThenSpell('hi');
+    await sayThenSpell('hi', 'en');
 
     expect(speech.spoken()).toEqual(['hi,,,, h, i']);
     expect(speech.log[0].rate).toBe(1);
@@ -85,6 +85,14 @@ describe('the engine is the kit\'s alone', () => {
     );
     expect(offenders).toEqual([]);
   });
+
+  // Kestrel 15d (M2): a game or drill asks a word of src/audio (which names the language) and never calls the kit's speak() itself.
+  it("calls the kit's speak() from the two modules of src/audio that speak, and nowhere else", () => {
+    const speakers = sources(join(__dirname, '../../src'))
+      .filter((file) => /import\s*\{[^}]*\bspeak\b[^}]*\}\s*from\s*'voice-kit\/speech'/.test(readFileSync(file, 'utf8')))
+      .map((file) => file.slice(join(__dirname, '../../').length));
+    expect(speakers.sort()).toEqual(['src/audio/speech.ts', 'src/audio/tutor-speech.ts']);
+  });
 });
 
 describe('long and failing speech', () => {
@@ -98,7 +106,7 @@ describe('long and failing speech', () => {
 
   it('speaks once and holds the word until its onend when an utterance runs 25 s', async () => {
     let resolved = false;
-    const p = sayWord(Array(400).fill('word').join(' ')).then(() => {
+    const p = sayWord(Array(400).fill('word').join(' '), 'en').then(() => {
       resolved = true;
     }); // 400 words take 24.15 s
 
@@ -118,7 +126,7 @@ describe('long and failing speech', () => {
       queue(utterance);
       setTimeout(() => speech.synth.cancel(), 100); // interrupted while speaking: onerror
     });
-    const p = sayWord('hello');
+    const p = sayWord('hello', 'en');
     await vi.advanceTimersByTimeAsync(5_000);
     await p;
     expect(speech.log.map((entry) => entry.outcome)).toEqual(['interrupted']);
@@ -127,7 +135,7 @@ describe('long and failing speech', () => {
   it('lets go of a word the engine never starts, so the audio manager is not busy for ever', async () => {
     vi.spyOn(speech.synth, 'speak').mockImplementation(() => undefined); // engine stuck: no onstart, no onend
     const manager = new AudioManagerImpl();
-    const ran = manager.runExclusive(() => manager.sayWord('hello'));
+    const ran = manager.runExclusive(() => manager.sayWord('hello', 'en'));
     await vi.advanceTimersByTimeAsync(9_000);
     expect(manager.isBusy()).toBe(true);
     await vi.advanceTimersByTimeAsync(5_000);
@@ -222,13 +230,13 @@ describe('AudioManagerImpl', () => {
 
   it('should delegate sayWord to speech module', async () => {
     const manager = new AudioManagerImpl();
-    await manager.sayWord('test');
+    await manager.sayWord('test', 'en');
     expect(speech.spoken()).toEqual(['test']);
   });
 
   it('should delegate spellWord to speech module', async () => {
     const manager = new AudioManagerImpl();
-    await manager.spellWord('ab');
+    await manager.spellWord('ab', 'en');
     expect(speech.spoken()).toEqual(['a, b']);
   });
 });

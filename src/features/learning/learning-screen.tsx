@@ -30,6 +30,8 @@ import { activityProgressRepo } from '../../data/repositories/activity-progress-
 interface LearningScreenProps {
   profile: Profile;
   audioManager: AudioManager;
+  /** The language a word's list is in, so a word is said in it; English when absent. */
+  languageOfList?: (listId: string) => string;
   onBack: () => void;
   onWordMastered?: (wordId: string) => void;
 }
@@ -158,6 +160,7 @@ function CollapsibleHints({
 export function LearningScreen({
   profile,
   audioManager,
+  languageOfList,
   onBack,
   onWordMastered,
 }: LearningScreenProps) {
@@ -178,6 +181,10 @@ export function LearningScreen({
   const prevStageRef = useRef<number | null>(null);
   const audioManagerRef = useRef(audioManager);
   useEffect(() => { audioManagerRef.current = audioManager; }, [audioManager]);
+  const languageOfListRef = useRef(languageOfList);
+  useEffect(() => { languageOfListRef.current = languageOfList; }, [languageOfList]);
+  /** The language a word is said in: its list's, English when the screen is not told. */
+  const languageOf = useCallback((word: Word) => languageOfListRef.current?.(word.listId) ?? 'en', []);
 
   // Load words and progress on mount
   useEffect(() => {
@@ -233,7 +240,7 @@ export function LearningScreen({
     const isNewStage = prevStageRef.current !== null && prevStageRef.current !== stage;
 
     if (isNewWord || (isNewStage && successes === 0)) {
-      sayAndSpell(audioManagerRef.current, sessionState.currentWord.text);
+      sayAndSpell(audioManagerRef.current, sessionState.currentWord.text, languageOf(sessionState.currentWord));
     }
 
     prevWordRef.current = wordId;
@@ -359,17 +366,18 @@ export function LearningScreen({
     });
     if (sessionState?.currentWord) {
       if (testOutMode) {
-        sayWordOnly(audioManager, sessionState.currentWord.text);
+        sayWordOnly(audioManager, sessionState.currentWord.text, languageOf(sessionState.currentWord));
       } else {
-        sayAndSpell(audioManager, sessionState.currentWord.text);
+        sayAndSpell(audioManager, sessionState.currentWord.text, languageOf(sessionState.currentWord));
       }
     }
-  }, [sessionState, audioManager, testOutMode]);
+  }, [sessionState, audioManager, testOutMode, languageOf]);
 
   // Speak a single syllable chunk (tap-to-hear in "Sound It Out")
   const handleSpeakChunk = useCallback((text: string) => {
-    sayWordOnly(audioManager, text);
-  }, [audioManager]);
+    // a chunk of the word on show is said in the word's language
+    sayWordOnly(audioManager, text, sessionState?.currentWord ? languageOf(sessionState.currentWord) : 'en');
+  }, [audioManager, sessionState, languageOf]);
 
   // Derive current word display state — memoized so random blank positions
   // stay stable across re-renders (e.g. when audio busy state changes).
