@@ -15,6 +15,7 @@ import { filterImportWords } from '../../ocr';
 import type { OcrManager } from '../../ocr';
 import { WORD_LIST_GRIND, gristConfig, isWordListAnswer, readAnswer, sendGrist, shrinkPhoto } from '../../grist';
 import type { GristPhoto, ReadAnswerParams, ReadAnswerResult, WordListAnswer } from '../../grist';
+import { placeWords, requestNodes, type WordClaim } from '../../learn/spelling';
 import { addWordsToList, normalizeWords } from './add-words';
 
 /** How long the factory has before the device reads the photo itself (Q4 B). */
@@ -65,8 +66,14 @@ async function settle(id: string, status: Exclude<PhotoImportStatus, 'reading'>)
   });
 }
 
-/** Lands words in the import's list (heading words filtered out); false when there was nothing to land. */
-async function landWords(row: PhotoImport, words: string[]): Promise<boolean> {
+/** What the answer says of each word's node: version 2 names it (or leaves it out when none fits), version 1 says nothing. */
+function claimsOf(answer: WordListAnswer): WordClaim[] {
+  const named = new Map((answer.placed ?? []).map((p) => [p.word.trim().toLowerCase(), p.node ?? null]));
+  return answer.words.map((word) => ({ word, ...(answer.placed ? { node: named.get(word.trim().toLowerCase()) ?? null } : {}) }));
+}
+
+/** Lands words in the import's list (heading words filtered out), each placed on the spelling graph; false when there was nothing to land. */
+async function landWords(row: PhotoImport, words: string[], claims: readonly WordClaim[] = []): Promise<boolean> {
   const profile = await profileRepo.getById(row.profileId);
   const phrases = profile?.importFilterWords ?? [];
   // Lowercase first: the filter compares against lowercase heading words.
@@ -74,7 +81,9 @@ async function landWords(row: PhotoImport, words: string[]): Promise<boolean> {
   const kept = phrases.length > 0 ? filterImportWords(clean, phrases) : clean;
   if (kept.length === 0) return false;
   if (!(await wordListRepo.getById(row.listId))) return false;
-  await addWordsToList({ listId: row.listId, profileId: row.profileId, words: kept });
+  const named = new Map(claims.map((claim) => [claim.word.trim().toLowerCase(), claim.node]));
+  const placed = placeWords(kept.map((word) => ({ word, node: named.get(word) })));
+  await addWordsToList({ listId: row.listId, profileId: row.profileId, words: kept, placed });
   return true;
 }
 
@@ -109,7 +118,7 @@ async function readFromFactory(row: PhotoImport, deps: PhotoImportDeps, key: Pri
   const current = await db.photoImports.get(row.id);
   if (!current || current.status !== 'reading') return;
 
-  if (result.answer.status === 'answered' && (await landWords(current, result.answer.answer.words))) {
+  if (result.answer.status === 'answered' && (await landWords(current, result.answer.answer.words, claimsOf(result.answer.answer)))) {
     await settle(row.id, 'factory');
     return;
   }
@@ -156,7 +165,7 @@ export async function startPhotoImport(params: StartPhotoImportParams, deps: Pho
       sent = await (deps.sendGrist ?? sendGrist)({
         key,
         files: [photo],
-        input: { language: params.language },
+        input: { schemaVersion: WORD_LIST_GRIND.v, requestType: 'word-list', language: params.language, nodes: requestNodes() },
         header: WORD_LIST_GRIND,
       });
     } catch {

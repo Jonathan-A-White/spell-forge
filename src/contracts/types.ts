@@ -98,6 +98,10 @@ export interface Word {
   imageUrl: string | null;
   imageCached: boolean;
   createdAt: Date;
+  /** The spelling-graph node the word practises (src/learn/spelling), set when a photo import placed it. */
+  nodeId?: string;
+  /** Why the factory's node was not used and the pattern match placed (or failed to place) the word. */
+  nodeReason?: string;
 }
 
 export interface WordStats {
