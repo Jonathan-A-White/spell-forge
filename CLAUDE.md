@@ -136,6 +136,7 @@ docs/lampas-sweep.md # every rule of Lampas's CLAUDE.md: taken, not for this app
 docs/module-map.md # the module map (2026-10-10): modules, collisions, proposed refactors, rule breaks, library candidates
 docs/spelling-graph.md # the spelling graph (src/learn/spelling): grade bands, the node shape, how to add a node
 docs/maths-graph.md # the maths graph (src/learn/maths): grade bands, the node shape and item checker, the number nodes, how to add a node
+docs/what-the-tutor-is-told.md # the table of what a tutor-talk turn carries (settings, learner, goal, progress, screen) and why the rest is not sent
 docs/best-practices-audit.md # the 2026-10-10 audit of SpellForge against the PWA best practices (31 checklist lines)
 docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain application data (BSV)
 docs/bsv-testnet.md # the two testnet scripts behind the BSV Debug screen: keys kept outside the repo
