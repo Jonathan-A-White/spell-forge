@@ -58,7 +58,7 @@
       "enum": ["word", "plain"]
     },
     "node": {
-      "description": "Mode math: the id of the node of the maths graph this problem is about, copied from the request's node. Left out when the request names none.",
+      "description": "Mode math: the id of the node of the math graph this problem is about, copied from the request's node. Left out when the request names none.",
       "type": "string",
       "minLength": 1,
       "maxLength": 100

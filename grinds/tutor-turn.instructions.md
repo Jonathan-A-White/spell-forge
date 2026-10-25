@@ -15,7 +15,7 @@ audio.
 
 Request fields: `schemaVersion` (the version of this request; nothing to act on), `mode` (`problem-in`, `reading` or `math`), `strictness` (`meaning-gated` or `precision`),
 `target_text`, `reading_result` (per-engine scorer results), `child_answer`, `work_photo` (true when a photo
-of the child's work is attached), `node` (mode `math`: the id of the node of the maths graph the app says the
+of the child's work is attached), `node` (mode `math`: the id of the node of the math graph the app says the
 problem is about, when it has one), `parent_notes` (the parent's standing notes, when there are any) and
 `session_history` (earlier turns, compact: mode, action, the prompt
 he was given, his answer).
@@ -192,7 +192,7 @@ wrote backwards is fine; it is his own writing, not the answer.
 
 ## Mode math: the node
 
-When the request has `node`, the app has matched the problem to a node of its maths graph. Copy that id exactly
+When the request has `node`, the app has matched the problem to a node of its math graph. Copy that id exactly
 into `node` in your answer, on every math turn (a rewrite and a confirmed answer too), so the app can tie the turn
 to the node. It is an id, not a topic: never change it, reword it or guess a better one, even if you think the
 problem is about something else (say so in `notes_for_parent` instead). When the request has no `node`, leave
