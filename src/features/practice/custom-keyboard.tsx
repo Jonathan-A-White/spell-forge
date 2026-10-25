@@ -3,6 +3,7 @@
 
 import { useCallback, useRef, useEffect } from 'react';
 import { hapticTap } from '../../core/haptics';
+import { setVisibleInterval } from '../../shell/visible-interval';
 import { getLanguageConfig } from '../../i18n/language-registry.ts';
 
 interface CustomKeyboardProps {
@@ -161,11 +162,10 @@ export function SpellingField({
     const el = cursorRef.current;
     if (!el) return;
     let visible = true;
-    const interval = setInterval(() => {
+    return setVisibleInterval(() => {
       visible = !visible;
       el.style.opacity = visible ? '1' : '0';
     }, 530);
-    return () => clearInterval(interval);
   }, [disabled]);
 
   // Handle physical keyboard for accessibility (desktop fallback)

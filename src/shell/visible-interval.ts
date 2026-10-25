@@ -1,7 +1,7 @@
 // src/shell/visible-interval.ts: a timer that sleeps while the page is hidden and fires once on return. A phone page
 // spends most of its life hidden, and a bare setInterval keeps the radio and the CPU awake for nothing (pwa best practices,
 // topic 11). It catches up on visibilitychange and on pageshow (the bfcache), and the two events of one return are one
-// catch-up. The callers move onto it in story 12d; this is the only file in src that may call setInterval.
+// catch-up. This is the only file in src that may call setInterval (tests/unit/no-bare-interval.test.ts holds it).
 import { useEffect, useRef } from 'react';
 
 /** Calls `fn` every `ms` while the page is visible, and once more the moment it is back. Returns the stop. */

@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
+import { setVisibleInterval } from '../../shell/visible-interval';
 import {
   calcRunnerPosition,
   formatTime,
@@ -101,7 +102,8 @@ export function WordRelayRace({
   const [bots, setBots] = useState<BotRacer[]>([]);
 
   const onProgressRef = useRef(onProgress);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<(() => void) | null>(null);
+  const countdownRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     onProgressRef.current = onProgress;
@@ -121,17 +123,18 @@ export function WordRelayRace({
     }
   }, [wordTimes, currentIndex, raceWords, elapsedMs, bestTimeMs, difficulty]);
 
+  // A countdown still running when the race closes stops with it.
+  useEffect(() => () => countdownRef.current?.(), []);
+
   // Timer tick
   useEffect(() => {
     if (!raceStarted || raceStartTime === null) return;
 
-    timerRef.current = setInterval(() => {
+    const stop = setVisibleInterval(() => {
       setElapsedMs(Date.now() - raceStartTime);
     }, 100);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    timerRef.current = stop;
+    return stop;
   }, [raceStarted, raceStartTime]);
 
   const isFinished = currentIndex >= raceWords.length && raceStarted;
@@ -151,16 +154,16 @@ export function WordRelayRace({
 
     setCountdownValue(3);
     let count = 3;
-    const interval = setInterval(() => {
+    const stop = setVisibleInterval(() => {
       if (!alive()) {
-        clearInterval(interval);
+        stop();
         return;
       }
       count--;
       if (count > 0) {
         setCountdownValue(count);
       } else {
-        clearInterval(interval);
+        stop();
         setCountdownValue(null);
         setRaceStarted(true);
         const now = Date.now();
@@ -168,6 +171,7 @@ export function WordRelayRace({
         setWordStartTime(now);
       }
     }, 700);
+    countdownRef.current = stop;
   }, [difficulty, raceWords.length, themeId, alive]);
 
   const handleSubmit = useCallback(() => {
@@ -217,7 +221,7 @@ export function WordRelayRace({
 
   // Finish handler
   const handleFinish = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current?.();
 
     const totalTimeMs = raceStartTime ? Date.now() - raceStartTime : elapsedMs;
     const wordsCorrect = wordTimes.filter((wt) => wt.correct).length;
@@ -238,7 +242,7 @@ export function WordRelayRace({
   // Auto-finish when race completes
   useEffect(() => {
     if (isFinished && timerRef.current) {
-      clearInterval(timerRef.current);
+      timerRef.current();
       if (raceStartTime) {
         setElapsedMs(Date.now() - raceStartTime);
       }

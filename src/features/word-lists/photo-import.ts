@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { PhotoImport, PhotoImportStatus } from '../../contracts/types';
 import { db } from '../../data/db';
 import { bsvWalletRepo, profileRepo, wordListRepo } from '../../data/repositories';
+import { setVisibleInterval } from '../../shell/visible-interval';
 import { filterImportWords } from '../../ocr';
 import type { OcrManager } from '../../ocr';
 import { WORD_LIST_GRIND, gristConfig, isWordListAnswer, readAnswer, sendGrist, shrinkPhoto } from '../../grist';
@@ -208,16 +209,16 @@ let activeQueue: Queue | undefined;
  * reading. Returns the function that stops it.
  */
 export function startPhotoImportQueue(deps: PhotoImportDeps): () => void {
-  let timer: ReturnType<typeof setInterval> | undefined;
+  let stopTimer: (() => void) | undefined;
   let stopped = false;
 
   const refresh = async () => {
     if (stopped) return;
     const waiting = (await db.photoImports.where('status').equals('reading').count()) > 0;
-    if (waiting && timer === undefined) timer = setInterval(() => void pass(), gristConfig.pollIntervalMs);
-    if (!waiting && timer !== undefined) {
-      clearInterval(timer);
-      timer = undefined;
+    if (waiting && stopTimer === undefined) stopTimer = setVisibleInterval(() => void pass(), gristConfig.pollIntervalMs);
+    if (!waiting && stopTimer !== undefined) {
+      stopTimer();
+      stopTimer = undefined;
     }
   };
   const pass = async () => {
@@ -234,8 +235,8 @@ export function startPhotoImportQueue(deps: PhotoImportDeps): () => void {
 
   return () => {
     stopped = true;
-    if (timer !== undefined) clearInterval(timer);
-    timer = undefined;
+    stopTimer?.();
+    stopTimer = undefined;
     window.removeEventListener('online', onOnline);
     if (activeQueue === queue) activeQueue = undefined;
   };

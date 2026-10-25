@@ -12,6 +12,7 @@ import '../composer/composer-theme.css';
 import type { ParentAsk } from '../../contracts/types';
 import { parentAskRepo, tutorRepo } from '../../data/repositories';
 import { ParentAskInFlight } from '../../grist';
+import { useVisibleInterval } from '../../shell/visible-interval';
 import { PARENT_ASK_MAX_PICTURES, PARENT_ASK_MAX_QUESTION } from './parent-ask-request';
 import { PARENT_ASK_HISTORY, failHalfSentAsks, sendParentAsk } from './parent-ask-flow';
 import type { ParentAskDeps } from './parent-ask-flow';
@@ -112,11 +113,7 @@ export function AskTheTutor({ profileId, deps = {} }: AskTheTutorProps) {
   const out = (asks ?? []).some((ask) => OUT.has(ask.status));
 
   // The seconds count while the factory works on an ask.
-  useEffect(() => {
-    if (!out) return;
-    const timer = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [out]);
+  useVisibleInterval(() => setNowMs(Date.now()), out ? 1000 : null);
 
   // The Composer clears its box when this returns, and keeps the words and shows the message when it throws.
   const submit = async ({ text, files }: ComposerMessage) => {

@@ -6,6 +6,7 @@
 import type { PrivateKey } from '@bsv/sdk';
 import type { TutorAnswer, TutorTurn, TutorTurnResult } from '../contracts/types';
 import { tutorRepo } from '../data/repositories/tutor-repo';
+import { setVisibleInterval } from '../shell/visible-interval';
 import { readAnswer } from './factory';
 import type { ReadAnswerParams, ReadAnswerResult } from './factory';
 import { TUTOR_TURN_DEADLINE_MS, readingDeadlineMs } from './limits';
@@ -24,7 +25,7 @@ export const TUTOR_POLL_IN_FLIGHT_MS = 1_000;
  */
 export function startPolling(pass: () => Promise<void>, inFlight: () => boolean, fixedMs?: number): () => void {
   let stopped = false;
-  let timer: ReturnType<typeof setInterval> | undefined;
+  let stopTimer: (() => void) | undefined;
   let period = fixedMs ?? TUTOR_POLL_INTERVAL_MS;
 
   const run = () => {
@@ -33,16 +34,16 @@ export function startPolling(pass: () => Promise<void>, inFlight: () => boolean,
       const wanted = inFlight() ? TUTOR_POLL_IN_FLIGHT_MS : TUTOR_POLL_INTERVAL_MS;
       if (wanted === period) return;
       period = wanted;
-      clearInterval(timer);
-      timer = setInterval(run, period);
+      stopTimer?.();
+      stopTimer = setVisibleInterval(run, period);
     });
   };
   run();
-  timer = setInterval(run, period);
+  stopTimer = setVisibleInterval(run, period);
   window.addEventListener('online', run);
   return () => {
     stopped = true;
-    clearInterval(timer);
+    stopTimer?.();
     window.removeEventListener('online', run);
   };
 }

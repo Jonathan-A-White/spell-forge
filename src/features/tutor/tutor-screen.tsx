@@ -9,6 +9,7 @@ import { liveQuery } from 'dexie';
 import { pauseTutorSpeech } from '../../audio';
 import type { Profile, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
+import { useVisibleInterval } from '../../shell/visible-interval';
 import { GristInFlight } from '../../grist';
 import { MathLoop } from './math-loop';
 import { ParentGate } from './parent-gate';
@@ -124,11 +125,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {}, share
   const waiting = current?.status === 'sending' || current?.status === 'waiting';
 
   // The seconds count while the factory reads the problem.
-  useEffect(() => {
-    if (!waiting) return;
-    const timer = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [waiting]);
+  useVisibleInterval(() => setNowMs(Date.now()), waiting ? 1000 : null);
 
   // The answer is the problem now: keep it on the session, so the rest of the tutor can find it.
   const answeredText = current?.status === 'answered' ? (current.answer?.target_text ?? current.request.target_text) : undefined;

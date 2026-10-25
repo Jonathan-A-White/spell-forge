@@ -22,6 +22,7 @@ import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardE
 import { ReadingRecorder, pauseTutorSpeech } from '../../audio';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorAnswer, TutorSession, TutorTurn } from '../../contracts/types';
+import { useVisibleInterval } from '../../shell/visible-interval';
 import { hapticError, hapticReady, hapticRelease } from '../../core/haptics';
 import { splitSyllables } from '../../core/phonics';
 import { sendReading, TutorUserError } from './tutor-flow';
@@ -208,14 +209,10 @@ export function ReadingLoop({ session, targetText, turns, deps, onRetype, onMath
   const waiting = latest?.status === 'sending' || latest?.status === 'waiting';
 
   // The seconds count while he holds, and while the factory listens.
-  useEffect(() => {
-    if (!holding && !waiting) return;
-    const timer = setInterval(() => {
-      setNowMs(Date.now());
-      if (hold.current) setHeldMs(Date.now() - hold.current.startedAt);
-    }, 250);
-    return () => clearInterval(timer);
-  }, [holding, waiting]);
+  useVisibleInterval(() => {
+    setNowMs(Date.now());
+    if (hold.current) setHeldMs(Date.now() - hold.current.startedAt);
+  }, holding || waiting ? 250 : null);
 
   const say = useCallback((text: string) => {
     if (hold.current) {

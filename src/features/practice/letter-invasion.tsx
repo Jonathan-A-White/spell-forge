@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
+import { setVisibleInterval } from '../../shell/visible-interval';
 import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
   createWaveConfig,
@@ -204,8 +205,6 @@ export function LetterInvasion({
   const currentWord = gameWords[currentWaveIndex] ?? '';
 
   const invaderCounterRef = useRef(0);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const spawnRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onProgressRef = useRef(onProgress);
   const spawnsSinceTargetRef = useRef(0);
   const nextLetterIndexRef = useRef(nextLetterIndex);
@@ -254,17 +253,14 @@ export function LetterInvasion({
     };
 
     spawn();
-    spawnRef.current = setInterval(spawn, TICK_MS * waveConfig.spawnIntervalTicks);
-    return () => {
-      if (spawnRef.current) clearInterval(spawnRef.current);
-    };
+    return setVisibleInterval(spawn, TICK_MS * waveConfig.spawnIntervalTicks);
   }, [gameStarted, isFinished, waveComplete, waveConfig, nextLetterIndex]);
 
   // Tick: advance invaders downward, check for breaches
   useEffect(() => {
     if (!gameStarted || isFinished || waveComplete) return;
 
-    tickRef.current = setInterval(() => {
+    return setVisibleInterval(() => {
       setInvaders((prev) => {
         const advanced = prev.map((inv) => ({ ...inv, row: inv.row + inv.speed }));
         // Check if any invader reached the bottom
@@ -286,10 +282,6 @@ export function LetterInvasion({
         return advanced.filter((inv) => inv.row < GRID_ROWS);
       });
     }, TICK_MS);
-
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
-    };
   }, [gameStarted, isFinished, waveComplete]);
 
   const handleShootInvader = useCallback(

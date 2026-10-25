@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TutorSession, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
+import { useVisibleInterval } from '../../shell/visible-interval';
 import { sendMath, TutorUserError } from './tutor-flow';
 import type { TutorDeps } from './tutor-flow';
 import { CameraIcon, CheckIcon, PencilIcon, RetryIcon, SayAgainButton, SendIcon, Waiting } from './pictures';
@@ -61,11 +62,7 @@ export function MathLoop({ session, targetText, turns, deps, onFinished }: MathL
   const latest = [...turns].sort((a, b) => b.index - a.index)[0];
   const waiting = latest?.status === 'sending' || latest?.status === 'waiting';
 
-  useEffect(() => {
-    if (!waiting) return;
-    const timer = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [waiting]);
+  useVisibleInterval(() => setNowMs(Date.now()), waiting ? 1000 : null);
 
   const say = useCallback((line: string) => {
     const speak = depsRef.current.say ?? tutorSayFor(session.profileId);

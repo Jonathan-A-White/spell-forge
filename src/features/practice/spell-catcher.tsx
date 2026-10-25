@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useAlive } from 'pwa-kit/alive';
 import { shuffle } from '../../core/shuffle';
+import { setVisibleInterval } from '../../shell/visible-interval';
 import { hapticTap, hapticError, hapticSuccess } from '../../core/haptics';
 import {
   createLetterBatch,
@@ -83,8 +84,6 @@ export function SpellCatcher({
   const [gameOver, setGameOver] = useState(false);
 
   const batchCounterRef = useRef(0);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const batchRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onProgressRef = useRef(onProgress);
   const onSpeakRef = useRef(onSpeak);
 
@@ -135,17 +134,14 @@ export function SpellCatcher({
     // Initial spawn
     spawnBatch();
 
-    batchRef.current = setInterval(spawnBatch, TICK_MS * 3);
-    return () => {
-      if (batchRef.current) clearInterval(batchRef.current);
-    };
+    return setVisibleInterval(spawnBatch, TICK_MS * 3);
   }, [gameStarted, isFinished, wordComplete, currentWord, nextLetterIndex]);
 
   // Tick: advance falling letters downward; lose a life if a target letter falls off
   useEffect(() => {
     if (!gameStarted || isFinished || wordComplete) return;
 
-    tickRef.current = setInterval(() => {
+    return setVisibleInterval(() => {
       setFallingLetters((prev) => {
         const advanced = prev.map((fl) => ({ ...fl, row: fl.row + fl.speed }));
         const escaped = advanced.filter((fl) => fl.row >= GRID_ROWS + 1);
@@ -167,10 +163,6 @@ export function SpellCatcher({
         return remaining;
       });
     }, TICK_MS);
-
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
-    };
   }, [gameStarted, isFinished, wordComplete]);
 
   const handleCatchLetter = useCallback(
