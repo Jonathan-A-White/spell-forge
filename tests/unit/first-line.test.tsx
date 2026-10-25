@@ -16,7 +16,7 @@ import { paulProfile } from '../fixtures/profiles';
 const DIR = join(__dirname, '../../src/worlds/grown-ups');
 
 /** Files in the world that are not screens of their own: a part of a screen, or a helper. */
-const NOT_SCREENS = new Set(['parent-sessions-view.tsx', 'first-line.tsx']);
+const NOT_SCREENS = new Set(['parent-sessions-view.tsx', 'first-line.tsx', 'Licence.tsx']);
 
 const noop = () => undefined;
 

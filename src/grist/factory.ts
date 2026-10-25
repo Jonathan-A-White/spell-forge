@@ -4,7 +4,7 @@
 // Blob-to-file step for a recording.
 
 import type { PrivateKey } from '@bsv/sdk';
-import { door } from 'bsv-kit/bsv';
+import { door, licence } from 'bsv-kit/bsv';
 import { grist } from 'bsv-kit/grist';
 import { gristConfig } from './config';
 import { uploadTimeoutMs } from './limits';
@@ -175,6 +175,23 @@ export async function readAnswer<T>(params: ReadAnswerParams<T>): Promise<ReadAn
     mill: params.mill.toLowerCase(),
   });
   return answer ? { answer: verdict(answer, isAnswer), next } : { pending: true, next };
+}
+
+/**
+ * The collection a tutor licence is minted in. PROVISIONAL, as src/shell/store.ts is: mw-6ww.111 decides the gate, the
+ * collection and the issuer key; until then Postern's collection is read and no issuer is named.
+ */
+export const LICENCE_COLLECTION = 'postern';
+
+/**
+ * Whether this device's key holds a licence, read from the chain through bsv-kit's licence path (the Grown-ups
+ * screen's Buy hands the answer to src/shell/licence-gate.ts). `options` is the test seam (a fake chain reader).
+ */
+export function checkLicence(key: PrivateKey, options: licence.LicenceOptions = {}): Promise<licence.LicenceStatus> {
+  return licence.licenceStatus(key.toPublicKey().toString(), LICENCE_COLLECTION, {
+    reader: new licence.WhatsOnChainReader(),
+    ...options,
+  });
 }
 
 /**

@@ -2,7 +2,7 @@ export { WORD_LIST_GRIND, isWordListAnswer } from './word-list-answer';
 export type { WordListAnswer } from './word-list-answer';
 export { gristConfig } from './config';
 export type { GristConfig } from './config';
-export { UploadTimeoutError, gristFileFromBlob, readAnswer, sendGrist, warmLicence } from './factory';
+export { LICENCE_COLLECTION, UploadTimeoutError, checkLicence, gristFileFromBlob, readAnswer, sendGrist, warmLicence } from './factory';
 export type {
   GristAnswer,
   GristFile,
