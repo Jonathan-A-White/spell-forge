@@ -95,7 +95,8 @@ export function frontDoorRegistry(open: (view: ViewId) => void) {
 const offerTheWorlds = (): FrontDoorReply => ({ kind: 'offer-worlds', line: NO_LICENCE_LINE, worlds: [...TALK_WORLDS] });
 
 export function createFrontDoorFlow(deps: FrontDoorFlowDeps): FrontDoorFlow {
-  const store = deps.store ?? createDexieStore({ name: FRONT_DOOR_TALKS_DB });
+  // The kit hands Dexie its `indexedDB` option as given, so an absent one is Dexie's "no IndexedDB" (MissingAPIError), not its own default: name the page's.
+  const store = deps.store ?? createDexieStore({ name: FRONT_DOOR_TALKS_DB, indexedDB: globalThis.indexedDB, IDBKeyRange: globalThis.IDBKeyRange });
   const now = deps.now ?? Date.now;
   const registry = frontDoorRegistry(deps.open);
   let queue: Promise<unknown> = Promise.resolve();
