@@ -75,9 +75,8 @@ test('Who is learning, the PIN gate, Licence, Settings and How is it going, at 3
     route.fulfill({ status: 200, contentType: 'text/html', body: '<title>store</title>' }),
   );
   await noTapGuard(page);
-  await page.addInitScript(() => localStorage.setItem('sf-tutor', '1'));
 
-  // --- a new child is welcomed, then Home ---
+  // --- a new child is welcomed, then Home (the Tutor is switched on once Home is shown: with it on, a child picked opens the front door) ---
   await page.goto(APP);
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
@@ -93,6 +92,9 @@ test('Who is learning, the PIN gate, Licence, Settings and How is it going, at 3
   await fitsThePhone(page);
   await shot(page, 'grown-ups-who-is-learning');
   await page.getByRole('button', { name: /^Rowan/ }).click();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+  await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
+  await page.reload();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 
   // --- the gate: the first time a PIN and a question are chosen; the Tutor's Grown-ups button leads here ---

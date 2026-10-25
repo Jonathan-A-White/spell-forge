@@ -30,7 +30,7 @@ function inWorld(world: WorldId, ids: readonly string[]): ViewEntry[] {
 
 /** Every kept screen, in the order the old AppView listed them within each world. */
 export const VIEWS = [
-  ...inWorld('front-door', ['loading', 'db-blocked', 'onboarding', 'profile-select', 'home', 'tutor']),
+  ...inWorld('front-door', ['loading', 'db-blocked', 'onboarding', 'profile-select', 'home', 'tutor', 'door']),
   ...inWorld('spelling', [
     'progress', 'practice', 'practice-games', 'quiz', 'learning', 'list-editor', 'word-lists',
     'word-list-detail', 'word-detail', 'monster-stable', 'qr-import', 'coin-history',
@@ -72,9 +72,13 @@ export function worldAtRoute(route: string): WorldId | undefined {
   return WORLDS.find((w) => w.id === first)?.id;
 }
 
-/** The screen a world opens on, the way the front door's tutor opens a world he chose; a world with no screen yet has none. */
+/**
+ * The screen a world opens on, the way the front door's tutor opens a world he chose; a world with no screen yet has none.
+ * The front door's is the door, the tutor to talk to (mw-79en7t.67; PROVISIONAL, the Governor to confirm: this line is the
+ * whole choice, 'home' puts the old Home back). 'home' and 'tutor' stay screens of the world, reached as before.
+ */
 export const WORLD_ENTRY: Readonly<Record<WorldId, ViewId | undefined>> = {
-  'front-door': 'home',
+  'front-door': 'door',
   spelling: 'progress',
   maths: 'maths-home',
   'grown-ups': 'settings',
