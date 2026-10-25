@@ -76,7 +76,7 @@ src/
 ├── contracts/          # Central type definitions (types.ts) and event bus (events.ts)
 ├── core/               # phonics/, spaced-rep/ (SM-2), word-selection/, adaptive/, learning/, memory-aids/
 ├── data/
-│   ├── db.ts           # Dexie schema (v15; each bump repeats the full stores map with a // vN: comment)
+│   ├── db.ts           # Dexie schema (v16; each bump repeats the full stores map with a // vN: comment)
 │   ├── import-export.ts # JSON backup/restore with merge strategies
 │   └── repositories/   # plain exported objects; UI imports the repository, never `db`
 ├── audio/              # word helpers over voice-kit/speech, the tutor's voice, recorder
@@ -86,13 +86,13 @@ src/
 ├── ocr/                # Tesseract.js local + remote fallback
 ├── themes/             # dragon-forge/, monster-lab/, star-trail/ + engine
 ├── accessibility/      # Settings validation, CSS variable mapping, presets, React hooks
-├── learn/              # spelling/, maths/: the subject graphs over learn-kit (nodes, items, grade bands); data and pure code
+├── learn/              # spelling/, maths/: the subject graphs over learn-kit (nodes, items, grade bands); data and pure code; mnemonic-pictures.ts (a node's grind-drawn picture, asked once) over svg-rules.ts (Lampas's picture rules)
 ├── shell/              # worlds.ts (the four worlds, every screen's route, openView), Shell, WorldSwitch, screens/, app-state, last-route
 ├── bsv/                # licence token and chain code
 └── features/           # UI: practice, dashboard, profiles, onboarding, word-lists, tutor, settings, about, update, ...
 ```
 
-Dexie tables: profiles, wordLists, words, wordStats, sessionLogs, streaks, syncQueue, activityProgress, learningProgress, coinBalances, coinTransactions, themeProgress, completedCreatures, testResults, bsvWallet, bsvPendingSpends, bsvTokens, photoImports, tutorSessions, tutorTurns, tutorBlobs, parentAsks.
+Dexie tables: profiles, wordLists, words, wordStats, sessionLogs, streaks, syncQueue, activityProgress, learningProgress, coinBalances, coinTransactions, themeProgress, completedCreatures, testResults, bsvWallet, bsvPendingSpends, bsvTokens, photoImports, tutorSessions, tutorTurns, tutorBlobs, parentAsks, mnemonicPictures.
 
 ### Key Design Patterns
 

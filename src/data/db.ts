@@ -21,6 +21,7 @@ import type {
   TutorTurn,
   TutorBlob,
   ParentAsk,
+  MnemonicPicture,
 } from '../contracts/types';
 import type { LicenseToken } from '../bsv/license-token';
 
@@ -51,6 +52,7 @@ class SpellForgeDB extends Dexie {
   tutorTurns!: Table<TutorTurn, string>;
   tutorBlobs!: Table<TutorBlob, string>;
   parentAsks!: Table<ParentAsk, string>;
+  mnemonicPictures!: Table<MnemonicPicture, string>;
 
   constructor() {
     super('SpellForgeDB');
@@ -340,6 +342,34 @@ class SpellForgeDB extends Dexie {
       tutorTurns: 'id, sessionId, [sessionId+index], txid, status',
       tutorBlobs: 'id',
       parentAsks: 'id, profileId, [profileId+askedAt], txid, status',
+    });
+
+    // v16: mnemonicPictures — the SVG a grind drew for a node, kept by node id so a node is asked about once
+    // (mw-79en7t.46, src/learn/mnemonic-pictures.ts).
+    this.version(16).stores({
+      profiles: 'id, name',
+      wordLists: 'id, profileId, [profileId+active], [profileId+archived]',
+      words: 'id, listId, profileId, [profileId+listId], text',
+      wordStats: 'id, wordId, profileId, [profileId+currentBucket], [profileId+nextReviewDate]',
+      sessionLogs: 'id, profileId, startedAt',
+      streaks: 'profileId',
+      syncQueue: 'id, [type+synced], synced',
+      activityProgress: 'id, profileId, [profileId+activityType]',
+      learningProgress: 'id, profileId, wordId, wordListId, [profileId+wordListId], [profileId+mastered]',
+      coinBalances: 'profileId',
+      coinTransactions: 'id, profileId, [profileId+createdAt], reason',
+      themeProgress: 'id, profileId, [profileId+themeId]',
+      completedCreatures: 'id, profileId, [profileId+themeId]',
+      testResults: 'id, wordListId, profileId, [profileId+wordListId], testDate',
+      bsvWallet: 'id',
+      bsvPendingSpends: 'txid',
+      bsvTokens: '[origin.txid+origin.vout], mintedAt',
+      photoImports: 'id, listId, status, [listId+status]',
+      tutorSessions: 'id, profileId, [profileId+startedAt], status',
+      tutorTurns: 'id, sessionId, [sessionId+index], txid, status',
+      tutorBlobs: 'id',
+      parentAsks: 'id, profileId, [profileId+askedAt], txid, status',
+      mnemonicPictures: 'nodeId',
     });
   }
 }

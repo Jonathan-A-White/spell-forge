@@ -663,6 +663,15 @@ export interface TutorBlob {
   createdAt: Date;
 }
 
+// ─── Mnemonic pictures ────────────────────────────────────────
+
+/** The memory picture a grind drew for one node (grinds/mnemonic-picture.json), kept by node id: one SVG under the rules of src/learn/svg-rules.ts. */
+export interface MnemonicPicture {
+  nodeId: string;
+  svg: string;
+  createdAt: Date;
+}
+
 // ─── Parent ask (sf-tutor) ────────────────────────────────────
 
 export type ParentAskStatus = 'sending' | 'waiting' | 'answered' | 'refused' | 'failed';
