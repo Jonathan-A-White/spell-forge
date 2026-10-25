@@ -288,3 +288,29 @@ test('with the factory down the door says so, and the picture stays to be sent a
   await fitsThePhone(page);
   await shot(page, 'front-door-down');
 });
+
+test('the door has a way out: a Home button takes him to Home, and Settings is reached from there as before', async ({ page }) => {
+  await startOnTheDoor(page);
+
+  await expect(page.getByRole('button', { name: 'Home' })).toBeVisible();
+  await fitsThePhone(page);
+  await shot(page, 'front-door-home-button');
+
+  await page.getByRole('button', { name: 'Home' }).click();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+  await expect(page.getByText('Hello! I am your tutor.')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+});
+
+test('with the Tutor off the app opens on Home, as it always did, with no door', async ({ page }) => {
+  await noTapGuard(page);
+  await page.goto(APP_PATH);
+  await expect(page.getByText('Welcome to SpellForge!')).toBeVisible();
+  await page.getByPlaceholder('Enter your name').fill('Rowan');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+  await expect(page.getByText('Hello! I am your tutor.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Hold to talk' })).toHaveCount(0);
+});

@@ -1,7 +1,7 @@
 // src/shell/landing.ts: the screen the app opens on when nothing else says where (no screen kept, no share waiting). With the Tutor
 // on (Settings > Developer > Tutor (preview)) it is the front-door world's entry, the door: the tutor to talk to (worlds.ts
 // WORLD_ENTRY); with the Tutor off it is Home, as it has always been, so no child's app changes until the Tutor is switched on.
-// The door has no way out of its own to Settings yet: Back leaves it (use-back-button's base stays HOME_VIEW).
+// The door's way out is its Home button (screens/front-door.tsx); Settings and Grown-ups are reached from Home, and Back's base stays HOME_VIEW.
 import { isTutorFlagOn } from '../debug';
 import { HOME_VIEW, WORLD_ENTRY, type ViewId } from './worlds';
 

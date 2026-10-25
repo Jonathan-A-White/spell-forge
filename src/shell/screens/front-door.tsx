@@ -12,9 +12,9 @@ import { createTutorTalkSend } from '../../features/front-door/tutor-talk-send';
 import { doorContext } from '../../features/front-door/door-context';
 import { useApp } from '../app-state';
 import { screenContext } from '../report-screen';
-import { openView, type ViewId } from '../worlds';
+import { HOME_VIEW, openView, type ViewId } from '../worlds';
 
-/** The door: the tutor, drawn by FrontDoor over the real flow and the mill. A share taken at boot waits on it for a tap. */
+/** The door: the tutor, drawn by FrontDoor over the real flow and the mill, with a Home button as its way out. A share taken at boot waits on it for a tap. */
 function Door({ profileId }: { profileId: string }) {
   const { setView, shared, setShared } = useApp();
   const send = useMemo(() => createTutorTalkSend(), []);
@@ -29,7 +29,21 @@ function Door({ profileId }: { profileId: string }) {
     [send, profileId, setView],
   );
   const sharedUsed = useCallback(() => setShared(null), [setShared]);
-  return <FrontDoor flow={flow} open={setView} shared={shared} onSharedUsed={sharedUsed} />;
+  return (
+    <>
+      <div className="px-4 pt-4 max-w-xl mx-auto">
+        <button
+          type="button"
+          onClick={() => setView(HOME_VIEW)}
+          className="rounded-xl border border-sf-border bg-sf-surface text-sf-text font-bold px-5 py-2 active:scale-[0.97]"
+          style={{ minHeight: 'var(--sf-tap-target-size, 48px)' }}
+        >
+          Home
+        </button>
+      </div>
+      <FrontDoor flow={flow} open={setView} shared={shared} onSharedUsed={sharedUsed} />
+    </>
+  );
 }
 
 export function FrontDoorWorld({ view }: { view: ViewId | null }) {
