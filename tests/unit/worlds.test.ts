@@ -29,6 +29,7 @@ const APP_VIEWS_BEFORE_12A = [
 
 // The views dropped on purpose, with the reason.
 const DROPPED: Record<string, string> = {
+  feedback: 'the feedback form is gone: the tutor files what the app cannot do with the maker (Requests, mw-79en7t.20)',
   [DROPPED_BSV_SCREEN]: 'the hidden BSV Debug screen is deleted (M25); src/bsv stays for the licence',
 };
 
@@ -37,6 +38,8 @@ const ADDED = [
   'maths-home', // the Maths world's screen (mw-79en7t.57)
   'spelling-home', // the Spelling world's screen (mw-79en7t.47)
   'door', // the front door: the tutor to talk to (mw-79en7t.67)
+  'conversations', // every talk kept on the phone, searched and read (mw-79en7t.20)
+  'requests', // requests to the maker and the asks people are expected to make (mw-79en7t.20)
 ];
 
 describe('worlds.ts: the four worlds and the route of every kept view', () => {

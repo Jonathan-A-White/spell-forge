@@ -22,7 +22,7 @@ import {
   BugIcon,
   CheckIcon,
   ExportIcon,
-  FeedbackIcon,
+  TalkIcon,
   ImportIcon,
   InfoIcon,
   LearningStrategyIcon,
@@ -47,7 +47,8 @@ export interface SettingsProps {
   onExportProfile?: () => void;
   onImportProfile?: (file: File) => void;
   onShare?: () => void;
-  onSendFeedback?: () => void;
+  onOpenRequests?: () => void;
+  onOpenConversations?: () => void;
   ttsDebugEnabled?: boolean;
   onToggleTtsDebug?: () => void;
   debugModeEnabled?: boolean;
@@ -119,7 +120,8 @@ export function Settings(props: SettingsProps) {
     ['share', props.onShare],
     ['export', props.onExportProfile],
     ['import', onImportProfile],
-    ['feedback', props.onSendFeedback],
+    ['requests', props.onOpenRequests],
+    ['conversations', props.onOpenConversations],
     ['about', props.onOpenAbout],
     ['debugMode', props.onToggleDebugMode],
     ['ttsDebug', props.onToggleTtsDebug],
@@ -213,8 +215,10 @@ export function Settings(props: SettingsProps) {
         );
       case 'deviceKey':
         return <DeviceKeySection />;
-      case 'link.feedback':
-        return <RowButton title="Send Feedback" description="Let us know how we can improve" lead={<FeedbackIcon />} onClick={() => props.onSendFeedback?.()} />;
+      case 'link.requests':
+        return <RowButton title="Requests to the maker" description="Ask for something new, and see what was asked" lead={<TalkIcon />} onClick={() => props.onOpenRequests?.()} />;
+      case 'link.conversations':
+        return <RowButton title="Conversations" description="Every talk with the tutor, to search and read" lead={<TalkIcon />} onClick={() => props.onOpenConversations?.()} />;
       case 'link.about':
         return <RowButton title="About & Credits" description="Who and what SpellForge is built on" lead={<InfoIcon />} onClick={() => props.onOpenAbout?.()} />;
       case 'debugMode':

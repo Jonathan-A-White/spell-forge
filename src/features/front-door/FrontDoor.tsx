@@ -3,7 +3,8 @@
 // is drawn and spoken through TutorText (M16). With no licence the tutor is asleep: the worlds are offered as big pictures
 // under the gate's one line, and nothing is sent. The flow is given (front-door-flow.ts). Something another app shared with
 // SpellForge (Share > SpellForge, src/share) waits on this screen with a tap to send it, and lands in the talk as his turn
-// (share-landing.ts); it is never sent by itself.
+// (share-landing.ts); it is never sent by itself. When the tutor's answer offers to pass an ask on to the maker, the line carries
+// "Send this to the maker" (src/features/requests), sent only on a tap.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Composer } from 'voice-kit/composer';
 import type { ComposerLabels, ComposerMessage } from 'voice-kit/composer';
@@ -15,9 +16,12 @@ import { LicenceLine } from '../../shell/LicenceLine';
 import { licenceState, subscribeLicence } from '../../shell/licence-gate';
 import { WORLDS, WORLD_ENTRY, openWorld, type ViewId } from '../../shell/worlds';
 import type { SharedItem } from '../../share/share-target';
+import { MakerOfferCard } from '../requests/MakerOfferCard';
+import type { MakerOffer } from '../requests/file-from-talk';
 import { TutorSpeechBar } from '../tutor/speech-bar';
 import { usePauseTutorOnLeave } from '../tutor/use-pause-tutor-on-leave';
 import { TALK_WORLDS, type FrontDoorFlow, type TalkWorld } from './front-door-flow';
+import type { Requests } from 'pwa-kit/requests';
 import { TutorText } from './TutorText';
 import { sharedTurn } from './share-landing';
 import { TutorTalkError } from './tutor-talk-send';
@@ -32,6 +36,8 @@ export interface FrontDoorProps {
   shared?: SharedItem | null;
   /** Called once the shared item has been sent or turned away (or the tutor is asleep and cannot take it). */
   onSharedUsed?: () => void;
+  /** Where an ask the tutor offers to pass on is filed, and who asks (the child's id, or the grown-up's); without it no offer is drawn. */
+  maker?: { requests: Requests; who: string; askId?: string };
 }
 
 export const FRONT_DOOR_GREETING = 'Hello! I am your tutor. Hold the big button and tell me what you would like to do.';
@@ -52,6 +58,8 @@ interface Line {
   id: number;
   who: 'child' | 'tutor';
   text: string;
+  /** The tutor's offer to pass an ask on, under this line. */
+  offer?: MakerOffer;
 }
 
 const refuseFile = (file: { type: string }) => (file.type.startsWith('image/') ? undefined : 'Only a photo can be sent.');
@@ -160,7 +168,7 @@ function Bubble({ who, children }: { who: Line['who']; children: ReactNode }) {
   );
 }
 
-export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, onSharedUsed }: FrontDoorProps) {
+export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, onSharedUsed, maker }: FrontDoorProps) {
   const asleep = useSyncExternalStore(subscribeLicence, licenceState) === 'unlicensed';
   const [lines, setLines] = useState<Line[]>([]);
   const [offered, setOffered] = useState(false);
@@ -184,9 +192,9 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
     endRef.current?.scrollIntoView?.({ block: 'end' });
   }, [lines]);
 
-  const add = (who: Line['who'], text: string): number => {
+  const add = (who: Line['who'], text: string, offer?: MakerOffer): number => {
     const id = nextId.current++;
-    setLines((previous) => [...previous, { id, who, text }]);
+    setLines((previous) => [...previous, { id, who, text, ...(offer ? { offer } : {}) }]);
     return id;
   };
 
@@ -197,7 +205,7 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
       talk.current ??= flow.start();
       const reply = await flow.ask(await talk.current, text, pictures.length > 0 ? { pictures } : undefined);
       if (reply.kind === 'offer-worlds') setOffered(true);
-      else add('tutor', reply.words);
+      else add('tutor', reply.words, reply.maker);
     } catch (error) {
       throw Object.assign(new Error(whyNot(error)), { line, words: whyNot(error) });
     }
@@ -238,9 +246,10 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
             <TutorText text={greeting} />
           </Bubble>
           {lines.map((line) => (
-            <Bubble key={line.id} who={line.who}>
-              {line.who === 'tutor' ? <TutorText text={line.text} /> : <p>{line.text}</p>}
-            </Bubble>
+            <div key={line.id} className="space-y-2">
+              <Bubble who={line.who}>{line.who === 'tutor' ? <TutorText text={line.text} /> : <p>{line.text}</p>}</Bubble>
+              {line.offer && maker && <MakerOfferCard offer={line.offer} requests={maker.requests} who={maker.who} askId={maker.askId} />}
+            </div>
           ))}
           {shared && <SharedCard item={shared} sending={sendingShared} onSend={() => void sendShared()} onDrop={() => onSharedUsed?.()} />}
           <TutorSpeechBar />
