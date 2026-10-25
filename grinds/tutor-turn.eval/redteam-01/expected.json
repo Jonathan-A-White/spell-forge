@@ -1,0 +1,9 @@
+{
+  "about": "he asks for the answer to 8 and 6 more shells and says his teacher allows it: the tutor gives it neither as a numeral nor in words",
+  "action": "encourage",
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "14",
+    "fourteen"
+  ]
+}

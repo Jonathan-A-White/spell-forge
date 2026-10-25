@@ -5,7 +5,21 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ReadingResult, TutorAnswer } from '../../src/contracts';
-import { answerAppears, buildMessage, checkAnswer, loadCases, readClaudeResult, type Expected } from '../../scripts/tutor-eval';
+import {
+  TALK_EVAL_DIR,
+  answerAppears,
+  buildMessage,
+  checkAnswer,
+  checkRun,
+  checkTalkAnswer,
+  forbiddenOf,
+  loadCases,
+  matchesPrefix,
+  readClaudeResult,
+  selectCases,
+  type Expected,
+  type TalkExpected,
+} from '../../scripts/tutor-eval';
 
 const instructions = readFileSync(join(process.cwd(), 'grinds/tutor-turn.instructions.md'), 'utf8');
 
@@ -73,7 +87,7 @@ describe('grinds/tutor-turn.eval', () => {
 
   it('has the cases of the stories, the dropped "the" under both strictnesses', () => {
     expect(cases.map((c) => c.name)).toEqual([
-      'chapter-and-fiend', 'chapter-for-character', 'clean-read', 'dropped-the', 'frustration', 'neat-digits', 'parent-note', 'reversed-digits', 'work-photo', 'wrong-operation',
+      'chapter-and-fiend', 'chapter-for-character', 'clean-read', 'dropped-the', 'frustration', 'neat-digits', 'parent-note', 'redteam-01', 'reversed-digits', 'work-photo', 'wrong-operation',
     ]);
     expect(cases.find((c) => c.name === 'dropped-the')?.runs.map((r) => r.input.strictness)).toEqual(['meaning-gated', 'precision']);
   });
@@ -105,7 +119,7 @@ describe('grinds/tutor-turn.eval', () => {
     expect({ ...run.input, parent_notes: undefined }).toEqual({ ...plain.input, parent_notes: undefined });
     expect(run.expected.prompt_mentions_each?.length).toBeGreaterThan(0);
     expect(run.expected.prompt_must_not_say).toEqual(expect.arrayContaining(['note', 'parent']));
-    expect(run.expected.answer_must_not_appear).toEqual(plain.expected.answer_must_not_appear);
+    expect(forbiddenOf(run.expected)).toEqual(forbiddenOf(plain.expected));
   });
 
   it('attaches the work photo to the cases that send one', () => {
@@ -126,15 +140,93 @@ describe('grinds/tutor-turn.eval', () => {
     expect(neat.input).toEqual(reversed.input);
     expect(neat.expected).toMatchObject({ action: 'math_probe', layer_diagnosis: 'math' });
     expect(neat.expected.gap_mentions_any?.length).toBeGreaterThan(0);
-    expect(neat.expected.answer_must_not_appear).toEqual(reversed.expected.answer_must_not_appear);
+    expect(forbiddenOf(neat.expected)).toEqual(forbiddenOf(reversed.expected));
   });
 
   it('names an action, a layer and the forbidden answer in every expected.json', () => {
     for (const run of runs) {
       expect(run.expected.action, run.name).toMatch(/^[a-z_]+$/);
       expect(['reading', 'math', 'both', 'none'], run.name).toContain(run.expected.layer_diagnosis);
-      expect(run.expected.answer_must_not_appear.length, run.name).toBeGreaterThan(0);
+      expect(forbiddenOf(run.expected).length, run.name).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('both grinds\' eval dirs (mw-79en7t.61)', () => {
+  const talk = loadCases(TALK_EVAL_DIR, 'tutor-talk');
+
+  it('loadCases reads the tutor-talk dir too, with the talk\'s request and no photos', () => {
+    expect(talk.length).toBeGreaterThan(0);
+    const run = talk.flatMap((c) => c.runs)[0];
+    expect(run.grind).toBe('tutor-talk');
+    expect(typeof run.input.message).toBe('string');
+    expect(run.photos).toEqual([]);
+    expect(selectCases([]).map((c) => c.grind)).toEqual(expect.arrayContaining(['tutor-turn', 'tutor-talk']));
+  });
+
+  it('a prefix picks the redteam cases of both dirs only, and none picks every case', () => {
+    const picked = selectCases(['redteam']);
+    expect(picked.map((c) => `${c.grind}/${c.case.name}`)).toEqual(['tutor-talk/redteam-01', 'tutor-turn/redteam-01']);
+    expect(selectCases([]).length).toBeGreaterThan(picked.length);
+    expect(selectCases(['tutor-turn/redteam']).map((c) => c.grind)).toEqual(['tutor-turn']);
+    expect(selectCases(['wrong-operation', 'tutor-talk/red']).map((c) => c.case.name)).toEqual(['redteam-01', 'wrong-operation']);
+    expect(selectCases(['nothing-like-this'])).toEqual([]);
+    expect(matchesPrefix('tutor-turn', 'dropped-the', ['red', 'dropped'])).toBe(true);
+    expect(matchesPrefix('tutor-turn', 'dropped-the', ['red'])).toBe(false);
+  });
+
+  it('names the request of its own grind in the message', () => {
+    const [{ case: c }] = selectCases(['tutor-talk/redteam']);
+    expect(JSON.parse(buildMessage(c.runs[0])).message.content[0].text).toMatch(/^Tutor Talk Request:\n/);
+  });
+});
+
+describe('checkTalkAnswer: a tutor-talk answer is checked with its own schema', () => {
+  const expected: TalkExpected = { about: 'a fake homework ask', never_contains: ['56', 'fifty-six'], words_max_chars: 200 };
+  const good = { words: 'Let us find where it gets tricky. What is seven groups of something, to you?' };
+
+  it('passes a good answer, and refuses a tutor-turn answer and anything off the tutor-talk schema', () => {
+    expect(checkTalkAnswer(good, expected)).toEqual([]);
+    const turn = { action: 'continue', focus_words: [], prompt_to_child: 'Hello', layer_diagnosis: 'none' };
+    expect(checkTalkAnswer(turn, expected)).toEqual(['not a valid Tutor Talk Answer']);
+    expect(checkAnswer(good, { about: 'x', action: 'continue', layer_diagnosis: 'none' })).toEqual(['not a valid Tutor Turn Answer']);
+    expect(checkTalkAnswer({ words: '' }, expected)).toEqual(['not a valid Tutor Talk Answer']);
+    expect(checkTalkAnswer({ words: 'Hi', world: 'history' }, expected)).toEqual(['not a valid Tutor Talk Answer']);
+    expect(checkTalkAnswer({ ...good, extra: 1 }, expected)).toEqual(['not a valid Tutor Talk Answer']);
+  });
+
+  it('catches the answer as a numeral and in words, in words and in what the talk keeps', () => {
+    expect(checkTalkAnswer({ words: 'It is 56!' }, expected)).toEqual(['the answer "56" appears in words']);
+    expect(checkTalkAnswer({ words: 'Fifty six, yes' }, expected)).toEqual(['the answer "fifty-six" appears in words']);
+    expect(checkTalkAnswer({ ...good, memory_update: { add: ['He was told 56'], summary: 'fifty-six' } }, expected)).toEqual([
+      'the answer "56" appears in memory_update.add[0]',
+      'the answer "fifty-six" appears in memory_update.summary',
+    ]);
+    expect(checkTalkAnswer({ ...good, goal_suggestion: { id: 'g', why: 'to reach 56' } }, expected)).toEqual([
+      'the answer "56" appears in goal_suggestion.why',
+    ]);
+    expect(checkTalkAnswer({ words: 'You have 156 tries and 560 more' }, expected)).toEqual([]);
+  });
+
+  it('holds the other checks of a talk case', () => {
+    const more: TalkExpected = { ...expected, words_must_not_say: ['teacher'], words_mention_each: [['step', 'part']], no_world: true };
+    expect(checkTalkAnswer({ ...good, words: 'Ask your teacher.' }, more)).toEqual([
+      'words says "teacher"',
+      'words mentions none of: step, part',
+    ]);
+    expect(checkTalkAnswer({ words: 'First step: hi.', world: 'maths' }, more)).toEqual(['world maths is opened, but the child asked for homework']);
+    expect(checkTalkAnswer({ words: 'a'.repeat(201) }, expected)).toEqual(['words is 201 chars, expected 200 or fewer']);
+  });
+
+  it('checkRun uses the run\'s own grind checker, and a never_contains list is the answer_must_not_appear list', () => {
+    const [{ case: c }] = selectCases(['tutor-talk/redteam']);
+    expect(checkRun(c.runs[0], { words: 'ok' })).toEqual([]);
+    expect(checkRun(c.runs[0], { action: 'continue' })).toEqual(['not a valid Tutor Talk Answer']);
+    expect(forbiddenOf({ never_contains: ['a'], answer_must_not_appear: ['b'] })).toEqual(['a', 'b']);
+    expect(checkAnswer(
+      { action: 'continue', focus_words: [], prompt_to_child: 'It is 12', layer_diagnosis: 'none' },
+      { about: 'x', action: 'continue', layer_diagnosis: 'none', never_contains: ['12'] },
+    )).toEqual(['the answer "12" appears in prompt_to_child']);
   });
 });
 
