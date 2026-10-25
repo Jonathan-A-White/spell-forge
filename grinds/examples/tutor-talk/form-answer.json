@@ -1,0 +1,28 @@
+{
+  "about": "On the word list form the grown-up has said the name, so the tutor puts it in List Name, as he said it, and asks about the words, the next empty required field.",
+  "request": {
+    "schemaVersion": "1",
+    "message": "It is week twelve.",
+    "history": [
+      { "role": "user", "text": "Help me fill this in." },
+      { "role": "assistant", "text": "What is the list called?" }
+    ],
+    "strictness": "meaning-gated",
+    "form": {
+      "name": "Word list",
+      "command": "saveList",
+      "fields": [
+        { "name": "name", "label": "List Name", "hint": "For example, Week 12.", "required": true, "kind": "text", "value": "" },
+        { "name": "language", "label": "Language", "required": false, "kind": "choice", "value": "", "options": ["English", "Spanish"] },
+        { "name": "testDate", "label": "Test Date", "hint": "Year, month and day, like 2026-11-20. Leave it empty if there is no test.", "required": false, "kind": "text", "value": "" },
+        { "name": "words", "label": "Words", "hint": "One per line or comma-separated.", "required": true, "kind": "text", "value": "" }
+      ]
+    }
+  },
+  "expect": {
+    "form_values.0.field": { "equals": "name" },
+    "form_values.0.value": { "matches": "(?i)week (12|twelve)" },
+    "form_ask": { "equals": "words" },
+    "words": { "matches": "\\?$" }
+  }
+}

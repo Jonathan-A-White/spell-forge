@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import type { Word, WordList, TestWordResult } from '../../contracts/types';
+import { FormDoor, type FormTutor } from '../tutor/form-door';
+import { TEST_RESULTS_FORM, saveTestResultsCommand } from '../tutor/form-commands';
 
 interface RecordTestResultsProps {
   list: WordList;
   words: Word[];
   onSave: (wordResults: TestWordResult[], overridePercent: number | null) => void;
   onCancel: () => void;
+  /** Offers 'Let the tutor do it' for the teacher's grade (the marks on each word stay by hand); Send saves as Save Results does. No door when absent. */
+  tutor?: FormTutor;
 }
 
 export function RecordTestResults({
@@ -15,6 +19,7 @@ export function RecordTestResults({
   words,
   onSave,
   onCancel,
+  tutor,
 }: RecordTestResultsProps) {
   // Initialize all words as unmarked (null = not yet marked)
   const [results, setResults] = useState<Map<string, boolean | null>>(
@@ -55,18 +60,30 @@ export function RecordTestResults({
     setResults(new Map(words.map((w) => [w.id, false])));
   };
 
-  const handleSave = () => {
+  /** The one save: Save Results and the tutor's Send both end here, with the words as they are marked and the teacher's grade, if any. */
+  const save = (override: number | null) => {
     const wordResults: TestWordResult[] = words.map((w) => ({
       wordId: w.id,
       word: w.text,
       correct: results.get(w.id) === true,
     }));
+    onSave(wordResults, override);
+  };
 
+  const handleSave = () => {
     const override = useOverride && overrideValue !== ''
       ? Math.min(100, Math.max(0, parseInt(overrideValue, 10)))
       : null;
 
-    onSave(wordResults, isNaN(override as number) ? null : override);
+    save(isNaN(override as number) ? null : override);
+  };
+
+  /** What the tutor fills in is shown in the fields as if he had typed it. */
+  const fillFromTutor = (field: string, value: string) => {
+    const percent = /^(\d{1,3})\s*%?$/.exec(value.trim());
+    if (field !== 'grade' || !percent) return;
+    setUseOverride(true);
+    setOverrideValue(percent[1]);
   };
 
   return (
@@ -91,6 +108,16 @@ export function RecordTestResults({
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+        {tutor && (
+          <FormDoor
+            form={TEST_RESULTS_FORM}
+            command={saveTestResultsCommand(save)}
+            values={{ grade: useOverride ? overrideValue : '' }}
+            onFill={fillFromTutor}
+            tutor={tutor}
+          />
+        )}
+
         {/* Instructions */}
         <div className="bg-sf-surface rounded-xl border border-sf-border p-4">
           <p className="text-sm text-sf-heading font-medium mb-1">Tap each word to mark it:</p>

@@ -70,3 +70,18 @@ the screen's last facts, and the memory's oldest facts only last of all.
 | `settings.dailyGoalMinutes` | the app's daily minutes; the tutor's goal is the learning goal above |
 | `settings.learningStrategy` | the order the spelling world shows new words in; the world's own |
 | `settings.tutorVoice` | the phone speaks the tutor's words; the voice is chosen on the phone, not by the mill |
+
+## What a form turn carries
+
+The form door ("Let the tutor do it", `src/features/tutor/form-door.tsx`) is a talk of its own over the same tutor-talk grind. It
+builds its own small request, not the front door's: `schemaVersion`, `message`, `history`, `memory` when the talk has one,
+`strictness`, and `form`. It sends no `learner`, `goal`, `progress`, `parent_notes` or `screen`, and no setting or profile field: the
+tutor is helping with a form, not teaching. `form` is the form as the tutor sees it (`@voice-kit/forms`): its `name`, the `command` its
+Send runs, and for each field its `name`, `label`, `hint`, `required`, `kind`, what it holds now (`value`, cut at 600) and, for a
+choice, its `options`. The answer's `form_values` fill fields and `form_ask` names the one asked about; the tutor never sends. With no
+licence no request is made (`src/shell/licence-gate.ts`).
+
+Four forms have the door: Pick a question, New Word List / Edit List, Record Test Results (the teacher's grade only) and Print Practice
+Sheet. The Welcome wizard has a spec and a command and no door: its name field is the child's name, which never leaves the phone for the mill
+(the table above). Pick a question sends what is typed to the tutor, the recovery answer too; the answer is kept on the phone only as a hash,
+so the Governor decides whether the door stays on that form once an app-level tutor is handed to it.

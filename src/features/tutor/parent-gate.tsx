@@ -9,6 +9,8 @@ import type { Profile } from '../../contracts';
 import { PinPad } from './pin-pad';
 import { ParentScreen } from '../../worlds/grown-ups/parent-screen';
 import type { ParentAskDeps } from './parent-ask-flow';
+import { FormDoor, type FormTutor } from './form-door';
+import { OWN_QUESTION, QUESTIONS, questionForm, saveQuestionCommand } from './form-commands';
 import {
   checkParentPin,
   checkRecoveryAnswer,
@@ -27,6 +29,8 @@ export interface ParentGateProps {
   onProfileChange?: (profile: Profile) => void;
   /** The seams Ask the tutor runs on; the real grist client when absent. */
   deps?: ParentAskDeps;
+  /** Offers 'Let the tutor do it' on Pick a question: the tutor asks and fills the form, and Send saves as Save does. No door when absent. */
+  tutor?: FormTutor;
 }
 
 type Step =
@@ -39,12 +43,6 @@ type Step =
   | { kind: 'new-confirm'; answer: string; first: string }
   | { kind: 'open' };
 
-const QUESTIONS = [
-  'What is the name of your first pet?',
-  'What street did you grow up on?',
-  'What is your favourite meal?',
-  'What was your first school called?',
-];
 const OWN = '__own__';
 const FIELD = 'w-full rounded-xl border border-sf-border bg-sf-surface p-3 text-sf-text';
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
@@ -52,7 +50,7 @@ const BUTTON = 'px-5 rounded-xl font-bold transition-all active:scale-[0.97] dis
 const PRIMARY = `${BUTTON} bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover`;
 const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-heading hover:border-sf-border-strong`;
 
-export function ParentGate({ profileId, onExit, onProfileChange, deps }: ParentGateProps) {
+export function ParentGate({ profileId, onExit, onProfileChange, deps, tutor }: ParentGateProps) {
   const [step, setStep] = useState<Step>(() => (hasParentPin() ? { kind: 'enter' } : { kind: 'choose' }));
   const [wrong, setWrong] = useState(0);
 
@@ -128,6 +126,7 @@ export function ParentGate({ profileId, onExit, onProfileChange, deps }: ParentG
   if (step.kind === 'question') {
     return frame(
       <QuestionForm
+        tutor={tutor}
         onSave={async (question, answer) => {
           await setParentPin(step.pin, question, answer);
           setStep({ kind: 'open' });
@@ -167,45 +166,80 @@ export function ParentGate({ profileId, onExit, onProfileChange, deps }: ParentG
   );
 }
 
-function QuestionForm({ onSave }: { onSave: (question: string, answer: string) => Promise<void> }) {
-  const [choice, setChoice] = useState(QUESTIONS[0]);
+function QuestionForm({ onSave, tutor }: { onSave: (question: string, answer: string) => Promise<void>; tutor?: FormTutor }) {
+  const [choice, setChoice] = useState<string>(QUESTIONS[0]);
   const [own, setOwn] = useState('');
   const [answer, setAnswer] = useState('');
   const [saving, setSaving] = useState(false);
+  // The select opens on the first question, which is not yet a choice: the tutor asks about the Question until one is made, by hand or by him.
+  const [chose, setChose] = useState(false);
   const question = choice === OWN ? own.trim() : choice;
   const ready = question.length > 0 && answer.trim().length > 0 && !saving;
 
+  /** The one save: the Save button and the tutor's Send both end here. */
+  const save = (savedQuestion: string, savedAnswer: string) => {
+    setSaving(true);
+    void onSave(savedQuestion, savedAnswer);
+  };
+  const saveCommand = saveQuestionCommand(save);
+
+  const choose = (value: string) => {
+    setChoice(value);
+    setChose(true);
+  };
+
+  /** What the tutor fills in is shown in the fields as if he had typed it. */
+  const fillFromTutor = (field: string, value: string) => {
+    if (field === 'question') {
+      if (value === OWN_QUESTION) choose(OWN);
+      else if ((QUESTIONS as readonly string[]).includes(value)) choose(value);
+    } else if (field === 'own') setOwn(value);
+    else if (field === 'answer') setAnswer(value);
+  };
+
   return (
-    <form
-      className="max-w-sm mx-auto space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!ready) return;
-        setSaving(true);
-        void onSave(question, answer);
-      }}
-    >
-      <h2 className="text-sf-heading font-bold text-2xl">Pick a question</h2>
-      <p className="text-sf-muted">If you forget the PIN, this question lets you choose a new one.</p>
-      <div className="space-y-1">
-        <label htmlFor="parent-question" className="block text-sf-heading font-bold">Question</label>
-        <select id="parent-question" value={choice} onChange={(e) => setChoice(e.target.value)} className={FIELD}>
-          {QUESTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
-          <option value={OWN}>Write your own</option>
-        </select>
-      </div>
-      {choice === OWN && (
-        <div className="space-y-1">
-          <label htmlFor="parent-question-own" className="block text-sf-heading font-bold">Write your question</label>
-          <input id="parent-question-own" value={own} onChange={(e) => setOwn(e.target.value)} className={FIELD} />
+    <>
+      {tutor && (
+        <div className="max-w-sm mx-auto">
+          <FormDoor
+            form={questionForm(choice === OWN)}
+            command={saveCommand}
+            values={{ question: chose ? (choice === OWN ? OWN_QUESTION : choice) : '', own, answer }}
+            onFill={fillFromTutor}
+            tutor={tutor}
+          />
         </div>
       )}
-      <div className="space-y-1">
-        <label htmlFor="parent-answer" className="block text-sf-heading font-bold">Your answer</label>
-        <input id="parent-answer" value={answer} onChange={(e) => setAnswer(e.target.value)} autoComplete="off" className={FIELD} />
-      </div>
-      <button type="submit" disabled={!ready} className={PRIMARY} style={TAP}>Save</button>
-    </form>
+      <form
+        className="max-w-sm mx-auto space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!ready) return;
+          save(question, answer);
+        }}
+      >
+        <h2 className="text-sf-heading font-bold text-2xl">Pick a question</h2>
+        <p className="text-sf-muted">If you forget the PIN, this question lets you choose a new one.</p>
+        <div className="space-y-1">
+          <label htmlFor="parent-question" className="block text-sf-heading font-bold">Question</label>
+          <select id="parent-question" value={choice} onChange={(e) => choose(e.target.value)} className={FIELD}>
+            {QUESTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
+            <option value={OWN}>{OWN_QUESTION}</option>
+          </select>
+        </div>
+        {choice === OWN && (
+          <div className="space-y-1">
+            <label htmlFor="parent-question-own" className="block text-sf-heading font-bold">Write your question</label>
+            <input id="parent-question-own" value={own} onChange={(e) => setOwn(e.target.value)} className={FIELD} />
+          </div>
+        )}
+        <div className="space-y-1">
+          <label htmlFor="parent-answer" className="block text-sf-heading font-bold">Your answer</label>
+          <input id="parent-answer" value={answer} onChange={(e) => setAnswer(e.target.value)} autoComplete="off" className={FIELD} />
+        </div>
+        <button type="submit" disabled={!ready} className={PRIMARY} style={TAP}>Save</button>
+      </form>
+    </>
   );
 }
 

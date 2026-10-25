@@ -123,6 +123,44 @@
         "name": { "type": "string", "minLength": 1 },
         "facts": { "type": "array", "maxItems": 10, "items": { "type": "string", "maxLength": 200 } }
       }
+    },
+    "form": {
+      "description": "A form of the app he asked the tutor to help him fill in (Part 11 of the instructions): its name, its fields as they are on screen with what each holds now, and the command the app's Send button runs. The tutor asks about the form and fills its fields; it never sends it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "fields"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "command": {
+          "description": "Present when the app shows a Send button once every required field holds something.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "fields": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "label", "required", "kind", "value"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+              "label": { "type": "string", "maxLength": 80 },
+              "hint": { "type": "string", "maxLength": 120 },
+              "required": { "type": "boolean" },
+              "kind": { "enum": ["text", "link", "choice", "pictures"] },
+              "value": { "description": "What the field holds now; empty when it holds nothing.", "type": "string", "maxLength": 600 },
+              "options": {
+                "description": "A choice field's options: the answer is one of them, exactly.",
+                "type": "array",
+                "maxItems": 20,
+                "items": { "type": "string", "maxLength": 120 }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

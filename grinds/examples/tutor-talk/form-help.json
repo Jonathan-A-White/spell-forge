@@ -1,0 +1,29 @@
+{
+  "about": "A grown-up tapped Let the tutor do it on the word list form with nothing filled in: the tutor asks about the first empty required field, the list's name, in one question, fills nothing and never sends.",
+  "request": {
+    "schemaVersion": "1",
+    "message": "Help me fill this in.",
+    "history": [],
+    "strictness": "meaning-gated",
+    "form": {
+      "name": "Word list",
+      "command": "saveList",
+      "fields": [
+        { "name": "name", "label": "List Name", "hint": "For example, Week 12.", "required": true, "kind": "text", "value": "" },
+        { "name": "language", "label": "Language", "required": false, "kind": "choice", "value": "", "options": ["English", "Spanish"] },
+        { "name": "testDate", "label": "Test Date", "hint": "Year, month and day, like 2026-11-20. Leave it empty if there is no test.", "required": false, "kind": "text", "value": "" },
+        { "name": "words", "label": "Words", "hint": "One per line or comma-separated.", "required": true, "kind": "text", "value": "" }
+      ]
+    }
+  },
+  "expect": {
+    "words": {
+      "all": [
+        { "matches": "\\?$" },
+        { "matches": "(?i)(call|name)" }
+      ]
+    },
+    "form_ask": { "equals": "name" },
+    "form_values": { "present": false }
+  }
+}
