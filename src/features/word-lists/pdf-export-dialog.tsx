@@ -1,14 +1,18 @@
 // src/features/word-lists/pdf-export-dialog.tsx — Modal for PDF export options
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAlive } from 'pwa-kit/alive';
 import type { PdfMode, PdfFontSize } from './pdf-generator';
 import { downloadWordListPdf } from './pdf-generator';
+import { FormDoor, type FormTutor } from '../tutor/form-door';
+import { PDF_FORM, savePdfCommand } from '../tutor/form-commands';
 
 interface PdfExportDialogProps {
   listName: string;
   words: string[];
   onClose: () => void;
+  /** Offers 'Let the tutor do it' for Practice Mode and Letter Size; Send downloads as Download PDF does. No door when absent. */
+  tutor?: FormTutor;
 }
 
 const MODE_OPTIONS: { value: PdfMode; label: string; desc: string }[] = [
@@ -23,23 +27,50 @@ const SIZE_OPTIONS: { value: PdfFontSize; label: string; desc: string }[] = [
   { value: 'large', label: 'Large', desc: 'Fewer words, bigger letters (~6)' },
 ];
 
-export function PdfExportDialog({ listName, words, onClose }: PdfExportDialogProps) {
+export function PdfExportDialog({ listName, words, onClose, tutor }: PdfExportDialogProps) {
   const [mode, setMode] = useState<PdfMode>('full');
   const [fontSize, setFontSize] = useState<PdfFontSize>('medium');
   const [generating, setGenerating] = useState(false);
+  // The dialog opens on Full Practice and Medium; the tutor asks about a choice that has not been made, by hand or by him.
+  const [picked, setPicked] = useState({ mode: false, size: false });
   const alive = useAlive();
 
-  const handleGenerate = useCallback(() => {
+  /** The one download: Download PDF and the tutor's Send both end here. */
+  const generate = useCallback((pdfMode: PdfMode, pdfFontSize: PdfFontSize) => {
+    if (words.length === 0) throw new Error('There are no words to print');
     setGenerating(true);
     // Use setTimeout to let the UI update before the synchronous PDF generation
     setTimeout(() => {
       try {
-        downloadWordListPdf({ mode, fontSize, listName, words });
+        downloadWordListPdf({ mode: pdfMode, fontSize: pdfFontSize, listName, words });
       } finally {
         if (alive()) setGenerating(false);
       }
     }, 50);
-  }, [mode, fontSize, listName, words, alive]);
+  }, [listName, words, alive]);
+
+  const handleGenerate = useCallback(() => generate(mode, fontSize), [generate, mode, fontSize]);
+  const generateCommand = useMemo(() => savePdfCommand(generate), [generate]);
+
+  const chooseMode = (value: PdfMode) => {
+    setMode(value);
+    setPicked((p) => ({ ...p, mode: true }));
+  };
+  const chooseSize = (value: PdfFontSize) => {
+    setFontSize(value);
+    setPicked((p) => ({ ...p, size: true }));
+  };
+
+  /** What the tutor fills in is shown in the choices as if he had tapped them. */
+  const fillFromTutor = (field: string, value: string) => {
+    if (field === 'mode') {
+      const chosen = MODE_OPTIONS.find((o) => o.label === value);
+      if (chosen) chooseMode(chosen.value);
+    } else if (field === 'size') {
+      const chosen = SIZE_OPTIONS.find((o) => o.label === value);
+      if (chosen) chooseSize(chosen.value);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="pdf-export-dialog">
@@ -48,6 +79,19 @@ export function PdfExportDialog({ listName, words, onClose }: PdfExportDialogPro
         <p className="text-sm text-sf-muted mb-5">
           Generate a printable PDF for <strong className="text-sf-heading">{listName}</strong> ({words.length} word{words.length !== 1 ? 's' : ''})
         </p>
+
+        {tutor && (
+          <FormDoor
+            form={PDF_FORM}
+            command={generateCommand}
+            values={{
+              mode: picked.mode ? (MODE_OPTIONS.find((o) => o.value === mode)?.label ?? '') : '',
+              size: picked.size ? (SIZE_OPTIONS.find((o) => o.value === fontSize)?.label ?? '') : '',
+            }}
+            onFill={fillFromTutor}
+            tutor={tutor}
+          />
+        )}
 
         {/* Mode selection */}
         <fieldset className="mb-5">
@@ -67,7 +111,7 @@ export function PdfExportDialog({ listName, words, onClose }: PdfExportDialogPro
                   name="pdf-mode"
                   value={opt.value}
                   checked={mode === opt.value}
-                  onChange={() => setMode(opt.value)}
+                  onChange={() => chooseMode(opt.value)}
                   className="mt-0.5 accent-sf-primary"
                 />
                 <div>
@@ -87,7 +131,7 @@ export function PdfExportDialog({ listName, words, onClose }: PdfExportDialogPro
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setFontSize(opt.value)}
+                onClick={() => chooseSize(opt.value)}
                 className={`flex-1 py-2 px-3 rounded-lg border text-center transition-all ${
                   fontSize === opt.value
                     ? 'border-sf-primary bg-sf-primary/5 text-sf-heading font-bold'

@@ -1,10 +1,12 @@
 // src/features/word-lists/list-editor.tsx — Word list CRUD UI with multilingual support
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { WordList } from '../../contracts/types';
 import { wordRepo } from '../../data/repositories';
 import type { OcrManager } from '../../ocr';
 import { getAllLanguages, getLanguageConfig, DEFAULT_LANGUAGE } from '../../i18n/language-registry.ts';
+import { FormDoor, type FormTutor } from '../tutor/form-door';
+import { LIST_FORM, saveListCommand, readList, type ListValues } from '../tutor/form-commands';
 import { normalizeWords } from './add-words';
 import { startPhotoImport, usePhotoImportStatus } from './photo-import';
 
@@ -18,9 +20,11 @@ interface ListEditorProps {
   onCreateList?: (name: string, testDate: Date | null, language: string) => Promise<WordList>;
   onSave: (name: string, words: string[], testDate: Date | null, source?: WordList['source'], language?: string) => void;
   onCancel: () => void;
+  /** Offers 'Let the tutor do it' on the form: the tutor asks and fills the fields, and Send saves as Save does. No door when absent. */
+  tutor?: FormTutor;
 }
 
-export function ListEditor({ list, existingWords, ocrManager, profileId, onCreateList, onSave, onCancel }: ListEditorProps) {
+export function ListEditor({ list, existingWords, ocrManager, profileId, onCreateList, onSave, onCancel, tutor }: ListEditorProps) {
   const [name, setName] = useState(list?.name ?? '');
   const [language, setLanguage] = useState<string>(list?.language ?? DEFAULT_LANGUAGE);
   const [wordsText, setWordsText] = useState(existingWords.join('\n'));
@@ -45,17 +49,23 @@ export function ListEditor({ list, existingWords, ocrManager, profileId, onCreat
   const langConfig = getLanguageConfig(language);
   const ocrAvailable = ocrManager && langConfig.hasOCR;
 
-  const handleSave = useCallback(() => {
-    const words = wordsText
-      .split(/[\n,]+/)
-      .map((w) => w.trim().toLowerCase())
-      .filter((w) => w.length > 0);
-
-    if (name.trim() === '' || words.length === 0) return;
-
+  /** The one save: the Save button and the tutor's Send both end here. */
+  const submit = useCallback((saved: ListValues) => {
     const source = usedCamera ? 'camera' as const : undefined;
-    onSave(name.trim(), words, testDate ? new Date(testDate) : null, source, language);
-  }, [name, wordsText, testDate, usedCamera, language, onSave]);
+    onSave(saved.name, saved.words, saved.testDate, source, saved.language);
+  }, [usedCamera, onSave]);
+
+  const handleSave = useCallback(() => {
+    let saved: ListValues;
+    try {
+      saved = readList({ name, words: wordsText, testDate, language });
+    } catch {
+      return; // a List Name and at least one word are needed
+    }
+    submit(saved);
+  }, [name, wordsText, testDate, language, submit]);
+
+  const saveCommand = useMemo(() => saveListCommand(submit), [submit]);
 
   /** Appends the words an import has landed in the saved list, once each, after whatever the parent has typed. */
   const absorbLandedWords = useCallback(async (listId: string) => {
@@ -118,6 +128,18 @@ export function ListEditor({ list, existingWords, ocrManager, profileId, onCreat
 
   const allLanguages = getAllLanguages();
 
+  /** What the tutor fills in is shown in the fields as if he had typed it. */
+  const fillFromTutor = (field: string, value: string) => {
+    if (field === 'name') setName(value);
+    else if (field === 'words') setWordsText(value);
+    else if (field === 'testDate') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) setTestDate(value);
+    } else if (field === 'language') {
+      const chosen = allLanguages.find((l) => l.displayName === value);
+      if (chosen) setLanguage(chosen.code);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-sf-bg p-4 max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -137,6 +159,15 @@ export function ListEditor({ list, existingWords, ocrManager, profileId, onCreat
       </div>
 
       <div className="space-y-4">
+        {tutor && (
+          <FormDoor
+            form={LIST_FORM}
+            command={saveCommand}
+            values={{ name, language: langConfig.displayName, testDate, words: wordsText }}
+            onFill={fillFromTutor}
+            tutor={tutor}
+          />
+        )}
         <div>
           <label className="block text-sm font-medium text-sf-secondary mb-1">
             List Name
