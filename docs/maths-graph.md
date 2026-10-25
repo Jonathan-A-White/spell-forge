@@ -13,6 +13,11 @@ and the two share no code, so each can change on its own.
   match the item's answer), `nodeProblems` (what is wrong with a node) and `mathsNode(...)`, the one way a node file builds a node.
 - `nodes-number.ts`: the number nodes for `preK` to `3-5`: counting, place value, fractions, ratios. Later strands (operations,
   algebra, geometry, data) are their own `nodes-<strand>.ts` and need these nodes by id.
+- `nodes-operations.ts`: the operations nodes for `K` to `6-8`: adding, taking away, multiplying and dividing, in whole numbers, then
+  fractions, decimals and negative numbers, up to exponents and percent. They rest on the number nodes.
+- `nodes-algebra.ts`: the algebra nodes for `6-8` and `9-12`: expressions, equations, inequalities, rates and lines, systems,
+  quadratics, powers and functions. They rest on the operations nodes, and cite the SAT Math domains (below).
+- `format.ts`: how the operations and algebra nodes write a number into a problem (`−3`, `x − 4`, `2³`) and an answer (`-3`, `3/4`).
 - `graph.ts`: assembles the node files into `MATHS_NODES`, checks every node with `nodeProblems`, and validates the whole with
   learn-kit's `validate` into `mathsGraph`. A node that breaks a rule stops the module from loading, so a test fails by name.
 - `index.ts`: the barrel; import from `src/learn/maths`.
@@ -24,12 +29,12 @@ a later band.
 
 | Band | Level | Holds |
 | --- | --- | --- |
-| `preK` | 0 | counting up to 10, which group has more (this story) |
-| `K` | 1 | counting to 20, one more and one less, comparing, ten and some more, fair shares (this story) |
-| `1-2` | 2 | tens and ones, hundreds, skipping in jumps, halves and quarters (this story) |
-| `3-5` | 3 | bigger place value, rounding, fractions, tenths, ratios (this story) |
-| `6-8` | 4 | later node files |
-| `9-12` | 5 | later node files |
+| `preK` | 0 | counting up to 10, which group has more |
+| `K` | 1 | counting to 20, one more and one less, comparing, ten and some more, fair shares; adding and taking away to 10 |
+| `1-2` | 2 | tens and ones, hundreds, skipping in jumps, halves and quarters; adding and taking away to 20, 100 and 1000 |
+| `3-5` | 3 | bigger place value, rounding, fractions, tenths, ratios; multiplying and dividing, big numbers, decimals and fractions |
+| `6-8` | 4 | fractions, decimals and negative numbers in the four operations, exponents, percent; expressions, equations, rates, slope, functions (mw-79en7t.55) |
+| `9-12` | 5 | lines, systems, inequalities and models; quadratics, powers, growth and function notation (mw-79en7t.55) |
 
 ## The node shape
 
@@ -63,6 +68,18 @@ problem that asks for a form ("in simplest form") needs a check of its own.
 a probe, a confirmation or a close. Nothing there knows a node: the check of an answer is the tutor's. The graph's `checkAnswer`
 is the local check for a drill on a node with no network, and the tutor's turns stay as they are until a story joins them.
 
+## The SAT Math domains
+
+The 9-12 nodes (and the 6-8 ones that lead to them) are tagged with the content domain of the SAT Math section they prepare for, by name
+only: no problem is copied from any test, every problem is written here. A node's `tags` hold `maths`, its band, and its domain:
+
+- `sat:heart-of-algebra` (`HEART_OF_ALGEBRA` in `nodes-algebra.ts`): **Heart of Algebra**, linear equations and inequalities in one and
+  two variables, systems, and linear functions and models.
+- `sat:passport-to-advanced-math` (`PASSPORT_TO_ADVANCED_MATH`): **Passport to Advanced Math**, quadratics and factoring, powers
+  and exponential growth, function notation and the shape of a non-linear function.
+- `sat:problem-solving-and-data-analysis` (`PROBLEM_SOLVING_AND_DATA_ANALYSIS` in `nodes-operations.ts`): rates and percent, the
+  part of the SAT's Problem Solving and Data Analysis that the operations reach. The data strand is a later node file.
+
 ## The nodes
 
 | Node | Band | Rests on |
@@ -90,6 +107,57 @@ is the local check for a drill on a node with no network, and the tutor's turns 
 | `ratio-language` | `3-5` | `fair-shares`, `halves-and-quarters` |
 | `ratio-equivalent` | `3-5` | `ratio-language`, `fractions-equivalent` |
 | `ratio-recipes` | `3-5` | `ratio-equivalent` |
+| `add-within-10` | `K` | `count-to-10`, `one-more-one-less` |
+| `subtract-within-10` | `K` | `add-within-10` |
+| `add-within-20` | `1-2` | `add-within-10`, `ten-and-ones` |
+| `subtract-within-20` | `1-2` | `subtract-within-10`, `add-within-20` |
+| `missing-number-within-20` | `1-2` | `subtract-within-20` |
+| `add-two-digit` | `1-2` | `add-within-20`, `place-value-two-digit` |
+| `subtract-two-digit` | `1-2` | `subtract-within-20`, `add-two-digit` |
+| `add-subtract-within-1000` | `1-2` | `subtract-two-digit`, `place-value-hundreds` |
+| `multiply-equal-groups` | `3-5` | `skip-counting`, `add-within-20` |
+| `times-tables` | `3-5` | `multiply-equal-groups` |
+| `divide-equal-groups` | `3-5` | `times-tables`, `fair-shares` |
+| `add-subtract-big` | `3-5` | `add-subtract-within-1000`, `place-value-thousands` |
+| `multiply-multi-digit` | `3-5` | `times-tables`, `add-two-digit`, `place-value-thousands` |
+| `divide-with-remainders` | `3-5` | `divide-equal-groups`, `multiply-multi-digit` |
+| `order-of-operations` | `3-5` | `times-tables`, `subtract-two-digit` |
+| `decimals-add-subtract` | `3-5` | `decimals-tenths`, `add-subtract-within-1000` |
+| `fractions-add-different-bottom` | `3-5` | `fractions-add-same-bottom`, `fractions-equivalent`, `times-tables` |
+| `fractions-multiply` | `3-5` | `fraction-of-a-set`, `multiply-multi-digit` |
+| `fractions-divide` | `6-8` | `fractions-multiply`, `divide-equal-groups` |
+| `decimals-multiply-divide` | `6-8` | `decimals-add-subtract`, `multiply-multi-digit`, `divide-equal-groups` |
+| `integers-add-subtract` | `6-8` | `subtract-two-digit`, `compare-two-digit` |
+| `integers-multiply-divide` | `6-8` | `integers-add-subtract`, `times-tables`, `divide-equal-groups` |
+| `exponents` | `6-8` | `times-tables`, `multiply-multi-digit` |
+| `percent-of` | `6-8` | `fraction-of-a-set`, `decimals-multiply-divide`, `ratio-equivalent` |
+| `evaluate-expression` | `6-8` | `order-of-operations`, `missing-number-within-20` |
+| `combine-like-terms` | `6-8` | `evaluate-expression` |
+| `distributive-property` | `6-8` | `combine-like-terms`, `multiply-multi-digit` |
+| `one-step-equations` | `6-8` | `evaluate-expression`, `missing-number-within-20`, `divide-equal-groups` |
+| `two-step-equations` | `6-8` | `one-step-equations` |
+| `multi-step-equations` | `6-8` | `two-step-equations`, `distributive-property`, `integers-add-subtract` |
+| `equations-both-sides` | `6-8` | `multi-step-equations`, `integers-multiply-divide` |
+| `inequalities-one-step` | `6-8` | `one-step-equations`, `compare-two-digit` |
+| `unit-rate` | `6-8` | `ratio-recipes`, `divide-equal-groups` |
+| `proportional-equations` | `6-8` | `unit-rate`, `evaluate-expression` |
+| `coordinate-plane` | `6-8` | `integers-add-subtract` |
+| `square-roots` | `6-8` | `exponents` |
+| `slope` | `6-8` | `proportional-equations`, `coordinate-plane`, `integers-multiply-divide` |
+| `function-machines` | `6-8` | `evaluate-expression`, `coordinate-plane` |
+| `slope-intercept` | `9-12` | `slope`, `function-machines`, `two-step-equations` |
+| `systems-of-equations` | `9-12` | `equations-both-sides`, `slope-intercept` |
+| `inequalities-two-step` | `9-12` | `inequalities-one-step`, `two-step-equations` |
+| `linear-models` | `9-12` | `slope-intercept`, `two-step-equations` |
+| `absolute-value-equations` | `9-12` | `two-step-equations`, `integers-add-subtract` |
+| `multiply-binomials` | `9-12` | `distributive-property`, `combine-like-terms`, `integers-multiply-divide` |
+| `factoring-quadratics` | `9-12` | `multiply-binomials` |
+| `zero-product` | `9-12` | `factoring-quadratics`, `one-step-equations` |
+| `quadratic-by-square-roots` | `9-12` | `square-roots`, `one-step-equations`, `integers-add-subtract` |
+| `exponent-rules` | `9-12` | `exponents`, `integers-add-subtract` |
+| `exponential-growth` | `9-12` | `exponent-rules`, `linear-models` |
+| `function-notation` | `9-12` | `function-machines`, `exponents`, `integers-multiply-divide` |
+| `quadratic-vertex` | `9-12` | `function-notation`, `quadratic-by-square-roots` |
 
 ## How to add a node
 
@@ -98,7 +166,8 @@ is the local check for a drill on a node with no network, and the tutor's turns 
    numbers and no clock, so the same index is the same item. Make the first five indexes five different problems, and keep the
    hint to a nudge: no number or word in it may be the answer. Name every node it rests on in `needs` (no cycle, nothing from a
    later band).
-3. For a new file, export its list and add it to `MATHS_NODES` in `graph.ts`.
+3. For a new file, export its list and add it to `MATHS_NODES` in `graph.ts`. A node that prepares for a SAT Math domain passes
+   `tags: [HEART_OF_ALGEBRA]` (or the Passport tag) to `mathsNode`.
 4. Run `TZ=UTC npx vitest run tests/unit/maths-graph.test.ts`. It names the node and the problem: a cycle or unknown need
    (learn-kit's `GraphError`), fewer than 3 items, no name, a bad solid rule, an item that does not check its own answer or accepts a
    wrong one, a hint that is or says the answer, the same problem twice.
