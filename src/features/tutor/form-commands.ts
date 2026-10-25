@@ -98,12 +98,10 @@ export interface ListValues {
   language: string;
 }
 
-/** The language code of a Language option (its display name) or of a code itself; the app's default when none is given. */
+/** The language code of a Language option (its display name); a code is kept as it is, so a list saved in another language saves again. */
 function languageCode(given: string): string {
   if (!given) return DEFAULT_LANGUAGE;
-  const found = getAllLanguages().find((l) => l.displayName === given || l.code === given);
-  if (!found) throw new FormRefused(`${given} is not a language SpellForge has`);
-  return found.code;
+  return getAllLanguages().find((l) => l.displayName === given)?.code ?? given;
 }
 
 /** The list the editor's Save gets from what the form holds: the words split on lines and commas, lowercased, empty ones dropped. */

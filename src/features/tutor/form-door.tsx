@@ -90,29 +90,25 @@ export function FormDoor({ form, command, values, onFill, tutor }: FormDoorProps
   });
 
   // The kit's talk over the grind, made once: it reads the form as it is when each turn is taken. A form's talk is kept in memory.
-  const [talks] = useState(() => {
-    const store = tutor.store ?? createMemoryStore();
-    return {
-      store,
-      ...createTalks<FormTalkRequest, FormTalkAnswer>({
-        store,
-        send: (request, files) => latest.current.tutor.send(request, files),
-        answerText: (answer) => oneQuestion(answer.words),
-        buildRequest: (input: RequestInput): FormTalkRequest => ({
-          schemaVersion: '1',
-          message: input.message,
-          history: input.turns.map(({ role, text }) => ({ role, text })),
-          ...(input.memory.facts.length > 0 || input.memory.summary ? { memory: { facts: [...input.memory.facts], summary: input.memory.summary } } : {}),
-          strictness: 'meaning-gated',
-          form: {
-            name: latest.current.form.name,
-            fields: requestFields(latest.current.form, latest.current.values),
-            command: latest.current.command.name,
-          },
-        }),
+  const [talks] = useState(() =>
+    createTalks<FormTalkRequest, FormTalkAnswer>({
+      store: tutor.store ?? createMemoryStore(),
+      send: (request, files) => latest.current.tutor.send(request, files),
+      answerText: (answer) => oneQuestion(answer.words),
+      buildRequest: (input: RequestInput): FormTalkRequest => ({
+        schemaVersion: '1',
+        message: input.message,
+        history: input.turns.map(({ role, text }) => ({ role, text })),
+        ...(input.memory.facts.length > 0 || input.memory.summary ? { memory: { facts: [...input.memory.facts], summary: input.memory.summary } } : {}),
+        strictness: 'meaning-gated',
+        form: {
+          name: latest.current.form.name,
+          fields: requestFields(latest.current.form, latest.current.values),
+          command: latest.current.command.name,
+        },
       }),
-    };
-  });
+    }),
+  );
 
   /** One turn of the talk. True when the tutor answered; false leaves what he said in the Composer's box. */
   async function turn(message: string): Promise<boolean> {
