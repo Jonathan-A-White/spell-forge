@@ -87,9 +87,12 @@ on `useVisibleInterval` when there is nothing to ask. Its one drill form is `typ
 
 ## What the maths loop handles today
 
-`src/features/tutor/math-loop.tsx` sends the child's typed answer or a photo of his work to the mill (`sendMath`), which answers with
-a probe, a confirmation or a close. Nothing there knows a node: the check of an answer is the tutor's. The graph's `checkAnswer`
-is the local check for a drill on a node with no network, and the tutor's turns stay as they are until a story joins them.
+`src/worlds/maths/homework.tsx` (the homework picture, moved from the Tutor's `math-loop.tsx`, which re-exports it) sends the child's typed
+answer or a photo of his work to the mill (`sendMath`), which answers with a probe, a confirmation or a close. The turn names the node of
+the graph it is about (`node` in `grinds/tutor-turn.request.schema.json`): the one the caller gives, else `nodeForProblem`'s from the
+problems below, else none; `sendMath` names only an id the graph holds, and `homeworkNode(turn)` reads it back checked against the graph.
+The check of an answer is still the tutor's. Without a licence the picture shows the gate's one line and sends nothing. The graph's
+`checkAnswer` is the local check for a drill on a node with no network.
 
 ## The SAT Math domains
 
@@ -133,7 +136,7 @@ slower pace with it, as it goes solid. Pass the child's solid node ids.
 ## The sweep of problem kinds
 
 `PROBLEM_KIND_NODES` in `goals.ts` maps every kind of problem the maths loop and the tutor-turn grind handle today to a node. The
-loop (`src/features/tutor/math-loop.tsx`) checks whatever answer comes back and knows no node; the kinds are the ones the grind is
+loop (`src/worlds/maths/homework.tsx`) checks whatever answer comes back and takes its node from this table; the kinds are the ones the grind is
 shown, in `grinds/examples/tutor-turn/` and `grinds/tutor-turn.eval/`: `problem_kind` is `word` (a story) or `plain` (a bare sum), and
 every problem sent today is a whole-number story over one of the four operations. A test reads those files, so a new problem there
 that has no row fails by name.
@@ -147,7 +150,7 @@ that has no row fails by name.
 | `word` | multiply | `multiply-equal-groups` | 6 rows of 5 carrots |
 | `plain` | add, subtract, multiply, divide | `add-two-digit`, `subtract-two-digit`, `times-tables`, `divide-equal-groups` | none yet |
 
-A problem beyond these (a fraction, an equation, a shape) has no kind yet; the maths world (mw-79en7t.19) names the node it is about.
+A problem beyond these (a fraction, an equation, a shape) has no kind yet; the maths world names the node it is about and passes it to the homework picture as `node`.
 
 ## The nodes
 
