@@ -1,19 +1,32 @@
-// scripts/tutor-eval.ts — Runs the tutor-turn grind's eval cases (grinds/tutor-turn.eval/<case>/) through
-// `claude --print`, with the grind's instructions as the system prompt, its answer schema as the structured
-// output, and its model and effort, then checks each answer against the case's expected.json. A case is one
-// directory: input.json + expected.json, or several input.<variant>.json + expected.<variant>.json pairs (a run
-// each), and work.png / problem.png attached when the request names them. It spends fuel, so it is not in the
-// gate: `npm run tutor:eval [case ...]`. Exits non-zero when any case fails; answers are kept in a temp dir.
+// scripts/tutor-eval.ts — Runs the eval cases of the tutor-turn and tutor-talk grinds (grinds/tutor-turn.eval/<case>/,
+// grinds/tutor-talk.eval/<case>/) through `claude --print`, with the grind's instructions as the system prompt, its
+// answer schema as the structured output, and its model and effort, then checks each answer against the case's
+// expected.json. A case is one directory: input.json + expected.json, or several input.<variant>.json +
+// expected.<variant>.json pairs (a run each), and work.png / problem.png (tutor-turn) or picture-1.png ... (tutor-talk)
+// attached when the request names them. It spends fuel, so it is not in the gate:
+// `npm run tutor:eval [prefix ...]`, a prefix of a case's name or of `<grind>/<case>` (`npm run tutor:eval -- redteam`).
+// Every expected.json forbids the answer in `never_contains` (tutor-turn's older `answer_must_not_appear` is the
+// same list). Exits non-zero when any case fails; answers are kept in a temp dir.
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TutorRequest } from '../src/contracts/types';
+import type { TutorTalkRequest } from '../src/features/front-door/tutor-talk-request';
 import { isTutorAnswer } from '../src/grist/tutor-answer';
 
 const ROOT = join(import.meta.dirname, '..');
 export const EVAL_DIR = join(ROOT, 'grinds/tutor-turn.eval');
+export const TALK_EVAL_DIR = join(ROOT, 'grinds/tutor-talk.eval');
+
+export type GrindKind = 'tutor-turn' | 'tutor-talk';
+
+/** The grinds this script evaluates: their eval dir, the label of a request in the message, and their tutor-eval order. */
+export const GRINDS: Record<GrindKind, { dir: string; label: string }> = {
+  'tutor-turn': { dir: EVAL_DIR, label: 'Tutor Turn Request' },
+  'tutor-talk': { dir: TALK_EVAL_DIR, label: 'Tutor Talk Request' },
+};
 
 /** A case's expected.json: what the answer must be, and what must never appear in it. */
 export interface Expected {
@@ -21,7 +34,9 @@ export interface Expected {
   action: string;
   layer_diagnosis: string;
   /** The problem's answer, as a numeral and in words: never in prompt_to_child, focus_words or math_diagnosis. */
-  answer_must_not_appear: string[];
+  never_contains?: string[];
+  /** The older name of never_contains, kept in the tutor-turn cases that have it; the two are one list. */
+  answer_must_not_appear?: string[];
   /** A word that must be in focus_words, with at least this many chunks. */
   focus_word?: { word: string; min_chunks: number };
   /** Words that must all be in focus_words, in this (reading) order: every misread that counts, none let pass. */
@@ -39,23 +54,62 @@ export interface Expected {
   prompt_max_chars?: number;
 }
 
-export interface EvalRun {
-  /** "case" or "case/variant". */
-  name: string;
-  input: TutorRequest;
-  expected: Expected;
-  photos: string[];
+/** A tutor-talk case's expected.json: the answer's `words` (and the rest it says) hold none of never_contains. */
+export interface TalkExpected {
+  about: string;
+  /** The homework's answer, as a numeral and in words: never in words, form_values, goal_suggestion or memory_update. */
+  never_contains?: string[];
+  /** Words `words` must not say. */
+  words_must_not_say?: string[];
+  words_max_chars?: number;
+  /** `words` must mention at least one of each group (a substring, any case). */
+  words_mention_each?: string[][];
+  /** The answer opens no world (the child asked for homework, not for a world). */
+  no_world?: boolean;
 }
 
-export interface EvalCase {
+/** The forbidden strings of an expected.json, whichever name it uses. */
+export const forbiddenOf = (expected: { never_contains?: string[]; answer_must_not_appear?: string[] }): string[] => [
+  ...(expected.never_contains ?? []),
+  ...(expected.answer_must_not_appear ?? []),
+];
+
+interface RunOf<K extends GrindKind, I, E> {
+  /** "case" or "case/variant". */
   name: string;
-  runs: EvalRun[];
+  grind: K;
+  input: I;
+  expected: E;
+  photos: string[];
+}
+export type TurnRun = RunOf<'tutor-turn', TutorRequest, Expected>;
+export type TalkRun = RunOf<'tutor-talk', TutorTalkRequest, TalkExpected>;
+export type EvalRun = TurnRun | TalkRun;
+
+export interface EvalCase<R extends EvalRun = TurnRun> {
+  name: string;
+  runs: R[];
 }
 
 const readJson = <T>(path: string): T => JSON.parse(readFileSync(path, 'utf8')) as T;
 
-/** Every case under `dir`, each with its runs, in name order. */
-export function loadCases(dir = EVAL_DIR): EvalCase[] {
+/** The pictures a request names, beside its input: tutor-turn's problem.png and work.png, tutor-talk's picture-<n>.png. */
+function photosOf(kind: GrindKind, caseDir: string, input: TutorRequest | TutorTalkRequest): string[] {
+  if (kind === 'tutor-talk') {
+    const count = (input as TutorTalkRequest).pictures ?? 0;
+    return Array.from({ length: count }, (_, i) => join(caseDir, `picture-${i + 1}.png`));
+  }
+  const turn = input as TutorRequest;
+  const photos: string[] = [];
+  if (turn.mode === 'problem-in') photos.push(join(caseDir, 'problem.png'));
+  if (turn.work_photo) photos.push(join(caseDir, 'work.png'));
+  return photos;
+}
+
+/** Every case under `dir` (the eval dir of grind `kind`), each with its runs, in name order. */
+export function loadCases(dir?: string, kind?: 'tutor-turn'): EvalCase<TurnRun>[];
+export function loadCases(dir: string, kind: 'tutor-talk'): EvalCase<TalkRun>[];
+export function loadCases(dir = EVAL_DIR, kind: GrindKind = 'tutor-turn'): EvalCase<EvalRun>[] {
   return readdirSync(dir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
@@ -68,12 +122,16 @@ export function loadCases(dir = EVAL_DIR): EvalCase[] {
         const variant = file.slice('input'.length, -'.json'.length);
         const expectedPath = join(caseDir, `expected${variant}.json`);
         if (!existsSync(expectedPath)) throw new Error(`${name}: ${file} has no expected${variant}.json`);
-        const input = readJson<TutorRequest>(join(caseDir, file));
-        const photos: string[] = [];
-        if (input.mode === 'problem-in') photos.push(join(caseDir, 'problem.png'));
-        if (input.work_photo) photos.push(join(caseDir, 'work.png'));
+        const input = readJson<TutorRequest | TutorTalkRequest>(join(caseDir, file));
+        const photos = photosOf(kind, caseDir, input);
         for (const photo of photos) if (!existsSync(photo)) throw new Error(`${name}: ${file} needs ${photo}`);
-        return { name: variant ? `${name}/${variant.slice(1)}` : name, input, expected: readJson<Expected>(expectedPath), photos };
+        return {
+          name: variant ? `${name}/${variant.slice(1)}` : name,
+          grind: kind,
+          input,
+          expected: readJson<Expected | TalkExpected>(expectedPath),
+          photos,
+        } as EvalRun;
       });
       return { name, runs };
     });
@@ -107,7 +165,7 @@ export function checkAnswer(answer: unknown, expected: Expected): string[] {
     ...Object.entries(answer.math_diagnosis ?? {}).map(([k, v]): [string, string] => [`math_diagnosis.${k}`, v]),
   ];
   for (const [field, text] of childSees) {
-    for (const hit of answerAppears(text, expected.answer_must_not_appear)) problems.push(`the answer "${hit}" appears in ${field}`);
+    for (const hit of answerAppears(text, forbiddenOf(expected))) problems.push(`the answer "${hit}" appears in ${field}`);
   }
 
   if (expected.focus_word) {
@@ -150,6 +208,77 @@ export function checkAnswer(answer: unknown, expected: Expected): string[] {
   return problems;
 }
 
+/** A tutor-talk answer, as far as the checker reads it (grinds/tutor-talk.answer.schema.json). */
+export interface TutorTalkAnswer {
+  words: string;
+  goal_suggestion?: { id: string; why: string };
+  world?: 'spelling' | 'maths';
+  memory_update?: { add?: string[]; remove?: string[]; summary?: string };
+  form_values?: { field: string; value: string }[];
+}
+
+const TALK_KEYS = new Set(['words', 'profile_update', 'goal_suggestion', 'world', 'memory_update', 'form_values', 'form_ask']);
+
+/** Whether `value` fits the shape of grinds/tutor-talk.answer.schema.json (its required `words`, its known keys, the types the checker reads). */
+export function isTalkAnswer(value: unknown): value is TutorTalkAnswer {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const answer = value as Record<string, unknown>;
+  if (Object.keys(answer).some((key) => !TALK_KEYS.has(key))) return false;
+  if (typeof answer.words !== 'string' || answer.words.length === 0 || answer.words.length > 1000) return false;
+  const list = (v: unknown): boolean => v === undefined || (Array.isArray(v) && v.every((x) => typeof x === 'string'));
+  const memory = answer.memory_update as Record<string, unknown> | undefined;
+  if (memory !== undefined && (typeof memory !== 'object' || memory === null || !list(memory.add) || !list(memory.remove))) return false;
+  const goal = answer.goal_suggestion as Record<string, unknown> | undefined;
+  if (goal !== undefined && (typeof goal !== 'object' || goal === null || typeof goal.id !== 'string' || typeof goal.why !== 'string')) return false;
+  const forms = answer.form_values;
+  if (forms !== undefined && !(Array.isArray(forms) && forms.every((f) => typeof f?.field === 'string' && typeof f?.value === 'string'))) return false;
+  return answer.world === undefined || answer.world === 'spelling' || answer.world === 'maths';
+}
+
+/** What is wrong with a tutor-talk `answer` against `expected`; none = the run passes. */
+export function checkTalkAnswer(answer: unknown, expected: TalkExpected): string[] {
+  if (!isTalkAnswer(answer)) return ['not a valid Tutor Talk Answer'];
+  const problems: string[] = [];
+  // Everything the child hears or the talk keeps: the answer must not be in any of it.
+  const kept: [string, string][] = [
+    ['words', answer.words],
+    ['goal_suggestion.why', answer.goal_suggestion?.why ?? ''],
+    ...(answer.form_values ?? []).map((f, i): [string, string] => [`form_values[${i}]`, f.value]),
+    ...(answer.memory_update?.add ?? []).map((a, i): [string, string] => [`memory_update.add[${i}]`, a]),
+    ['memory_update.summary', answer.memory_update?.summary ?? ''],
+  ];
+  for (const [field, text] of kept) {
+    for (const hit of answerAppears(text, forbiddenOf(expected))) problems.push(`the answer "${hit}" appears in ${field}`);
+  }
+  for (const said of words(answer.words, expected.words_must_not_say ?? [])) problems.push(`words says "${said}"`);
+  for (const group of expected.words_mention_each ?? []) {
+    if (!group.some((m) => answer.words.toLowerCase().includes(m.toLowerCase()))) problems.push(`words mentions none of: ${group.join(', ')}`);
+  }
+  if (expected.words_max_chars !== undefined && answer.words.length > expected.words_max_chars) {
+    problems.push(`words is ${answer.words.length} chars, expected ${expected.words_max_chars} or fewer`);
+  }
+  if (expected.no_world && answer.world) problems.push(`world ${answer.world} is opened, but the child asked for homework`);
+  return problems;
+}
+
+/** What is wrong with `answer` for this run, by its grind's own checker. */
+export const checkRun = (run: EvalRun, answer: unknown): string[] =>
+  run.grind === 'tutor-talk' ? checkTalkAnswer(answer, run.expected) : checkAnswer(answer, run.expected);
+
+/** Whether a case is picked by `prefixes`: each is the start of its name or of `<grind>/<name>`; none picks every case. */
+export function matchesPrefix(grind: GrindKind, caseName: string, prefixes: string[]): boolean {
+  return prefixes.length === 0 || prefixes.some((p) => caseName.startsWith(p) || `${grind}/${caseName}`.startsWith(p));
+}
+
+/** Every case of both grinds' eval dirs that `prefixes` pick, in grind then name order. */
+export function selectCases(prefixes: string[]): { grind: GrindKind; case: EvalCase<EvalRun> }[] {
+  const all = [
+    ...loadCases(TALK_EVAL_DIR, 'tutor-talk').map((c) => ({ grind: 'tutor-talk' as const, case: c as EvalCase<EvalRun> })),
+    ...loadCases().map((c) => ({ grind: 'tutor-turn' as const, case: c as EvalCase<EvalRun> })),
+  ];
+  return all.filter((c) => matchesPrefix(c.grind, c.case.name, prefixes));
+}
+
 /** The answer in `claude --print --output-format stream-json` output: its result's structured_output, else its text. */
 export function readClaudeResult(stdout: string): unknown {
   const lines = stdout.split('\n').filter((line) => line.trim().startsWith('{'));
@@ -167,7 +296,7 @@ export function readClaudeResult(stdout: string): unknown {
 /** The one stream-json user message of a run: the request as text, then its photos. */
 export function buildMessage(run: EvalRun): string {
   const content: Record<string, unknown>[] = [
-    { type: 'text', text: `Tutor Turn Request:\n${JSON.stringify(run.input, null, 2)}` },
+    { type: 'text', text: `${GRINDS[run.grind].label}:\n${JSON.stringify(run.input, null, 2)}` },
     ...run.photos.map((photo) => ({
       type: 'image',
       source: { type: 'base64', media_type: 'image/png', data: readFileSync(photo).toString('base64') },
@@ -214,36 +343,43 @@ function runClaude(run: EvalRun, grind: Grind, model: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const grind = readJson<Grind>(join(ROOT, 'grinds/tutor-turn.json'));
-  const model = process.env.TUTOR_EVAL_MODEL ?? grind.model;
-  const only = process.argv.slice(2);
-  const cases = loadCases().filter((c) => only.length === 0 || only.includes(c.name));
+  const picked = selectCases(process.argv.slice(2));
+  if (picked.length === 0) {
+    console.error(`tutor:eval: no case starts with ${process.argv.slice(2).join(' or ')}`);
+    process.exit(1);
+  }
+  const grinds = new Map<GrindKind, Grind>(
+    [...new Set(picked.map((p) => p.grind))].map((kind) => [kind, readJson<Grind>(join(ROOT, `grinds/${kind}.json`))]),
+  );
+  const modelOf = (kind: GrindKind): string => process.env.TUTOR_EVAL_MODEL ?? grinds.get(kind)!.model;
   const outDir = mkdtempSync(join(tmpdir(), 'tutor-eval-'));
-  console.log(`tutor:eval: ${cases.length} cases with ${model} (effort ${grind.effort}); answers in ${outDir}`);
+  const runs = picked.flatMap((p) => p.case.runs.map((run) => ({ run, label: `${p.grind}/${run.name}` })));
+  const models = [...grinds.keys()].map((kind) => `${kind} ${modelOf(kind)} (effort ${grinds.get(kind)!.effort})`).join(', ');
+  console.log(`tutor:eval: ${picked.length} cases with ${models}; answers in ${outDir}`);
 
   const results = await Promise.all(
-    cases.flatMap((c) => c.runs).map(async (run) => {
+    runs.map(async ({ run, label }) => {
       let problems: string[];
       try {
-        const answer = readClaudeResult(await runClaude(run, grind, model));
-        const file = join(outDir, `${run.name.replace('/', '.')}.json`);
-        writeFileSync(file, JSON.stringify(answer, null, 2) + '\n');
-        problems = checkAnswer(answer, run.expected);
-        console.log(`\n${problems.length === 0 ? 'PASS' : 'FAIL'} ${run.name}: ${run.expected.about}`);
-        if (isTutorAnswer(answer)) console.log(`  ${answer.action} / ${answer.layer_diagnosis}: "${answer.prompt_to_child}"`);
+        const answer = readClaudeResult(await runClaude(run, grinds.get(run.grind)!, modelOf(run.grind)));
+        writeFileSync(join(outDir, `${label.replace('/', '.').replace('/', '.')}.json`), JSON.stringify(answer, null, 2) + '\n');
+        problems = checkRun(run, answer);
+        console.log(`\n${problems.length === 0 ? 'PASS' : 'FAIL'} ${label}: ${run.expected.about}`);
+        if (run.grind === 'tutor-talk' && isTalkAnswer(answer)) console.log(`  "${answer.words}"`);
+        else if (isTutorAnswer(answer)) console.log(`  ${answer.action} / ${answer.layer_diagnosis}: "${answer.prompt_to_child}"`);
       } catch (error) {
         problems = [error instanceof Error ? error.message : String(error)];
-        console.log(`\nFAIL ${run.name}: ${run.expected.about}`);
+        console.log(`\nFAIL ${label}: ${run.expected.about}`);
       }
       for (const problem of problems) console.log(`  - ${problem}`);
-      return { run: run.name, ok: problems.length === 0 };
+      return { run, ok: problems.length === 0 };
     }),
   );
 
-  const passedCases = cases.filter((c) => c.runs.every((r) => results.find((x) => x.run === r.name)?.ok));
+  const passedCases = picked.filter((p) => p.case.runs.every((r) => results.find((x) => x.run === r)?.ok));
   const passedRuns = results.filter((r) => r.ok).length;
-  console.log(`\ntutor:eval: ${passedCases.length}/${cases.length} cases passed (${passedRuns}/${results.length} runs) with ${model}`);
-  if (passedCases.length !== cases.length) process.exit(1);
+  console.log(`\ntutor:eval: ${passedCases.length}/${picked.length} cases passed (${passedRuns}/${results.length} runs)`);
+  if (passedCases.length !== picked.length) process.exit(1);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
