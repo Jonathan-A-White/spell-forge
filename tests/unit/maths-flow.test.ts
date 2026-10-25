@@ -1,9 +1,19 @@
 // Kestrel 19a (mw-79en7t.57), AC1: the maths flow runs the placement on first entry, then the frontier and the due reviews through
 // @learn-kit/drill over the maths graph; an answer is checked locally against the item (no network), a right one counts toward solid
 // by the node's own rule and a wrong one does not.
+// Kestrel 19b (mw-79en7t.58), AC1: the hear, see and do forms of the maths drill each render an item; hear speaks the problem through
+// voice-kit's speak in the language named; do takes the answer dragged (number tiles) or spoken (the Composer, typing off), and either
+// is checked locally through the flow. Speech and the microphone are voice-kit's honest fakes.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createElement, useEffect, useState } from 'react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { stop } from 'voice-kit/speech';
+import { installSpeech, type SpeechFake } from 'voice-kit/testing/speech';
+import { clips, installMic } from 'voice-kit/testing/mic';
 import { DAY, memoryStore, type GraphStore } from 'learn-kit/graph';
-import { mathsGraph, wrongAnswerFor, type MathsNode } from '../../src/learn/maths';
+import { checkAnswer, mathsGraph, wrongAnswerFor, type MathsItem, type MathsNode } from '../../src/learn/maths';
+import { MathsWorld } from '../../src/worlds/maths/MathsWorld';
+import { MATHS_FORM_IDS, askForms, formFor, openForm, spokenAnswer, type AskProps } from '../../src/worlds/maths/drill-forms';
 import {
   createMathsFlow,
   memoryKeep,
@@ -228,5 +238,244 @@ describe('triesSolid', () => {
   });
   it('looks only at the last `of` tries', () => {
     expect(triesSolid([true, true, true, false, false, true], rule)).toBe(false);
+  });
+});
+
+// ─── Kestrel 19b: hear, see and do ────────────────────────
+
+const ITEM: MathsItem = { problem: 'What is 7 plus 5?', answer: '12', hint: 'Count on from the bigger one.' };
+
+/** A form with the answer kept as the world keeps it: `value` is the answer so far. */
+function Harness(props: { form: string; item?: MathsItem; language?: string; onSpoken?: (said: string) => void; onValue?: (value: string) => void }) {
+  const [value, setValue] = useState('');
+  const { onValue } = props;
+  useEffect(() => onValue?.(value), [onValue, value]);
+  const ask: AskProps = {
+    item: props.item ?? ITEM,
+    language: props.language ?? 'en',
+    value,
+    onChange: setValue,
+    onSpoken: props.onSpoken ?? (() => undefined),
+  };
+  return openForm(props.form as (typeof MATHS_FORM_IDS)[number], ask);
+}
+const show = (form: string, rest: Omit<Parameters<typeof Harness>[0], 'form'> = {}) => render(createElement(Harness, { form, ...rest }));
+
+describe('the hear, see and do forms', () => {
+  let speech: SpeechFake;
+  let mic: ReturnType<typeof installMic>;
+
+  beforeEach(async () => {
+    speech = installSpeech(window, { msPerWord: 1, baseMs: 1, voicesDelayMs: 1 });
+    mic = installMic(window, { clip: { ...clips.english, transcript: 'twelve' }, grantMs: 1, openMs: 1, silenceMs: 1 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  afterEach(() => {
+    cleanup();
+    act(() => stop());
+    mic.uninstall();
+    speech.uninstall();
+    vi.restoreAllMocks();
+  });
+
+  it('registers the four forms for the kit, the type box beside the three new ones', () => {
+    expect([...MATHS_FORM_IDS]).toEqual(['type', 'hear', 'see', 'do']);
+    for (const id of MATHS_FORM_IDS) expect(askForms.get(id).id).toBe(id);
+  });
+
+  it('hear: draws the problem and a box, and speaks the problem in the language named', async () => {
+    show('hear', { language: 'es' });
+    expect(screen.getByText(ITEM.problem)).toBeInTheDocument();
+    expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+    await vi.waitFor(() => expect(speech.log.length).toBeGreaterThan(0));
+    expect(speech.log[0].text).toBe(ITEM.problem);
+    expect(speech.log[0].lang).toBe('es-ES');
+  });
+
+  it('hear: says it again on a tap', async () => {
+    show('hear');
+    await vi.waitFor(() => expect(speech.log).toHaveLength(1));
+    await vi.waitFor(() => expect(speech.log[0].outcome).toBe('ended'));
+    fireEvent.click(screen.getByRole('button', { name: 'Hear it again' }));
+    await vi.waitFor(() => expect(speech.log).toHaveLength(2));
+    expect(speech.log[1].lang).toBe('en-US');
+  });
+
+  it('see: draws the problem as a picture under the one scroll box, with a box for the answer', () => {
+    const { container } = show('see');
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(svg!.getAttribute('role')).toBe('img');
+    expect(svg!.getAttribute('aria-label')).toBe(ITEM.problem);
+    expect(screen.getByText(ITEM.problem)).toBeInTheDocument();
+    expect(svg!.getAttribute('viewBox')).toMatch(/^0 0 \d+ \d+$/);
+    // no box of its own to scroll: a fixed pixel size or overflow would fight the Shell's one scroll box
+    expect(svg!.getAttribute('width')).toBeNull();
+    expect(container.querySelector('[style*="overflow"]')).toBeNull();
+    expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+  });
+
+  it('see: breaks a long problem into lines of the picture, and speaks nothing', () => {
+    const long = { ...ITEM, problem: 'A baker puts 24 buns on trays, 6 on each tray. How many trays does the baker fill?' };
+    const { container } = show('see', { item: long });
+    expect(container.querySelectorAll('svg text').length).toBeGreaterThan(1);
+    expect(container.querySelector('svg')!.getAttribute('aria-label')).toBe(long.problem);
+    expect(speech.log).toEqual([]);
+  });
+
+  it('type: is the box it always was, with the problem as text', () => {
+    show('type');
+    expect(screen.getByText(ITEM.problem)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Your answer'), { target: { value: '12' } });
+    expect((screen.getByLabelText('Your answer') as HTMLInputElement).value).toBe('12');
+  });
+
+  it('do: draws the problem, number tiles and a hold-to-talk bar, and no keyboard', async () => {
+    show('do');
+    expect(screen.getByText(ITEM.problem)).toBeInTheDocument();
+    for (const symbol of '0123456789') expect(screen.getByRole('button', { name: symbol })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Hold to say it' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(speech.log).toEqual([]);
+  });
+
+  it('do: takes a dragged answer, tile after tile into the answer, and the phone checks it', () => {
+    const seen = { value: '' };
+    show('do', { onValue: (v) => { seen.value = v; } });
+    const zone = screen.getByTestId('answer-zone');
+    const elementFromPoint = vi.fn(() => zone);
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: elementFromPoint });
+    for (const symbol of ['1', '2']) {
+      const tile = screen.getByRole('button', { name: symbol });
+      fireEvent.pointerDown(tile, { pointerId: 1, clientX: 10, clientY: 300 });
+      fireEvent.pointerMove(tile, { pointerId: 1, clientX: 60, clientY: 40 });
+      fireEvent.pointerUp(tile, { pointerId: 1, clientX: 60, clientY: 40 });
+    }
+    expect(seen.value).toBe('12');
+    expect(zone.textContent).toContain('12');
+    expect(checkAnswer(ITEM, seen.value)).toBe(true);
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  });
+
+  it('do: a drag let go outside the answer places nothing, and a tap places the tile', () => {
+    const seen = { value: '' };
+    show('do', { onValue: (v) => { seen.value = v; } });
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => document.body });
+    const tile = screen.getByRole('button', { name: '7' });
+    fireEvent.pointerDown(tile, { pointerId: 1, clientX: 10, clientY: 300 });
+    fireEvent.pointerUp(tile, { pointerId: 1, clientX: 200, clientY: 500 });
+    expect(seen.value).toBe('');
+    fireEvent.click(tile);
+    expect(seen.value).toBe('7');
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  });
+
+  it('do: takes the last tile back, and all of them', () => {
+    const seen = { value: '' };
+    show('do', { onValue: (v) => { seen.value = v; } });
+    for (const symbol of ['3', '/', '4']) fireEvent.click(screen.getByRole('button', { name: symbol }));
+    expect(seen.value).toBe('3/4');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(seen.value).toBe('3/');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(seen.value).toBe('');
+  });
+
+  it('do: takes a spoken answer by holding the bar, and the phone checks it', { timeout: 20000 }, async () => {
+    const said: string[] = [];
+    show('do', { onSpoken: (s) => said.push(s) });
+    const bar = await screen.findByRole('button', { name: 'Hold to say it' });
+    fireEvent.pointerDown(bar, { pointerId: 1 });
+    await screen.findByTestId('live-transcript');
+    await vi.waitFor(() => expect(screen.getByTestId('live-transcript').textContent).toBe('twelve'), { timeout: 8000 });
+    await act(async () => {
+      fireEvent.pointerUp(bar, { pointerId: 1 });
+    });
+    await vi.waitFor(() => expect(said).toEqual(['twelve']));
+    expect(checkAnswer(ITEM, said[0])).toBe(true);
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('reads what is said as an answer: digits for number words round a point, a slash for over, no full stop', () => {
+    expect(spokenAnswer('Twelve.')).toBe('twelve');
+    expect(spokenAnswer(' 3 over 4 ')).toBe('3/4');
+    expect(spokenAnswer('zero point three')).toBe('0.3');
+    expect(spokenAnswer('2 to 3')).toBe('2 to 3');
+  });
+
+  it('chooses a form for a question the same way every time, and the tiles only for an answer made of them', () => {
+    const q = { key: 'n:3', item: ITEM };
+    expect(formFor(q)).toBe(formFor(q));
+    const word: MathsItem = { problem: 'Which shape has three sides?', answer: 'triangle', hint: 'Count the corners.' };
+    const picked = new Set<string>();
+    for (let i = 0; i < 60; i++) picked.add(formFor({ key: `n:${i}`, item: word }));
+    expect(picked.has('do')).toBe(false);
+    expect(picked.size).toBe(3);
+    const numbers = new Set<string>();
+    for (let i = 0; i < 60; i++) numbers.add(formFor({ key: `n:${i}`, item: ITEM }));
+    expect([...numbers].sort()).toEqual(['do', 'hear', 'see', 'type']);
+    expect(formFor(q, ['type'])).toBe('type');
+  });
+
+  it('checks a dragged answer through the flow on the phone, with no call out', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const flow = flowOver();
+    const q = (await flow.question())!;
+    const seen = { value: '' };
+    show('do', { item: q.item, onValue: (v) => { seen.value = v; } });
+    for (const ch of q.item.answer) {
+      const name = ch;
+      if (/^[0-9./:-]$/.test(name)) fireEvent.click(screen.getByRole('button', { name }));
+    }
+    const answered = await flow.answer(seen.value);
+    expect(answered.right).toBe(checkAnswer(q.item, q.item.answer));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  describe('in the Maths world', () => {
+    const question: MathsQuestion = { key: 'n:1', stage: 'frontier', nodeId: 'x', nodeName: 'Adding', form: 'type', item: ITEM };
+    function stubFlow() {
+      const given: string[] = [];
+      const flow: MathsFlow = {
+        question: async () => question,
+        answer: async (said) => {
+          given.push(said);
+          return { right: checkAnswer(ITEM, said), counted: true, nodeId: 'x', stage: 'frontier', solid: false, placementOver: false };
+        },
+      };
+      return { flow, given };
+    }
+
+    it('puts the question in the form it is given, and a spoken answer is checked at once', { timeout: 20000 }, async () => {
+      const { flow, given } = stubFlow();
+      await act(async () => void render(createElement(MathsWorld, { flow, forms: ['do'] })));
+      const bar = await screen.findByRole('button', { name: 'Hold to say it' });
+      expect(screen.queryByRole('textbox')).toBeNull();
+      fireEvent.pointerDown(bar, { pointerId: 1 });
+      await screen.findByTestId('live-transcript');
+      await vi.waitFor(() => expect(screen.getByTestId('live-transcript').textContent).toBe('twelve'), { timeout: 8000 });
+      await act(async () => {
+        fireEvent.pointerUp(bar, { pointerId: 1 });
+      });
+      await vi.waitFor(() => expect(given).toEqual(['twelve']));
+      expect(await screen.findByText(/Right/)).toBeInTheDocument();
+    });
+
+    it('checks tiles placed and then Check, and speaks the problem in the world\'s language for hear', async () => {
+      const { flow, given } = stubFlow();
+      const view = await act(async () => render(createElement(MathsWorld, { flow, forms: ['do'], language: 'es' })));
+      for (const symbol of ['1', '2']) fireEvent.click(screen.getByRole('button', { name: symbol }));
+      await act(async () => void fireEvent.click(screen.getByRole('button', { name: 'Check' })));
+      expect(given).toEqual(['12']);
+      expect(await screen.findByText(/Right/)).toBeInTheDocument();
+      view.unmount();
+
+      const again = stubFlow();
+      await act(async () => void render(createElement(MathsWorld, { flow: again.flow, forms: ['hear'], language: 'es' })));
+      await vi.waitFor(() => expect(speech.log.at(-1)?.lang).toBe('es-ES'));
+      expect(speech.log.at(-1)?.text).toBe(ITEM.problem);
+    });
   });
 });
