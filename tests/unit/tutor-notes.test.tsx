@@ -1,11 +1,11 @@
 // mw-kuy7rx.11: 'Notes for the tutor' on the Grown-ups screen: standing notes kept per profile, sent as
 // parent_notes on every tutor-turn request, and absent from it when there are none.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { profileRepo, tutorRepo } from '../../src/data/repositories';
-import { ParentScreen } from '../../src/features/tutor/parent-screen';
+import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
 import { sendMath, sendProblem, sendReading } from '../../src/features/tutor';
 import type { TutorDeps } from '../../src/features/tutor';
 import type { SendGristParams } from '../../src/grist';
@@ -95,6 +95,63 @@ describe('Notes for the tutor on the Grown-ups screen', () => {
     fireEvent.change(s.getByLabelText('New note'), { target: { value: 'One too many' } });
     expect((s.getByRole('button', { name: 'Add note' }) as HTMLButtonElement).disabled).toBe(true);
     expect(s.getByText('You have 10 notes, the most there can be. Delete one to add another.')).toBeTruthy();
+  });
+});
+
+describe('a note being typed is kept as a draft on the device (M14)', () => {
+  const field = async () => (await (await section()).findByLabelText('New note')) as HTMLInputElement;
+  const type = async (value: string) => fireEvent.change(await field(), { target: { value } });
+
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.useRealTimers());
+
+  it('survives the screen going away and coming back', async () => {
+    const view = open();
+    await type('Go slower on carrying');
+    view.unmount();
+    open();
+    expect((await field()).value).toBe('Go slower on carrying');
+  });
+
+  it('survives a reload: it is in storage a moment after the last key, not only on unmount', async () => {
+    open();
+    const input = await field();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    fireEvent.change(input, { target: { value: 'Use pictures first' } });
+    expect(Object.values(localStorage)).not.toContain('Use pictures first');
+    vi.advanceTimersByTime(600);
+    expect(Object.values(localStorage)).toContain('Use pictures first');
+    vi.useRealTimers();
+    cleanup();
+    open();
+    expect((await field()).value).toBe('Use pictures first');
+  });
+
+  it('is written when the app is hidden, before any unmount', async () => {
+    open();
+    await type('Before the lock');
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    expect(Object.values(localStorage)).toContain('Before the lock');
+  });
+
+  it('is kept per learner: another learner starts with an empty field', async () => {
+    const view = open(paulProfile.id);
+    await type('For Paul only');
+    view.unmount();
+    open(emmaProfile.id);
+    expect((await field()).value).toBe('');
+  });
+
+  it('is cleared once the note is added, so it does not come back', async () => {
+    const view = open();
+    await addNote('Added for good');
+    await vi.waitFor(async () => expect(await notesOf(paulProfile.id)).toEqual(['Added for good']));
+    view.unmount();
+    expect(Object.values(localStorage)).not.toContain('Added for good');
+    open();
+    expect((await field()).value).toBe('');
   });
 });
 

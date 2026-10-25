@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { PrivateKey } from '@bsv/sdk';
 import { clips, installMic } from 'voice-kit/testing/mic';
 import { db } from '../../src/data/db';
-import { ParentScreen } from '../../src/features/tutor/parent-screen';
+import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
 import { FeedbackForm } from '../../src/features/feedback/feedback-form';
 import { SPELLFORGE_COMPOSER_SETTINGS } from '../../src/features/composer/composer-settings';
 import type { SendGristParams } from '../../src/grist';

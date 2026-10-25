@@ -107,14 +107,7 @@ export function useBoot(learner: Learner, setView: (view: ViewId) => void, landi
 
   const handleOnboardingComplete = useCallback(
     async (name: string, themeId: string, settings: AccessibilitySettings) => {
-      const profile = await profileRepo.create({
-        name,
-        avatar: `${themeId}-1`,
-        themeId,
-        createdAt: new Date(),
-        settings,
-        status: 'active',
-      });
+      const profile = await profileRepo.createLearner(name, themeId, settings);
       setProfiles([profile]);
       await pickProfile(profile);
     },

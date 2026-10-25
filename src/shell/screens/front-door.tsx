@@ -1,7 +1,7 @@
 // src/shell/screens/front-door.tsx: the front door's screens: the moments before a child is in (loading, a blocked
 // database, the welcome, the choice of child), Home, and the tutor.
 import { FirstRun } from '../../features/onboarding/first-run';
-import { ProfileSelector } from '../../features/profiles/profile-selector';
+import { WhoIsLearning } from '../../worlds/grown-ups/WhoIsLearning';
 import { HomeScreen } from '../../features/dashboard/home-screen';
 import { TutorScreen } from '../../features/tutor';
 import { useApp } from '../app-state';
@@ -42,14 +42,15 @@ export function FrontDoorWorld({ view }: { view: ViewId | null }) {
 
     case 'profile-select':
       return (
-        <ProfileSelector
-          profiles={app.profiles}
-          archivedProfiles={app.archivedProfiles}
-          onSelect={app.pickProfile}
-          onAddProfile={() => setView('onboarding')}
-          onArchiveProfile={app.handleArchiveProfile}
-          onRestoreProfile={app.handleRestoreProfile}
-          onDeleteProfile={app.handleDeleteProfile}
+        <WhoIsLearning
+          learners={app.profiles}
+          archived={app.archivedProfiles}
+          activeId={activeProfile?.id}
+          onSwitch={app.pickProfile}
+          onAdd={() => setView('onboarding')}
+          onArchive={app.handleArchiveProfile}
+          onRestore={app.handleRestoreProfile}
+          onDelete={app.handleDeleteProfile}
         />
       );
 

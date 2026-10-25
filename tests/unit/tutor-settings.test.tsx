@@ -5,7 +5,7 @@ import { installSpeech, type FakeVoice, type SpeechFake } from 'voice-kit/testin
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
-import { ParentScreen } from '../../src/features/tutor/parent-screen';
+import { ParentScreen } from '../../src/worlds/grown-ups/parent-screen';
 import { tutorSayFor } from '../../src/features/tutor/tutor-voice';
 import { presetToSettings, PRESETS } from '../../src/accessibility/presets';
 import { validateSettings } from '../../src/accessibility/settings';

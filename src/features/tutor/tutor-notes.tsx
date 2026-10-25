@@ -1,6 +1,6 @@
 // src/features/tutor/tutor-notes.tsx — 'Notes for the tutor' on the Grown-ups screen (mw-kuy7rx.11): short standing
 // notes ('Go slower on carrying') kept per profile in profile.settings.tutorNotes. tutor-flow.ts sends them on
-// every tutor-turn as parent_notes.
+// every tutor-turn as parent_notes. The note being typed is kept on the device as a draft (use-draft.ts, M14).
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Profile } from '../../contracts';
@@ -8,6 +8,7 @@ import { profileRepo } from '../../data/repositories';
 import { MAX_TUTOR_NOTES, MAX_TUTOR_NOTE_LENGTH } from '../../accessibility/settings';
 import { isTooLong } from './length-limit';
 import { LengthNote } from './length-note';
+import { useDraft } from './use-draft';
 
 export interface TutorNotesProps {
   profileId: string;
@@ -20,7 +21,7 @@ const BUTTON = 'px-4 rounded-xl font-bold bg-sf-surface border border-sf-border 
 
 export function TutorNotes({ profileId, onProfileChange }: TutorNotesProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft, clearDraft] = useDraft(`sf-tutor-note-draft:${profileId}`);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +81,7 @@ export function TutorNotes({ profileId, onProfileChange }: TutorNotesProps) {
             onSubmit={(e) => {
               e.preventDefault();
               if (!text || full || tooLong) return;
-              setDraft('');
+              clearDraft();
               void save([...notes, text]);
             }}
           >

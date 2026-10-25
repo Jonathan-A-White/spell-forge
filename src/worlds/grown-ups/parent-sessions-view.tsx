@@ -1,11 +1,11 @@
-// src/features/tutor/parent-sessions-view.tsx — 'This week' and 'Sessions' on the Grown-ups screen (mw-kuy7rx.3),
+// src/worlds/grown-ups/parent-sessions-view.tsx — 'This week' and 'Sessions' on the Grown-ups screen (mw-kuy7rx.3),
 // built from what is in Dexie and kept current while the screen is open. No grist is asked.
 
 import { useEffect, useState } from 'react';
 import { liveQuery } from 'dexie';
 import { tutorRepo } from '../../data/repositories';
-import { sessionLines, weekSummary } from './parent-sessions';
-import type { SessionWithTurns } from './parent-sessions';
+import { sessionLines, weekSummary } from '../../features/tutor/parent-sessions';
+import type { SessionWithTurns } from '../../features/tutor/parent-sessions';
 
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 
