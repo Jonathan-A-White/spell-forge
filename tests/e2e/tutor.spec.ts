@@ -10,16 +10,13 @@
 // sealed to the device's key, after the screen has been seen waiting. The device has a wallet key, put in the
 // bsvWallet table the way the BSV Debug screen's Generate does. Screenshots land in test-results/.
 //
-// Same setup as word-list-photo-import.spec.ts: builds dist/ itself (npx vite build), serves it with
-// `vite preview` on port 4173. Not part of `npm test`; run by hand or from a story with:
+// The app is built and served once by playwright.config.ts (the specs reach it by baseURL). Not part of `npm test`; run by hand or from a story with:
 //
 //   npm run test:e2e -- tutor
 //
-// Every e2e spec uses port 4173: run them one at a time (--workers=1), not side by side.
 
 import { test, expect, type Page } from '@playwright/test';
-import { execFileSync, type ChildProcess } from 'node:child_process';
-import { killGroup, spawnGroup } from '../support/spawned-processes';
+import { noTapGuard } from './tap-guard';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -27,8 +24,6 @@ import { EncryptedMessage, PrivateKey, PublicKey, Utils } from '@bsv/sdk';
 import { decodeRecordScript } from '../../src/bsv/record';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PREVIEW_PORT = 4173;
-const PREVIEW_ORIGIN = `http://localhost:${PREVIEW_PORT}`;
 const APP_PATH = '/spell-forge/';
 const POSTERN = 'https://postern.allmymind.org';
 const SHOTS = join(repoRoot, 'test-results');
@@ -41,21 +36,6 @@ const CORS = {
   'access-control-allow-headers': 'authorization, content-type',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
 };
-
-async function waitForServer(url: string, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let lastError: unknown;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch (error) {
-      lastError = error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error(`${url} never came up: ${String(lastError)}`);
-}
 
 async function completeOnboarding(page: Page, name: string): Promise<void> {
   await page.goto(APP_PATH);
@@ -180,71 +160,61 @@ test.describe('the Tutor screen behind sf-tutor (mw-bhvxcn.8)', () => {
     test.setTimeout(180_000);
     mkdirSync(SHOTS, { recursive: true });
 
-    execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
-    let previewProcess: ChildProcess | undefined;
-    try {
-      previewProcess = spawnGroup('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
-        cwd: repoRoot,
-        stdio: 'pipe',
-      });
-      await waitForServer(`${PREVIEW_ORIGIN}${APP_PATH}`, 20_000);
+    await noTapGuard(page);
 
-      const pageErrors: string[] = [];
-      page.on('pageerror', (error) => pageErrors.push(error.message));
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
 
-      const device = PrivateKey.fromRandom();
-      const factory = await stubFactory(page, device, PrivateKey.fromRandom());
-      await completeOnboarding(page, 'Tutor Kid');
-      await giveDeviceKey(page, device);
+    const device = PrivateKey.fromRandom();
+    const factory = await stubFactory(page, device, PrivateKey.fromRandom());
+    await completeOnboarding(page, 'Tutor Kid');
+    await giveDeviceKey(page, device);
 
-      // --- Flag off: nothing new on Home ---
-      await expect(page.getByRole('button', { name: /Tutor/ })).toHaveCount(0);
+    // --- Flag off: nothing new on Home ---
+    await expect(page.getByRole('button', { name: /Tutor/ })).toHaveCount(0);
 
-      // --- Flag on: the Tutor tile ---
-      await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
-      await page.reload();
-      const tile = page.getByRole('button', { name: /Tutor/ });
-      await expect(tile).toBeVisible();
-      await tile.click();
-      await expect(page.getByRole('heading', { name: 'Tutor' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Take a photo' })).toBeVisible();
-      await expect(page.getByRole('radio')).toHaveCount(0);
+    // --- Flag on: the Tutor tile ---
+    await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
+    await page.reload();
+    const tile = page.getByRole('button', { name: /Tutor/ });
+    await expect(tile).toBeVisible();
+    await tile.click();
+    await expect(page.getByRole('heading', { name: 'Tutor' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Take a photo' })).toBeVisible();
+    await expect(page.getByRole('radio')).toHaveCount(0);
 
-      // --- A typed problem goes out as a problem-in grist, and the screen waits ---
-      await page.getByRole('button', { name: 'Type it instead' }).click();
-      await page.getByLabel('Type the problem').fill(TYPED);
-      await page.screenshot({ path: join(SHOTS, 'tutor-typed.png'), fullPage: true });
-      await page.getByRole('button', { name: 'Send' }).click();
-      await expect(page.getByRole('status')).toBeVisible({ timeout: 15_000 });
-      await expect.poll(() => factory.delivered.length, { timeout: 15_000 }).toBe(1);
-      expect(factory.delivered[0].grist).toMatchObject({ app: 'spellforge', kind: 'tutor-turn' });
-      expect(factory.delivered[0].input).toMatchObject({ mode: 'problem-in', strictness: 'meaning-gated', target_text: TYPED });
-      await page.screenshot({ path: join(SHOTS, 'tutor-reading.png'), fullPage: true });
+    // --- A typed problem goes out as a problem-in grist, and the screen waits ---
+    await page.getByRole('button', { name: 'Type it instead' }).click();
+    await page.getByLabel('Type the problem').fill(TYPED);
+    await page.screenshot({ path: join(SHOTS, 'tutor-typed.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect(page.getByRole('status')).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => factory.delivered.length, { timeout: 15_000 }).toBe(1);
+    expect(factory.delivered[0].grist).toMatchObject({ app: 'spellforge', kind: 'tutor-turn' });
+    expect(factory.delivered[0].input).toMatchObject({ mode: 'problem-in', strictness: 'meaning-gated', target_text: TYPED });
+    await page.screenshot({ path: join(SHOTS, 'tutor-reading.png'), fullPage: true });
 
-      // --- The mill answers: the problem it read shows large, in the child's own font and size ---
-      factory.answerNow();
-      const shown = page.getByText(READ_BACK);
-      await expect(shown).toBeVisible({ timeout: 30_000 });
-      await expect(page.getByText('A word problem')).toBeVisible();
-      const sizes = await shown.evaluate((el) => ({
-        shown: parseFloat(getComputedStyle(el).fontSize),
-        child: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sf-font-size')),
-        family: getComputedStyle(el).fontFamily,
-        childFamily: getComputedStyle(document.documentElement).getPropertyValue('--sf-font-family'),
-      }));
-      expect(sizes.shown, 'larger than the child\'s own reading size').toBeGreaterThan(sizes.child);
-      expect(sizes.family.replace(/["\s]/g, '')).toBe(sizes.childFamily.replace(/["\s]/g, ''));
-      await page.screenshot({ path: join(SHOTS, 'tutor-shown.png'), fullPage: true });
+    // --- The mill answers: the problem it read shows large, in the child's own font and size ---
+    factory.answerNow();
+    const shown = page.getByText(READ_BACK);
+    await expect(shown).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('A word problem')).toBeVisible();
+    const sizes = await shown.evaluate((el) => ({
+      shown: parseFloat(getComputedStyle(el).fontSize),
+      child: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sf-font-size')),
+      family: getComputedStyle(el).fontFamily,
+      childFamily: getComputedStyle(document.documentElement).getPropertyValue('--sf-font-family'),
+    }));
+    expect(sizes.shown, 'larger than the child\'s own reading size').toBeGreaterThan(sizes.child);
+    expect(sizes.family.replace(/["\s]/g, '')).toBe(sizes.childFamily.replace(/["\s]/g, ''));
+    await page.screenshot({ path: join(SHOTS, 'tutor-shown.png'), fullPage: true });
 
-      // --- A reload: Home again, and the Tutor tile brings the problem back from Dexie ---
-      await page.reload();
-      await page.getByRole('button', { name: /Tutor/ }).click();
-      await expect(page.getByText(READ_BACK)).toBeVisible({ timeout: 15_000 });
-      expect(factory.delivered, 'nothing was sent a second time').toHaveLength(1);
+    // --- A reload: the app reopens where he left off (src/shell/last-route.ts), on the Tutor, and the problem comes back from Dexie ---
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Tutor' })).toBeVisible();
+    await expect(page.getByText(READ_BACK)).toBeVisible({ timeout: 15_000 });
+    expect(factory.delivered, 'nothing was sent a second time').toHaveLength(1);
 
-      expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
-    } finally {
-      killGroup(previewProcess);
-    }
+    expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
   });
 });

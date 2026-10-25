@@ -9,10 +9,10 @@ How the rig's tests are shaped (the vault's pwa-best-practices topics 20, 21 and
 | `npm test` | vitest: `tests/unit/**`, `tests/features/**` (the BSV rules) and `features/steps/**` (the Gherkin features of the app). jsdom, `fake-indexeddb`, `TZ=UTC`. |
 | `npm run test:bdd` | the Gherkin features alone (`features/steps`) |
 | `npx playwright test --project=phone` (`npm run test:phone`) | the phone-width specs (`tests/e2e/phone-width.spec.ts`) at 390x844 against the BUILT app: it runs `npm run build`, then `vite preview` on a port of its own, and blocks service workers |
-| `npx playwright test --project=chromium` | the older specs in `tests/e2e/`. Each starts its own build and preview on port 4173 (`SF_E2E_PORT`), so run them one at a time (`--workers=1`). The testnet spec went with the BSV Debug screen |
-| `npm run test:nightly` | everything: `TZ=UTC vitest run`, then every Playwright spec (`PW_PHONE=1` starts the phone project's preview server), timing tests included |
+| `npx playwright test --project=chromium` | the older specs in `tests/e2e/`, against the same built app. `playwright.config.ts` builds and serves it once (one worker) for every spec, and each spec calls `noTapGuard(page)` from `tests/e2e/tap-guard.ts` (the tap guard's `sf-tap-guard-ms` seam set to 0). `worlds.spec.ts` serves the app with `vite` (dev) on its own port, one above. The testnet spec went with the BSV Debug screen |
+| `npm run test:nightly` | everything: `TZ=UTC vitest run`, then every Playwright spec, timing tests included |
 
-The phone project's port is derived from the worktree's path (4400 to 5399, `tests/support/preview-port.ts`), so landings on one host run side by side; `PREVIEW_PORT=<n>` overrides it and `PW_REUSE=1` reuses a preview you already started. A spec that asserts a phone's bounds sets its own viewport (`test.use({ viewport })`) and ends with `shot(page, name)` (`tests/e2e/shot.ts`, written to `shots/`, ignored by git).
+The phone project's port is derived from the worktree's path (4400 to 5399, `tests/support/preview-port.ts`), so landings on one host run side by side; `PREVIEW_PORT=<n>` overrides it (for every project) and `PW_REUSE=1` reuses a preview you already started. A spec that asserts a phone's bounds sets its own viewport (`test.use({ viewport })`) and ends with `shot(page, name)` (`tests/e2e/shot.ts`, written to `shots/`, ignored by git).
 
 ## Features (BDD)
 
@@ -47,4 +47,3 @@ Real waits that are NOT timing tests, and why they stay in the gate (a pass can 
 - `tests/unit/audio.test.ts` (60 ms for the fake phone to list its voices; the long-speech tests use fake timers), `tests/unit/themes.test.ts` (5 waits of 50 ms for a fire-and-forget Dexie write: a `waitFor` would do).
 - `tests/unit/list-editor-photo-import.test.tsx`, `tests/unit/ask-the-tutor.test.tsx`: a 150 ms simulated slow call; the assertions are about state, not duration.
 - `tests/unit/bsv-scan-records.test.ts`: 5 ms inside a fake provider that counts concurrent calls.
-- The 300 ms polling pause in the older e2e specs while their preview server comes up.

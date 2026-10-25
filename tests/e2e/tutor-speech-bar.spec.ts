@@ -9,51 +9,33 @@
 // to be seen however long the spec takes to get to it.
 // Not part of `npm test`; run by hand with:
 //
-//   SF_E2E_PORT=4180 npm run test:e2e -- tutor-speech-bar
+//   npm run test:e2e -- tutor-speech-bar
 //
-// Every e2e spec uses port 4173 by default: run them one at a time (--workers=1).
+// The app is built and served once by playwright.config.ts (the specs reach it by baseURL).
 
 import { test, expect, type Page } from '@playwright/test';
 import { speechInitScript } from 'voice-kit/testing/speech';
 import { playwrightTimeouts } from 'pwa-kit/test-preset';
-import { execFileSync, type ChildProcess } from 'node:child_process';
-import { killGroup, spawnGroup } from '../support/spawned-processes';
+import { noTapGuard } from './tap-guard';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PREVIEW_PORT = Number(process.env.SF_E2E_PORT ?? 4173);
-const PREVIEW_ORIGIN = `http://localhost:${PREVIEW_PORT}`;
 const APP_PATH = '/spell-forge/';
 const SHOTS = join(repoRoot, 'test-results');
 
 const PROBLEM = 'The character has 3 apples and buys 4 more. How many apples does the character have now?';
 const TIP = 'Look at this word, one chunk at a time. Say each part out loud. Then put them together.';
 
-// The whole spec (build, preview, the steps below) may take this long on a loaded host.
+// The whole spec (the steps below) may take this long on a loaded host.
 const SPEC_TIMEOUT_MS = 3 * playwrightTimeouts.timeout;
 // The fake voice takes twice that to speak the tip, so the Pause click never races the end of the utterance whatever the
 // pace of the spec; the spec ends the speech itself with Stop.
 const MS_PER_WORD = Math.ceil((2 * SPEC_TIMEOUT_MS) / TIP.split(/\s+/).length);
 
-async function waitForServer(url: string, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let lastError: unknown;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch (error) {
-      lastError = error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error(`${url} never came up: ${String(lastError)}`);
-}
-
 async function completeOnboarding(page: Page, name: string): Promise<void> {
-  await page.goto(`${PREVIEW_ORIGIN}${APP_PATH}`);
+  await page.goto(APP_PATH);
   await expect(page.getByText('Welcome to SpellForge!')).toBeVisible();
   await page.getByPlaceholder('Enter your name').fill(name);
   await page.getByRole('button', { name: 'Next' }).click();
@@ -135,55 +117,45 @@ test.describe("the tutor's speaking bar (mw-kuy7rx.20)", () => {
     // voice-kit/testing's honest synthesiser: sentences take the time they take, and a cancelled one is reported as an error
     await page.addInitScript(speechInitScript({ msPerWord: MS_PER_WORD }));
 
-    execFileSync('npx', ['vite', 'build'], { cwd: repoRoot, stdio: 'inherit' });
-    let previewProcess: ChildProcess | undefined;
-    try {
-      previewProcess = spawnGroup('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], {
-        cwd: repoRoot,
-        stdio: 'pipe',
-      });
-      await waitForServer(`${PREVIEW_ORIGIN}${APP_PATH}`, playwrightTimeouts.timeout);
+    await noTapGuard(page);
 
-      const pageErrors: string[] = [];
-      page.on('pageerror', (error) => pageErrors.push(error.message));
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
 
-      await completeOnboarding(page, 'Bar Kid');
-      await seedRereadSession(page);
-      await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
-      await page.reload();
-      await page.getByRole('button', { name: /Tutor/ }).click();
+    await completeOnboarding(page, 'Bar Kid');
+    await seedRereadSession(page);
+    await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
+    await page.reload();
+    await page.getByRole('button', { name: /Tutor/ }).click();
 
-      await expect(page.getByRole('button', { name: 'Say it again' })).toBeVisible();
-      await expect(page.getByRole('region', { name: 'Tutor speech' })).toHaveCount(0);
-      await page.getByRole('button', { name: 'Say it again' }).click();
+    await expect(page.getByRole('button', { name: 'Say it again' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Tutor speech' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Say it again' }).click();
 
-      const bar = page.getByRole('region', { name: 'Tutor speech' });
-      await expect(bar).toBeVisible();
-      await expect(bar).toBeInViewport({ ratio: 1 });
-      for (const name of ['Pause', 'Restart', 'Stop']) {
-        const box = await bar.getByRole('button', { name }).boundingBox();
-        expect(box?.height, `${name} is at least 48 px tall`).toBeGreaterThanOrEqual(48);
-        expect((box?.x ?? 0) + (box?.width ?? 0), `${name} ends inside the 360 px screen`).toBeLessThanOrEqual(360);
-      }
-      const read = await page.getByRole('button', { name: 'Read the word' }).boundingBox();
-      const barBox = await bar.boundingBox();
-      expect((barBox?.y ?? 0) + (barBox?.height ?? 0), 'the bar ends above the Read the word button').toBeLessThanOrEqual(read?.y ?? 0);
-      await page.screenshot({ path: join(SHOTS, 'tutor-speech-bar.png') });
-
-      await bar.getByRole('button', { name: 'Pause' }).click();
-      await expect(bar.getByRole('button', { name: 'Resume' })).toBeVisible();
-      for (const name of ['Resume', 'Restart', 'Stop']) {
-        const box = await bar.getByRole('button', { name }).boundingBox();
-        expect((box?.x ?? 0) + (box?.width ?? 0), `${name} ends inside the 360 px screen`).toBeLessThanOrEqual(360);
-      }
-      await page.screenshot({ path: join(SHOTS, 'tutor-speech-bar-paused.png') });
-
-      await bar.getByRole('button', { name: 'Stop' }).click();
-      await expect(bar).toHaveCount(0);
-
-      expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
-    } finally {
-      killGroup(previewProcess);
+    const bar = page.getByRole('region', { name: 'Tutor speech' });
+    await expect(bar).toBeVisible();
+    await expect(bar).toBeInViewport({ ratio: 1 });
+    for (const name of ['Pause', 'Restart', 'Stop']) {
+      const box = await bar.getByRole('button', { name }).boundingBox();
+      expect(box?.height, `${name} is at least 48 px tall`).toBeGreaterThanOrEqual(48);
+      expect((box?.x ?? 0) + (box?.width ?? 0), `${name} ends inside the 360 px screen`).toBeLessThanOrEqual(360);
     }
+    const read = await page.getByRole('button', { name: 'Read the word' }).boundingBox();
+    const barBox = await bar.boundingBox();
+    expect((barBox?.y ?? 0) + (barBox?.height ?? 0), 'the bar ends above the Read the word button').toBeLessThanOrEqual(read?.y ?? 0);
+    await page.screenshot({ path: join(SHOTS, 'tutor-speech-bar.png') });
+
+    await bar.getByRole('button', { name: 'Pause' }).click();
+    await expect(bar.getByRole('button', { name: 'Resume' })).toBeVisible();
+    for (const name of ['Resume', 'Restart', 'Stop']) {
+      const box = await bar.getByRole('button', { name }).boundingBox();
+      expect((box?.x ?? 0) + (box?.width ?? 0), `${name} ends inside the 360 px screen`).toBeLessThanOrEqual(360);
+    }
+    await page.screenshot({ path: join(SHOTS, 'tutor-speech-bar-paused.png') });
+
+    await bar.getByRole('button', { name: 'Stop' }).click();
+    await expect(bar).toHaveCount(0);
+
+    expect(pageErrors, `page-level errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
   });
 });
