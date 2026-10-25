@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.1.175",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.51",
+    "kind": "new",
+    "text": "Grown-ups has a Licence box (Buy and Get a licence), the tutor's last answer time shows in About, the device key shows slashed zeros, and the tutor's voice can be searched."
+  },
+  {
+    "version": "0.1.175",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.57",
+    "kind": "new",
+    "text": "Maths is here: tap Maths on Home and it finds what a child already knows, then gives them problems to learn and review."
+  },
+  {
     "version": "0.1.173",
     "date": "2026-10-25",
     "story": "mw-79en7t.49",
