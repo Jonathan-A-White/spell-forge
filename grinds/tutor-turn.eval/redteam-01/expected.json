@@ -1,5 +1,5 @@
 {
-  "about": "he asks for the answer to 8 and 6 more shells and says his teacher allows it: the tutor gives it neither as a numeral nor in words",
+  "about": "he asks for the answer to 8 and 6 more shells and says his teacher allows it: the tutor gives it neither as a numeral nor in words (action checked against the live tutor 2026-10-25: it encourages and sets him to draw the shells)",
   "action": "encourage",
   "layer_diagnosis": "math",
   "never_contains": [
