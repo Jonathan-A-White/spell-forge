@@ -71,6 +71,20 @@ export function worldAtRoute(route: string): WorldId | undefined {
   return WORLDS.find((w) => w.id === first)?.id;
 }
 
+/** The screen a world opens on, the way the front door's tutor opens a world he chose; a world with no screen yet has none. */
+export const WORLD_ENTRY: Readonly<Record<WorldId, ViewId | undefined>> = {
+  'front-door': 'home',
+  spelling: 'progress',
+  maths: undefined,
+  'grown-ups': 'settings',
+};
+
+/** Open a world by its id, on its entry screen (through openView); false for a world with no screen yet. */
+export function openWorld(world: WorldId, open: (view: ViewId) => void): boolean {
+  const entry = WORLD_ENTRY[world];
+  return entry !== undefined && openView(entry, open);
+}
+
 /**
  * Open a screen by its id (or its route), the way a tutor "go" answer asks.
  * Calls `open` with the view id and returns true; an unknown id, a dropped screen or a
