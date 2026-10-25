@@ -10,7 +10,7 @@ const LAYERS = ['reading', 'math', 'both', 'none'];
 const PROBLEM_KINDS = ['word', 'plain'];
 const ALLOWED_KEYS = new Set([
   'action', 'focus_words', 'prompt_to_child', 'layer_diagnosis', 'math_diagnosis', 'target_text', 'problem_kind',
-  'notes_for_parent', 'recommendations_for_parent', 'teaching_method',
+  'node', 'notes_for_parent', 'recommendations_for_parent', 'teaching_method',
 ]);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -43,6 +43,7 @@ export function isTutorAnswer(value: unknown): value is TutorAnswer {
   if (value.math_diagnosis !== undefined && !isStrings(value.math_diagnosis, ['where_wrong', 'gap', 'method'])) return false;
   if (value.target_text !== undefined && !isText(value.target_text, 2000)) return false;
   if (value.problem_kind !== undefined && !(typeof value.problem_kind === 'string' && PROBLEM_KINDS.includes(value.problem_kind))) return false;
+  if (value.node !== undefined && !isText(value.node, 100)) return false;
   if (value.notes_for_parent !== undefined && typeof value.notes_for_parent !== 'string') return false;
   if (value.teaching_method !== undefined && typeof value.teaching_method !== 'string') return false;
   const recommendations = value.recommendations_for_parent;

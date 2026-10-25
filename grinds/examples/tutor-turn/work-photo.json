@@ -26,6 +26,7 @@
   "expect": {
     "action": "math_probe",
     "layer_diagnosis": "math",
+    "node": "subtract-two-digit",
     "math_diagnosis.gap": {
       "matches": "(?i)regroup|borrow|exchang|trade|smaller|bigger|larger|ones|swap|rename"
     },

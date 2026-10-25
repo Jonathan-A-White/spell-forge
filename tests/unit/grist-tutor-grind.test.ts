@@ -2,7 +2,7 @@
 // grinds/word-list.json's plus the new fields; its answer schema is checked here, with a small validator for the
 // keywords it uses, against sample answers; and isTutorAnswer, the guard the device runs, agrees with it.
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { TUTOR_TURN_GRIND, isTutorAnswer } from '../../src/grist';
 import samples from '../fixtures/grist/tutor-turn-answers.json';
@@ -114,9 +114,24 @@ describe('tutor-turn answer schema', () => {
   it('requires the fields the child sees and names every field of design 4', () => {
     expect([...(schema.required as string[])].sort()).toEqual(['action', 'focus_words', 'layer_diagnosis', 'prompt_to_child']);
     expect(Object.keys(schema.properties as object).sort()).toEqual([
-      'action', 'focus_words', 'layer_diagnosis', 'math_diagnosis', 'notes_for_parent', 'problem_kind', 'prompt_to_child',
+      'action', 'focus_words', 'layer_diagnosis', 'math_diagnosis', 'node', 'notes_for_parent', 'problem_kind', 'prompt_to_child',
       'recommendations_for_parent', 'target_text', 'teaching_method',
     ]);
+  });
+
+  it('names the maths-graph node in the answer, and the instructions say when to fill it', () => {
+    expect((schema.properties as Record<string, { type?: string }>).node?.type).toBe('string');
+    const instructions = readFileSync(join(root, grind.instructions as string), 'utf8');
+    expect(instructions).toMatch(/`node`[^.]*answer/i);
+    expect(instructions).toMatch(/(?:copy|repeat|echo)[^.]*`node`|`node`[^.]*(?:leave|never invent)/i);
+    expect(instructions).toMatch(/`schemaVersion`/);
+  });
+
+  it('has a grind example whose request and expected answer both carry node', () => {
+    const dir = join(root, 'grinds/examples/tutor-turn');
+    const carrying = readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8'))).filter((e) => e.request.node && e.expect.node);
+    expect(carrying.length).toBeGreaterThan(0);
+    for (const e of carrying) expect(e.expect.node).toBe(e.request.node);
   });
 
   for (const sample of samples.valid) {
