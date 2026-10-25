@@ -1,10 +1,12 @@
 // src/worlds/maths/MathsWorld.tsx — The Maths world (Kestrel 19a): hosts the flow's questions one at a time, tells the tutor where the child
 // is (M37: the screen's name and a few facts, never the answer or the hint), and runs its one timer through the shell's visible-interval
 // helper (M10). What is asked, and how an answer counts, is maths-flow.ts's; this draws it, each question in one of drill-forms.ts's forms
-// (type, hear, see, do; 19b), the same form every time for the same question. The child reads little and is not expected to
+// (type, hear, see, do; 19b), the same form every time for the same question, with the concept's mnemonic picture beside it (19d). The child reads little and is not expected to
 // type: "Not sure" is an answer, and a wrong one is met with a nudge and a way on, never a dead end.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import type { MnemonicNode } from '../../learn/mnemonic-pictures';
 import { useVisibleInterval } from '../../shell/visible-interval';
+import { ConceptPicture } from './ConceptPicture';
 import { MATHS_FORM_IDS, formFor, openForm, type MathsFormId } from './drill-forms';
 import { createMathsFlow, storageGraphStore, storageKeep, type MathsAnswer, type MathsFlow, type MathsQuestion } from './maths-flow';
 import { IDLE_LOOK_MS, MATHS_SCREEN_NAME, screenReport, type ScreenReport } from './maths-report';
@@ -17,6 +19,8 @@ export interface MathsWorldProps {
   report?: (screen: ScreenReport) => void;
   /** The app language a problem is spoken in; English when absent. */
   language?: string;
+  /** The picture for a concept, or undefined when there is none to show: the picture module's when absent (Kestrel 19d). */
+  picture?: (node: MnemonicNode) => Promise<string | undefined>;
   /** The forms a question may be put in (drill-forms.ts); all four when absent. */
   forms?: readonly MathsFormId[];
   onBack?: () => void;
@@ -26,7 +30,7 @@ const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 
 const BUTTON = 'px-5 rounded-xl font-bold active:scale-[0.97] transition-transform';
 
-export function MathsWorld({ flow: given, profileId, report, language = 'en', forms = MATHS_FORM_IDS, onBack }: MathsWorldProps) {
+export function MathsWorld({ flow: given, profileId, report, language = 'en', picture, forms = MATHS_FORM_IDS, onBack }: MathsWorldProps) {
   const flow = useMemo(
     () => given ?? createMathsFlow({ store: storageGraphStore(profileId ?? 'learner'), keep: storageKeep(profileId ?? 'learner') }),
     [given, profileId],
@@ -105,7 +109,11 @@ export function MathsWorld({ flow: given, profileId, report, language = 'en', fo
             {question.stage === 'placement' && (
               <p className="text-sf-muted text-sm">Let&apos;s see what you know. Tap &ldquo;Not sure&rdquo; if you want to skip one.</p>
             )}
-            <p className="text-sf-muted text-sm">{question.nodeName}</p>
+            <div className="flex items-center gap-3">
+              {/* the concept's picture sits beside its questions; the placement visits many concepts and shows none */}
+              {question.stage !== 'placement' && <ConceptPicture nodeId={question.nodeId} picture={picture} />}
+              <p className="text-sf-muted text-sm">{question.nodeName}</p>
+            </div>
             {openForm(formFor(question, forms), {
               item: question.item,
               language,

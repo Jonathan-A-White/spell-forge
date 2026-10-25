@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { TutorSession, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
+import type { MnemonicNode } from '../../learn/mnemonic-pictures';
 import { gateGrind, licenceState, subscribeLicence } from '../../shell/licence-gate';
 import { LicenceLine } from '../../shell/LicenceLine';
 import { useVisibleInterval } from '../../shell/visible-interval';
@@ -15,6 +16,7 @@ import { nodeForProblem, sendMath, TutorUserError } from '../../features/tutor/t
 import type { TutorDeps } from '../../features/tutor/tutor-flow';
 import { CameraIcon, CheckIcon, PencilIcon, RetryIcon, SayAgainButton, SendIcon, Waiting } from '../../features/tutor/pictures';
 import { TutorSpeechBar } from '../../features/tutor/speech-bar';
+import { ConceptPicture } from './ConceptPicture';
 import { tutorSayFor } from '../../features/tutor/tutor-voice';
 
 const LARGE_TEXT = {
@@ -42,11 +44,13 @@ export interface HomeworkProps {
   deps: TutorDeps;
   /** The node of the maths graph the problem is about; the graph's own node for `targetText` when absent (none when the graph has not seen it). */
   node?: string;
+  /** The picture for a concept, or undefined when there is none to show: the picture module's when absent (Kestrel 19d). */
+  picture?: (node: MnemonicNode) => Promise<string | undefined>;
   /** The session has ended well: the closing line, for the screen to keep showing. */
   onFinished: (closingLine: string) => void;
 }
 
-export function Homework({ session, targetText, turns, deps, node, onFinished }: HomeworkProps) {
+export function Homework({ session, targetText, turns, deps, node, picture, onFinished }: HomeworkProps) {
   const licensed = useSyncExternalStore(subscribeLicence, () => licenceState() !== 'unlicensed');
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
@@ -121,7 +125,11 @@ export function Homework({ session, targetText, turns, deps, node, onFinished }:
 
   return (
     <div className="space-y-4">
-      <p className="text-sf-heading whitespace-pre-wrap" style={LARGE_TEXT}>{targetText}</p>
+      <div className="space-y-3">
+        {/* the concept's mnemonic picture (19d), when the problem names a node of the graph and one can be had; small, above the big text */}
+        <ConceptPicture nodeId={node ?? nodeForProblem(targetText)} picture={picture} className="w-16 h-16 rounded-xl bg-sf-surface" />
+        <p className="text-sf-heading whitespace-pre-wrap" style={LARGE_TEXT}>{targetText}</p>
+      </div>
 
       <TutorSpeechBar />
 
