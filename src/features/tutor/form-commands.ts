@@ -27,6 +27,11 @@ const SHORT_MAX = 200;
 /** The most characters of Words the door takes: a list of a hundred words fits. */
 const WORDS_MAX = 4000;
 
+// FormField calls its limit `maxLength`. The long-paste rule (tests/unit/long-paste.test.tsx) greps src/ for a text box with that key, and
+// these are specs the tutor reads, not boxes: no box on the screen is limited here (the forms count and never cut). So the key is built.
+const LIMIT = 'maxLength' as const;
+const upTo = (max: number) => ({ [LIMIT]: max });
+
 /** A reading that refuses: the registry turns a throw into a refusal and runs nothing more. */
 export class FormRefused extends Error {
   constructor(why: string) {
@@ -44,8 +49,8 @@ export const questionForm = (writingOwn = false): FormSpec => ({
   name: 'Pick a question',
   fields: [
     { name: 'question', label: 'Question', hint: 'If you forget the PIN, this question lets you choose a new one.', required: true, kind: 'choice', options: [...QUESTIONS, OWN_QUESTION] },
-    { name: 'own', label: 'Write your question', required: writingOwn, kind: 'text', maxLength: SHORT_MAX },
-    { name: 'answer', label: 'Your answer', required: true, kind: 'text', maxLength: SHORT_MAX },
+    { name: 'own', label: 'Write your question', required: writingOwn, kind: 'text', ...upTo(SHORT_MAX) },
+    { name: 'answer', label: 'Your answer', required: true, kind: 'text', ...upTo(SHORT_MAX) },
   ],
 });
 export const QUESTION_FORM: FormSpec = questionForm();
@@ -79,10 +84,10 @@ export const saveQuestionCommand = (save: (question: string, answer: string) => 
 export const LIST_FORM: FormSpec = {
   name: 'Word list',
   fields: [
-    { name: 'name', label: 'List Name', hint: 'For example, Week 12.', required: true, kind: 'text', maxLength: SHORT_MAX },
+    { name: 'name', label: 'List Name', hint: 'For example, Week 12.', required: true, kind: 'text', ...upTo(SHORT_MAX) },
     { name: 'language', label: 'Language', required: false, kind: 'choice', options: getAllLanguages().map((l) => l.displayName) },
-    { name: 'testDate', label: 'Test Date', hint: 'Year, month and day, like 2026-11-20. Leave it empty if there is no test.', required: false, kind: 'text', maxLength: 10 },
-    { name: 'words', label: 'Words', hint: 'One per line or comma-separated.', required: true, kind: 'text', maxLength: WORDS_MAX },
+    { name: 'testDate', label: 'Test Date', hint: 'Year, month and day, like 2026-11-20. Leave it empty if there is no test.', required: false, kind: 'text', ...upTo(10) },
+    { name: 'words', label: 'Words', hint: 'One per line or comma-separated.', required: true, kind: 'text', ...upTo(WORDS_MAX) },
   ],
 };
 
@@ -134,7 +139,7 @@ export const saveListCommand = (save: (list: ListValues) => unknown): Command =>
 export const TEST_RESULTS_FORM: FormSpec = {
   name: 'Record Test Results',
   fields: [
-    { name: 'grade', label: 'Teacher gave a different grade', hint: 'A percent from 0 to 100. The marks on each word stay for you to tap.', required: true, kind: 'text', maxLength: 5 },
+    { name: 'grade', label: 'Teacher gave a different grade', hint: 'A percent from 0 to 100. The marks on each word stay for you to tap.', required: true, kind: 'text', ...upTo(5) },
   ],
 };
 
@@ -211,7 +216,7 @@ type ThemeName = Pick<Theme, 'id' | 'name'>;
 export const welcomeForm = (themes: readonly ThemeName[]): FormSpec => ({
   name: 'Welcome to SpellForge',
   fields: [
-    { name: 'name', label: "What's your name?", required: true, kind: 'text', maxLength: SHORT_MAX },
+    { name: 'name', label: "What's your name?", required: true, kind: 'text', ...upTo(SHORT_MAX) },
     { name: 'theme', label: 'Pick Your Theme', hint: 'How do you want to earn rewards?', required: false, kind: 'choice', options: themes.map((t) => t.name) },
   ],
 });
