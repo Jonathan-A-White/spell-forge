@@ -55,6 +55,7 @@ the screen's last facts, and the memory's oldest facts only last of all.
 | `profile.importFilterWords` | words dropped from a photographed list; only the word-list import reads them |
 | `profile.status` | active or archived; the front door only talks to an active profile |
 | `profile.gradeGoal` | the spelling test's readiness target; the spelling world decides readiness, not the talk |
+| `profile.learner` | what the tutor knows of the child is sent as the request's own `learner` part, built from it by the caller; the profile object itself is not sent |
 | `settings.fontSize` | how the words are drawn; the tutor's words are the same at any size |
 | `settings.fontWeight` | how the words are drawn |
 | `settings.fontFamily` | how the words are drawn |

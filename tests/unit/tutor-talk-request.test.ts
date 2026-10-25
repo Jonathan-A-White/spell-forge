@@ -4,6 +4,7 @@
 // row the request does not carry, fails; every setting and profile field is named in one of the doc's two tables.
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { emptyProfile } from 'learn-kit/learner';
 import type { AccessibilitySettings, Profile } from '../../src/contracts';
 import {
   TUTOR_TALK_MAX_BYTES,
@@ -68,6 +69,7 @@ const profile = {
   importFilterWords: ['Name:'],
   status: 'active',
   gradeGoal: 90,
+  learner: emptyProfile(),
 } satisfies Required<Profile>;
 
 const turn = (role: TalkTurn['role'], text: string): TalkTurn => ({ role, text });
