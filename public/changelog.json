@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.179",
+    "date": "2026-10-25",
+    "story": "mw-79en7t.16",
+    "kind": "new",
+    "text": "A photo of a spelling list now also works out which spelling pattern each word practises, and Spelling practises those patterns first."
+  },
+  {
     "version": "0.1.178",
     "date": "2026-10-25",
     "story": "mw-79en7t.60",
