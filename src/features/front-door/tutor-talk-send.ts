@@ -74,9 +74,9 @@ export function isTutorTalkAnswer(value: unknown): value is TutorTalkAnswer {
   if (!isObject(value)) return false;
   // `undefined` is a field left out, as JSON has it
   const given = Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined));
-  if (!hasOnly(given, ['words', 'profile_update', 'goal_suggestion', 'world', 'memory_update', 'form_values', 'form_ask'])) return false;
+  if (!hasOnly(given, ['words', 'profile_update', 'goal_suggestion', 'world', 'memory_update', 'form_values', 'form_ask', 'maker_request'])) return false;
   if (!isText(given.words, 1000)) return false;
-  const { profile_update, goal_suggestion, world, memory_update, form_values, form_ask } = given;
+  const { profile_update, goal_suggestion, world, memory_update, form_values, form_ask, maker_request } = given;
   if (profile_update !== undefined && !isProfileUpdate(profile_update)) return false;
   if (goal_suggestion !== undefined) {
     if (!isObject(goal_suggestion) || !hasOnly(goal_suggestion, ['id', 'why']) || !isText(goal_suggestion.id) || !isText(goal_suggestion.why, 200)) return false;
@@ -87,6 +87,9 @@ export function isTutorTalkAnswer(value: unknown): value is TutorTalkAnswer {
     const isValue = (entry: unknown) =>
       isObject(entry) && hasOnly(entry, ['field', 'value']) && isText(entry.field, 40) && typeof entry.value === 'string' && entry.value.length <= 4000;
     if (!isList(form_values, 8, isValue)) return false;
+  }
+  if (maker_request !== undefined) {
+    if (!isObject(maker_request) || !hasOnly(maker_request, ['summary']) || !isText(maker_request.summary, 200)) return false;
   }
   return form_ask === undefined || isText(form_ask, 40);
 }

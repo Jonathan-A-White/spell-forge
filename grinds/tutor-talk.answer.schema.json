@@ -67,6 +67,20 @@
         }
       }
     },
+    "maker_request": {
+      "description": "Set when he or a grown-up asked for something the app cannot do and `words` says so plainly and offers to pass it on to the maker. The app then offers a button to send it; nothing is sent without a tap. Absent otherwise, and absent when you already offered it earlier in this talk.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary"],
+      "properties": {
+        "summary": {
+          "description": "The ask in one line, in his terms, with nothing private in it.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
     "form_ask": {
       "description": "When the request has `form`: the name of the field `words` asks about; absent when every required field holds something.",
       "type": "string",
