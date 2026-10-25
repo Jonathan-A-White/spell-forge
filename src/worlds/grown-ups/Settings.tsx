@@ -31,6 +31,7 @@ import {
   TerminalIcon,
 } from '../../features/settings/settings-icons';
 import { APP_VERSION } from '../../version';
+import { FirstLine } from './first-line';
 import { DeviceKeySection } from '../../features/device-key';
 import { useTutorFlagSwitch } from '../../debug/debug-state';
 
@@ -229,6 +230,7 @@ export function Settings(props: SettingsProps) {
 
   return (
     <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <FirstLine>Change how the app looks and works, or search for any setting.</FirstLine>
       <SettingsSearch query={query} onChange={setQuery} />
       {rows.length === 0 && (
         <p role="status" className="text-sm text-sf-muted">
