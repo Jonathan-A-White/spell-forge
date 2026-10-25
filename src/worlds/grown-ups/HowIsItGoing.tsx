@@ -15,13 +15,18 @@ export interface WorldProgress {
   solid: ReadonlySet<string>;
   /** The goal the child works toward in this world, when they have chosen one. */
   goal?: Goal;
-  /** How many drills they did in the last seven days. */
+  /** How many drills they did in the last seven days; the line is left out when the caller does not know. */
   drillsLastWeek?: number;
 }
 
 export interface HowIsItGoingProps {
   spelling?: WorldProgress;
   maths?: WorldProgress;
+}
+
+export interface HowIsItGoingDrawProps extends HowIsItGoingProps {
+  /** Drawn inside another Grown-ups screen (its home): a section heading, and no first line of its own. */
+  inside?: boolean;
 }
 
 type NamedNode = GraphNode & { name: string };
@@ -74,18 +79,26 @@ function WorldSection({ title, graph, progress }: { title: string; graph: Graph<
       <p data-testid="solid-count" className="text-sm text-sf-text">
         Solid so far: {countOf(solid.size, 'skill', 'skills')} of {graph.nodes.length}.
       </p>
-      <p data-testid="last-week" className="text-sm text-sf-text">
-        {drills === 0 ? 'No drills in the last week.' : `${countOf(drills, 'drill', 'drills')} in the last week.`}
-      </p>
+      {progress?.drillsLastWeek !== undefined && (
+        <p data-testid="last-week" className="text-sm text-sf-text">
+          {drills === 0 ? 'No drills in the last week.' : `${countOf(drills, 'drill', 'drills')} in the last week.`}
+        </p>
+      )}
     </section>
   );
 }
 
-export function HowIsItGoing({ spelling, maths }: HowIsItGoingProps) {
+export function HowIsItGoing({ spelling, maths, inside }: HowIsItGoingDrawProps) {
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-sf-heading">How is it going?</h1>
-      <FirstLine>Where your child is in each subject, in plain words.</FirstLine>
+      {inside ? (
+        <h2 className="text-xl font-bold text-sf-heading">How is it going?</h2>
+      ) : (
+        <>
+          <h1 className="text-xl font-bold text-sf-heading">How is it going?</h1>
+          <FirstLine>Where your child is in each subject, in plain words.</FirstLine>
+        </>
+      )}
       <WorldSection title="Spelling" graph={spellingGraph} progress={spelling} />
       <WorldSection title="Maths" graph={mathsGraph} progress={maths} />
     </div>

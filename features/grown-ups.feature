@@ -13,7 +13,11 @@ Feature: The Grown-ups world
     - about: About & Credits, src/features/about/about-screen.tsx, the grown-ups world's 'about' screen, reached from Settings'
       About & Credits row (and the tutor's "go").
     - the old profile picker became Who is learning (src/worlds/grown-ups/WhoIsLearning.tsx, the front door's 'profile-select').
-    - How is it going (src/worlds/grown-ups/HowIsItGoing.tsx) is new: no screen draws it yet, so it is walked on a test page.
+    - How is it going (src/worlds/grown-ups/HowIsItGoing.tsx) is new (mw-79en7t.68): the Grown-ups home (parent-screen.tsx) draws it,
+      from the solid nodes each world keeps for the child (src/worlds/grown-ups/world-progress.ts). The drills of the last week are
+      not kept with a date anywhere yet, so the home does not claim a count of them.
+    - Sweep (mw-79en7t.68): the components under src/worlds/grown-ups that no screen imports: none, once the home draws How is it
+      going (before it, only HowIsItGoing). The e2e test page tests/e2e/harness/grown-ups.tsx still draws it by hand.
 
   Scenario: AC1: The Grown-ups screen asks for a PIN the first time
     Given a phone that holds the profile "Rowan"
@@ -59,6 +63,16 @@ Feature: The Grown-ups world
     When the grown-up opens How is it going
     Then the Spelling section shows the skills that are solid and the 5 drills
     And the Maths section says there is nothing to show yet
+
+  Scenario: AC2: The Grown-ups home draws How is it going
+    Given a phone that holds the profile "Rowan"
+    And the grown-up has chosen the PIN "2468"
+    And the learner is solid on 12 spelling skills
+    When the grown-up opens Grown-ups
+    And the grown-up types the PIN "2468"
+    Then the Grown-ups home shows How is it going
+    And its Spelling section shows 12 skills solid
+    And its Maths section says there is nothing to show yet
 
   Scenario: AC1: Licence Buy shows licensed when a licence is held
     Given a phone that holds no licence yet

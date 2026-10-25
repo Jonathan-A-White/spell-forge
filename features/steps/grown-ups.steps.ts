@@ -22,6 +22,7 @@ import { HowIsItGoing } from '../../src/worlds/grown-ups/HowIsItGoing';
 import { Licence } from '../../src/worlds/grown-ups/Licence';
 import { NOTHING_YET } from '../../src/worlds/grown-ups/describe-learner';
 import { spellingGraph } from '../../src/learn/spelling';
+import { storageGraphStore } from '../../src/worlds/spelling';
 
 const feature = await loadFeature('features/grown-ups.feature');
 
@@ -226,6 +227,31 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
       expect(section.getByTestId('last-week').textContent).toContain(`${Number(drills)} drills`);
     });
     And('the Maths section says there is nothing to show yet', () => {
+      const section = within(screen.getByRole('region', { name: 'Maths' }));
+      expect(section.getByTestId('no-data').textContent).toMatch(/nothing to show for maths yet/i);
+    });
+  });
+
+  Scenario('AC2: The Grown-ups home draws How is it going', ({ Given, And, When, Then }) => {
+    Given('a phone that holds the profile {string}', holdProfile);
+    And('the grown-up has chosen the PIN {string}', choosePin);
+    And('the learner is solid on {number} spelling skills', async (_ctx, skills: number) => {
+      const [profile] = await profileRepo.getActive();
+      const store = storageGraphStore(profile.id);
+      for (const id of order(spellingGraph).slice(0, Number(skills))) await store.put(id, { level: 'solid', since: Date.now(), how: 'drill' });
+    });
+    When('the grown-up opens Grown-ups', opensGrownUps);
+    And('the grown-up types the PIN {string}', typesPin);
+    Then('the Grown-ups home shows How is it going', async () => {
+      await grownUpsOpen();
+      expect(await screen.findByRole('heading', { name: 'How is it going?' })).toBeInTheDocument();
+    });
+    And('its Spelling section shows {number} skills solid', async (_ctx, skills: number) => {
+      const section = within(await screen.findByRole('region', { name: 'Spelling' }));
+      expect((await section.findByTestId('solid-count')).textContent).toContain(`${Number(skills)} skills`);
+      expect(section.queryByTestId('last-week')).toBeNull();
+    });
+    And('its Maths section says there is nothing to show yet', () => {
       const section = within(screen.getByRole('region', { name: 'Maths' }));
       expect(section.getByTestId('no-data').textContent).toMatch(/nothing to show for maths yet/i);
     });

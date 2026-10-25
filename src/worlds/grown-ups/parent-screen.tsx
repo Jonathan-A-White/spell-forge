@@ -10,8 +10,10 @@ import { TutorNotes } from '../../features/tutor/tutor-notes';
 import { TutorSettings } from '../../features/tutor/tutor-settings';
 import type { Profile } from '../../contracts';
 import { FirstLine } from './first-line';
+import { HowIsItGoing } from './HowIsItGoing';
 import { Licence } from './Licence';
 import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
+import { useWorldProgress } from './world-progress';
 
 export interface ParentScreenProps {
   profileId: string;
@@ -24,6 +26,7 @@ export interface ParentScreenProps {
 
 export function ParentScreen({ profileId, onBack, onProfileChange, deps }: ParentScreenProps) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const progress = useWorldProgress(profileId);
   return (
     <div className="min-h-screen bg-sf-bg">
       <div className="bg-sf-surface border-b border-sf-border px-4 py-3">
@@ -44,6 +47,7 @@ export function ParentScreen({ profileId, onBack, onProfileChange, deps }: Paren
         ) : (
           <>
             <FirstLine>How your child is getting on, and how to help the tutor help them.</FirstLine>
+            {progress && <HowIsItGoing {...progress} inside />}
             <ParentThisWeek profileId={profileId} />
             <ParentSessions profileId={profileId} onOpen={setOpenId} />
             <AskTheTutor profileId={profileId} deps={deps} />

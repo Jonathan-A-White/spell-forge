@@ -50,4 +50,17 @@ describe('How is it going', () => {
     render(<HowIsItGoing spelling={{ solid: new Set(['no-such-node']), drillsLastWeek: 0 }} />);
     expect(within(screen.getByRole('region', { name: 'Spelling' })).getByTestId('no-data')).toBeTruthy();
   });
+
+  it('leaves out the last week when the caller does not know the drills', () => {
+    render(<HowIsItGoing spelling={{ solid: solidPrefix(spellingGraph, 3) }} />);
+    const section = within(screen.getByRole('region', { name: 'Spelling' }));
+    expect(section.getByTestId('solid-count')).toBeTruthy();
+    expect(section.queryByTestId('last-week')).toBeNull();
+  });
+
+  it('inside another screen has a section heading and no first line of its own', () => {
+    render(<HowIsItGoing inside />);
+    expect(screen.getByRole('heading', { level: 2, name: 'How is it going?' })).toBeTruthy();
+    expect(screen.queryByTestId('first-line')).toBeNull();
+  });
 });
