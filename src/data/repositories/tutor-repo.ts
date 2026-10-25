@@ -155,6 +155,17 @@ export const tutorRepo = {
     return turns.sort((a, b) => a.index - b.index);
   },
 
+  /**
+   * How long the newest answer from the factory took, in ms (sent to answered), across every session; undefined when
+   * there is none. The child's own corrections never went to the factory (no txid), a failed turn has no answer.
+   */
+  async lastAnswerMs(): Promise<number | undefined> {
+    const turns = await db.tutorTurns.where('status').anyOf('answered', 'stale').toArray();
+    const answered = turns.filter((t): t is TutorTurn & { answeredAt: Date } => Boolean(t.txid) && t.answeredAt instanceof Date);
+    const last = answered.sort((a, b) => b.answeredAt.getTime() - a.answeredAt.getTime())[0];
+    return last ? Math.max(0, last.answeredAt.getTime() - last.sentAt.getTime()) : undefined;
+  },
+
   /** Every turn, in any session, that the factory has and has not yet answered. */
   async listWaiting(): Promise<TutorTurn[]> {
     return db.tutorTurns.where('status').equals('waiting').toArray();

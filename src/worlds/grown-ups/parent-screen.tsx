@@ -10,6 +10,7 @@ import { TutorNotes } from '../../features/tutor/tutor-notes';
 import { TutorSettings } from '../../features/tutor/tutor-settings';
 import type { Profile } from '../../contracts';
 import { FirstLine } from './first-line';
+import { Licence } from './Licence';
 import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
 
 export interface ParentScreenProps {
@@ -46,6 +47,7 @@ export function ParentScreen({ profileId, onBack, onProfileChange, deps }: Paren
             <ParentThisWeek profileId={profileId} />
             <ParentSessions profileId={profileId} onOpen={setOpenId} />
             <AskTheTutor profileId={profileId} deps={deps} />
+            <Licence />
             <TutorSettings profileId={profileId} onProfileChange={onProfileChange} />
             <TutorNotes profileId={profileId} onProfileChange={onProfileChange} />
           </>

@@ -1,9 +1,12 @@
 // src/features/about/about-screen.tsx — About: why we credit, then everything SpellForge builds on (mw-vtjxh4.4).
 
+import { useEffect, useState } from 'react';
+import { tutorRepo } from '../../data/repositories';
+import { FirstLine } from '../../worlds/grown-ups/first-line';
 import { CREDITS, NEWTON_ATTRIBUTION, NEWTON_QUOTE, WHY_WE_CREDIT } from './credits';
 import { WhatsNewSection, type WhatsNewSectionProps } from './WhatsNewSection';
 
-interface AboutScreenProps extends WhatsNewSectionProps {
+interface AboutScreenProps extends Omit<WhatsNewSectionProps, 'versionNote'> {
   onBack: () => void;
 }
 
@@ -15,6 +18,27 @@ function ExternalLink({ href, children }: { href: string; children: string }) {
       {children}
     </a>
   );
+}
+
+/** How long the tutor's last answer took (M28): a grown-up asking "is it slow?" reads it here, beside the version. */
+function LastAnswerTime() {
+  const [ms, setMs] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    void tutorRepo
+      .lastAnswerMs()
+      .then((value) => {
+        if (!cancelled) setMs(value ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setMs(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (ms === undefined) return null;
+  return <p className="text-sm text-sf-text">{ms === null ? 'No tutor answer yet.' : `Last tutor answer: ${ms} ms`}</p>;
 }
 
 export function AboutScreen({ onBack, fetchFn, registration }: AboutScreenProps) {
@@ -36,6 +60,7 @@ export function AboutScreen({ onBack, fetchFn, registration }: AboutScreenProps)
       </div>
 
       <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <FirstLine>The version, how fast the tutor last answered, and what SpellForge is built on.</FirstLine>
         <section>
           <figure>
             <blockquote className="text-xl font-bold text-sf-heading">&ldquo;{NEWTON_QUOTE}&rdquo;</blockquote>
@@ -44,7 +69,7 @@ export function AboutScreen({ onBack, fetchFn, registration }: AboutScreenProps)
           <p className="text-sm text-sf-text mt-4">{WHY_WE_CREDIT}</p>
         </section>
 
-        <WhatsNewSection fetchFn={fetchFn} registration={registration} />
+        <WhatsNewSection fetchFn={fetchFn} registration={registration} versionNote={<LastAnswerTime />} />
 
         <section>
           <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">Credits</h2>

@@ -5,7 +5,7 @@ import { db } from '../../src/data/db';
 import { bsvWalletRepo } from '../../src/data/repositories';
 import { chainConfig, generateTestnetKey } from '../../src/bsv';
 import { SettingsPanel } from '../../src/features/settings/settings-panel';
-import { createDeviceKey } from '../../src/features/device-key';
+import { createDeviceKey, DevicePublicKey } from '../../src/features/device-key';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
 import type { BsvWalletKey } from '../../src/contracts/types';
 
@@ -120,5 +120,33 @@ describe("Settings: This device's key (debug mode off)", () => {
     await screen.findByTestId('bsv-device-public-key');
     const [row] = await db.bsvWallet.toArray();
     expect(second.container.innerHTML).not.toContain(row.material);
+  });
+});
+
+// mw-79en7t.51 (Kestrel 17c, M32): the key is drawn with a slashed zero, so a 0 is never taken for an O.
+describe('the key is drawn with a slashed zero', () => {
+  /** A WIF whose public key hex holds at least `min` zeros (nearly every key does; a few tries are enough). */
+  function wifWithZeros(min: number): string {
+    for (let i = 0; i < 200; i++) {
+      const { material } = generateTestnetKey();
+      if ([...PrivateKey.fromWif(material).toPublicKey().toString()].filter((c) => c === '0').length >= min) return material;
+    }
+    throw new Error('no key with zeros');
+  }
+
+  it('wraps every zero in a slashed-zero glyph and leaves the text the key (select and copy give the hex)', () => {
+    const wif = wifWithZeros(1);
+    const hex = PrivateKey.fromWif(wif).toPublicKey().toString();
+    render(<DevicePublicKey wif={wif} />);
+    const shown = screen.getByTestId('bsv-device-public-key');
+    expect(shown.textContent).toBe(hex);
+    const zeros = [...hex].filter((c) => c === '0').length;
+    const slashed = shown.querySelectorAll('.sf-zero');
+    expect(slashed).toHaveLength(zeros);
+    for (const zero of slashed) {
+      expect(zero.firstChild?.textContent).toBe('0');
+      expect(zero.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    }
+    expect(shown.querySelectorAll('[aria-hidden="true"]')).toHaveLength(zeros);
   });
 });

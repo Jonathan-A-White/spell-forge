@@ -25,6 +25,7 @@ const TRY = 'px-4 rounded-xl font-bold bg-sf-surface border border-sf-border tex
 export function TutorSettings({ profileId, onProfileChange }: TutorSettingsProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [voices, setVoices] = useState(() => listTutorVoices());
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +56,10 @@ export function TutorSettings({ profileId, onProfileChange }: TutorSettingsProps
   const strictness = profile?.settings.tutorStrictness ?? 'meaning-gated';
   const picked = profile?.settings.tutorVoice ?? '';
   const options = [{ voiceURI: '', name: DEFAULT_VOICE, lang: '' }, ...voices.map((v) => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang }))];
+  // one searchable list: the phone's default is always on it, the rest are the voices whose name or language has the words typed
+  const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = options.filter((o) => !o.voiceURI || words.every((w) => `${o.name} ${o.lang}`.toLowerCase().includes(w)));
+  const chosen = options.find((o) => o.voiceURI === picked);
 
   return (
     <section aria-labelledby="tutor-settings-title" className="rounded-xl bg-sf-surface border border-sf-border p-4 space-y-5">
@@ -84,31 +89,47 @@ export function TutorSettings({ profileId, onProfileChange }: TutorSettingsProps
 
           <fieldset className="space-y-2">
             <legend className="text-sf-heading font-bold mb-1">Voice</legend>
-            {options.map((option, i) => (
-              <div key={option.voiceURI || 'default'} className="flex items-center gap-3">
-                <input
-                  id={`settings-voice-${i}`}
-                  type="radio"
-                  name="settings-voice"
-                  checked={picked === option.voiceURI}
-                  onChange={() => void change({ tutorVoice: option.voiceURI })}
-                  className="w-5 h-5"
-                />
-                <label htmlFor={`settings-voice-${i}`} className="flex-1 text-sf-heading font-medium">
-                  {option.name}
-                  {option.lang && <span className="text-sf-muted text-sm font-normal"> ({option.lang})</span>}
-                </label>
-                <button
-                  type="button"
-                  className={TRY}
-                  style={TAP}
-                  aria-label={`Try it: ${option.name}`}
-                  onClick={() => void sayAsTutor(TRY_SENTENCE, option.voiceURI || null)}
-                >
-                  Try it
-                </button>
-              </div>
-            ))}
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search voices"
+              placeholder="Search voices"
+              autoComplete="off"
+              className="w-full rounded-xl border border-sf-border bg-sf-surface p-3 text-sf-text"
+            />
+            {chosen && chosen.voiceURI && <p className="text-sf-muted text-sm">Chosen: {chosen.name}</p>}
+            <div role="radiogroup" aria-label="Voices" className="space-y-2 max-h-80 overflow-y-auto">
+              {shown.map((option) => {
+                const i = options.indexOf(option);
+                return (
+                  <div key={option.voiceURI || 'default'} className="flex items-center gap-3">
+                    <input
+                      id={`settings-voice-${i}`}
+                      type="radio"
+                      name="settings-voice"
+                      checked={picked === option.voiceURI}
+                      onChange={() => void change({ tutorVoice: option.voiceURI })}
+                      className="w-5 h-5"
+                    />
+                    <label htmlFor={`settings-voice-${i}`} className="flex-1 text-sf-heading font-medium">
+                      {option.name}
+                      {option.lang && <span className="text-sf-muted text-sm font-normal"> ({option.lang})</span>}
+                    </label>
+                    <button
+                      type="button"
+                      className={TRY}
+                      style={TAP}
+                      aria-label={`Try it: ${option.name}`}
+                      onClick={() => void sayAsTutor(TRY_SENTENCE, option.voiceURI || null)}
+                    >
+                      Try it
+                    </button>
+                  </div>
+                );
+              })}
+              {shown.length === 1 && words.length > 0 && <p className="text-sf-muted">No voice matches that.</p>}
+            </div>
           </fieldset>
         </>
       )}
