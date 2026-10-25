@@ -8,6 +8,7 @@ import { grist } from 'bsv-kit/grist';
 import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { bsvWalletRepo, profileRepo, tutorRepo } from '../../data/repositories';
+import { MATHS_NODES, PROBLEM_KIND_NODES } from '../../learn/maths';
 import { READING_AUDIO_BYTES_PER_SECOND, TUTOR_TURN_GRIND, UploadTimeoutError, gristFileFromBlob, sendGrist, shrinkPhoto, uploadTimeoutMs } from '../../grist';
 import type { GristInFlightDeps, GristPhoto } from '../../grist';
 
@@ -38,6 +39,20 @@ export const HALF_SENT_MS = 30_000;
 export function halfSentMs(turn: TutorTurn): number {
   if (turn.mode !== 'reading' || !turn.clipSeconds) return HALF_SENT_MS;
   return HALF_SENT_MS + uploadTimeoutMs(turn.clipSeconds * READING_AUDIO_BYTES_PER_SECOND) - uploadTimeoutMs(0);
+}
+
+/** The id of a node of the maths graph, or undefined when `id` is not one. */
+const graphNode = (id: string | undefined): string | undefined => (id && MATHS_NODES.some((node) => node.id === id) ? id : undefined);
+
+/** The node of the maths graph a problem is about, from the problems the graph's sweep holds; undefined for a problem it has not seen. */
+export function nodeForProblem(targetText: string): string | undefined {
+  const text = targetText.trim();
+  return PROBLEM_KIND_NODES.find((row) => row.problems.includes(text))?.node;
+}
+
+/** The node of the graph a maths turn names, checked against the graph: undefined when it names none, or one the graph does not hold. */
+export function homeworkNode(turn: TutorTurn): string | undefined {
+  return graphNode(turn.request.node);
 }
 
 /** Something the child (or his parent) can act on, worded for them. */
@@ -219,10 +234,11 @@ export async function sendReading(
  * Any turn still out is moved past first (its answer, when it comes, is kept and marked stale). The photo is
  * shrunk and named work-<n>.jpg, n counting this session's maths turns from 1. With neither an answer nor a
  * photo, or with no key, a TutorUserError is thrown before anything is stored; a send that fails leaves the turn
- * 'failed' with the reason. Returns the turn as it stands once sent or failed.
+ * 'failed' with the reason. The request names `node`, the node of the maths graph the problem is about, when the graph holds it.
+ * Returns the turn as it stands once sent or failed.
  */
 export async function sendMath(
-  params: { session: TutorSession; targetText: string; answer?: string; photo?: Blob },
+  params: { session: TutorSession; targetText: string; answer?: string; photo?: Blob; node?: string },
   deps: TutorDeps = {},
 ): Promise<TutorTurn> {
   const answer = params.answer?.trim() ?? '';
@@ -248,6 +264,8 @@ export async function sendMath(
     target_text: params.targetText,
     ...(answer ? { child_answer: answer } : {}),
     ...(photo ? { work_photo: true } : {}),
+    // the node the problem is about: only one the graph holds is named
+    ...(graphNode(params.node) ? { node: graphNode(params.node) } : {}),
     ...(await parentNotesFor(session.profileId)),
     session_history: sessionHistory(turns),
   };

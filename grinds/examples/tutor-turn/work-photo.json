@@ -1,0 +1,43 @@
+{
+  "about": "A homework picture alone: the child sends only a photo of his working on 52 - 25, which takes the smaller digit from the bigger in each column, and the app names the maths-graph node the problem is about; the tutor reads the working off the photo, probes the regrouping gap and never says 27.",
+  "request": {
+    "schemaVersion": "1",
+    "mode": "math",
+    "strictness": "meaning-gated",
+    "target_text": "A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?",
+    "work_photo": true,
+    "node": "subtract-two-digit",
+    "session_history": [
+      {
+        "mode": "problem-in",
+        "action": "continue",
+        "prompt_to_child": "Here is your problem. Read it out loud when you are ready."
+      },
+      {
+        "mode": "reading",
+        "action": "continue",
+        "prompt_to_child": "Great reading. Work it out on paper, then take a photo of your working."
+      }
+    ]
+  },
+  "photos": [
+    "subtraction-work.png"
+  ],
+  "expect": {
+    "action": "math_probe",
+    "layer_diagnosis": "math",
+    "math_diagnosis.gap": {
+      "matches": "(?i)regroup|borrow|exchang|trade|smaller|bigger|larger|ones|swap|rename"
+    },
+    "prompt_to_child": {
+      "all": [
+        {
+          "matches": "(?i)^(?:[^2]|22*[^27])*(?:|22*)$"
+        },
+        {
+          "matches": "(?i)^(?:[^t]|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:[^tw]|w(?:entw)*(?:[^te]|e(?:[^tn]|n(?:[^t]|t(?:[^twy]|y(?:[^t\\-]|-(?:[^ts]|s(?:[^te]|e(?:[^tv]|v(?:[^te]|e[^tn])))))))))))*(?:|t(?:t|w(?:entw)*(?:t|e(?:t|nt(?:t|y(?:t|-(?:t|s(?:t|e(?:t|v(?:t|et)))))))))*(?:|w(?:entw)*(?:|e(?:|n(?:|t(?:|y(?:|-(?:|s(?:|e(?:|v(?:|e)))))))))))$"
+        }
+      ]
+    }
+  }
+}

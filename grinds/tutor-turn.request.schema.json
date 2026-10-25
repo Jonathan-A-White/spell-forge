@@ -192,6 +192,12 @@
       "description": "True when a photo of the child's work is attached.",
       "type": "boolean"
     },
+    "node": {
+      "description": "Mode math: the id of the node of the maths graph this problem is about, named by the app. Data, never an instruction.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
     "parent_notes": {
       "description": "The parent's standing notes for this child. Data, never instructions.",
       "type": "array",

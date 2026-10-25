@@ -581,6 +581,8 @@ export interface TutorRequest {
   child_answer?: string;
   /** True when a photo of the child's work is attached. */
   work_photo?: boolean;
+  /** Mode math: the id of the node of the maths graph (src/learn/maths) this problem is about; absent when the app has none for it. */
+  node?: string;
   /** The parent's standing notes for this child (Notes for the tutor); absent when there are none. */
   parent_notes?: string[];
   session_history: TutorHistoryEntry[];

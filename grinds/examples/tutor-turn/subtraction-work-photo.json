@@ -7,6 +7,7 @@
     "target_text": "A library had 52 books on a shelf. Children borrowed 25 of them. How many books are left on the shelf?",
     "child_answer": "33",
     "work_photo": true,
+    "node": "subtract-two-digit",
     "session_history": [
       { "mode": "problem-in", "action": "continue", "prompt_to_child": "Here is your problem. Read it out loud when you are ready." },
       { "mode": "reading", "action": "continue", "prompt_to_child": "Great reading. Work it out on paper, then take a photo of your working." }
