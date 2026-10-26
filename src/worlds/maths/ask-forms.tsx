@@ -28,7 +28,7 @@ const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 const BUTTON = 'px-5 sf-control font-bold active:scale-[0.97] transition-transform bg-sf-surface border border-sf-border text-sf-text disabled:opacity-50';
 
 function Problem({ item }: { item: MathsItem }) {
-  return <p className="text-sf-heading sf-heading text-3xl">{item.problem}</p>;
+  return <p className="text-sf-heading text-2xl font-bold">{item.problem}</p>;
 }
 
 function AnswerBox({ value, onChange, disabled }: Pick<AskProps, 'value' | 'onChange' | 'disabled'>) {
