@@ -1,7 +1,9 @@
-// src/themes/theme-effects.tsx — Ambient animated visual effects per theme
+// src/themes/theme-effects.tsx — Ambient animated visual effects per theme. The loop runs on the scene clock (src/look/scene/clock.ts),
+// so it asks for no frame while the page is hidden.
 
 import { useEffect, useRef } from 'react';
 import { themeEngine } from './engine.ts';
+import { animate } from '../look/scene/clock';
 
 interface ThemeEffectsProps {
   themeId: string;
@@ -53,7 +55,6 @@ function createParticles(colors: string[], themeId: string): Particle[] {
 export function ThemeEffects({ themeId, enabled = true }: ThemeEffectsProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
-  const animFrameRef = useRef<number>(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -77,7 +78,7 @@ export function ThemeEffects({ themeId, enabled = true }: ThemeEffectsProps) {
     resize();
     window.addEventListener('resize', resize);
 
-    function animate() {
+    function draw() {
       if (!canvas || !ctx) return;
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
@@ -148,14 +149,12 @@ export function ThemeEffects({ themeId, enabled = true }: ThemeEffectsProps) {
 
         ctx.globalAlpha = 1;
       }
-
-      animFrameRef.current = requestAnimationFrame(animate);
     }
 
-    animFrameRef.current = requestAnimationFrame(animate);
+    const stop = animate(draw);
 
     return () => {
-      cancelAnimationFrame(animFrameRef.current);
+      stop();
       window.removeEventListener('resize', resize);
     };
   }, [themeId, enabled]);
