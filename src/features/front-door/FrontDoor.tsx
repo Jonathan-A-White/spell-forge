@@ -58,47 +58,54 @@ interface Line {
 
 const refuseFile = (file: { type: string }) => (file.type.startsWith('image/') ? undefined : 'Only a photo can be sent.');
 
-/** The picture drawn on a world's button. */
+/** The picture drawn on a world's card: big, in the theme's colours (the card's colour, and the accent for the spark). */
 function WorldArt({ world }: { world: TalkWorld }) {
   return (
-    <svg viewBox="0 0 96 96" width="96" height="96" aria-hidden="true" focusable="false" className="mx-auto">
+    <svg viewBox="0 0 144 112" width="144" height="112" aria-hidden="true" focusable="false" className="mx-auto">
+      <ellipse cx="72" cy="100" rx="52" ry="7" fill="currentColor" opacity="0.15" />
       {world === 'spelling' ? (
         <>
-          <rect x="8" y="22" width="36" height="52" rx="8" fill="currentColor" opacity="0.25" />
-          <rect x="52" y="22" width="36" height="52" rx="8" fill="currentColor" opacity="0.25" />
-          <text x="26" y="58" textAnchor="middle" fontSize="30" fontWeight="700" fill="currentColor">A</text>
-          <text x="70" y="58" textAnchor="middle" fontSize="30" fontWeight="700" fill="currentColor">b</text>
+          <g transform="rotate(-8 42 60)">
+            <rect x="14" y="22" width="56" height="70" rx="12" fill="currentColor" opacity="0.28" />
+            <text x="42" y="73" textAnchor="middle" fontSize="48" fontWeight="800" fill="currentColor">A</text>
+          </g>
+          <g transform="rotate(7 102 60)">
+            <rect x="74" y="18" width="56" height="70" rx="12" fill="currentColor" opacity="0.28" />
+            <text x="102" y="69" textAnchor="middle" fontSize="48" fontWeight="800" fill="currentColor">b</text>
+          </g>
+          <path d="M72 6l3.5 8 8.5 1-6.5 5.5 2 8.5-7.5-4.5-7.5 4.5 2-8.5-6.5-5.5 8.5-1z" fill="var(--sf-color-accent)" />
         </>
       ) : (
         <>
-          <rect x="10" y="10" width="76" height="76" rx="14" fill="currentColor" opacity="0.25" />
-          <path d="M48 24v48M24 48h48" stroke="currentColor" strokeWidth="9" strokeLinecap="round" />
+          <g transform="rotate(-6 48 58)">
+            <rect x="12" y="20" width="72" height="72" rx="16" fill="currentColor" opacity="0.28" />
+            <path d="M48 36v40M28 56h40" stroke="currentColor" strokeWidth="9" strokeLinecap="round" />
+          </g>
+          <g transform="rotate(8 104 52)">
+            <rect x="84" y="12" width="48" height="48" rx="12" fill="currentColor" opacity="0.28" />
+            <path d="M96 30h24M96 42h24" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />
+          </g>
+          <circle cx="116" cy="84" r="9" fill="var(--sf-color-accent)" />
         </>
       )}
     </svg>
   );
 }
 
-/** Without a licence: the worlds, big, to tap. A world with no screen yet is shown and cannot be opened. */
+/** Without a licence: the worlds, big, to tap, over the door's scene. A world with no screen yet is shown and cannot be opened. */
 function Worlds({ open }: { open: (view: ViewId) => void }) {
   return (
     <section aria-label="Worlds" className="space-y-4">
       <LicenceLine />
-      <ul className="grid grid-cols-2 gap-4">
+      <ul className="grid grid-cols-1 gap-4">
         {TALK_WORLDS.map((id) => {
           const title = WORLDS.find((w) => w.id === id)?.title ?? id;
           const ready = WORLD_ENTRY[id] !== undefined;
           return (
             <li key={id}>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => openWorld(id, open)}
-                className="w-full rounded-2xl border border-sf-border bg-sf-surface text-sf-primary p-4 text-center active:scale-[0.97] disabled:opacity-60"
-                style={{ minHeight: '10rem' }}
-              >
+              <button type="button" disabled={!ready} onClick={() => openWorld(id, open)} className="sf-world-card disabled:opacity-60">
                 <WorldArt world={id} />
-                <span className="block mt-2 text-sf-heading text-xl font-bold">{title}</span>
+                <span className="block text-sf-heading sf-heading text-2xl">{title}</span>
                 {!ready && <span className="block text-sf-muted text-sm">Coming soon</span>}
               </button>
             </li>
@@ -157,7 +164,7 @@ function SharedCard({ item, sending, onSend, onDrop }: { item: SharedItem; sendi
 function Bubble({ who, children }: { who: Line['who']; children: ReactNode }) {
   return (
     <div className={who === 'child' ? 'flex justify-end' : 'flex justify-start'}>
-      <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sf-text border border-sf-border ${who === 'child' ? 'bg-sf-input-bg' : 'bg-sf-surface'}`}>{children}</div>
+      <div data-who={who} className={`sf-bubble max-w-[85%] text-sf-text border border-sf-border ${who === 'child' ? 'bg-sf-input-bg' : 'bg-sf-surface'}`}>{children}</div>
     </div>
   );
 }
@@ -233,6 +240,7 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
   return (
     <div className="p-4 space-y-4 max-w-xl mx-auto">
       <SceneOrFallback />
+      <h1 className="sr-only">SpellForge</h1>
       {asleep || offered ? (
         <Worlds open={open} />
       ) : (

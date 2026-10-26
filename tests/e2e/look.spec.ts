@@ -12,7 +12,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { emptyProfile, learn } from 'learn-kit/learner';
-import { DURATION } from '../../src/look';
+import { DURATION, EASING } from '../../src/look';
 import { shot } from './shot';
 import { noTapGuard } from './tap-guard';
 
@@ -25,6 +25,8 @@ const pin = async (page: Page, digits: string): Promise<void> => {
 
 /** The screen fits the window, has no axe violation, and is kept as a shot. */
 async function looksRight(page: Page, name: string): Promise<void> {
+  // what is arriving has arrived (a card half faded in has half its contrast); a loop that never ends is left to run
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'));
   const widths = await page.evaluate(() => ({ window: window.innerWidth, page: document.documentElement.scrollWidth, body: document.body.scrollWidth }));
   expect(widths.window).toBe(390);
   expect(widths.page).toBeLessThanOrEqual(widths.window);
@@ -212,7 +214,8 @@ for (const [age, look] of [[7, 'young'], [13, 'teen']] as const) {
       return { name: style.animationName, duration: style.animationDuration, timing: style.animationTimingFunction };
     });
     expect(entering.name).not.toBe('none');
-    expect(px(entering.duration) * 1000).toBe(DURATION.base);
+    expect(px(entering.duration) * 1000).toBeCloseTo(DURATION.base, 3);
+    expect(entering.timing).toBe(EASING.out);
     await looksRight(page, `look-spelling-age${age}`);
     await everyRectInside(page, `Spelling at ${age}`);
 

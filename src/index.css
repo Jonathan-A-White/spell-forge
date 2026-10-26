@@ -172,6 +172,69 @@ html, body, #root {
 .sf-heading { font-weight: var(--sf-heading-weight, 700); }
 .sf-stack > * + * { margin-top: var(--sf-space-section, 1.25rem); }
 
+/* ─── The children's worlds (Kestrel look D): the door's cards and bubbles, the hold bar and the drill cards. They move only with the
+   motion tokens below (docs/motion.md); reduced motion shrinks every one of them. ──────────────────────────────────────────────── */
+
+@keyframes sf-rise {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to { opacity: 1; transform: none; }
+}
+
+/* A card the scene shows through: the door's worlds. */
+.sf-world-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 12rem;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  color: var(--sf-color-primary);
+  background: color-mix(in srgb, var(--sf-color-surface) 72%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, var(--sf-color-border) 80%, transparent);
+  border-radius: calc(var(--sf-radius-card, 1rem) * 1.5);
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--sf-color-primary) 18%, transparent);
+  animation: sf-rise var(--sf-duration-slow) var(--ease-sf-out);
+  transition-property: transform, box-shadow;
+  transition-duration: var(--sf-duration-instant);
+}
+.sf-world-card:active:not(:disabled) { transform: scale(0.97); }
+
+/* A line of the talk. The corner that points at who speaks is the tail. */
+.sf-bubble {
+  border-radius: var(--sf-radius-card, 1rem);
+  padding: 0.5rem 1rem;
+  animation: sf-rise var(--sf-duration-base) var(--ease-sf-out);
+}
+.sf-bubble[data-who='tutor'] { border-bottom-left-radius: 0.25rem; }
+.sf-bubble[data-who='child'] { border-bottom-right-radius: 0.25rem; }
+[data-sf-age='young'] .sf-bubble { border-radius: 1.75rem; padding: 0.75rem 1.25rem; font-size: 1.125rem; }
+[data-sf-age='young'] .sf-bubble[data-who='tutor'] { border-bottom-left-radius: 0.375rem; }
+[data-sf-age='young'] .sf-bubble[data-who='child'] { border-bottom-right-radius: 0.375rem; }
+[data-sf-age='teen'] .sf-bubble { border-radius: 0.75rem; padding: 0.5rem 0.875rem; font-size: 0.9375rem; }
+[data-sf-age='teen'] .sf-bubble[data-who='tutor'] { border-bottom-left-radius: 0.125rem; }
+[data-sf-age='teen'] .sf-bubble[data-who='child'] { border-bottom-right-radius: 0.125rem; }
+
+/* The hold bar (voice-kit's Composer): big and round for a young child, slim and square-shouldered for a teen. */
+[data-sf-age='young'] .bk-composer.sf-composer { --bk-composer-bar-height: 7rem; --bk-composer-bar-radius: 2.5rem; --bk-composer-font-size: 1.25rem; }
+[data-sf-age='teen'] .bk-composer.sf-composer { --bk-composer-bar-height: 5rem; --bk-composer-bar-radius: 1rem; }
+
+/* A turn of a drill (Spelling, Maths): a card that arrives for each new turn. */
+.sf-turn {
+  padding: 1rem;
+  background: var(--sf-color-surface);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-card, 1rem);
+  box-shadow: 0 0.25rem 1rem color-mix(in srgb, var(--sf-color-primary) 12%, transparent);
+  animation: sf-rise var(--sf-duration-base) var(--ease-sf-out);
+}
+[data-sf-age='young'] .sf-turn { padding: 1.25rem; }
+[data-sf-age='teen'] .sf-turn { padding: 0.875rem; box-shadow: none; }
+
 /* A word held to be heard (src/shell/HearAnyWord.tsx). */
 ::highlight(hear-word) {
   background-color: var(--sf-color-surface-active);

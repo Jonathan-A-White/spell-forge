@@ -28,7 +28,7 @@ export interface MathsWorldProps {
 
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 
-const BUTTON = 'px-5 rounded-xl font-bold active:scale-[0.97] transition-transform';
+const BUTTON = 'px-5 sf-control font-bold active:scale-[0.97] transition-transform';
 
 export function MathsWorld({ flow: given, profileId, report, language = 'en', picture, forms = MATHS_FORM_IDS, onBack }: MathsWorldProps) {
   const flow = useMemo(
@@ -105,7 +105,7 @@ export function MathsWorld({ flow: given, profileId, report, language = 'en', pi
         )}
 
         {question && (
-          <form onSubmit={submit} className="flex flex-col gap-4">
+          <form key={question.key} onSubmit={submit} className="sf-turn flex flex-col gap-4">
             {question.stage === 'placement' && (
               <p className="text-sf-muted text-sm">Let&apos;s see what you know. Tap &ldquo;Not sure&rdquo; if you want to skip one.</p>
             )}

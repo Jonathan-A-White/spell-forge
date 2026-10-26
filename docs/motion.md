@@ -64,6 +64,15 @@ over the still one (`slow`, `ease-sf-out`), and stops when the page hides. It si
 is isolated, the scene fixed at `z-index: -1`), so it never takes a tap. The first paint of either sets the performance mark
 `sf-scene-painted`; `tests/e2e/front-door-scene.spec.ts` holds it under 1500 ms at 390x844 (a PROVISIONAL budget).
 
+## The children's worlds (story D, mw-79en7t.79)
+
+The door's Worlds are big cards (`.sf-world-card`: a translucent surface with a blur, so the scene shows through) that rise in over
+`slow`; each line of the talk (`.sf-bubble`) and each turn of Spelling or Maths (`.sf-turn`, a card made again by its `key` for each
+turn) rises over `base`, `ease-sf-out`: a short rise and a fade, the one motion allowed on entry. The age sets the rest in `index.css`
+(`[data-sf-age='young'|'teen']`): the bubbles' corners and size, and voice-kit's hold bar (`--bk-composer-bar-height`, `-radius`).
+`tests/e2e/look.spec.ts` part 2 takes the eight shots (the four worlds at 7 and 13), reads these computed styles, checks every element's
+rect against the 390 px window, and runs once with reduced motion to find no transition or animation longer than `reduced` (1 ms).
+
 ## Native feel (topic 08)
 
 `index.css` gives every control `touch-action: manipulation` (no 300 ms tap delay, no double-tap zoom), a transparent

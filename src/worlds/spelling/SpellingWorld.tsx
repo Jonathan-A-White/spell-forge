@@ -32,7 +32,7 @@ export interface SpellingWorldProps {
 
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 
-const BUTTON = 'px-5 rounded-xl font-bold active:scale-[0.97] transition-transform';
+const BUTTON = 'px-5 sf-control font-bold active:scale-[0.97] transition-transform';
 const SECONDARY = `${BUTTON} bg-sf-surface border border-sf-border text-sf-text`;
 
 const DEFAULT_TAP_TARGET = 48;
@@ -149,7 +149,8 @@ export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBus
         )}
 
         {turn && (
-          <div className="flex flex-col gap-4">
+          // a card made again for each turn, so that each turn enters (index.css .sf-turn)
+          <div key={turn.key} className="sf-turn flex flex-col gap-4">
             {turn.stage === 'placement' && (
               <p className="text-sf-muted text-sm">Let&apos;s see what you know. Listen, then tap the way the word is spelt.</p>
             )}
@@ -160,7 +161,7 @@ export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBus
                   alt=""
                   aria-hidden="true"
                   src={`data:image/svg+xml;utf8,${encodeURIComponent(showing)}`}
-                  className="w-24 h-24 shrink-0 rounded-xl bg-sf-surface"
+                  className="w-24 h-24 shrink-0 sf-control bg-sf-surface"
                 />
               )}
               <p className="text-sf-muted text-sm">{turn.nodeName}</p>
@@ -169,7 +170,7 @@ export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBus
             {turn.stage === 'placement' ? (
               <Pick turn={turn} result={result} onHear={() => onSpeak?.(turn.items[0].word)} onPick={(spelling) => void finish({ correct: spelling === turn.items[0].word ? 1 : 0, total: 1 }, spelling)} />
             ) : (
-              !result && <div key={turn.key}>{openGame(turn.form, turn.items, gameContext)}</div>
+              !result && <div>{openGame(turn.form, turn.items, gameContext)}</div>
             )}
 
             {result && (

@@ -60,7 +60,7 @@ describe('the door: Worlds as big illustrated cards over the scene (AC1)', () =>
 
 describe('bubbles and the hold bar by age (AC1)', () => {
   it('marks the door\'s bubbles', async () => {
-    render(<FrontDoor flow={{ start: vi.fn(async () => 'talk-1'), ask: vi.fn() }} open={() => undefined} greeting="Hello there." />);
+    await act(async () => void render(<FrontDoor flow={{ start: vi.fn(async () => 'talk-1'), ask: vi.fn() }} open={() => undefined} greeting="Hello there." />));
     expect((await screen.findByText('Hello there.')).closest('.sf-bubble')).not.toBeNull();
   });
 

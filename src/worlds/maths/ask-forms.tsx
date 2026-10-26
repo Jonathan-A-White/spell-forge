@@ -25,10 +25,10 @@ export interface AskProps {
 }
 
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
-const BUTTON = 'px-5 rounded-xl font-bold active:scale-[0.97] transition-transform bg-sf-surface border border-sf-border text-sf-text disabled:opacity-50';
+const BUTTON = 'px-5 sf-control font-bold active:scale-[0.97] transition-transform bg-sf-surface border border-sf-border text-sf-text disabled:opacity-50';
 
 function Problem({ item }: { item: MathsItem }) {
-  return <p className="text-sf-heading text-2xl font-bold">{item.problem}</p>;
+  return <p className="text-sf-heading sf-heading text-3xl">{item.problem}</p>;
 }
 
 function AnswerBox({ value, onChange, disabled }: Pick<AskProps, 'value' | 'onChange' | 'disabled'>) {
@@ -44,7 +44,7 @@ function AnswerBox({ value, onChange, disabled }: Pick<AskProps, 'value' | 'onCh
         autoCapitalize="off"
         enterKeyHint="done"
         style={TAP}
-        className="px-3 rounded-xl border border-sf-border bg-sf-surface text-sf-heading text-xl"
+        className="px-3 sf-control border border-sf-border bg-sf-input-bg text-sf-heading text-xl"
       />
     </label>
   );
@@ -84,7 +84,7 @@ export function HearForm(props: AskProps): ReactElement {
 // ─── see ─────────────────────────────────────────────────
 
 const PICTURE_WIDTH = 320;
-const PICTURE_LINE_CHARS = 22;
+const PICTURE_LINE_CHARS = 18;
 const PICTURE_LINE_HEIGHT = 32;
 const PICTURE_PAD = 18;
 
@@ -117,6 +117,7 @@ export function SeeForm(props: AskProps): ReactElement {
             textAnchor="middle"
             fontSize="24"
             fontWeight="700"
+            letterSpacing="0"
             fill="currentColor"
             aria-hidden="true"
           >
@@ -187,7 +188,7 @@ export function DoForm({ item, value, onChange, onSpoken, disabled }: AskProps):
         role="group"
         aria-label="Your answer"
         style={TAP}
-        className={`flex items-center px-3 rounded-xl border-2 border-dashed bg-sf-surface text-sf-heading text-xl ${dragging ? 'border-sf-primary' : 'border-sf-border'}`}
+        className={`flex items-center px-3 sf-control border-2 border-dashed bg-sf-surface text-sf-heading text-xl ${dragging ? 'border-sf-primary' : 'border-sf-border'}`}
       >
         {value !== '' ? value : <span className="text-sf-muted text-base">Drag the numbers here</span>}
       </div>
@@ -203,7 +204,7 @@ export function DoForm({ item, value, onChange, onSpoken, disabled }: AskProps):
             onPointerUp={(e) => dropped(tile, e)}
             onPointerCancel={() => setDragging(null)}
             style={{ minHeight: 'var(--sf-tap-target-size)', minWidth: 'var(--sf-tap-target-size)', touchAction: 'none' }}
-            className="rounded-xl bg-sf-surface border border-sf-border text-sf-heading text-xl font-bold disabled:opacity-50"
+            className="sf-control bg-sf-surface border border-sf-border text-sf-heading text-xl font-bold active:scale-[0.97] disabled:opacity-50"
           >
             {tile}
           </button>
