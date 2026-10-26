@@ -1,0 +1,39 @@
+/* src/look/scene/scene.css — the front door's scene (fallback.tsx, FrontDoorScene.tsx). It fills the screen behind the whole shell
+   while the door shows: the shell becomes its own stacking context, so the scene (z-index -1, fixed) paints over #root's background
+   and under everything in the shell, the Home button and the safe-area bars included. A browser without :has() draws no scene at all,
+   only #root's plain background, which is what the door had before. */
+.sf-shell:has(.sf-scene) {
+  isolation: isolate;
+}
+
+.sf-scene {
+  position: fixed;
+  inset: 0;
+  /* a parent's space-y margin would shorten a fixed box set by its insets */
+  margin: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* The still picture, and what the live one draws over: the theme's colours as soft light on paper. Nothing here moves. */
+.sf-scene-still {
+  background-color: var(--sf-background-color, var(--sf-color-bg));
+  background-image:
+    radial-gradient(ellipse 80% 55% at 18% 22%, color-mix(in srgb, var(--sf-color-primary) 20%, transparent), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 85% 70%, color-mix(in srgb, var(--sf-color-accent) 16%, transparent), transparent 70%),
+    radial-gradient(ellipse 120% 80% at 50% 110%, color-mix(in srgb, var(--sf-color-primary) 12%, transparent), transparent 75%);
+}
+
+/* The live picture fades in over the still one once its first frame is drawn. */
+.sf-scene-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity var(--sf-duration-slow) var(--ease-sf-out);
+}
+
+.sf-scene-canvas[data-drawn] {
+  opacity: 1;
+}

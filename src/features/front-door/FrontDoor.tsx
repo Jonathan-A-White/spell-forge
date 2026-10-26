@@ -3,7 +3,8 @@
 // is drawn and spoken through TutorText (M16). With no licence the tutor is asleep: the worlds are offered as big pictures
 // under the gate's one line, and nothing is sent. The flow is given (front-door-flow.ts). Something another app shared with
 // SpellForge (Share > SpellForge, src/share) waits on this screen with a tap to send it, and lands in the talk as his turn
-// (share-landing.ts); it is never sent by itself.
+// (share-landing.ts); it is never sent by itself. Behind it all is the door's scene (src/look/scene): a slow WebGL picture in a lazy
+// chunk, or its still fallback with no WebGL or with reduced motion.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Composer } from 'voice-kit/composer';
 import type { ComposerLabels, ComposerMessage } from 'voice-kit/composer';
@@ -11,6 +12,7 @@ import type { OutgoingPicture } from 'voice-kit/talks';
 import 'voice-kit/composer/styles.css';
 import '../composer/composer-theme.css';
 import { FRONT_DOOR_COMPOSER_SETTINGS } from '../composer/composer-settings';
+import { SceneOrFallback } from '../../look/scene';
 import { LicenceLine } from '../../shell/LicenceLine';
 import { licenceState, subscribeLicence } from '../../shell/licence-gate';
 import { WORLDS, WORLD_ENTRY, openWorld, type ViewId } from '../../shell/worlds';
@@ -230,6 +232,7 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
 
   return (
     <div className="p-4 space-y-4 max-w-xl mx-auto">
+      <SceneOrFallback />
       {asleep || offered ? (
         <Worlds open={open} />
       ) : (

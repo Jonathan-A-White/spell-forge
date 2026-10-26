@@ -45,9 +45,24 @@ accessibility settings' `--sf-reduced-motion` is the app's own switch; a screen 
 ## Pause when hidden
 
 A loop that runs while the page is hidden spends the child's battery for nothing (vault topic 11). A timer-driven loop uses
-`setVisibleInterval` (`src/shell/visible-interval.ts`); a `requestAnimationFrame` loop stops on `document.hidden` and restarts on
-`visibilitychange`. Known gap: the themed hero's canvas loop (`src/themes/theme-effects.tsx`) does not yet pause when hidden, and the
-SVG `<animate>` lights in Letter Invasion do not yet follow `reducedMotion()`; both are for a later look story.
+`setVisibleInterval` (`src/shell/visible-interval.ts`). Every `requestAnimationFrame` loop goes through `animate(step)` in
+`src/look/scene/clock.ts`: it asks for no frame while `document.visibilityState` is `hidden`, starts again on `visibilitychange`, and
+does not count the hidden time as a step. `clock` there is the seam a test replaces with a hand-turned clock (Legend's
+`src/globe/clock.ts` is the model). `tests/unit/scene-fallback.test.tsx` greps `src/` and fails on a `requestAnimationFrame` anywhere
+else, bar a known one-shot that asks for a single frame (`src/shell/focus.ts`). The themed hero's canvas (`src/themes/theme-effects.tsx`)
+runs on it. Known gap: the SVG `<animate>` lights in Letter Invasion do not yet follow `reducedMotion()`, and the themed hero's
+particles still move under reduced motion; both are for a later look story.
+
+## The door's scene (story B, mw-79en7t.77)
+
+Behind the front door is a slow WebGL picture: the theme's colours drifting like ink through paper, with a still paper grain
+(`src/look/scene/FrontDoorScene.tsx`, drawn with OGL, one triangle and one fragment shader). It is a lazy chunk: `fallback.tsx`'s
+`SceneOrFallback` fetches it only when `sceneAllowed()` (`webgl-support.ts`) says WebGL is known and the phone does not ask for less
+motion; otherwise, while the chunk loads, and when WebGL will not start or the context is lost, the still fallback is drawn in CSS from
+the same colours (`scene.css`), and no canvas is made. The live picture draws at most every 33 ms at one pixel per CSS pixel, fades in
+over the still one (`slow`, `ease-sf-out`), and stops when the page hides. It sits behind the whole shell (`.sf-shell:has(.sf-scene)`
+is isolated, the scene fixed at `z-index: -1`), so it never takes a tap. The first paint of either sets the performance mark
+`sf-scene-painted`; `tests/e2e/front-door-scene.spec.ts` holds it under 1500 ms at 390x844 (a PROVISIONAL budget).
 
 ## Native feel (topic 08)
 

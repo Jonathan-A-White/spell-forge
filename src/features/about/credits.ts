@@ -171,6 +171,15 @@ export const CREDITS: readonly Credit[] = [
     licence: { name: 'MIT', url: 'https://github.com/GoogleChrome/workbox/blob/v7/LICENSE' },
     changes: 'None; used as published.',
   },
+  {
+    kind: 'package',
+    name: 'OGL',
+    url: 'https://github.com/oframe/ogl',
+    packages: ['ogl'],
+    use: 'Draws the slow moving picture behind the front door with WebGL, loaded only on a phone that can show it and has not asked for less motion.',
+    licence: { name: 'Unlicense', url: 'https://github.com/oframe/ogl#unlicense' },
+    changes: 'None; used as published.',
+  },
   // Build tools whose output ships in the app
   {
     kind: 'tool',
