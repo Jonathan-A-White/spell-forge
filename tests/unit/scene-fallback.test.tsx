@@ -8,7 +8,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 // OGL drawn by hand: jsdom has no WebGL. Like the real Renderer, it asks the canvas for a context and has no gl when none comes.
-const ogl = vi.hoisted(() => ({ renders: 0 }));
+const ogl = vi.hoisted(() => ({ renders: 0, time: 0 }));
 vi.mock('ogl', () => {
   class Renderer {
     gl: (WebGLRenderingContext & { canvas: HTMLCanvasElement }) | undefined;
@@ -17,8 +17,9 @@ vi.mock('ogl', () => {
       this.gl = gl ? Object.assign(gl, { canvas }) : undefined;
     }
     setSize() {}
-    render() {
+    render({ scene }: { scene: { program: { uniforms: { uTime: { value: number } } } } }) {
       ogl.renders += 1;
+      ogl.time = scene.program.uniforms.uTime.value;
     }
   }
   class Program {
@@ -31,7 +32,12 @@ vi.mock('ogl', () => {
   class Triangle {
     remove() {}
   }
-  class Mesh {}
+  class Mesh {
+    program: unknown;
+    constructor(_gl: unknown, { program }: { program: unknown }) {
+      this.program = program;
+    }
+  }
   class Vec2 {
     x = 0;
     y = 0;
@@ -104,6 +110,7 @@ let hand: ReturnType<typeof handTurnedClock>;
 
 beforeEach(() => {
   ogl.renders = 0;
+  ogl.time = 0;
   visibility = 'visible';
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
   Object.defineProperty(document, 'hidden', { configurable: true, get: () => visibility === 'hidden' });
@@ -197,6 +204,21 @@ describe('paused when hidden (AC1, a hand-turned clock)', () => {
     expect(hand.pending()).toBe(1);
     hand.turn();
     expect(ogl.renders).toBeGreaterThan(drawn);
+  });
+
+  it('the scene picks up where it was after the page was hidden: the hidden time does not move the ink', () => {
+    haveWebGL();
+    render(<FrontDoorScene onFail={() => {}} />);
+    hand.turn();
+    hand.turn();
+    const before = ogl.time;
+    setVisibility('hidden');
+    hand.turn(60_000);
+    setVisibility('visible');
+    hand.turn();
+    expect(ogl.time).toBe(before);
+    hand.turn();
+    expect(ogl.time).toBe(before + 40);
   });
 
   it('the scene asks for no frame once it is gone', () => {

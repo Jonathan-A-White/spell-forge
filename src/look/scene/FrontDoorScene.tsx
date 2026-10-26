@@ -171,14 +171,15 @@ export default function FrontDoorScene({ onFail }: FrontDoorSceneProps) {
     window.addEventListener('resize', resize);
 
     let lastDraw = -Infinity;
-    let started: number | null = null;
+    // the time the scene has been seen: small numbers for the shader (a phone's mediump float is coarse), and no jump after the page
+    // was hidden, since animate() counts no step for the hidden time
+    let seen = 0;
     let shown = false;
-    const stop = animate((time) => {
+    const stop = animate((time, dt) => {
+      seen += dt;
       if (time - lastDraw < DRAW_EVERY_MS) return;
       lastDraw = time;
-      // the time since the scene opened, so the shader's numbers stay small (a phone's mediump float is coarse)
-      started ??= time;
-      program.uniforms.uTime.value = time - started;
+      program.uniforms.uTime.value = seen;
       renderer.render({ scene: mesh });
       if (!shown) {
         shown = true;
