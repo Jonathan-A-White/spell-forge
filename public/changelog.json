@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.187",
+    "date": "2026-10-26",
+    "story": "mw-79en7t.81",
+    "kind": "fixed",
+    "text": "When he asks the tutor for something the app cannot do, the tutor now reliably offers to pass the wish on to the maker."
+  },
+  {
     "version": "0.1.186",
     "date": "2026-10-26",
     "story": "mw-79en7t.20",
