@@ -3,7 +3,7 @@
 // asks for no more frames (a hand-turned clock in place of src/look/scene/clock.ts's browser one); and every requestAnimationFrame loop
 // under src/ goes through that clock (the sweep). docs/motion.md is the written rule.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { render, screen, cleanup, act, waitFor } from '@testing-library/react';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
@@ -143,16 +143,19 @@ describe('the fallback (AC1)', () => {
     reduceMotion(false);
     render(<SceneOrFallback />);
     expect(await screen.findByTestId('scene-canvas')).toBeInTheDocument();
+    // the chunk's effect asks for the context and the first frame once it has run
+    await waitFor(() => expect(hand.pending()).toBe(1));
     expect(getContext).toHaveBeenCalled();
-    expect(hand.pending()).toBe(1);
     hand.turn();
     expect(ogl.renders).toBeGreaterThan(0);
   });
 
   it('falls back when the canvas will not give a WebGL context', async () => {
-    haveWebGL(null);
+    const getContext = haveWebGL(null);
     reduceMotion(false);
     render(<SceneOrFallback />);
+    // the scene was tried (not just the still picture shown while its chunk loads), and gave way
+    await waitFor(() => expect(getContext).toHaveBeenCalled());
     expect(await screen.findByTestId('scene-fallback')).toBeInTheDocument();
     expect(screen.queryByTestId('scene-canvas')).toBeNull();
     expect(hand.pending()).toBe(0);
@@ -163,6 +166,7 @@ describe('the fallback (AC1)', () => {
     reduceMotion(false);
     render(<SceneOrFallback />);
     const canvas = await screen.findByTestId('scene-canvas');
+    await waitFor(() => expect(hand.pending()).toBe(1));
     act(() => {
       canvas.dispatchEvent(new Event('webglcontextlost'));
     });
