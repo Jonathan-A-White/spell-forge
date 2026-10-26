@@ -102,6 +102,10 @@ describe('the tutor-talk instructions', () => {
       expect(last).toMatch(/absent|missing|left out|set it/i);
     });
 
+    it('names reading a book aloud as an ask for the makers, not something to work round', () => {
+      expect(parts[11].text).toMatch(/book or page aloud[^]*cannot do/);
+    });
+
     it('keep the instructions under their byte ceiling', () => {
       expect(Buffer.byteLength(text, 'utf8')).toBeLessThan(14000);
     });
