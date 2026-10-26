@@ -68,7 +68,7 @@
       }
     },
     "maker_request": {
-      "description": "Set when he or a grown-up asked for something the app cannot do and `words` says so plainly and offers to pass it on to the maker. The app then offers a button to send it; nothing is sent without a tap. Absent otherwise, and absent when you already offered it earlier in this talk.",
+      "description": "Required whenever `words` offers to pass a wish on to the maker (he or a grown-up asked for something the app cannot do and `words` says so plainly): the offer without this field is wrong. The app then offers a button to send it; nothing is sent without a tap. Absent otherwise, and absent when you already offered it earlier in this talk.",
       "type": "object",
       "additionalProperties": false,
       "required": ["summary"],

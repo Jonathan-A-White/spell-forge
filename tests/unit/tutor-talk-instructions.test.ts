@@ -79,4 +79,31 @@ describe('the tutor-talk instructions', () => {
     const request = JSON.parse(readFileSync('grinds/tutor-talk.request.schema.json', 'utf8')) as { properties: Record<string, unknown> };
     for (const field of Object.keys(request.properties)) expect(parts[1].text, field).toContain(`\`${field}\``);
   });
+  // mw-79en7t.81: the answer sometimes left out maker_request when the words offered to pass the wish on (2 of 3 sends of
+  // the maker-request example). The rule is held three times, as on Lampas bible-talk (mw-pn6o9b): by the opening bold
+  // line of its part, by the field list of part 2 and by the last check of part 10.
+  describe('the maker_request rule (mw-79en7t.81)', () => {
+    it('opens part 12 with a bold line that makes maker_request required whenever words offer to pass the wish on', () => {
+      const [, firstLine] = parts[11].text.split('\n\n');
+      expect(firstLine).toMatch(/^\*\*.*`maker_request`.*\*\*/s);
+      expect(firstLine).toMatch(/always|every time|never without|must/i);
+      expect(firstLine).toMatch(/offer|pass/i);
+    });
+
+    it('lists maker_request in part 2 as required when words offer to pass a wish on', () => {
+      expect(parts[1].text).toMatch(/`maker_request`[^.]*(always|required|every time)[^.]*/i);
+    });
+
+    it('ends the check of part 10 with maker_request: offered in words, then set', () => {
+      const lines = parts[9].text.trimEnd().split('\n');
+      const last = lines[lines.length - 1];
+      expect(last).toMatch(/`maker_request`/);
+      expect(last).toMatch(/offer|pass/i);
+      expect(last).toMatch(/absent|missing|left out|set it/i);
+    });
+
+    it('keep the instructions under their byte ceiling', () => {
+      expect(Buffer.byteLength(text, 'utf8')).toBeLessThan(14000);
+    });
+  });
 });
