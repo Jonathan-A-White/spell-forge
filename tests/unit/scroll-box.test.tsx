@@ -124,10 +124,9 @@ describe('the scroll guard', () => {
 });
 
 describe('autoFocus', () => {
-  // Plain focus scrolls the page under the status bar; a ref through src/shell/focus.ts does not. The three that stay
-  // are the grown-ups' boxes: the profile's name at setup, a word list's word being edited, the feedback message.
+  // Plain focus scrolls the page under the status bar; a ref through src/shell/focus.ts does not. The two that stay
+  // are the grown-ups' boxes: the profile's name at setup and a word list's word being edited.
   const GROWN_UPS_BOXES = [
-    'src/features/feedback/feedback-form.tsx',
     'src/features/onboarding/first-run.tsx',
     'src/features/word-lists/word-list-detail.tsx',
   ];

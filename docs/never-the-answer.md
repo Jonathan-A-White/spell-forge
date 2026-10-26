@@ -92,4 +92,5 @@ Every grind in `grinds/`, with its never-the-answer rule or why it needs none. A
 | `tutor-talk` | Part 1 of its instructions, the same rule over `words`; Part 9 makes every request field data, and Part 10 checks it again |
 | `parent-ask` | The parent-ask decision above: a grown-up does not get the answer either, in `answer` or `examples`; the parent hears the mistake and the gap instead |
 | `word-list` | Needs none: it only copies the words of a grown-up's photographed spelling list, exactly as written and never corrected, so it solves nothing and turns no question into its answer |
+| `maker-request` | Needs none: it carries a child's or grown-up's request for something the app cannot do on to the maker (forwarded, no model reads it) and answers nothing but "sent"; the tutor's offer to send one is Part 12 of `tutor-talk`, where Part 1 stands |
 | `mnemonic-picture` | Needs none: it draws one picture for a spelling node from the node's own words and never sees a child's question; the picture may hold no letters, words or numerals (no `<text>`, checked again by `src/learn/svg-rules.ts`) |

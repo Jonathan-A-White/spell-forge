@@ -1,0 +1,19 @@
+{
+  "about": "He asks the tutor to read his maths book aloud, which the app cannot do: the tutor says so plainly, offers to pass the wish on to the maker, and sets maker_request.",
+  "request": {
+    "schemaVersion": "1",
+    "message": "Can you read my maths book out loud to me?",
+    "history": [
+      { "role": "assistant", "text": "Hi! I'm your tutor. What would you like to do today?" }
+    ],
+    "strictness": "meaning-gated",
+    "learner": { "age": 9 },
+    "goals": [
+      { "id": "sat-maths-800", "title": "An 800 on the maths SAT" }
+    ]
+  },
+  "expect": {
+    "maker_request.summary": { "present": true },
+    "words": { "matches": "(?i)(maker|pass)" }
+  }
+}

@@ -25,7 +25,7 @@ export type SettingsSectionId =
   | 'share'
   | 'data'
   | 'deviceKey'
-  | 'feedback'
+  | 'maker'
   | 'about'
   | 'developer';
 
@@ -42,7 +42,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection<SettingsSectionId>[] = 
   { id: 'share', title: 'Share' },
   { id: 'data', title: 'Data' },
   { id: 'deviceKey', title: "This device's key" },
-  { id: 'feedback', title: 'Feedback' },
+  { id: 'maker', title: 'Ask the maker' },
   { id: 'about', title: 'About' },
   { id: 'developer', title: 'Developer' },
 ];
@@ -58,7 +58,8 @@ export type Capability =
   | 'share'
   | 'export'
   | 'import'
-  | 'feedback'
+  | 'requests'
+  | 'conversations'
   | 'about'
   | 'debugMode'
   | 'ttsDebug';
@@ -70,7 +71,8 @@ const CAPABILITIES: readonly Capability[] = [
   'share',
   'export',
   'import',
-  'feedback',
+  'requests',
+  'conversations',
   'about',
   'debugMode',
   'ttsDebug',
@@ -208,7 +210,8 @@ const OTHER_ROWS: readonly SettingsRow<SettingsSectionId>[] = [
   { key: 'action.export', section: 'data', label: 'Export Profile', hint: 'Download a backup of all your data', dependsOn: needs('export') },
   { key: 'action.import', section: 'data', label: 'Import Profile', hint: 'Restore from a backup file', dependsOn: needs('import') },
   { key: 'deviceKey', section: 'deviceKey', label: "This device's key", hint: 'Give this to whoever issues your licence' },
-  { key: 'link.feedback', section: 'feedback', label: 'Send Feedback', hint: 'Let us know how we can improve', dependsOn: needs('feedback') },
+  { key: 'link.requests', section: 'maker', label: 'Requests to the maker', hint: 'Ask for something new, and see what was asked', dependsOn: needs('requests') },
+  { key: 'link.conversations', section: 'maker', label: 'Conversations', hint: 'Every talk with the tutor, to search and read', dependsOn: needs('conversations') },
   { key: 'link.about', section: 'about', label: 'About & Credits', hint: 'Who and what SpellForge is built on', dependsOn: needs('about') },
 ];
 

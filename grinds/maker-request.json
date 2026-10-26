@@ -1,0 +1,14 @@
+{
+  "grind": 1,
+  "app": "spellforge",
+  "kind": "maker-request",
+  "versions": ["1"],
+  "forward": "mayor",
+  "answerSchema": "grinds/maker-request.answer.schema.json",
+  "attachments": {
+    "min": 0,
+    "max": 0,
+    "mime": [],
+    "maxBytes": 0
+  }
+}

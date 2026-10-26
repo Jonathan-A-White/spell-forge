@@ -1,10 +1,8 @@
 // src/shell/use-profile-actions.ts: what a grown-up does to a profile: settings, backup and restore, archive,
-// restore and delete, and the feedback form. The Shell's state, kept out of App.tsx.
+// restore and delete. The Shell's state, kept out of App.tsx.
 import { useCallback } from 'react';
 import type { AccessibilitySettings, LearningStrategy, ImportStrategy } from '../contracts/types';
-import { APP_VERSION } from '../version';
 import { profileRepo } from '../data/repositories/profile-repo';
-import { syncQueueRepo } from '../data/repositories/sync-queue-repo';
 import { exportProfile, importProfile, parseExportJson } from '../data/import-export';
 import { applySettings, mergeSetting } from '../accessibility/settings';
 import { presetToSettings } from '../accessibility/presets';
@@ -74,24 +72,6 @@ export function useProfileActions(learner: Learner, setView: (view: ViewId) => v
     },
     [activeProfile, setActiveProfile],
   );
-
-  const handleFeedback = useCallback(async (text: string) => {
-    // If online, the mailto: link in the form already opened the email client,
-    // so mark as synced. If offline, mark as unsynced so the banner picks it up.
-    await syncQueueRepo.addFeedback(
-      {
-        text,
-        deviceInfo: {
-          userAgent: navigator.userAgent,
-          screenWidth: window.innerWidth,
-          screenHeight: window.innerHeight,
-          platform: navigator.platform,
-        },
-        appVersion: APP_VERSION,
-      },
-      navigator.onLine,
-    );
-  }, []);
 
   const handleExportProfile = useCallback(async () => {
     if (!activeProfile) return;
@@ -191,7 +171,7 @@ export function useProfileActions(learner: Learner, setView: (view: ViewId) => v
 
   return {
     handleContrastModeChange, handleLearningStrategyChange, handlePresetApply, handleImportFilterWordsChange,
-    handleGradeGoalChange, handleFeedback, handleExportProfile, handleImportProfile,
+    handleGradeGoalChange, handleExportProfile, handleImportProfile,
     handleArchiveProfile, handleRestoreProfile, handleDeleteProfile,
   };
 }

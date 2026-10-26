@@ -21,11 +21,11 @@ describe('the settings home', () => {
   it('hides the rows the screen has no handler for, and shows them with one', () => {
     const { unmount } = render(<Settings {...base} />);
     expect(screen.queryByRole('heading', { name: 'Grade Goal' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Send Feedback/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Requests to the maker/ })).not.toBeInTheDocument();
     unmount();
-    render(<Settings {...base} onGradeGoalChange={vi.fn()} onSendFeedback={vi.fn()} />);
+    render(<Settings {...base} onGradeGoalChange={vi.fn()} onOpenRequests={vi.fn()} onOpenConversations={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Grade Goal' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Send Feedback/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Requests to the maker/ })).toBeInTheDocument();
   });
 
   it('the search box narrows the screen to the rows that match, by label', () => {

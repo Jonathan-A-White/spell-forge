@@ -14,4 +14,3 @@ export { bsvPendingSpendRepo } from './bsv-pending-spend-repo';
 export { bsvTokenRepo } from './bsv-token-repository';
 export { tutorRepo } from './tutor-repo';
 export { parentAskRepo } from './parent-ask-repo';
-export { syncQueueRepo } from './sync-queue-repo';

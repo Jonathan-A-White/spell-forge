@@ -1,0 +1,45 @@
+/* @pwa-kit/requests ships no stylesheet: its RequestsList classes, themed to SpellForge (mw-79en7t.20). */
+.bk-requests {
+  display: grid;
+  gap: 1rem;
+}
+.bk-requests__who {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--sf-color-text-heading);
+}
+.bk-requests__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bk-requests__request {
+  padding: 0.75rem;
+  border: 1px solid var(--sf-color-border);
+  border-radius: 0.75rem;
+  background: var(--sf-color-surface);
+  color: var(--sf-color-text);
+}
+.bk-requests__what {
+  margin: 0;
+  font-weight: 700;
+  color: var(--sf-color-text-heading);
+  overflow-wrap: anywhere;
+}
+.bk-requests__sent,
+.bk-requests__status {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: var(--sf-color-text-muted);
+}
+.bk-requests__status {
+  color: var(--sf-color-text);
+  font-weight: 700;
+}
+.bk-requests__empty {
+  margin: 0;
+  color: var(--sf-color-text-muted);
+}

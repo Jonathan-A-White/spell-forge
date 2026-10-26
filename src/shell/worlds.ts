@@ -38,7 +38,7 @@ export const VIEWS = [
     'spelling-home',
   ]),
   ...inWorld('maths', ['maths-home']),
-  ...inWorld('grown-ups', ['settings', 'feedback', 'share', 'about']),
+  ...inWorld('grown-ups', ['settings', 'conversations', 'requests', 'share', 'about']),
 ] as const satisfies readonly ViewEntry[];
 
 export type ViewId = (typeof VIEWS)[number]['id'];

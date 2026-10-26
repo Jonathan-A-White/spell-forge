@@ -1,7 +1,7 @@
 // src/shell/screens/front-door.tsx: the front door's screens: the moments before a child is in (loading, a blocked
 // database, the welcome, the choice of child), the door (the tutor to talk to, the world's landing view), Home, and the old
 // Tutor screen (the last two stay until the sweep removes them).
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FirstRun } from '../../features/onboarding/first-run';
 import { WhoIsLearning } from '../../worlds/grown-ups/WhoIsLearning';
 import { HomeScreen } from '../../features/dashboard/home-screen';
@@ -10,6 +10,7 @@ import { FrontDoor } from '../../features/front-door/FrontDoor';
 import { createFrontDoorFlow } from '../../features/front-door/front-door-flow';
 import { createTutorTalkSend } from '../../features/front-door/tutor-talk-send';
 import { doorContext } from '../../features/front-door/door-context';
+import { askGreeting, createMakerRequests, createMakerSender, forgetAsk, pendingAsk } from '../../features/requests';
 import { useApp } from '../app-state';
 import { screenContext } from '../report-screen';
 import { HOME_VIEW, openView, type ViewId } from '../worlds';
@@ -18,6 +19,10 @@ import { HOME_VIEW, openView, type ViewId } from '../worlds';
 function Door({ profileId }: { profileId: string }) {
   const { setView, shared, setShared } = useApp();
   const send = useMemo(() => createTutorTalkSend(), []);
+  const requests = useMemo(() => createMakerRequests({ send: createMakerSender() }), []);
+  // An expected ask picked on Requests opens the tutor on it: read as the door opens, then forgotten.
+  const [picked] = useState(pendingAsk);
+  useEffect(() => forgetAsk(), []);
   const flow = useMemo(
     () =>
       createFrontDoorFlow({
@@ -32,16 +37,33 @@ function Door({ profileId }: { profileId: string }) {
   return (
     <>
       <div className="px-4 pt-4 max-w-xl mx-auto">
-        <button
-          type="button"
-          onClick={() => setView(HOME_VIEW)}
-          className="rounded-xl border border-sf-border bg-sf-surface text-sf-text font-bold px-5 py-2 active:scale-[0.97]"
-          style={{ minHeight: 'var(--sf-tap-target-size, 48px)' }}
-        >
-          Home
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setView(HOME_VIEW)}
+            className="rounded-xl border border-sf-border bg-sf-surface text-sf-text font-bold px-5 py-2 active:scale-[0.97]"
+            style={{ minHeight: 'var(--sf-tap-target-size, 48px)' }}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('conversations')}
+            className="rounded-xl border border-sf-border bg-sf-surface text-sf-text font-bold px-5 py-2 active:scale-[0.97]"
+            style={{ minHeight: 'var(--sf-tap-target-size, 48px)' }}
+          >
+            Conversations
+          </button>
+        </div>
       </div>
-      <FrontDoor flow={flow} open={setView} shared={shared} onSharedUsed={sharedUsed} />
+      <FrontDoor
+        flow={flow}
+        open={setView}
+        shared={shared}
+        onSharedUsed={sharedUsed}
+        greeting={picked ? askGreeting(picked.ask) : undefined}
+        maker={{ requests, who: picked?.who ?? profileId, askId: picked?.ask.id }}
+      />
     </>
   );
 }

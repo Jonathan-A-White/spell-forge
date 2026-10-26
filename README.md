@@ -110,7 +110,7 @@ a form turn carries.
 - **Multiple word lists** — organize words by week, subject, or any grouping
 - **Import/export** — JSON backups with merge strategies for cross-device sync
 - **Activity auto-save** — resume interrupted sessions where you left off
-- **Sync queue** — queues feedback for cloud sync when WiFi is available
+- **Requests to the maker** — the tutor offers to pass on what the app cannot do; one tap sends it, and Grown-ups' Requests lists who asked and where it stands
 
 ## Tech Stack
 
@@ -205,7 +205,8 @@ src/
     ├── profiles/       # Multi-child profile switching
     ├── settings/       # Accessibility settings, share, import filters
     ├── rewards/        # Monster stable, reward tracking
-    └── feedback/       # User feedback form + offline sync banner
+    ├── requests/       # Requests to the maker: the tutor's offer, Send, Requests (Grown-ups)
+    └── talks/          # Conversations: the talks kept on the phone, searched and read
 ```
 
 The module map ([docs/module-map.md](docs/module-map.md)) says what each module is for, which files stories collide on, and the refactors and shared-library lifts that would let stories run in parallel.
