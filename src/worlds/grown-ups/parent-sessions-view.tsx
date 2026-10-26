@@ -31,7 +31,7 @@ export interface ParentThisWeekProps {
 export function ParentThisWeek({ profileId, now }: ParentThisWeekProps) {
   const rows = useSessions(profileId);
   return (
-    <section className="rounded-xl bg-sf-surface border border-sf-border p-4 space-y-1">
+    <section className="sf-card bg-sf-surface border border-sf-border p-4 space-y-1">
       <h2 className="text-sf-heading font-bold text-lg">This week</h2>
       <p className="text-sf-text">{rows ? weekSummary(rows, now) : 'Loading...'}</p>
     </section>
@@ -47,7 +47,7 @@ export function ParentSessions({ profileId, onOpen }: ParentSessionsProps) {
   const rows = useSessions(profileId);
   const lines = rows ? sessionLines(rows) : [];
   return (
-    <section className="rounded-xl bg-sf-surface border border-sf-border p-4 space-y-2">
+    <section className="sf-card bg-sf-surface border border-sf-border p-4 space-y-2">
       <h2 className="text-sf-heading font-bold text-lg">Sessions</h2>
       {!rows && <p className="text-sf-muted">Loading...</p>}
       {rows && lines.length === 0 && <p className="text-sf-muted">No sessions yet.</p>}
@@ -58,7 +58,7 @@ export function ParentSessions({ profileId, onOpen }: ParentSessionsProps) {
               <button
                 type="button"
                 onClick={() => onOpen(line.sessionId)}
-                className="w-full text-left px-3 py-2 rounded-xl border border-sf-border hover:border-sf-border-strong"
+                className="w-full text-left px-3 py-2 sf-control border border-sf-border hover:border-sf-border-strong"
                 style={TAP}
               >
                 <span className="block text-sf-muted text-sm">{line.date}</span>

@@ -70,7 +70,7 @@ function RowButton(props: {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+      className={`w-full flex items-center gap-4 p-4 sf-card border-2 transition-all active:scale-[0.98] ${
         selected ? 'border-sf-primary bg-sf-surface shadow-md' : BORDER
       }`}
       aria-pressed={pressed}

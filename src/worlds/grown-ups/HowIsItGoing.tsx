@@ -44,8 +44,8 @@ function WorldSection({ title, graph, progress }: { title: string; graph: Graph<
 
   if (solid.size === 0 && drills === 0) {
     return (
-      <section aria-label={title} className="bg-sf-surface border border-sf-border rounded-xl p-4">
-        <h2 className="text-lg font-bold text-sf-heading mb-1">{title}</h2>
+      <section aria-label={title} className="bg-sf-surface border border-sf-border sf-card p-4">
+        <h2 className="text-lg sf-heading text-sf-heading mb-1">{title}</h2>
         <p data-testid="no-data" className="text-sm text-sf-muted">
           Nothing to show for {title.toLowerCase()} yet.
         </p>
@@ -59,8 +59,8 @@ function WorldSection({ title, graph, progress }: { title: string; graph: Graph<
   const shown = next.slice(0, FRONTIER_SHOWN);
 
   return (
-    <section aria-label={title} className="bg-sf-surface border border-sf-border rounded-xl p-4 space-y-2">
-      <h2 className="text-lg font-bold text-sf-heading">{title}</h2>
+    <section aria-label={title} className="bg-sf-surface border border-sf-border sf-card p-4 space-y-2">
+      <h2 className="text-lg sf-heading text-sf-heading">{title}</h2>
       {goal && path && (
         <p data-testid="goal-progress" className="text-sm text-sf-text">
           Aiming at: {goal.title}. {Math.round(path.progress * 100)}% of the way there.
@@ -90,12 +90,12 @@ function WorldSection({ title, graph, progress }: { title: string; graph: Graph<
 
 export function HowIsItGoing({ spelling, maths, inside }: HowIsItGoingDrawProps) {
   return (
-    <div className="space-y-4">
+    <div className="sf-stack">
       {inside ? (
-        <h2 className="text-xl font-bold text-sf-heading">How is it going?</h2>
+        <h2 className="text-xl sf-heading text-sf-heading">How is it going?</h2>
       ) : (
         <>
-          <h1 className="text-xl font-bold text-sf-heading">How is it going?</h1>
+          <h1 className="text-xl sf-heading text-sf-heading">How is it going?</h1>
           <FirstLine>Where your child is in each subject, in plain words.</FirstLine>
         </>
       )}

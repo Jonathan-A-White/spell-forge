@@ -30,9 +30,9 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
   const [confirm, setConfirm] = useState<Confirm | null>(null);
 
   return (
-    <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-8">
-      <h1 className="text-4xl font-bold text-sf-heading mb-2">Who is learning?</h1>
-      <div className="mb-8">
+    <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-start p-4 pt-8 md:justify-center md:p-8">
+      <h1 className="sf-heading text-3xl md:text-4xl text-sf-heading mb-2 text-center">Who is learning?</h1>
+      <div className="mb-6 max-w-sm text-center">
         <FirstLine>Tap who is learning today, or add someone new.</FirstLine>
       </div>
 
@@ -42,7 +42,7 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
             <button
               onClick={() => (managingId === learner.id ? setManagingId(null) : onSwitch(learner))}
               aria-current={learner.id === activeId ? 'true' : undefined}
-              className={`w-full bg-sf-surface hover:bg-sf-surface-hover border-2 hover:border-sf-primary rounded-xl p-6 pr-14 text-left transition-all shadow-sm ${
+              className={`w-full bg-sf-surface hover:bg-sf-surface-hover border-2 hover:border-sf-primary sf-card p-4 pr-14 text-left transition-all shadow-sm ${
                 learner.id === activeId ? 'border-sf-primary' : 'border-sf-border-strong'
               }`}
               style={TAP}
@@ -54,7 +54,7 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
             <button
               onClick={() => setManagingId(managingId === learner.id ? null : learner.id)}
               aria-label={`Manage ${learner.name}`}
-              className="absolute top-4 right-4 p-2 text-sf-muted hover:text-sf-heading transition-colors rounded-lg hover:bg-sf-surface-hover"
+              className="absolute top-4 right-4 p-2 text-sf-muted hover:text-sf-heading transition-colors sf-control hover:bg-sf-surface-hover"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <circle cx="10" cy="4" r="2" />
@@ -67,14 +67,14 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
               <div className="mt-2 flex gap-2">
                 <button
                   onClick={() => setConfirm({ type: 'archive', learner })}
-                  className="flex-1 px-4 py-2 bg-sf-surface border border-sf-border-strong rounded-lg text-sm text-sf-text hover:bg-sf-surface-hover transition-colors"
+                  className="flex-1 px-4 py-2 bg-sf-surface border border-sf-border-strong sf-control text-sm text-sf-text hover:bg-sf-surface-hover transition-colors"
                   style={TAP}
                 >
                   Archive
                 </button>
                 <button
                   onClick={() => setConfirm({ type: 'delete', learner })}
-                  className="flex-1 px-4 py-2 bg-red-900/30 border border-red-700 rounded-lg text-sm text-red-400 hover:bg-red-900/50 transition-colors"
+                  className="flex-1 px-4 py-2 bg-red-900/30 border border-red-700 sf-control text-sm text-red-400 hover:bg-red-900/50 transition-colors"
                   style={TAP}
                 >
                   Delete
@@ -86,7 +86,7 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
 
         <button
           onClick={onAdd}
-          className="border-2 border-dashed border-sf-border-strong rounded-xl p-6 text-sf-muted hover:bg-sf-surface-hover hover:border-sf-primary transition-all"
+          className="border-2 border-dashed border-sf-border-strong sf-card p-4 text-sf-muted hover:bg-sf-surface-hover hover:border-sf-primary transition-all"
           style={TAP}
         >
           Add a learner
@@ -108,23 +108,23 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
               {archived.map((learner) => (
                 <div
                   key={learner.id}
-                  className="bg-sf-surface/50 border-2 border-sf-border-strong/50 rounded-xl p-6 flex items-center justify-between"
+                  className="bg-sf-surface/50 border-2 border-sf-border-strong/50 sf-card p-4 flex items-center justify-between"
                 >
                   <div className="opacity-60">
-                    <p className="text-lg font-bold text-sf-heading">{learner.name}</p>
+                    <p className="text-lg sf-heading text-sf-heading">{learner.name}</p>
                     <p className="text-xs text-sf-muted mt-1">Archived</p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => onRestore(learner.id)}
-                      className="px-4 py-2 bg-sf-primary/20 border border-sf-primary rounded-lg text-sm text-sf-primary hover:bg-sf-primary/30 transition-colors"
+                      className="px-4 py-2 bg-sf-primary/20 border border-sf-primary sf-control text-sm text-sf-primary hover:bg-sf-primary/30 transition-colors"
                       style={TAP}
                     >
                       Restore
                     </button>
                     <button
                       onClick={() => setConfirm({ type: 'delete', learner })}
-                      className="px-4 py-2 bg-red-900/30 border border-red-700 rounded-lg text-sm text-red-400 hover:bg-red-900/50 transition-colors"
+                      className="px-4 py-2 bg-red-900/30 border border-red-700 sf-control text-sm text-red-400 hover:bg-red-900/50 transition-colors"
                       style={TAP}
                     >
                       Delete
@@ -139,7 +139,7 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
 
       {confirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-6 z-50">
-          <div role="dialog" aria-modal="true" aria-labelledby="who-confirm-title" className="bg-sf-surface border-2 border-sf-border-strong rounded-2xl p-6 max-w-sm w-full shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="who-confirm-title" className="bg-sf-surface border-2 border-sf-border-strong sf-card p-5 max-w-sm w-full shadow-xl">
             <h2 id="who-confirm-title" className="text-lg font-bold text-sf-heading mb-2">
               {confirm.type === 'archive' ? 'Archive' : 'Delete'} this learner?
             </h2>
@@ -151,7 +151,7 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirm(null)}
-                className="flex-1 px-4 py-3 bg-sf-surface border border-sf-border-strong rounded-lg text-sf-text font-semibold hover:bg-sf-surface-hover transition-colors"
+                className="flex-1 px-4 py-3 bg-sf-surface border border-sf-border-strong sf-control text-sf-text font-semibold hover:bg-sf-surface-hover transition-colors"
                 style={TAP}
               >
                 Cancel
@@ -163,7 +163,7 @@ export function WhoIsLearning({ learners, archived, activeId, onSwitch, onAdd, o
                   setConfirm(null);
                   setManagingId(null);
                 }}
-                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
+                className={`flex-1 px-4 py-3 sf-control font-semibold transition-colors ${
                   confirm.type === 'archive' ? 'bg-sf-primary text-white hover:bg-sf-primary/80' : 'bg-red-700 text-white hover:bg-red-800'
                 }`}
                 style={TAP}

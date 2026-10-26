@@ -33,15 +33,15 @@ export function ParentScreen({ profileId, onBack, onProfileChange, deps }: Paren
         <div className="max-w-lg md:max-w-4xl mx-auto flex items-center gap-3">
           <button
             onClick={onBack}
-            className="px-3 rounded-lg text-sf-heading font-bold hover:bg-sf-surface-hover"
+            className="px-3 sf-control text-sf-heading font-bold hover:bg-sf-surface-hover"
             style={{ minHeight: 'var(--sf-tap-target-size)' }}
           >
             <span aria-hidden="true">&larr; </span>Back
           </button>
-          <h1 className="text-xl font-bold text-sf-heading">Grown-ups</h1>
+          <h1 className="text-xl sf-heading text-sf-heading">Grown-ups</h1>
         </div>
       </div>
-      <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-5 space-y-4">
+      <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-5 sf-stack">
         {openId ? (
           <ParentSessionPage sessionId={openId} onBack={() => setOpenId(null)} />
         ) : (

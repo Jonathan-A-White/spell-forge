@@ -165,6 +165,13 @@ html, body, #root {
   min-height: 100%;
 }
 
+/* ─── The look of each age (src/look/age-style.ts, src/themes/engine.ts): the Shell sets data-sf-age and the engine sets these
+   tokens on the document; a screen takes the look by using these classes, not by knowing the age. ───────────────────── */
+.sf-card { border-radius: var(--sf-radius-card, 1rem); }
+.sf-control { border-radius: var(--sf-radius-control, 0.75rem); }
+.sf-heading { font-weight: var(--sf-heading-weight, 700); }
+.sf-stack > * + * { margin-top: var(--sf-space-section, 1.25rem); }
+
 /* A word held to be heard (src/shell/HearAnyWord.tsx). */
 ::highlight(hear-word) {
   background-color: var(--sf-color-surface-active);

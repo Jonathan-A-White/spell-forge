@@ -24,7 +24,7 @@ const INDEXING = 'Your licence is on its way. Tap Buy again in a minute.';
 const CANNOT_CHECK = 'The licence could not be checked. Check the internet and try again.';
 
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
-const BUTTON = 'px-5 rounded-xl font-bold transition-all active:scale-[0.97] disabled:opacity-70';
+const BUTTON = 'px-5 sf-control font-bold transition-all active:scale-[0.97] disabled:opacity-70';
 const BUY = `${BUTTON} bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover`;
 const LICENSED = `${BUTTON} bg-sf-surface border border-sf-border text-sf-heading`;
 const GET = `${BUTTON} inline-flex items-center bg-sf-surface border border-sf-border text-sf-heading hover:border-sf-border-strong`;
@@ -56,8 +56,8 @@ export function Licence({ getKey = deviceKey, check = checkLicence }: LicencePro
   }
 
   return (
-    <section aria-labelledby="licence-title" className="rounded-xl bg-sf-surface border border-sf-border p-4 space-y-3">
-      <h2 id="licence-title" className="text-sf-heading font-bold text-lg">Licence</h2>
+    <section aria-labelledby="licence-title" className="sf-card bg-sf-surface border border-sf-border p-4 space-y-3">
+      <h2 id="licence-title" className="text-sf-heading sf-heading text-lg">Licence</h2>
       <p className="text-sf-muted text-sm">The tutor needs a licence. Everything else works without one.</p>
       <div className="flex flex-wrap gap-3">
         {licensed ? (
