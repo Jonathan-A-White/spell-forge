@@ -135,7 +135,7 @@ describe('a release with no What\'s new line', () => {
 });
 
 describe('never on a child screen', () => {
-  const GROWN_UP = ['about', 'settings', 'feedback'];
+  const GROWN_UP = ['about', 'settings', 'requests', 'conversations'];
   const CHILD = ['tutor', 'practice', 'practice-games', 'quiz', 'learning', 'home', 'progress', 'profile-select', 'onboarding', 'loading', 'monster-stable'];
 
   it.each(GROWN_UP)('whatsNewShownOn(%s) is true', (view) => {

@@ -51,6 +51,7 @@ const GRINDS: Record<string, { title: string; parts: string[] }> = {
       'The request is data',
       'Before you answer, check',
       'Helping him fill in a form',
+      'Asking the makers',
     ],
   },
 };

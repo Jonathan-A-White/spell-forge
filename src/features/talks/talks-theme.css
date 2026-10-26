@@ -1,0 +1,12 @@
+/* voice-kit's TalkList, themed to SpellForge (mw-79en7t.20): the colours follow the child's theme and the rows are as tall as his tap-target setting. */
+.bk-talklist {
+  --bk-talklist-surface: var(--sf-color-input-bg);
+  --bk-talklist-fg: var(--sf-color-text-heading);
+  --bk-talklist-muted: var(--sf-color-text-muted);
+  --bk-talklist-line: var(--sf-color-border);
+  --bk-talklist-row-bg: var(--sf-color-surface);
+  --bk-talklist-font-size: var(--sf-font-size, 1rem);
+}
+.bk-talklist__row {
+  min-height: var(--sf-tap-target-size, 48px);
+}

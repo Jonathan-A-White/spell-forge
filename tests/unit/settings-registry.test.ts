@@ -25,7 +25,7 @@ const OLD_PANEL_SETTINGS = [
   'tutorPreview',
 ];
 
-const ALL: Capability[] = ['gradeGoal', 'learningStrategy', 'importFilter', 'share', 'export', 'import', 'feedback', 'about', 'debugMode', 'ttsDebug'];
+const ALL: Capability[] = ['gradeGoal', 'learningStrategy', 'importFilter', 'share', 'export', 'import', 'requests', 'conversations', 'about', 'debugMode', 'ttsDebug'];
 const keysOf = (rows: readonly { key: string }[]) => rows.map((r) => r.key);
 
 describe('every setting of the old panel is a defineSetting row', () => {
@@ -133,8 +133,8 @@ describe('the panel is a thin wrapper, on the kit at its pinned commit', () => {
     expect(lines).toBeLessThan(100);
   });
 
-  it('pwa-kit is pinned at the commit that holds pwa-kit/settings (0.9.0)', () => {
+  it('pwa-kit is pinned at the commit that holds pwa-kit/settings and pwa-kit/requests (0.10.0)', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { dependencies: Record<string, string> };
-    expect(pkg.dependencies['pwa-kit']).toBe('github:Jonathan-A-White/pwa-kit#27aa9f2c41e588297ce02e8f735785290a64db5e');
+    expect(pkg.dependencies['pwa-kit']).toBe('github:Jonathan-A-White/pwa-kit#011083d67ed4eea69f08177ffa2b04a3b57eb51d');
   });
 });

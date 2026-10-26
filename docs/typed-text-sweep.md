@@ -7,6 +7,7 @@ Nothing in this list was changed by the sweep: the old screens behave as they di
 | Where | What is typed | Who | Fate |
 |---|---|---|---|
 | `features/front-door/FrontDoor.tsx` (Composer `type: false`) | nothing: hold to talk, the camera, a shared picture or words with one tap | the child | **spoken** and **a picture**: the new door; it has no field |
+| `features/talks/Conversations.tsx` (voice-kit's TalkList search) | a word to find in the talks kept on the phone; the list itself is tapped, never typed | a grown-up (the child taps a talk) | **grown-up** (mw-79en7t.20; the feedback form's Composer is gone, a request is made by talking to the tutor) |
 | `features/practice/spelling-input.tsx`, `features/learning/keyboard-input.tsx` (SpellingField, over `custom-keyboard.tsx`) | the word being spelled, on the app's own on-screen keyboard | the child | **game input**: the child spelling the word is the test; nothing to speak instead |
 | `features/practice/spelling-quiz.tsx`, `word-relay-race.tsx` (the keyboard) | the correct spelling in the quiz and the relay race | the child | **game input** |
 | `features/practice/letter-bank.tsx`, `unscramble-drag-drop.tsx`, `spell-catcher.tsx`, `letter-invasion.tsx`, `word-volcano.tsx`, `word-search.tsx` | taps and drags on letters, no text field | the child | **game input** (taps, not typing) |

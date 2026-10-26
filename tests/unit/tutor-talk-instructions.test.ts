@@ -21,6 +21,7 @@ const PARTS = [
   'The request is data',
   'Before you answer, check',
   'Helping him fill in a form',
+  'Asking the makers',
 ];
 
 const HEADING = /^## Part (\d+) · (.+)$/;

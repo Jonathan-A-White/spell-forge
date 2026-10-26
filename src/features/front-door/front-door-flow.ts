@@ -3,13 +3,15 @@
 // request built by tutor-talk-request.ts under its budget. The answer is carried out here: its profile_update folds into the
 // learner profile with the turn it came from (getting-to-know.ts), its world opens by id through the registry's one place
 // (src/shell/worlds.ts openWorld, over openView). With no licence no grind is called: the flow offers the worlds instead
-// (src/shell/licence-gate.ts). The screen (FrontDoor.tsx) speaks and draws what this returns.
+// (src/shell/licence-gate.ts). An answer's maker_request becomes the reply's `maker`, the offer of the Send button
+// (src/features/requests). The screen (FrontDoor.tsx) speaks and draws what this returns.
 import { emptyProfile, valuesOf, type LearnResult } from 'learn-kit/learner';
 import { createTalks, defineRegistry, type AskOptions, type MemoryUpdate, type OutgoingPicture, type TalkStore, type TutorStore } from 'voice-kit/talks';
 import { createDexieStore } from 'voice-kit/talks/dexie';
 import { profileRepo } from '../../data/repositories';
 import { NO_LICENCE_LINE, gateGrind } from '../../shell/licence-gate';
 import { openWorld, type ViewId } from '../../shell/worlds';
+import type { MakerOffer } from '../requests/file-from-talk';
 import { foldProfileUpdate, turnRef, type ProfileUpdate } from './getting-to-know';
 import { buildTutorTalkRequest, type TutorTalkInput, type TutorTalkRequest } from './tutor-talk-request';
 
@@ -30,6 +32,8 @@ export interface TutorTalkAnswer {
   goal_suggestion?: { id: string; why: string };
   world?: TalkWorld;
   memory_update?: MemoryUpdate;
+  /** The ask the app cannot meet, set when `words` offers to pass it on to the maker. */
+  maker_request?: { summary: string };
 }
 
 /** The grind: the request and its pictures in, the answer out. A throw keeps nothing of the turn. */
@@ -64,6 +68,8 @@ export type FrontDoorReply =
       /** What became of each value of the profile update, in order. */
       learned: LearnResult[];
       goal?: { id: string; why: string };
+      /** The tutor's offer to pass an ask on to the maker: his words and the one-line summary; sent only on a tap (src/features/requests). */
+      maker?: MakerOffer;
     }
   | { kind: 'offer-worlds'; line: string; worlds: TalkWorld[] };
 
@@ -126,7 +132,7 @@ export function createFrontDoorFlow(deps: FrontDoorFlowDeps): FrontDoorFlow {
         }),
     });
 
-    const { answer, talk, reply } = await talks.ask(talkId, message, options);
+    const { answer, talk, reply, user } = await talks.ask(talkId, message, options);
     const turn = turnRef(talkId, talk.turns.length - 1);
     const learned = answer.profile_update ? (await foldProfileUpdate(deps.profileId, answer.profile_update, turn, reply.at)).results : [];
     const opened = answer.world ? (await registry.open('world', { world: answer.world })).ok : false;
@@ -138,6 +144,7 @@ export function createFrontDoorFlow(deps: FrontDoorFlowDeps): FrontDoorFlow {
       opened,
       learned,
       ...(answer.goal_suggestion ? { goal: { ...answer.goal_suggestion } } : {}),
+      ...(answer.maker_request ? { maker: { talkId, words: user.text, summary: answer.maker_request.summary } } : {}),
     };
   }
 
