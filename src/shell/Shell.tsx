@@ -4,6 +4,8 @@
 // debug overlays below. The Shell also starts what is app-wide: the scroll guard, the tap guard, the long press that says a word,
 // and the one request to keep the storage. Above the bottom bar sits the Ask button, once a screen has told the tutor where he is.
 import { useEffect } from 'react';
+import { ageStyleOf } from '../look';
+import { themeEngine } from '../themes/engine';
 import { UpdateBanner } from '../features/update';
 import { WhatsNewOnUpdate } from '../features/about';
 import { FeedbackSyncBanner } from '../features/feedback/feedback-sync-banner';
@@ -28,11 +30,15 @@ export function Shell() {
   useTapGuard(view);
   usePersistStorage(profiles.length > 0 || activeProfile !== null);
 
+  // The look follows the age the tutor has learned of the open child (src/look/age-style.ts)
+  const look = ageStyleOf(activeProfile?.learner);
+  useEffect(() => themeEngine.applyAgeTokens(look), [look]);
+
   // The offline-feedback banner shows on views where the DB is ready
   const showSyncBanner = view !== 'loading' && view !== 'db-blocked' && view !== 'onboarding';
 
   return (
-    <div data-shell className="sf-shell">
+    <div data-shell data-sf-age={look} className="sf-shell">
       <HearAnyWord />
       <div data-shell-bar="top" className="sf-bar-top" aria-hidden="true" />
       <UpdateBanner view={view} />

@@ -1,4 +1,5 @@
 import type { Theme, AppEvent, RewardEvent } from '../contracts/types.ts';
+import type { AgeStyle } from '../look/age-style.ts';
 import { dragonForgeTheme } from './dragon-forge/theme.ts';
 import { monsterLabTheme } from './monster-lab/theme.ts';
 import { starTrailTheme } from './star-trail/theme.ts';
@@ -131,6 +132,27 @@ function applyThemePalette(themeId: string): void {
   el.setAttribute('data-spell-theme', themeId);
 }
 
+/**
+ * The tokens of each look (src/look/age-style.ts), as CSS custom properties: how round, how roomy and how heavy the screens are.
+ * Young is rounder, roomier and bolder; teen is tighter and plainer; unknown sits between. They do not depend on the theme,
+ * which owns colour; index.css reads them (--sf-radius-card and the rest) so a screen takes the look without knowing it.
+ */
+const AGE_TOKENS: Record<AgeStyle, Readonly<Record<string, string>>> = {
+  young: { '--sf-radius-card': '1.5rem', '--sf-radius-control': '1rem', '--sf-space-section': '1.5rem', '--sf-heading-weight': '800' },
+  teen: { '--sf-radius-card': '0.75rem', '--sf-radius-control': '0.5rem', '--sf-space-section': '1rem', '--sf-heading-weight': '600' },
+  unknown: { '--sf-radius-card': '1rem', '--sf-radius-control': '0.75rem', '--sf-space-section': '1.25rem', '--sf-heading-weight': '700' },
+};
+
+function getAgeTokens(look: AgeStyle): Readonly<Record<string, string>> {
+  return AGE_TOKENS[look];
+}
+
+/** Sets the look's tokens on the document, beside the theme's palette. */
+function applyAgeTokens(look: AgeStyle): void {
+  const el = document.documentElement;
+  for (const [name, value] of Object.entries(getAgeTokens(look))) el.style.setProperty(name, value);
+}
+
 /** Darken / lighten a hex colour by `amount` (negative = darker). */
 function adjustBrightness(hex: string, amount: number): string {
   const num = parseInt(hex.replace('#', ''), 16);
@@ -168,5 +190,7 @@ export const themeEngine = {
   getMaxProgress,
   getVisualEffects,
   applyThemePalette,
+  getAgeTokens,
+  applyAgeTokens,
   UNITS_PER_MILESTONE,
 } as const;
