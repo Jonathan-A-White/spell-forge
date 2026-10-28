@@ -85,6 +85,28 @@ an answer, a wrong one gets the hint and a way on), tells the tutor where the ch
 the node, its problem; never the answer or the hint; the `screen` of `docs/what-the-tutor-is-told.md`) and looks again for a due review
 on `useVisibleInterval` when there is nothing to ask. Its one drill form is `type`; hear, see and do are 19b's.
 
+## Proving on a problem he has not met (Kestrel 20a)
+
+A right answer on a problem he has seen may only be remembering it, so the Maths world proves a concept on problems it has not asked
+(`learn-kit/fresh`, pinned with the graph). The rule lives in three places:
+
+- `src/learn/fresh-store.ts`: the child's seen ledger over localStorage (`sf-maths-fresh:<profile id>`): the problems asked under each
+  node (the key is the problem as asked, `problemKey`, so two indexes that make the same problem are one key; the newest 30) and the
+  nodes marked to confirm. `missedLast(state)` reads a node's review row for the kit's `missedBefore`.
+- `src/learn/maths/items.ts`: `makeProblems(node, { count, seed, avoid })`, the maker. It returns problems whose keys are not in `avoid`,
+  each problem once, found in a window of `ITEM_SPAN` indexes past the seed's place (so past the seen ones), the same for the same seed;
+  with nothing seen it makes what it always did. Short of fresh problems it fills with seen ones.
+- `src/worlds/maths/maths-flow.ts` (`answerDrill`): every problem asked is noted (a placement problem too), and an answer goes through
+  `recordAnswer` with `missedBefore` from the node's review row. A fresh right is `known`: the one try that counts, and the node goes
+  solid only on one. A right on a seen problem after a miss is `to-confirm` (the node is marked, nothing moves on); on a node never
+  missed it is `seen` (nothing counts, but a solid node whose review is due is answered, so the review moves on). A wrong answer, or a
+  right one after a hint, is a try that did not count and returns the node to its due reviews. Coins are paid as before.
+
+A problem answered wrong is put to the child once more, at the front of the sitting, now that he has read the nudge: that is the repeat
+whose right answer is `to-confirm`, and the question after it is a different problem. Many nodes make only a handful of distinct problems
+(`fair-shares` makes five). When a node has no problem left that he has not seen, its ledger starts over so that it can still be proved;
+nothing is lost, the kit only reads freshness against what is kept.
+
 ## What the maths loop handles today
 
 `src/worlds/maths/homework.tsx` (the homework picture, moved from the Tutor's `math-loop.tsx`, which re-exports it) sends the child's typed

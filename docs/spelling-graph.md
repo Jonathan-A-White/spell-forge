@@ -108,6 +108,31 @@ item maker over a node's `items` (the word beside its distractor) and `answerPla
 rests on them are the gap, and the learner starts there. A strategy node rests on pattern nodes, so it stays untested until the
 patterns it uses are passed.
 
+## Proving on a word he has not met (Kestrel 20a)
+
+A right answer on a word he has been asked before may only be remembering it, so the Spelling world proves a pattern on words it has not asked
+(`learn-kit/fresh`, pinned with the graph). The rule lives in three places:
+
+- `src/learn/fresh-store.ts`: the child's seen ledger over localStorage (`sf-spelling-fresh:<profile id>`): the words asked under each node
+  (the word is the key, `wordKey`; the newest 30) and the nodes marked to confirm. `storageStockStore` is the stock's store for story 20b.
+  `missedLast(state)` reads a node's review row for the kit's `missedBefore`: the last answer was a miss, not made good since.
+- `src/learn/spelling/items.ts`: `pickWords(node, { count, seed, avoid })`, the maker. A node's unseen words come first, from the place the
+  seed picks, then its seen words as before; with nothing seen it picks what it always did.
+- `src/worlds/spelling/spelling-flow.ts` (`answerDrill`): every word asked is noted (a placement word too). A round goes word by word through
+  `recordAnswer`. A right on a seen word after a miss is `to-confirm` (the node is marked, nothing moves on); on a node never missed it is
+  `seen` (nothing counts). Only a fresh word's right is a try that counts toward the node's `solid` rule, and the node goes solid only on a
+  round whose verdict is `known`. A round with a miss returns the node to its due reviews as before. A solid node whose review comes due
+  and is answered on words he has seen still moves its review on (otherwise it would be asked for ever). Coins are paid as before: any
+  right answer.
+
+The games say how many words were right, not which. The rights go to the seen words first, so the count of fresh rights is the fewest it
+can be (exact for a round all right or all wrong).
+
+**A pattern whose words are all seen** (a node has 3 to 8 words) still serves its words, so a child never waits, and is **not marked solid**
+on them: its words cannot be fresh again until the factory writes new ones. That is the spelling-items grind, story 20b, which asks ahead
+through learn-kit's stock when a node's unseen words run under 2. Until it lands, a node with fewer fresh rights than its rule asks for (a
+4-word node needs 4 of 5, so all four right the first time round) stays at the frontier.
+
 ## How to add a node
 
 1. Pick the band. Open the node file for it, or start `nodes-<strand>.ts` for a new strand (spelling rules, endings, word parts). A new

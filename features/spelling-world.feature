@@ -45,3 +45,18 @@ Feature: The Spelling world
     Then Practice Games asks "Spend 1 Coin to Play?"
     When "Spend 1 Coin & Play" is tapped
     Then the child holds 0 coins
+
+  Scenario: AC4: A round missed and then spelt right again is no proof, the pattern is solid only on words he has not met
+    Given a Spelling world on a pattern of 7 words that needs 3 right out of 4, past its placement
+    When the child finishes the round with 1 word right
+    Then Spelling says "You spelt 1 of 3 right"
+    When "Next" is tapped
+    Then the next round has 2 words the child has not met and 1 he has
+    When the child finishes the round with all 3 words right
+    Then Spelling says "You have got this one"
+
+  Scenario: AC4: A pattern whose words are all met is not solid on them
+    Given a Spelling world on a pattern of 7 words that needs 3 right out of 4, past its placement
+    And the child has met all 7 words
+    When the child finishes 4 rounds in a row with every word right
+    Then Spelling does not say "You have got this one"

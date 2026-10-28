@@ -5,7 +5,7 @@
 import '@testing-library/react/dont-cleanup-after-each';
 import { createElement } from 'react';
 import { afterAll, expect, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describeFeature, loadFeature } from '@amiceli/vitest-cucumber';
 import { Shell } from '../../src/shell/Shell';
 import { AppProvider } from '../../src/shell/app-context';
@@ -15,7 +15,11 @@ import { currentScreen } from '../../src/shell/report-screen';
 import { db } from '../../src/data/db';
 import { coinRepo, learningProgressRepo, profileRepo, wordListRepo, wordRepo } from '../../src/data/repositories';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
-import { SPELLING_NODES } from '../../src/learn/spelling';
+import { MemoryFreshStore, type FreshStore } from 'learn-kit/fresh';
+import { memoryStore, validate } from 'learn-kit/graph';
+import { SPELLING_NODES, spellingNode } from '../../src/learn/spelling';
+import { SpellingWorld } from '../../src/worlds/spelling/SpellingWorld';
+import { createSpellingFlow, memoryKeep, type SpellingFlow } from '../../src/worlds/spelling/spelling-flow';
 
 const feature = await loadFeature('features/spelling-world.feature');
 
@@ -110,6 +114,45 @@ const tapSpelling = async (right: boolean): Promise<void> => {
 };
 
 const settled = () => waitFor(() => expect(screen.queryByText('One moment...')).toBeNull());
+
+// The pattern of the AC4 scenarios: seven words, so after the placement's two and a round of three there are two he has not met, and the preK rule of 3 right out of 4.
+const SEVEN = ['edge', 'judge', 'bridge', 'badge', 'ledge', 'fudge', 'hedge'];
+let flow: SpellingFlow;
+let ledger: FreshStore;
+
+/** A game that ends the way the scenario says: a button for each count of words right, and the words it was given. */
+const stubGame = (_form: string, items: readonly { word: string }[], ctx: { onComplete: (r: { correct: number; total: number }) => void }) =>
+  createElement(
+    'div',
+    null,
+    createElement('p', { 'data-testid': 'round-words' }, items.map((i) => i.word).join(',')),
+    ...Array.from({ length: items.length + 1 }, (_, n) => createElement('button', { key: n, type: 'button', onClick: () => ctx.onComplete({ correct: n, total: items.length }) }, `Finish with ${n} right`)),
+  );
+
+async function onFivePattern(): Promise<void> {
+  const pattern = spellingNode({ id: 'dge-seven', band: 'preK', name: 'Words with dge', items: SEVEN.map((w) => [w, 'dge', w.replace('dge', 'ge')] as const) });
+  ledger = new MemoryFreshStore();
+  flow = createSpellingFlow({ store: memoryStore(), keep: memoryKeep(), fresh: ledger, graph: validate([pattern]) as never, now: () => NOW.getTime(), seed: 3 });
+  for (let q = await flow.question(); q && q.stage === 'placement'; q = await flow.question()) await flow.answer({ correct: 0, total: 1 });
+  await act(async () => void render(createElement(SpellingWorld, { flow, openGame: stubGame as never })));
+  await screen.findByTestId('round-words');
+}
+
+const roundWords = async (): Promise<string[]> => (await screen.findByTestId('round-words')).textContent!.split(',');
+
+async function finishRound(right: number): Promise<void> {
+  await act(async () => void fireEvent.click(screen.getByRole('button', { name: `Finish with ${right} right` })));
+  await screen.findByRole('status');
+}
+
+async function nextRound(): Promise<void> {
+  await act(async () => void fireEvent.click(await screen.findByRole('button', { name: 'Next' })));
+  await screen.findByTestId('round-words');
+}
+
+const statusSays = async (line: string): Promise<void> => {
+  expect(await screen.findByRole('status')).toHaveTextContent(line);
+};
 
 describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
   BeforeEachScenario(freshPhone);
@@ -233,6 +276,40 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
     Then('the child holds {int} coins', async (_ctx, coins: number) => {
       await waitFor(async () => expect((await coinRepo.get(profileId))?.coins).toBe(coins));
+    });
+  });
+  Scenario('AC4: A round missed and then spelt right again is no proof, the pattern is solid only on words he has not met', ({ Given, When, Then }) => {
+    Given('a Spelling world on a pattern of 7 words that needs 3 right out of 4, past its placement', onFivePattern);
+    When('the child finishes the round with 1 word right', () => finishRound(1));
+    Then('Spelling says "You spelt 1 of 3 right"', () => statusSays('You spelt 1 of 3 right'));
+    When('"Next" is tapped', nextRound);
+    Then('the next round has 2 words the child has not met and 1 he has', async () => {
+      const words = await roundWords();
+      const met = await ledger.getAsked('dge-seven');
+      expect(words.filter((w) => !met.includes(w))).toHaveLength(2);
+      expect(words.filter((w) => met.includes(w))).toHaveLength(1);
+    });
+    When('the child finishes the round with all 3 words right', () => finishRound(3));
+    Then('Spelling says "You have got this one"', () => statusSays('You have got this one'));
+  });
+
+  Scenario('AC4: A pattern whose words are all met is not solid on them', ({ Given, And, When, Then }) => {
+    Given('a Spelling world on a pattern of 7 words that needs 3 right out of 4, past its placement', onFivePattern);
+    And('the child has met all 7 words', async () => {
+      await ledger.putAsked('dge-seven', SEVEN);
+      cleanup();
+      await act(async () => void render(createElement(SpellingWorld, { flow, openGame: stubGame as never })));
+      await screen.findByTestId('round-words');
+    });
+    When('the child finishes 4 rounds in a row with every word right', async () => {
+      for (let i = 0; i < 4; i += 1) {
+        await finishRound(3);
+        await statusSays('Well done');
+        if (i < 3) await nextRound();
+      }
+    });
+    Then('Spelling does not say "You have got this one"', () => {
+      expect(screen.queryByText(/You have got this one/)).toBeNull();
     });
   });
 });

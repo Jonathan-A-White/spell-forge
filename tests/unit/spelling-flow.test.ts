@@ -1,6 +1,7 @@
 // Kestrel 15c (mw-79en7t.47), AC1: the spelling flow runs the placement on first entry, then the frontier and the due reviews through
 // @learn-kit/drill over the spelling graph, each node handed to a game form (15a); a node goes solid when its rule is met and leaves the frontier.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryFreshStore, asked, isToConfirm, type FreshStore } from 'learn-kit/fresh';
 import { DAY, frontier, memoryStore, type GraphStore } from 'learn-kit/graph';
 import { spellingGraph, type SpellingNode } from '../../src/learn/spelling';
 import { drillForms } from '../../src/worlds/spelling/drill-forms';
@@ -200,6 +201,130 @@ describe('frontier drills, through the game forms', () => {
     const flow = await placedAtBottom();
     for (let i = 0; i < 6; i++) await flow.answer(allRight((await flow.question())!));
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Kestrel 20a (mw-16yxp1k.1), AC2 and AC4: a node is proved on a word he has not seen (learn-kit/fresh). The games say how many words were right, not
+// which; the rights go to the words he had seen first, so the count of fresh rights is the fewest it can be.
+describe('proving on a fresh word', () => {
+  const DGE = 'short-vowel-dge'; // edge, judge, bridge, badge: 4 of 5
+  const WORDS = nodeOf(DGE).items.map((i) => i.word);
+  let fresh: FreshStore;
+
+  beforeEach(() => {
+    fresh = new MemoryFreshStore();
+  });
+
+  async function onDge(seen: readonly string[] = []): Promise<SpellingFlow> {
+    fresh = new MemoryFreshStore({ asked: [[DGE, seen]] });
+    const flow = flowOver({ fresh, focus: async () => [DGE] });
+    await placeChild(flow, -1);
+    return flow;
+  }
+
+  /** The next turn at the pattern: other nodes' rounds are missed so they stay out of the way. */
+  async function turnAtDge(flow: SpellingFlow): Promise<SpellingTurn> {
+    for (let i = 0; i < 40; i += 1) {
+      const q = (await flow.question())!;
+      if (q.nodeId === DGE) return q;
+      await flow.answer(noneRight(q));
+    }
+    throw new Error('no turn at the pattern');
+  }
+
+  it('marks every word asked under its node, the placement\'s too', async () => {
+    const flow = flowOver({ fresh });
+    const q = (await flow.question())!;
+    await flow.answer(allRight(q));
+    expect(await asked(fresh, q.nodeId)).toEqual([q.items[0].word]);
+  });
+
+  it('serves the unseen words of a node first, and the seen ones after', async () => {
+    const flow = await onDge(['edge', 'judge']);
+    const q = await turnAtDge(flow);
+    expect(q.nodeId).toBe(DGE);
+    expect(q.items.map((i) => i.word).slice(0, 2).sort()).toEqual(['badge', 'bridge']);
+    expect(q.items).toHaveLength(3);
+  });
+
+  it('a miss, then a right on words he has seen, marks the node to confirm and does not go solid or count', async () => {
+    const flow = await onDge(WORDS);
+    const first = await turnAtDge(flow);
+    expect((await flow.answer(noneRight(first))).verdict).toBe('missed');
+    const again = await turnAtDge(flow);
+    expect(again.nodeId).toBe(DGE);
+    const result = await flow.answer(allRight(again));
+    expect(result.counted).toBe(true);
+    expect(result.verdict).toBe('to-confirm');
+    expect(result.solid).toBe(false);
+    expect(await isToConfirm(fresh, DGE)).toBe(true);
+    expect((await keep.load()).tries[DGE]).toEqual([false, false, false]);
+  });
+
+  it('a pattern whose words are all seen is never solid on them, however well he spells them, and still serves its words', async () => {
+    const flow = await onDge(WORDS);
+    for (let i = 0; i < 12; i += 1) {
+      const q = await turnAtDge(flow);
+      expect(q.items.length).toBeGreaterThanOrEqual(2);
+      const result = await flow.answer(allRight(q));
+      expect(result.solid).toBe(false);
+    }
+    expect((await store.get(DGE))?.level).not.toBe('solid');
+  });
+
+  it('a fresh right goes solid: fresh words count, the seen ones in the same round do not', async () => {
+    const flow = await onDge();
+    const first = await turnAtDge(flow);
+    const one = await flow.answer(allRight(first)); // three fresh words
+    expect([one.verdict, one.solid]).toEqual(['known', false]);
+    const second = await turnAtDge(flow);
+    expect(second.items.filter((i) => !first.items.map((f) => f.word).includes(i.word))).toHaveLength(1); // the fourth word, then two seen
+    const two = await flow.answer(allRight(second));
+    expect([two.verdict, two.solid]).toEqual(['known', true]);
+    expect((await keep.load()).tries[DGE]).toEqual([true, true, true, true]); // not six
+    expect((await store.get(DGE))?.level).toBe('solid');
+  });
+
+  it('a fresh wrong returns the node to its due reviews, and takes the mark off', async () => {
+    const flow = await onDge(['edge', 'judge', 'bridge']);
+    await flow.answer(noneRight(await turnAtDge(flow))); // badge and two seen: a miss
+    expect(await isToConfirm(fresh, DGE)).toBe(false);
+    const again = await turnAtDge(flow);
+    await flow.answer(allRight(again)); // all four seen now: to confirm
+    expect(await isToConfirm(fresh, DGE)).toBe(true);
+    const row = (await store.get(DGE))!.review!;
+    expect([row.lapses, row.due]).toEqual([1, NOW + DAY]);
+
+    // a fresh word wrong: two of three right goes to the seen words, so the fresh one is the wrong one
+    fresh = new MemoryFreshStore({ asked: [[DGE, ['edge', 'judge']]], toConfirm: [DGE] });
+    const other = flowOver({ fresh, focus: async () => [DGE] });
+    const q = await turnAtDge(other);
+    const result = await other.answer({ correct: 2, total: q.items.length });
+    expect(result.verdict).toBe('missed');
+    expect(await isToConfirm(fresh, DGE)).toBe(false);
+    expect((await store.get(DGE))!.review!.lapses).toBe(2);
+  });
+
+  it('a right answer is paid as ever: counted is every word right, seen or not', async () => {
+    const flow = await onDge(WORDS);
+    const result = await flow.answer(allRight(await turnAtDge(flow)));
+    expect([result.counted, result.correct, result.total]).toEqual([true, 3, 3]);
+  });
+
+  it('answers a solid node\'s review on seen words as a right review, so it does not come back at once', async () => {
+    const flow = await onDge();
+    for (let i = 0; i < 2; i += 1) await flow.answer(allRight(await turnAtDge(flow)));
+    expect((await store.get(DGE))?.level).toBe('solid');
+    const later = createSpellingFlow({ store, keep, fresh, seed: 7, now: () => NOW + 31 * DAY });
+    let q = (await later.question())!;
+    while (q.nodeId !== DGE) {
+      await later.answer(noneRight(q));
+      q = (await later.question())!;
+    }
+    expect(q.stage).toBe('due');
+    const result = await later.answer(allRight(q));
+    expect([result.verdict, result.solid]).toEqual(['seen', true]);
+    expect((await store.get(DGE))!.review!.due).toBeGreaterThan(NOW + 31 * DAY + DAY);
   });
 });
 

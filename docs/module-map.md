@@ -444,3 +444,7 @@ export function computeDifficulty(stats: ReviewStats): number; // 0.0 to 1.0
 Versioning: 0.1.0; the library takes plain stats objects (not the app's `WordStats`), so the first step is a type-only story in SpellForge that makes the functions accept the narrower shape.
 
 Order of lifting, by the "sooner the better" rule and by the copies already out there: L1 first (three copies exist), then L3 and L2 (they sit on L1), then L4 (a second consumer exists), L5, and L6 to L8 when a second app asks.
+
+## 6. Where the proof-on-fresh rule lives (2026-10-27, Kestrel 20a)
+
+A right answer after a miss counts only when a fresh question is right (`learn-kit/fresh`, pinned in `package.json`). The three parts: the child's seen ledger and the stock's store, `src/learn/fresh-store.ts` (localStorage, `sf-<subject>-fresh:<profile id>` and `sf-<subject>-stock:<profile id>`; `missedLast` reads a review row); the makers that take `avoid`, `makeProblems` in `src/learn/maths/items.ts` and `pickWords` in `src/learn/spelling/items.ts`; and the grading, `answerDrill` in `src/worlds/maths/maths-flow.ts` and `src/worlds/spelling/spelling-flow.ts`, each world's flow taking a `fresh` store (memory when absent) that `MathsWorld.tsx` and `SpellingWorld.tsx` build over the child's profile id. `docs/maths-graph.md` and `docs/spelling-graph.md` say how each world reads the verdicts. The drill forms and the games are untouched.

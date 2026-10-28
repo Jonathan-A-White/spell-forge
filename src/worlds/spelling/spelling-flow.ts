@@ -4,12 +4,17 @@
 // (planDrill), and each node is handed to one of the games of drill-forms.ts (15a) with some of its own words. A game ends with `correct` of
 // `total` words; each word is a try, and a node is solid when its own rule holds over its last tries (`right` of `of`, 4 of 5 for most), and
 // then it leaves the frontier. A round with every word right is the review's right answer, so a solid node comes back when its review is due.
+// A word is proved on a fresh word (Kestrel 20a, learn-kit/fresh): each word asked is noted in the child's seen ledger under its node
+// (src/learn/fresh-store.ts), a round is made of the node's unseen words first, a right answer after a miss on words he has seen marks the node
+// to confirm and does not count, and a node goes solid only when a fresh word's right answer is counted (docs/spelling-graph.md).
 // A word list read from a photo has placed its words on the graph (mw-79en7t.16): the nodes the list's words practise (`focus`) are asked before the
 // frontier, one round each, until they are solid.
 // Nothing here touches the network or the screen: SpellingWorld.tsx draws what this returns.
 import { answerPlacement, applyPlacement, createForms, placementItem, planDrill, startPlacementFromStore, type DrillItem, type ItemMaker, type PlacementState } from 'learn-kit/drill';
+import { MemoryFreshStore, markAsked, recordAnswer, type FreshStore, type Verdict } from 'learn-kit/fresh';
 import { review, setLevel, type Graph, type GraphStore } from 'learn-kit/graph';
-import { spellingGraph, type SolidRule, type SpellingItem, type SpellingNode } from '../../learn/spelling';
+import { missedLast } from '../../learn/fresh-store';
+import { pickWords, spellingGraph, wordKey, type SolidRule, type SpellingItem, type SpellingNode } from '../../learn/spelling';
 import { DRILL_FORM_IDS, drillForms, gameItems, type DrillFormId } from './drill-forms';
 import type { SpellingKept, SpellingKeep } from './spelling-store';
 
@@ -57,6 +62,8 @@ export interface SpellingAnswer {
   stage: SpellingStage;
   /** Whether the node is solid now. */
   solid: boolean;
+  /** What learn-kit/fresh made of the round: 'known' when a fresh word was right, 'to-confirm' when words he had seen were right after a miss, 'seen', or 'missed'. A placement turn has none. */
+  verdict?: Verdict;
   /** The placement ended with this answer (finished, or paused at its question limit): what follows is the frontier. */
   placementOver: boolean;
 }
@@ -71,6 +78,8 @@ export interface SpellingFlow {
 export interface SpellingFlowDeps {
   store: GraphStore;
   keep: SpellingKeep;
+  /** The child's seen ledger (src/learn/fresh-store.ts); one in memory, lasting as long as the flow, when absent. */
+  fresh?: FreshStore;
   graph?: Graph<SpellingNode>;
   /** The clock: Date.now when absent. */
   now?: () => number;
@@ -89,15 +98,9 @@ export function triesSolid(tries: readonly boolean[], rule: SolidRule): boolean 
 
 const sum = (text: string): number => [...text].reduce((total, ch) => total + ch.charCodeAt(0), 0);
 
-/** `count` different words of a node, from a place in its list that the seed picks. */
-function wordsOf(node: SpellingNode, count: number, seed: number): SpellingItem[] {
-  const first = seed % node.items.length;
-  return Array.from({ length: Math.min(count, node.items.length) }, (_, i) => node.items[(first + i) % node.items.length]);
-}
-
-/** The placement's item maker: one word of the node, the seed picks which. */
+/** The placement's item maker: one word of the node, the seed picks which (a word he has seen is as good a question as any: it proves nothing, and the node is passed or not by it). */
 const makePick: ItemMaker<SpellingItem> = (node, ask) =>
-  wordsOf(node as SpellingNode, ask.count, ask.seed).map((item) => ({ key: `${node.id}:${item.word}`, form: PICK_FORM, payload: item }));
+  pickWords(node as SpellingNode, { count: ask.count, seed: ask.seed }).map((item) => ({ key: `${node.id}:${item.word}`, form: PICK_FORM, payload: item }));
 
 interface Queued {
   role: Exclude<SpellingStage, 'placement'>;
@@ -107,15 +110,17 @@ interface Queued {
 
 export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
   const { store, keep } = deps;
+  const fresh = deps.fresh ?? new MemoryFreshStore();
   const graph = (deps.graph ?? spellingGraph) as Graph<SpellingNode>;
   const now = deps.now ?? Date.now;
   const seedOf = (): number => deps.seed ?? Math.floor(now() / 1000);
   const rotation = deps.forms && deps.forms.length > 0 ? deps.forms : DRILL_FORM_IDS;
 
   /** The drill's item maker: a round of the node's words, all in one game form, one form after another across the nodes. */
-  const makeRound: ItemMaker<SpellingItem> = (node, ask) => {
+  const makeRound: ItemMaker<SpellingItem> = async (node, ask) => {
     const form = rotation[(ask.seed + sum(node.id)) % rotation.length];
-    return gameItems(node.id, form, wordsOf(node as SpellingNode, ask.count, ask.seed));
+    const avoid = ask.avoid ?? [...(await fresh.getAsked(node.id))];
+    return gameItems(node.id, form, pickWords(node as SpellingNode, { count: ask.count, seed: ask.seed, avoid }));
   };
 
   let kept: SpellingKept | undefined;
@@ -196,6 +201,7 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
         forms: drillForms,
         make: makeRound,
         itemsPerNode: ROUND_WORDS,
+        fresh,
         seed: seedOf() + sittings * 131,
         now: now(),
       });
@@ -218,18 +224,40 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
     return false;
   }
 
-  async function answerDrill(turn: SpellingTurn, correct: number, total: number): Promise<boolean> {
+  /**
+   * Grades a round. The games say how many words were right, not which, so the rights are given to the words he had seen first: the fewest
+   * fresh rights the count allows, which is exact for a round all right or all wrong. Each word goes through learn-kit/fresh's recordAnswer (the rights
+   * first, so a miss in the round has the last word on the node's mark). A right on a seen word counts for nothing; only a fresh word's right is a try
+   * that counts, the misses are tries as ever. The node advances on a round all right whose verdict is 'known' (a fresh word was right), or, when it
+   * is solid already and was not missed, on seen words too, so a review that comes due is answered and not asked for ever; a round with a miss
+   * returns the node to its due reviews as before.
+   */
+  async function answerDrill(turn: SpellingTurn, correct: number): Promise<Verdict> {
     const node = graph.byId.get(turn.nodeId) as SpellingNode;
     const k = await load();
+    const before = new Set(await fresh.getAsked(node.id));
+    const words = turn.items.map(wordKey);
+    const ordered = [...words.filter((w) => before.has(w)), ...words.filter((w) => !before.has(w))];
+    const rightWords = ordered.slice(0, correct);
+    const wrongWords = ordered.slice(correct);
+    const missedBefore = missedLast(await store.get(node.id));
+    const verdicts: Verdict[] = [];
+    for (const word of rightWords) verdicts.push(await recordAnswer(fresh, node.id, word, true, { missedBefore }));
+    for (const word of wrongWords) verdicts.push(await recordAnswer(fresh, node.id, word, false, { missedBefore }));
+    const freshRights = rightWords.filter((w) => !before.has(w)).length;
     // the words missed go in first, so a round's rights are its latest tries
-    const words = [...Array<boolean>(total - correct).fill(false), ...Array<boolean>(correct).fill(true)];
-    const tries = [...(k.tries[node.id] ?? []), ...words].slice(-node.solid.of);
+    const tries = [...(k.tries[node.id] ?? []), ...Array<boolean>(wrongWords.length).fill(false), ...Array<boolean>(freshRights).fill(true)].slice(-node.solid.of);
     await save({ ...k, tries: { ...k.tries, [node.id]: tries } });
-    await review(store, graph, node.id, correct === total, now());
-    if (triesSolid(tries, node.solid) && (await store.get(node.id))?.level !== 'solid') {
+
+    const wasSolid = (await store.get(node.id))?.level === 'solid';
+    const known = verdicts.includes('known');
+    const verdict: Verdict = wrongWords.length > 0 ? 'missed' : known ? 'known' : verdicts.includes('to-confirm') ? 'to-confirm' : 'seen';
+    if (verdict === 'missed') await review(store, graph, node.id, false, now());
+    else if (verdict === 'known' || (verdict === 'seen' && wasSolid)) await review(store, graph, node.id, true, now());
+    if (known && triesSolid(tries, node.solid) && (await store.get(node.id))?.level !== 'solid') {
       await setLevel(store, graph, node.id, 'solid', 'drill', now());
     }
-    return (await store.get(node.id))?.level === 'solid';
+    return verdict;
   }
 
   return {
@@ -249,8 +277,10 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
         current = null;
         const placing = turn.stage === 'placement';
         const placementOver = placing ? await placementAnswered(counted) : false;
-        const solid = placing ? false : await answerDrill(turn, correct, total);
-        return { correct, total, counted, nodeId: turn.nodeId, stage: turn.stage, solid, placementOver };
+        if (placing) await markAsked(fresh, turn.nodeId, wordKey(turn.items[0]));
+        const verdict = placing ? undefined : await answerDrill(turn, correct);
+        const solid = placing ? false : (await store.get(turn.nodeId))?.level === 'solid';
+        return { correct, total, counted, nodeId: turn.nodeId, stage: turn.stage, solid, ...(verdict ? { verdict } : {}), placementOver };
       }),
   };
 }

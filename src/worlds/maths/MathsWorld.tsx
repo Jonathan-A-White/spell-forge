@@ -4,6 +4,7 @@
 // (type, hear, see, do; 19b), the same form every time for the same question, with the concept's mnemonic picture beside it (19d). The child reads little and is not expected to
 // type: "Not sure" is an answer, and a wrong one is met with a nudge and a way on, never a dead end.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { storageFreshStore } from '../../learn/fresh-store';
 import type { MnemonicNode } from '../../learn/mnemonic-pictures';
 import { useVisibleInterval } from '../../shell/visible-interval';
 import { ConceptPicture } from './ConceptPicture';
@@ -32,7 +33,13 @@ const BUTTON = 'px-5 sf-control font-bold active:scale-[0.97] transition-transfo
 
 export function MathsWorld({ flow: given, profileId, report, language = 'en', picture, forms = MATHS_FORM_IDS, onBack }: MathsWorldProps) {
   const flow = useMemo(
-    () => given ?? createMathsFlow({ store: storageGraphStore(profileId ?? 'learner'), keep: storageKeep(profileId ?? 'learner') }),
+    () =>
+      given ??
+      createMathsFlow({
+        store: storageGraphStore(profileId ?? 'learner'),
+        keep: storageKeep(profileId ?? 'learner'),
+        fresh: storageFreshStore('maths', profileId ?? 'learner'),
+      }),
     [given, profileId],
   );
   const [round, setRound] = useState(0);

@@ -10,8 +10,9 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { stop } from 'voice-kit/speech';
 import { installSpeech, type SpeechFake } from 'voice-kit/testing/speech';
 import { clips, installMic } from 'voice-kit/testing/mic';
-import { DAY, memoryStore, type GraphStore } from 'learn-kit/graph';
-import { checkAnswer, mathsGraph, wrongAnswerFor, type MathsItem, type MathsNode } from '../../src/learn/maths';
+import { MemoryFreshStore, asked, isToConfirm, type FreshStore } from 'learn-kit/fresh';
+import { DAY, memoryStore, validate, type GraphStore } from 'learn-kit/graph';
+import { checkAnswer, mathsGraph, mathsNode, problemKey, wrongAnswerFor, type MathsItem, type MathsNode } from '../../src/learn/maths';
 import { MathsWorld } from '../../src/worlds/maths/MathsWorld';
 import { MATHS_FORM_IDS, askForms, formFor, openForm, spokenAnswer, type AskProps } from '../../src/worlds/maths/drill-forms';
 import {
@@ -204,6 +205,148 @@ describe('frontier drills, checked on the phone', () => {
     const flow = await placedAtBottom();
     for (let i = 0; i < 6; i++) await flow.answer(rightOf((await flow.question())!));
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Kestrel 20a (mw-16yxp1k.1), AC2 and AC4: a node is proved on a problem he has not seen (learn-kit/fresh).
+describe('proving on a fresh problem', () => {
+  let fresh: FreshStore;
+
+  beforeEach(() => {
+    fresh = new MemoryFreshStore();
+  });
+
+  async function placedAtBottom(over: Partial<Parameters<typeof createMathsFlow>[0]> = {}): Promise<MathsFlow> {
+    const flow = flowOver({ fresh, ...over });
+    await placeChild(flow, -1);
+    return flow;
+  }
+
+  /** Answers the questions of other nodes wrong, until one of `nodeId` comes. */
+  async function questionOf(flow: MathsFlow, nodeId: string): Promise<MathsQuestion> {
+    for (let i = 0; i < 40; i += 1) {
+      const q = (await flow.question())!;
+      if (q.nodeId === nodeId) return q;
+      await flow.answer(wrongAnswerFor(q.item));
+    }
+    throw new Error(`no question of ${nodeId}`);
+  }
+
+  it('marks every problem asked under its node, the placement\'s too, by the problem as it is asked', async () => {
+    const flow = flowOver({ fresh });
+    const q = (await flow.question())!;
+    expect(q.stage).toBe('placement');
+    await flow.answer(rightOf(q));
+    expect(await asked(fresh, q.nodeId)).toEqual([problemKey(q.item)]);
+  });
+
+  it('a miss, then a right on the problem again, marks the node to confirm and does not go solid or count', async () => {
+    const flow = await placedAtBottom();
+    const q1 = (await flow.question())!;
+    const missed = await flow.answer(wrongAnswerFor(q1.item));
+    expect(missed.verdict).toBe('missed');
+
+    const again = (await flow.question())!;
+    expect([again.nodeId, again.item.problem, again.repeat]).toEqual([q1.nodeId, q1.item.problem, true]);
+    const result = await flow.answer(rightOf(again));
+    expect(result.right).toBe(true);
+    expect(result.verdict).toBe('to-confirm');
+    expect(result.solid).toBe(false);
+    expect(await isToConfirm(fresh, q1.nodeId)).toBe(true);
+    expect((await keep.load()).tries[q1.nodeId]).toEqual([false]); // the seen right is no try
+    expect((await store.get(q1.nodeId))?.review?.lapses).toBe(1); // and moved nothing on
+  });
+
+  it('the next ask is a different problem, and the node is solid only after a fresh right: not on the seen one, not before the rule is met', async () => {
+    const flow = await placedAtBottom();
+    const q1 = (await flow.question())!;
+    const node = nodeOf(q1.nodeId);
+    await flow.answer(wrongAnswerFor(q1.item));
+    await flow.answer(rightOf((await flow.question())!)); // the repeat: to confirm
+    const seen = new Set([problemKey(q1.item)]);
+
+    let fresh_rights = 0;
+    while (fresh_rights < node.solid.right) {
+      const q = await questionOf(flow, node.id);
+      expect(seen.has(problemKey(q.item))).toBe(false);
+      seen.add(problemKey(q.item));
+      const result = await flow.answer(rightOf(q));
+      fresh_rights += 1;
+      expect(result.verdict).toBe('known');
+      expect(await isToConfirm(fresh, node.id)).toBe(false);
+      // the miss is the first of the last `of` tries: the rule holds on the `right`th fresh right with the seen right never counted
+      expect(result.solid).toBe(fresh_rights >= node.solid.right);
+    }
+    expect((await store.get(node.id))?.level).toBe('solid');
+  });
+
+  it('a fresh problem answered wrong while the node is to confirm returns it to its due reviews, and takes the mark off', async () => {
+    const flow = await placedAtBottom();
+    const q1 = (await flow.question())!;
+    await flow.answer(wrongAnswerFor(q1.item));
+    await flow.answer(rightOf((await flow.question())!));
+    expect(await isToConfirm(fresh, q1.nodeId)).toBe(true);
+
+    const q = await questionOf(flow, q1.nodeId);
+    expect(q.item.problem).not.toBe(q1.item.problem);
+    const result = await flow.answer(wrongAnswerFor(q.item));
+    expect(result.verdict).toBe('missed');
+    expect(result.solid).toBe(false);
+    expect(await isToConfirm(fresh, q1.nodeId)).toBe(false);
+    const row = (await store.get(q1.nodeId))!.review!;
+    expect(row.lapses).toBe(2);
+    expect(row.due).toBe(NOW + DAY);
+    expect((await keep.load()).tries[q1.nodeId]).toEqual([false, false]);
+  });
+
+  it('a fresh right counts as ever when the node was never missed, and a right after a hint is no proof', async () => {
+    const flow = await placedAtBottom();
+    const q = (await flow.question())!;
+    const hinted = await flow.answer(rightOf(q), { hinted: true });
+    expect([hinted.right, hinted.counted, hinted.verdict]).toEqual([true, false, 'missed']);
+    expect(await asked(fresh, q.nodeId)).toContain(problemKey(q.item));
+    const next = await questionOf(flow, q.nodeId);
+    expect((await flow.answer(rightOf(next))).verdict).toBe('known');
+  });
+
+  it('puts a missed problem once more, not a third time', async () => {
+    const flow = await placedAtBottom();
+    const q1 = (await flow.question())!;
+    await flow.answer(wrongAnswerFor(q1.item));
+    const again = (await flow.question())!;
+    await flow.answer(wrongAnswerFor(again.item));
+    const third = (await flow.question())!;
+    expect(third.repeat).toBeUndefined();
+    expect(third.item.problem === q1.item.problem && third.nodeId === q1.nodeId).toBe(false);
+  });
+
+  it('never asks a problem of a node twice while it has others he has not seen', async () => {
+    const flow = await placedAtBottom();
+    const first = (await flow.question())!;
+    const problems = new Set<string>();
+    for (let i = 0; i < 16; i += 1) {
+      const q = await questionOf(flow, first.nodeId);
+      expect(problems.has(problemKey(q.item))).toBe(false);
+      problems.add(problemKey(q.item));
+      await flow.answer(rightOf(q));
+      if ((await store.get(first.nodeId))?.level === 'solid') break;
+    }
+    expect(problems.size).toBeGreaterThanOrEqual(nodeOf(first.nodeId).solid.right);
+  });
+
+  it('starts a node\'s ledger over when its generator has no problem left that he has not seen, so it can still be proved', async () => {
+    const tiny = mathsNode({ id: 'tiny', band: 'preK', name: 'Tiny', item: (i) => [`What is ${i % 3} + 1?`, String((i % 3) + 1), 'Count on.'], solid: { right: 3, of: 4 } });
+    const flow = flowOver({ fresh, graph: validate([tiny]) as never });
+    for (let q = await flow.question(); q && q.stage === 'placement'; q = await flow.question()) await flow.answer(wrongAnswerFor(q.item));
+    const seen: string[] = [];
+    for (let i = 0; i < 12 && (await store.get('tiny'))?.level !== 'solid'; i += 1) {
+      const q = (await flow.question())!;
+      seen.push(q.item.problem);
+      await flow.answer(rightOf(q));
+    }
+    expect((await store.get('tiny'))?.level).toBe('solid');
+    expect(new Set(seen).size).toBe(3);
+    expect(seen.length).toBeGreaterThan(3);
   });
 });
 

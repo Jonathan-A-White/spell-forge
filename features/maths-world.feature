@@ -40,3 +40,18 @@ Feature: The Maths world
     Given a homework problem the maths graph knows
     And the phone keeps a picture for every concept
     Then the homework problem is shown with the concept's picture
+
+  Scenario: AC4: A problem missed and then answered right again is no proof, the concept is solid only on new problems
+    Given a Maths world on a concept that needs 3 right out of 4, past its placement
+    When the child answers the problem wrong
+    Then Maths says "Not quite yet"
+    When "Next" is tapped
+    Then the same problem is asked again
+    When the child answers it right
+    Then Maths says "Right! Well done."
+    When the child goes on with "Next"
+    Then a different problem is asked
+    When the child answers 2 different problems right, one after another
+    Then Maths does not say "You have got this one"
+    When the child answers one more different problem right
+    Then Maths says "You have got this one"

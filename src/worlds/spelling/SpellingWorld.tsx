@@ -5,6 +5,7 @@
 // visible-interval helper (M10). What is asked, and how a turn counts, is spelling-flow.ts's; this draws it. A miss is met with the word and a
 // way on, never a dead end.
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { storageFreshStore } from '../../learn/fresh-store';
 import { mnemonicPicture, type MnemonicNode } from '../../learn/mnemonic-pictures';
 import { useReportScreen } from '../../shell/report-screen';
 import { useVisibleInterval } from '../../shell/visible-interval';
@@ -49,7 +50,14 @@ function pickOrder(turn: SpellingTurn): string[] {
 
 export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBusy, picture = mnemonicPicture, openGame = openForm, tapTargetSize = DEFAULT_TAP_TARGET, themeId, onBack }: SpellingWorldProps) {
   const flow = useMemo(
-    () => given ?? createSpellingFlow({ store: storageGraphStore(profileId ?? 'learner'), keep: storageKeep(profileId ?? 'learner'), focus }),
+    () =>
+      given ??
+      createSpellingFlow({
+        store: storageGraphStore(profileId ?? 'learner'),
+        keep: storageKeep(profileId ?? 'learner'),
+        fresh: storageFreshStore('spelling', profileId ?? 'learner'),
+        focus,
+      }),
     // focus reads the lists when it is called, so a new closure each render must not start the flow again
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [given, profileId],

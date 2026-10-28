@@ -7,7 +7,7 @@ import { createElement } from 'react';
 import { afterAll, expect, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describeFeature, loadFeature } from '@amiceli/vitest-cucumber';
-import { memoryStore } from 'learn-kit/graph';
+import { memoryStore, validate } from 'learn-kit/graph';
 import { Shell } from '../../src/shell/Shell';
 import { AppProvider } from '../../src/shell/app-context';
 import { useApp } from '../../src/shell/app-state';
@@ -15,7 +15,7 @@ import { setLicenceStatus } from '../../src/shell/licence-gate';
 import { db } from '../../src/data/db';
 import { profileRepo, tutorRepo } from '../../src/data/repositories';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
-import { MATHS_NODES, PROBLEM_KIND_NODES } from '../../src/learn/maths';
+import { MATHS_NODES, PROBLEM_KIND_NODES, mathsNode, wrongAnswerFor } from '../../src/learn/maths';
 import { MathsWorld } from '../../src/worlds/maths/MathsWorld';
 import { Homework } from '../../src/worlds/maths/homework';
 import { canDo, type MathsFormId } from '../../src/worlds/maths/drill-forms';
@@ -102,6 +102,23 @@ const keepPictures = async (): Promise<void> => {
 };
 
 const boxForTheAnswer = () => expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+
+/** The problems the child has been given in this scenario, in order (a problem he meets again is listed once). */
+let met: string[] = [];
+
+/** Types an answer into the box and taps "Check". */
+async function answerOnScreen(answer: string): Promise<void> {
+  const q = (await flow.question())!;
+  if (!met.includes(q.item.problem)) met.push(q.item.problem);
+  fireEvent.change(await screen.findByLabelText('Your answer'), { target: { value: answer } });
+  await act(async () => void fireEvent.click(screen.getByRole('button', { name: 'Check' })));
+  await screen.findByRole('status');
+}
+
+const nextTapped = async (): Promise<void> => {
+  await act(async () => void fireEvent.click(await screen.findByRole('button', { name: 'Next' })));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Next' })).toBeNull());
+};
 
 describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
   BeforeEachScenario(freshPhone);
@@ -198,6 +215,64 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
       });
       expect(screen.getByText(HOMEWORK)).toBeInTheDocument();
       expect(await screen.findByTestId('mnemonic-picture')).toBeInTheDocument();
+    });
+  });
+  Scenario('AC4: A problem missed and then answered right again is no proof, the concept is solid only on new problems', ({ Given, When, Then }) => {
+    Given('a Maths world on a concept that needs 3 right out of 4, past its placement', async () => {
+      // one concept that makes a new problem for every index, so the child can always be given one he has not met
+      const concept = mathsNode({ id: 'adding-one', band: 'preK', name: 'Adding one', item: (i) => [`What is ${i} + 1?`, String(i + 1), 'Count on one.'], solid: { right: 3, of: 4 } });
+      flow = createMathsFlow({ store: memoryStore(), keep: memoryKeep(), graph: validate([concept]) as never, now: () => NOW.getTime(), seed: 3 });
+      for (let q = await flow.question(); q && q.stage === 'placement'; q = await flow.question()) await flow.answer(wrongAnswerFor(q.item));
+      met = [];
+      await act(async () => void render(createElement(MathsWorld, { flow, forms: ['type'] })));
+      await screen.findByText((await flow.question())!.item.problem);
+    });
+    When('the child answers the problem wrong', async () => {
+      await answerOnScreen(wrongAnswerFor((await flow.question())!.item));
+    });
+    Then('Maths says "Not quite yet"', async () => {
+      expect(await screen.findByRole('status')).toHaveTextContent('Not quite yet');
+    });
+    When('"Next" is tapped', nextTapped);
+    When('the child goes on with "Next"', nextTapped);
+    Then('the same problem is asked again', async () => {
+      const q = (await flow.question())!;
+      expect(q.item.problem).toBe(met[0]);
+      await screen.findByText(q.item.problem);
+    });
+    When('the child answers it right', async () => {
+      await answerOnScreen((await flow.question())!.item.answer);
+    });
+    Then('a different problem is asked', async () => {
+      const q = (await flow.question())!;
+      expect(met).not.toContain(q.item.problem);
+      await screen.findByText(q.item.problem);
+    });
+    When('the child answers {int} different problems right, one after another', async (_ctx, count: number) => {
+      for (let i = 0; i < count; i += 1) {
+        const q = (await flow.question())!;
+        expect(met).not.toContain(q.item.problem);
+        await screen.findByText(q.item.problem);
+        await answerOnScreen(q.item.answer);
+        expect(await screen.findByRole('status')).toHaveTextContent('Right! Well done.');
+        await nextTapped();
+      }
+    });
+    Then('Maths does not say "You have got this one"', async () => {
+      const q = (await flow.question())!;
+      await screen.findByText(q.item.problem);
+      expect(screen.queryByText(/You have got this one/)).toBeNull();
+    });
+    Then('Maths says "Right! Well done."', async () => {
+      expect(await screen.findByRole('status')).toHaveTextContent('Right! Well done.');
+    });
+    Then('Maths says "You have got this one"', async () => {
+      expect(await screen.findByRole('status')).toHaveTextContent('You have got this one');
+    });
+    When('the child answers one more different problem right', async () => {
+      const q = (await flow.question())!;
+      expect(met).not.toContain(q.item.problem);
+      await answerOnScreen(q.item.answer);
     });
   });
 });
