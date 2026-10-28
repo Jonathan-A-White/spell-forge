@@ -1,0 +1,115 @@
+{
+  "about": "He has met edge, judge, bridge and badge, and ledge and fudge besides: the grind writes other words that end in dge after a short vowel, none of those six, each with one plain sentence that uses it and never hints at its spelling.",
+  "request": {
+    "schemaVersion": "1",
+    "nodeId": "short-vowel-dge",
+    "name": "dge after a short vowel, like edge and bridge",
+    "rule": "Short \"e\" before \"dge\". Short \"u\" before \"dge\". Short \"i\" before \"dge\".",
+    "examples": [
+      "edge",
+      "judge",
+      "bridge",
+      "badge"
+    ],
+    "seen": [
+      "edge",
+      "judge",
+      "bridge",
+      "badge",
+      "ledge",
+      "fudge"
+    ],
+    "count": 3,
+    "ageBand": "3-5"
+  },
+  "expect": {
+    "words.0.word": {
+      "all": [
+        {
+          "matches": "^[a-z]+$"
+        },
+        {
+          "matches": "dge"
+        },
+        {
+          "matches": "(?i)^(?:|e|ed|edg|[^e].*|e[^d].*|ed[^g].*|edg[^e].*|edge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|j|ju|jud|judg|[^j].*|j[^u].*|ju[^d].*|jud[^g].*|judg[^e].*|judge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|b|br|bri|brid|bridg|[^b].*|b[^r].*|br[^i].*|bri[^d].*|brid[^g].*|bridg[^e].*|bridge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|b|ba|bad|badg|[^b].*|b[^a].*|ba[^d].*|bad[^g].*|badg[^e].*|badge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|l|le|led|ledg|[^l].*|l[^e].*|le[^d].*|led[^g].*|ledg[^e].*|ledge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|f|fu|fud|fudg|[^f].*|f[^u].*|fu[^d].*|fud[^g].*|fudg[^e].*|fudge.+)$"
+        }
+      ]
+    },
+    "words.0.sentence": {
+      "all": [
+        {
+          "matches": "^[A-Z]"
+        },
+        {
+          "matches": "[.!?]$"
+        },
+        {
+          "matches": "(?i)^(?:[^s]|s(?:s|p(?:s|e(?:s|ls)))*(?:[^sp]|p(?:[^se]|e(?:[^sl]|l[^sl]))))*(?:|s(?:s|p(?:s|e(?:s|ls)))*(?:|p(?:|e(?:|l))))$"
+        },
+        {
+          "matches": "(?i)^(?:[^l]|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:[^le]|e(?:[^lt]|t(?:[^lt]|t(?:[^le]|e[^lr])))))*(?:|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:|e(?:|t(?:|t(?:|e)))))$"
+        }
+      ]
+    },
+    "words.1.word": {
+      "all": [
+        {
+          "matches": "^[a-z]+$"
+        },
+        {
+          "matches": "dge"
+        },
+        {
+          "matches": "(?i)^(?:|e|ed|edg|[^e].*|e[^d].*|ed[^g].*|edg[^e].*|edge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|j|ju|jud|judg|[^j].*|j[^u].*|ju[^d].*|jud[^g].*|judg[^e].*|judge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|b|br|bri|brid|bridg|[^b].*|b[^r].*|br[^i].*|bri[^d].*|brid[^g].*|bridg[^e].*|bridge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|b|ba|bad|badg|[^b].*|b[^a].*|ba[^d].*|bad[^g].*|badg[^e].*|badge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|l|le|led|ledg|[^l].*|l[^e].*|le[^d].*|led[^g].*|ledg[^e].*|ledge.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|f|fu|fud|fudg|[^f].*|f[^u].*|fu[^d].*|fud[^g].*|fudg[^e].*|fudge.+)$"
+        }
+      ]
+    },
+    "words.1.sentence": {
+      "all": [
+        {
+          "matches": "^[A-Z]"
+        },
+        {
+          "matches": "[.!?]$"
+        },
+        {
+          "matches": "(?i)^(?:[^s]|s(?:s|p(?:s|e(?:s|ls)))*(?:[^sp]|p(?:[^se]|e(?:[^sl]|l[^sl]))))*(?:|s(?:s|p(?:s|e(?:s|ls)))*(?:|p(?:|e(?:|l))))$"
+        },
+        {
+          "matches": "(?i)^(?:[^l]|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:[^le]|e(?:[^lt]|t(?:[^lt]|t(?:[^le]|e[^lr])))))*(?:|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:|e(?:|t(?:|t(?:|e)))))$"
+        }
+      ]
+    }
+  }
+}

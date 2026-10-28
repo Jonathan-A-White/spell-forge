@@ -1,0 +1,14 @@
+{
+  "grind": 1,
+  "app": "spellforge",
+  "kind": "spelling-items",
+  "versions": ["1"],
+  "model": "sonnet",
+  "effort": "medium",
+  "instructions": "grinds/spelling-items.instructions.md",
+  "answerSchema": "grinds/spelling-items.answer.schema.json",
+  "attachments": {
+    "min": 0,
+    "max": 0
+  }
+}

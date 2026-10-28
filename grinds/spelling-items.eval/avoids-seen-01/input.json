@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "nodeId": "short-vowel-dge",
+  "name": "dge after a short vowel, like edge and bridge",
+  "rule": "Short \"e\" before \"dge\". Short \"u\" before \"dge\". Short \"i\" before \"dge\".",
+  "examples": ["edge", "judge", "bridge", "badge"],
+  "seen": ["edge", "judge", "bridge", "badge", "ledge", "fudge"],
+  "count": 6,
+  "ageBand": "3-5"
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "nodeId": "vowel-team-ea-short",
+  "name": "ea that says short e, like bread",
+  "rule": "\"ea\" can also say short \"e\".",
+  "examples": ["bread", "head", "dead", "spread"],
+  "seen": ["bread", "head", "dead", "spread"],
+  "count": 4,
+  "ageBand": "1-2"
+}

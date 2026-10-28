@@ -1,0 +1,115 @@
+{
+  "about": "The short a pattern for kindergarten (cat, hat, bat, map), with all four and sad and dad met: the grind writes other short a words, three letters or so, that no other pattern claims, each with one plain sentence that uses it.",
+  "request": {
+    "schemaVersion": "1",
+    "nodeId": "short-vowel-a",
+    "name": "Short a, like cat",
+    "rule": "Short \"a\" like in \"cat\".",
+    "examples": [
+      "cat",
+      "hat",
+      "bat",
+      "map"
+    ],
+    "seen": [
+      "cat",
+      "hat",
+      "bat",
+      "map",
+      "sad",
+      "dad"
+    ],
+    "count": 3,
+    "ageBand": "K"
+  },
+  "expect": {
+    "words.0.word": {
+      "all": [
+        {
+          "matches": "^[a-z]+$"
+        },
+        {
+          "matches": "a"
+        },
+        {
+          "matches": "(?i)^(?:|c|ca|[^c].*|c[^a].*|ca[^t].*|cat.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|h|ha|[^h].*|h[^a].*|ha[^t].*|hat.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|b|ba|[^b].*|b[^a].*|ba[^t].*|bat.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|m|ma|[^m].*|m[^a].*|ma[^p].*|map.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|s|sa|[^s].*|s[^a].*|sa[^d].*|sad.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|d|da|[^d].*|d[^a].*|da[^d].*|dad.+)$"
+        }
+      ]
+    },
+    "words.0.sentence": {
+      "all": [
+        {
+          "matches": "^[A-Z]"
+        },
+        {
+          "matches": "[.!?]$"
+        },
+        {
+          "matches": "(?i)^(?:[^s]|s(?:s|p(?:s|e(?:s|ls)))*(?:[^sp]|p(?:[^se]|e(?:[^sl]|l[^sl]))))*(?:|s(?:s|p(?:s|e(?:s|ls)))*(?:|p(?:|e(?:|l))))$"
+        },
+        {
+          "matches": "(?i)^(?:[^l]|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:[^le]|e(?:[^lt]|t(?:[^lt]|t(?:[^le]|e[^lr])))))*(?:|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:|e(?:|t(?:|t(?:|e)))))$"
+        }
+      ]
+    },
+    "words.1.word": {
+      "all": [
+        {
+          "matches": "^[a-z]+$"
+        },
+        {
+          "matches": "a"
+        },
+        {
+          "matches": "(?i)^(?:|c|ca|[^c].*|c[^a].*|ca[^t].*|cat.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|h|ha|[^h].*|h[^a].*|ha[^t].*|hat.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|b|ba|[^b].*|b[^a].*|ba[^t].*|bat.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|m|ma|[^m].*|m[^a].*|ma[^p].*|map.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|s|sa|[^s].*|s[^a].*|sa[^d].*|sad.+)$"
+        },
+        {
+          "matches": "(?i)^(?:|d|da|[^d].*|d[^a].*|da[^d].*|dad.+)$"
+        }
+      ]
+    },
+    "words.1.sentence": {
+      "all": [
+        {
+          "matches": "^[A-Z]"
+        },
+        {
+          "matches": "[.!?]$"
+        },
+        {
+          "matches": "(?i)^(?:[^s]|s(?:s|p(?:s|e(?:s|ls)))*(?:[^sp]|p(?:[^se]|e(?:[^sl]|l[^sl]))))*(?:|s(?:s|p(?:s|e(?:s|ls)))*(?:|p(?:|e(?:|l))))$"
+        },
+        {
+          "matches": "(?i)^(?:[^l]|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:[^le]|e(?:[^lt]|t(?:[^lt]|t(?:[^le]|e[^lr])))))*(?:|l(?:l|e(?:l|t(?:l|t(?:l|el))))*(?:|e(?:|t(?:|t(?:|e)))))$"
+        }
+      ]
+    }
+  }
+}

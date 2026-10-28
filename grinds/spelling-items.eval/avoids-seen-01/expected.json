@@ -1,0 +1,5 @@
+{
+  "about": "he has met six of the dge words: the grind writes other words that fit, and none of the six (neither the examples nor the seen words)",
+  "words_must_fit": "dge",
+  "never_contains": ["edge", "judge", "bridge", "badge", "ledge", "fudge"]
+}

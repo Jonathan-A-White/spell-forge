@@ -1,0 +1,6 @@
+{
+  "about": "a sentence uses its word and never gives a spelling hint: it does not name letters, the pattern or how the word is spelt",
+  "words_must_fit": "ea",
+  "sentence_must_not_match": ["(?i)spell", "(?i)letter", "(?i)\\bea\\b", "(?i)silent"],
+  "never_contains": ["bread", "head", "dead", "spread"]
+}

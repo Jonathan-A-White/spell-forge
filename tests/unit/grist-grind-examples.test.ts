@@ -33,8 +33,8 @@ const MAX_PHOTO_BYTES = 200 * 1024;
 const grinds = listGrinds(root);
 
 describe('the grinds in the rig', () => {
-  it('are the six the app sends', () => {
-    expect(grinds.map((g) => g.kind).sort()).toEqual(['maker-request', 'mnemonic-picture', 'parent-ask', 'tutor-talk', 'tutor-turn', 'word-list']);
+  it('are the seven the app sends', () => {
+    expect(grinds.map((g) => g.kind).sort()).toEqual(['maker-request', 'mnemonic-picture', 'parent-ask', 'spelling-items', 'tutor-talk', 'tutor-turn', 'word-list']);
   });
 });
 
