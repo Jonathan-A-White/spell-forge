@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.2.0",
+    "date": "2026-10-28",
+    "story": "mw-16yxp1k.2",
+    "kind": "new",
+    "text": "When a child has met every word of a spelling pattern, Spelling now asks for fresh words in the background so there is always something new to prove it on."
+  },
+  {
     "version": "0.1.188",
     "date": "2026-10-28",
     "story": "mw-16yxp1k.1",
