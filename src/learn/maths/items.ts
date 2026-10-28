@@ -61,6 +61,48 @@ export function itemAt(node: MathsNode, index: number): MathsItem {
   return node.item(index);
 }
 
+/** How far past the first index the maker looks for a problem the child has not seen: the same index always gives the same item, so this bounds the variety. */
+export const ITEM_SPAN = 200;
+
+/** The key a problem is kept under in the child's seen ledger (learn-kit/fresh): the problem as asked, so two indexes that make the same problem are one key. */
+export function problemKey(item: Pick<MathsItem, 'problem'>): string {
+  return item.problem;
+}
+
+/** One problem made for an ask: the index it came from, the problem, and whether the child has not been asked it. */
+export interface MadeProblem {
+  index: number;
+  item: MathsItem;
+  fresh: boolean;
+}
+
+/**
+ * `count` problems of a node from a place in its generator that the seed picks (`seed % ITEM_SPAN`), the same for the same seed. Problems whose keys
+ * are not in `avoid` (the node's seen ledger) come first, each problem once, found in a window past the first index that reaches `ITEM_SPAN` indexes
+ * past the seen ones; if the window holds fewer than `count`, the rest are the seen problems from the first index on, as before there was a ledger.
+ */
+export function makeProblems(node: MathsNode, ask: { count: number; seed: number; avoid?: readonly string[] }): MadeProblem[] {
+  const first = ask.seed % ITEM_SPAN;
+  const seen = new Set(ask.avoid ?? []);
+  const made: MadeProblem[] = [];
+  const taken = new Set<string>();
+  const reach = first + ITEM_SPAN + seen.size;
+  for (let index = first; index < reach && made.length < ask.count; index += 1) {
+    const item = node.item(index);
+    const key = problemKey(item);
+    if (seen.has(key) || taken.has(key)) continue;
+    taken.add(key);
+    made.push({ index, item, fresh: true });
+  }
+  for (let index = first; made.length < ask.count; index += 1) {
+    const item = node.item(index);
+    if (taken.has(problemKey(item)) && index < reach) continue; // a different seen problem if the node has one, else the same again
+    taken.add(problemKey(item));
+    made.push({ index, item, fresh: false });
+  }
+  return made;
+}
+
 // ─── Checking an answer ───────────────────────────────────
 
 type Parsed =

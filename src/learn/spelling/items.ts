@@ -53,6 +53,24 @@ export interface SpellingNode extends GraphNode {
   strategy?: StrategyKind;
 }
 
+/** The key a word is kept under in the child's seen ledger (learn-kit/fresh): the word itself. */
+export function wordKey(item: Pick<SpellingItem, 'word'>): string {
+  return item.word;
+}
+
+/**
+ * `count` different words of a node from a place in its list that the seed picks, the same for the same seed. The words the child has not seen (not
+ * in `avoid`, the node's seen ledger) come first; when they run out, the seen words follow from the same place, as before there was a ledger, so
+ * a pattern whose words are all seen still serves its words and a child never waits.
+ */
+export function pickWords(node: Pick<SpellingNode, 'items'>, ask: { count: number; seed: number; avoid?: readonly string[] }): SpellingItem[] {
+  const seen = new Set(ask.avoid ?? []);
+  const first = ask.seed % node.items.length;
+  const around = Array.from({ length: node.items.length }, (_, i) => node.items[(first + i) % node.items.length]);
+  const ordered = [...around.filter((item) => !seen.has(wordKey(item))), ...around.filter((item) => seen.has(wordKey(item)))];
+  return ordered.slice(0, Math.min(ask.count, node.items.length));
+}
+
 /** Does this word show this pattern? A pattern with `_` (`a_e`) is its two ends around one consonant (`cake`); any other is found in the word. */
 export function itemShowsPattern(word: string, pattern: string): boolean {
   const split = pattern.split('_');

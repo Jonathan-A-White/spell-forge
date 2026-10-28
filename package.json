@@ -51,7 +51,7 @@
     "dexie": "^4.3.0",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
-    "learn-kit": "github:Jonathan-A-White/learn-kit#993ac91b74ca4b34493f734bff2ca1ec61f22b63",
+    "learn-kit": "github:Jonathan-A-White/learn-kit#866354a9c617f35bf9e85159e72bab0a27b6f02e",
     "ogl": "^1.0.11",
     "pwa-kit": "github:Jonathan-A-White/pwa-kit#011083d67ed4eea69f08177ffa2b04a3b57eb51d",
     "qrcode": "^1.5.4",
@@ -97,7 +97,7 @@
   },
   "allowScripts": {
     "github:Jonathan-A-White/bsv-kit#918c441ce443dff052470de5671c2b1c430f8ebd": true,
-    "github:Jonathan-A-White/learn-kit#993ac91b74ca4b34493f734bff2ca1ec61f22b63": true,
+    "github:Jonathan-A-White/learn-kit#866354a9c617f35bf9e85159e72bab0a27b6f02e": true,
     "github:Jonathan-A-White/pwa-kit#011083d67ed4eea69f08177ffa2b04a3b57eb51d": true,
     "github:Jonathan-A-White/voice-kit#d87188227886ec15e7c34f674992f4a63ea69215": true
   }

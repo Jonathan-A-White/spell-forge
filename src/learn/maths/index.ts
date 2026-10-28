@@ -3,15 +3,18 @@
 export { COMPETITION_NODES, MATHS_NODES, mathsGraph, nodesInBand } from './graph.ts';
 export {
   GRADE_BANDS,
+  ITEM_SPAN,
   MIN_ITEMS,
   bandLevel,
   checkAnswer,
   itemAt,
+  makeProblems,
   mathsNode,
   nodeProblems,
+  problemKey,
   wrongAnswerFor,
 } from './items.ts';
-export type { GradeBand, MathsItem, MathsNode, SolidRule } from './items.ts';
+export type { GradeBand, MadeProblem, MathsItem, MathsNode, SolidRule } from './items.ts';
 export { NUMBER_NODES } from './nodes-number.ts';
 export { ALGEBRA_NODES, HEART_OF_ALGEBRA, PASSPORT_TO_ADVANCED_MATH } from './nodes-algebra.ts';
 export { OPERATION_NODES, PROBLEM_SOLVING_AND_DATA_ANALYSIS } from './nodes-operations.ts';
