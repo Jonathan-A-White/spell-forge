@@ -60,3 +60,24 @@ Feature: The Spelling world
     And the child has met all 7 words
     When the child finishes 4 rounds in a row with every word right
     Then Spelling does not say "You have got this one"
+
+  Scenario: AC3: A pattern whose words are all met gets fresh words written ahead, and a fresh right goes solid
+    Given a Spelling world on a pattern of 7 words that needs 3 right out of 4, all met, with a mill that writes nudge, wedge and smudge
+    Then Spelling says "New words are on their way"
+    And the round has 3 words the child has met
+    When the mill's words have arrived
+    And the child finishes the round with all 3 words right
+    Then Spelling does not say "You have got this one"
+    When "Next" is tapped
+    Then the next round is nudge, wedge and smudge
+    And Spelling does not say "New words are on their way"
+    When the child finishes the round with all 3 words right
+    Then Spelling says "You have got this one"
+
+  Scenario: AC3: With no connection the words it has serve, nothing waits and nothing is asked
+    Given a Spelling world on a pattern of 7 words that needs 3 right out of 4, all met, with no connection to the mill
+    Then Spelling says "New words are on their way"
+    And the round has 3 words the child has met
+    And the mill is not asked
+    When the child finishes the round with all 3 words right
+    Then Spelling does not say "You have got this one"

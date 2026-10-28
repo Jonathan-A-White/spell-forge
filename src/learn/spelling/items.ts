@@ -26,8 +26,10 @@ export interface SpellingItem {
   word: string;
   /** The pattern the node teaches that the word shows: a grapheme (`sh`, `a`), or `a_e` for a letter, any consonant, then e. */
   pattern: string;
-  /** A wrong choice to put beside the word (a plausible misspelling, or for a letter sound a word that begins otherwise); it does not show the pattern. */
+  /** A wrong choice to put beside the word (a plausible misspelling, or for a letter sound a word that begins otherwise); it does not show the pattern. A word the mill wrote has none (''): only the placement picks between two spellings, and it uses a node's own words. */
   distractor: string;
+  /** Set on a word the mill wrote (grinds/spelling-items.json): one plain sentence that uses it, never a spelling hint. A node's own words have none. */
+  sentence?: string;
 }
 
 /** The rule for a node to count as solid: `right` of the child's last `of` tries right. */

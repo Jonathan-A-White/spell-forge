@@ -23,3 +23,12 @@ export { PARENT_ASK_DEADLINE_MS, ParentAskInFlight } from './parent-ask-in-fligh
 export type { ParentAskInFlightDeps } from './parent-ask-in-flight';
 export { GRIST_MAX_PHOTO_BYTES, browserPhotoEncoder, shrinkPhoto } from './shrink-photo';
 export type { PhotoEncoder } from './shrink-photo';
+export {
+  SPELLING_ITEMS_DEADLINE_MS,
+  SPELLING_ITEMS_GRIND,
+  checkFreshWords,
+  createSpellingAsk,
+  isSpellingItemsAnswer,
+  spellingItemsRequest,
+} from './spelling-items';
+export type { SpellingAskDeps, SpellingItemsAnswer, SpellingItemsRequest } from './spelling-items';

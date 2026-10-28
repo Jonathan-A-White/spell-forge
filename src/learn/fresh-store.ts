@@ -2,8 +2,9 @@
 // question keys asked on each node (a word; a maths problem) and the nodes marked to confirm, as one small JSON value in localStorage, the same
 // shape and place as the worlds' own keeps (spelling-store.ts, maths-store.ts); and the StockStore for the ask-ahead stock (story 20b), a value of
 // its own. Data and pure code: no screen, no network. docs/spelling-graph.md and docs/maths-graph.md say how the worlds use the rule.
-import type { FreshStore, StockStore } from 'learn-kit/fresh';
+import { createStock, type AskRequest, type FreshStore, type Stock, type StockStore } from 'learn-kit/fresh';
 import { DAY, type NodeState } from 'learn-kit/graph';
+import type { SpellingItem } from './spelling';
 
 export { MemoryFreshStore, MemoryStockStore } from 'learn-kit/fresh';
 
@@ -74,6 +75,31 @@ export function storageStockStore<T>(subject: FreshSubject, profileId: string, s
       writeJson(storage, key, kept);
     },
   };
+}
+
+/** Most fresh words kept per node (learn-kit's STOCK_CAP, Lampas's MAX_KEPT). PROVISIONAL. */
+export const SPELLING_STOCK_CAP = 6;
+/** A node with fewer fresh words kept than this is topped up in the background (learn-kit's STOCK_LOW_WATER). PROVISIONAL. */
+export const SPELLING_STOCK_LOW_WATER = 2;
+
+/**
+ * The Spelling world's ask-ahead stock (story 20b, grinds/spelling-items.json): the fresh words the mill wrote for each node, kept in `store` (storageStockStore),
+ * served oldest first and once, never a word in the child's ledger. `ask` is the mill call and its check (src/grist/spelling-items.ts); it resolves to none
+ * when it cannot ask, so offline, with no licence or on a failed grist the stock stays as it was.
+ */
+export function spellingStock(options: {
+  ask: (idea: string, request: AskRequest) => Promise<SpellingItem[]>;
+  fresh: FreshStore;
+  store: StockStore<SpellingItem>;
+}): Stock<SpellingItem> {
+  return createStock<SpellingItem>({
+    ask: options.ask,
+    keyOf: (item) => item.word,
+    store: options.store,
+    fresh: options.fresh,
+    lowWater: SPELLING_STOCK_LOW_WATER,
+    cap: SPELLING_STOCK_CAP,
+  });
 }
 
 /**

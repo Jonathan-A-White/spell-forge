@@ -5,8 +5,10 @@
 // visible-interval helper (M10). What is asked, and how a turn counts, is spelling-flow.ts's; this draws it. A miss is met with the word and a
 // way on, never a dead end.
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { storageFreshStore } from '../../learn/fresh-store';
+import { createSpellingAsk } from '../../grist/spelling-items';
+import { spellingStock, storageFreshStore, storageStockStore } from '../../learn/fresh-store';
 import { mnemonicPicture, type MnemonicNode } from '../../learn/mnemonic-pictures';
+import type { SpellingItem } from '../../learn/spelling';
 import { useReportScreen } from '../../shell/report-screen';
 import { useVisibleInterval } from '../../shell/visible-interval';
 import { openGame as openDrillGame, type DrillFormId, type GameContext, type GameItem } from './drill-forms';
@@ -31,6 +33,12 @@ export interface SpellingWorldProps {
   onBack?: () => void;
 }
 
+/** The grind that writes fresh words, one for the whole sitting: it asks for a node once at most (src/grist/spelling-items.ts), however often the world is opened. */
+const askAhead = createSpellingAsk();
+
+/** What the screen says beside a drill whose pattern has no word he has not met yet and none written ahead. PROVISIONAL. */
+export const NEW_WORDS_LINE = 'New words are on their way';
+
 const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 
 const BUTTON = 'px-5 sf-control font-bold active:scale-[0.97] transition-transform';
@@ -50,14 +58,18 @@ function pickOrder(turn: SpellingTurn): string[] {
 
 export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBusy, picture = mnemonicPicture, openGame = openForm, tapTargetSize = DEFAULT_TAP_TARGET, themeId, onBack }: SpellingWorldProps) {
   const flow = useMemo(
-    () =>
-      given ??
-      createSpellingFlow({
-        store: storageGraphStore(profileId ?? 'learner'),
-        keep: storageKeep(profileId ?? 'learner'),
-        fresh: storageFreshStore('spelling', profileId ?? 'learner'),
+    () => {
+      if (given) return given;
+      const learner = profileId ?? 'learner';
+      const fresh = storageFreshStore('spelling', learner);
+      return createSpellingFlow({
+        store: storageGraphStore(learner),
+        keep: storageKeep(learner),
+        fresh,
+        stock: spellingStock({ ask: askAhead, fresh, store: storageStockStore<SpellingItem>('spelling', learner) }),
         focus,
-      }),
+      });
+    },
     // focus reads the lists when it is called, so a new closure each render must not start the flow again
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [given, profileId],
@@ -174,6 +186,11 @@ export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBus
               )}
               <p className="text-sf-muted text-sm">{turn.nodeName}</p>
             </div>
+            {turn.waiting && (
+              <p data-testid="new-words-note" className="text-sf-muted text-sm">
+                {NEW_WORDS_LINE}
+              </p>
+            )}
 
             {turn.stage === 'placement' ? (
               <Pick turn={turn} result={result} onHear={() => onSpeak?.(turn.items[0].word)} onPick={(spelling) => void finish({ correct: spelling === turn.items[0].word ? 1 : 0, total: 1 }, spelling)} />

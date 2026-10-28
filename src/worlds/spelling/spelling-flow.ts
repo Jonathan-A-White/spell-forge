@@ -9,9 +9,13 @@
 // to confirm and does not count, and a node goes solid only when a fresh word's right answer is counted (docs/spelling-graph.md).
 // A word list read from a photo has placed its words on the graph (mw-79en7t.16): the nodes the list's words practise (`focus`) are asked before the
 // frontier, one round each, until they are solid.
-// Nothing here touches the network or the screen: SpellingWorld.tsx draws what this returns.
-import { answerPlacement, applyPlacement, createForms, placementItem, planDrill, startPlacementFromStore, type DrillItem, type ItemMaker, type PlacementState } from 'learn-kit/drill';
-import { MemoryFreshStore, markAsked, recordAnswer, type FreshStore, type Verdict } from 'learn-kit/fresh';
+// A pattern whose words he has all seen is asked ahead (Kestrel 20b, grinds/spelling-items.json): the stock (learn-kit/fresh, src/learn/fresh-store.ts)
+// keeps fresh words the mill wrote, topped up when a node is opened, a word is served or a right answer lands on a node he had missed, never awaited;
+// a round is made of the stock's words first (stockThenMaker), then the node's unseen words, then its seen ones, and a node whose words are all seen
+// with nothing in the stock says so (`waiting`) and carries on with what it has.
+// Nothing here touches the network or the screen: SpellingWorld.tsx draws what this returns. The stock's ask is the one that reaches the mill.
+import { answerPlacement, applyPlacement, createForms, placementItem, planDrill, startPlacementFromStore, stockThenMaker, type DrillItem, type ItemMaker, type PlacementState } from 'learn-kit/drill';
+import { MemoryFreshStore, markAsked, recordAnswer, type FreshStore, type Stock, type Verdict } from 'learn-kit/fresh';
 import { review, setLevel, type Graph, type GraphStore } from 'learn-kit/graph';
 import { missedLast } from '../../learn/fresh-store';
 import { pickWords, spellingGraph, wordKey, type SolidRule, type SpellingItem, type SpellingNode } from '../../learn/spelling';
@@ -45,6 +49,8 @@ export interface SpellingTurn {
   form: string;
   /** The word asked (placement), or the words of the round (a game). */
   items: SpellingItem[];
+  /** Set on a node's turn: its words are all seen and the stock has no fresh word for it yet, so the screen says new words are on their way. */
+  waiting?: boolean;
 }
 
 /** How a turn went: the words right of the words asked, the same for a pick and for every game. The turn's own words are the total: a game's count past them is cut. */
@@ -80,6 +86,8 @@ export interface SpellingFlowDeps {
   keep: SpellingKeep;
   /** The child's seen ledger (src/learn/fresh-store.ts); one in memory, lasting as long as the flow, when absent. */
   fresh?: FreshStore;
+  /** The fresh words the mill wrote ahead (spellingStock in src/learn/fresh-store.ts); none when absent, and the node's own words serve as before. */
+  stock?: Stock<SpellingItem>;
   graph?: Graph<SpellingNode>;
   /** The clock: Date.now when absent. */
   now?: () => number;
@@ -114,13 +122,27 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
   const graph = (deps.graph ?? spellingGraph) as Graph<SpellingNode>;
   const now = deps.now ?? Date.now;
   const seedOf = (): number => deps.seed ?? Math.floor(now() / 1000);
+  const stock = deps.stock;
   const rotation = deps.forms && deps.forms.length > 0 ? deps.forms : DRILL_FORM_IDS;
 
-  /** The drill's item maker: a round of the node's words, all in one game form, one form after another across the nodes. */
+  /**
+   * The drill's item maker: a round of the node's words, all in one game form, one form after another across the nodes. The stock's fresh words come
+   * first (stockThenMaker), then the node's unseen words, then the seen ones. The stock is asked for a word only when it holds one, so a node with
+   * unseen words of its own never makes the stock ask.
+   */
   const makeRound: ItemMaker<SpellingItem> = async (node, ask) => {
     const form = rotation[(ask.seed + sum(node.id)) % rotation.length];
     const avoid = ask.avoid ?? [...(await fresh.getAsked(node.id))];
-    return gameItems(node.id, form, pickWords(node as SpellingNode, { count: ask.count, seed: ask.seed, avoid }));
+    const built: ItemMaker<SpellingItem> = async (n, a) => gameItems(n.id, form, pickWords(n as SpellingNode, { count: a.count, seed: a.seed, avoid }));
+    if (!stock) return built(node, ask);
+    const served = {
+      take: async (id: string) => {
+        if ((await stock.count(id)) === 0) return undefined;
+        const item = await stock.take(id);
+        return item && { key: `${id}:${form}:fresh:${item.word}`, form, payload: item };
+      },
+    };
+    return stockThenMaker(served, built)(node, ask);
   };
 
   let kept: SpellingKept | undefined;
@@ -252,6 +274,7 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
     const wasSolid = (await store.get(node.id))?.level === 'solid';
     const known = verdicts.includes('known');
     const verdict: Verdict = wrongWords.length > 0 ? 'missed' : known ? 'known' : verdicts.includes('to-confirm') ? 'to-confirm' : 'seen';
+    if (verdict === 'to-confirm') stock?.rightAfterMiss(node.id); // a fresh word is needed next: ask ahead now, never waited for
     if (verdict === 'missed') await review(store, graph, node.id, false, now());
     else if (verdict === 'known' || (verdict === 'seen' && wasSolid)) await review(store, graph, node.id, true, now());
     if (known && triesSolid(tries, node.solid) && (await store.get(node.id))?.level !== 'solid') {
@@ -260,10 +283,27 @@ export function createSpellingFlow(deps: SpellingFlowDeps): SpellingFlow {
     return verdict;
   }
 
+  /**
+   * The world opens on the node of a turn: the stock tops up when it is low (never awaited), and the turn says it is waiting when the node's words
+   * are all seen and the stock holds none for it, whatever the round it was made as.
+   */
+  async function opened(turn: SpellingTurn): Promise<SpellingTurn> {
+    if (!stock || turn.stage === 'placement') return turn;
+    stock.opened(turn.nodeId);
+    const node = graph.byId.get(turn.nodeId) as SpellingNode;
+    const seen = new Set(await fresh.getAsked(turn.nodeId));
+    const allSeen = node.items.every((item) => seen.has(wordKey(item)));
+    const fromStock = turn.items.some((item) => item.sentence !== undefined);
+    return { ...turn, waiting: allSeen && !fromStock && (await stock.count(turn.nodeId)) === 0 };
+  }
+
   return {
     question: () =>
       serial(async () => {
-        current ??= await nextTurn();
+        if (current === null) {
+          const next = await nextTurn();
+          current = next && (await opened(next));
+        }
         return current;
       }),
     answer: (result) =>

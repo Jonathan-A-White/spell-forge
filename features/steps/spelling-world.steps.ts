@@ -15,9 +15,11 @@ import { currentScreen } from '../../src/shell/report-screen';
 import { db } from '../../src/data/db';
 import { coinRepo, learningProgressRepo, profileRepo, wordListRepo, wordRepo } from '../../src/data/repositories';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
-import { MemoryFreshStore, type FreshStore } from 'learn-kit/fresh';
-import { memoryStore, validate } from 'learn-kit/graph';
-import { SPELLING_NODES, spellingNode } from '../../src/learn/spelling';
+import { MemoryFreshStore, MemoryStockStore, type FreshStore, type Stock } from 'learn-kit/fresh';
+import { memoryStore, validate, type Graph } from 'learn-kit/graph';
+import { createSpellingAsk } from '../../src/grist/spelling-items';
+import { spellingStock } from '../../src/learn/fresh-store';
+import { SPELLING_NODES, spellingNode, type SpellingItem, type SpellingNode } from '../../src/learn/spelling';
 import { SpellingWorld } from '../../src/worlds/spelling/SpellingWorld';
 import { createSpellingFlow, memoryKeep, type SpellingFlow } from '../../src/worlds/spelling/spelling-flow';
 
@@ -133,6 +135,23 @@ async function onFivePattern(): Promise<void> {
   const pattern = spellingNode({ id: 'dge-seven', band: 'preK', name: 'Words with dge', items: SEVEN.map((w) => [w, 'dge', w.replace('dge', 'ge')] as const) });
   ledger = new MemoryFreshStore();
   flow = createSpellingFlow({ store: memoryStore(), keep: memoryKeep(), fresh: ledger, graph: validate([pattern]) as never, now: () => NOW.getTime(), seed: 3 });
+  for (let q = await flow.question(); q && q.stage === 'placement'; q = await flow.question()) await flow.answer({ correct: 0, total: 1 });
+  await act(async () => void render(createElement(SpellingWorld, { flow, openGame: stubGame as never })));
+  await screen.findByTestId('round-words');
+}
+
+/** The seven words all met, a stock over a stubbed mill that writes `written` (or is out of reach), and the world past its placement on that pattern. */
+let stock: Stock<SpellingItem>;
+let mill: ReturnType<typeof vi.fn>;
+
+async function onMetPattern(written: readonly string[], connected: boolean): Promise<void> {
+  const pattern = spellingNode({ id: 'dge-seven', band: 'preK', name: 'Words with dge', items: SEVEN.map((w) => [w, 'dge', w.replace('dge', 'ge')] as const) });
+  const graph = validate([pattern]);
+  ledger = new MemoryFreshStore({ asked: [['dge-seven', SEVEN]] });
+  mill = vi.fn().mockResolvedValue({ words: written.map((word) => ({ word, sentence: `We saw the ${word} today.` })) });
+  const ask = createSpellingAsk({ mill, online: () => connected, graph: graph as unknown as Graph<SpellingNode> });
+  stock = spellingStock({ ask, fresh: ledger, store: new MemoryStockStore<SpellingItem>() });
+  flow = createSpellingFlow({ store: memoryStore(), keep: memoryKeep(), fresh: ledger, stock, graph: graph as never, now: () => NOW.getTime(), seed: 3 });
   for (let q = await flow.question(); q && q.stage === 'placement'; q = await flow.question()) await flow.answer({ correct: 0, total: 1 });
   await act(async () => void render(createElement(SpellingWorld, { flow, openGame: stubGame as never })));
   await screen.findByTestId('round-words');
@@ -311,5 +330,49 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     Then('Spelling does not say "You have got this one"', () => {
       expect(screen.queryByText(/You have got this one/)).toBeNull();
     });
+  });
+
+  const sayingNothingNew = () => expect(screen.queryByText(/You have got this one/)).toBeNull();
+
+  Scenario('AC3: A pattern whose words are all met gets fresh words written ahead, and a fresh right goes solid', ({ Given, And, When, Then }) => {
+    Given('a Spelling world on a pattern of 7 words that needs 3 right out of 4, all met, with a mill that writes nudge, wedge and smudge', () => onMetPattern(['nudge', 'wedge', 'smudge'], true));
+    Then('Spelling says "New words are on their way"', async () => {
+      expect(await screen.findByTestId('new-words-note')).toHaveTextContent('New words are on their way');
+    });
+    And('the round has 3 words the child has met', async () => {
+      const words = await roundWords();
+      expect(words).toHaveLength(3);
+      expect(words.every((w) => SEVEN.includes(w))).toBe(true);
+    });
+    When("the mill's words have arrived", () => stock.settle());
+    And('the child finishes the round with all 3 words right', () => finishRound(3));
+    Then('Spelling does not say "You have got this one"', sayingNothingNew);
+    When('"Next" is tapped', nextRound);
+    Then('the next round is nudge, wedge and smudge', async () => {
+      expect(await roundWords()).toEqual(['nudge', 'wedge', 'smudge']);
+    });
+    And('Spelling does not say "New words are on their way"', () => {
+      expect(screen.queryByTestId('new-words-note')).toBeNull();
+    });
+    When('the child finishes the round with all 3 words right', () => finishRound(3));
+    Then('Spelling says "You have got this one"', () => statusSays('You have got this one'));
+  });
+
+  Scenario('AC3: With no connection the words it has serve, nothing waits and nothing is asked', ({ Given, And, When, Then }) => {
+    Given('a Spelling world on a pattern of 7 words that needs 3 right out of 4, all met, with no connection to the mill', () => onMetPattern(['nudge', 'wedge', 'smudge'], false));
+    Then('Spelling says "New words are on their way"', async () => {
+      expect(await screen.findByTestId('new-words-note')).toHaveTextContent('New words are on their way');
+    });
+    And('the round has 3 words the child has met', async () => {
+      const words = await roundWords();
+      expect(words).toHaveLength(3);
+      expect(words.every((w) => SEVEN.includes(w))).toBe(true);
+    });
+    And('the mill is not asked', async () => {
+      await stock.settle();
+      expect(mill).not.toHaveBeenCalled();
+    });
+    When('the child finishes the round with all 3 words right', () => finishRound(3));
+    Then('Spelling does not say "You have got this one"', sayingNothingNew);
   });
 });
