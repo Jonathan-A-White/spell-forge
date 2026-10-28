@@ -114,7 +114,7 @@ A right answer on a word he has been asked before may only be remembering it, so
 (`learn-kit/fresh`, pinned with the graph). The rule lives in three places:
 
 - `src/learn/fresh-store.ts`: the child's seen ledger over localStorage (`sf-spelling-fresh:<profile id>`): the words asked under each node
-  (the word is the key, `wordKey`; the newest 30) and the nodes marked to confirm. `storageStockStore` is the stock's store for story 20b.
+  (the word is the key, `wordKey`; the newest 30) and the nodes marked to confirm. `storageStockStore` is the stock's store and `spellingStock` makes the stock (story 20b, below).
   `missedLast(state)` reads a node's review row for the kit's `missedBefore`: the last answer was a miss, not made good since.
 - `src/learn/spelling/items.ts`: `pickWords(node, { count, seed, avoid })`, the maker. A node's unseen words come first, from the place the
   seed picks, then its seen words as before; with nothing seen it picks what it always did.
@@ -129,9 +129,39 @@ The games say how many words were right, not which. The rights go to the seen wo
 can be (exact for a round all right or all wrong).
 
 **A pattern whose words are all seen** (a node has 3 to 8 words) still serves its words, so a child never waits, and is **not marked solid**
-on them: its words cannot be fresh again until the factory writes new ones. That is the spelling-items grind, story 20b, which asks ahead
-through learn-kit's stock when a node's unseen words run under 2. Until it lands, a node with fewer fresh rights than its rule asks for (a
-4-word node needs 4 of 5, so all four right the first time round) stays at the frontier.
+on them: its words cannot be fresh again until the factory writes new ones. That is the spelling-items grind (next section).
+
+## Fresh words for a pattern he has all seen (Kestrel 20b)
+
+The spelling-items grind (`grinds/spelling-items.json`, Sonnet, effort medium) writes new words for a pattern whose words the child has all
+met. It is asked ahead, in the background, so the drill never waits (`learn-kit/fresh`'s stock; vault sheet learning-best-practices/02).
+
+- **The request** (`grinds/spelling-items.request.schema.json`): the node's id, its name and its rule in words (the hints of its phonics
+  patterns, else its name), up to 6 of its own words as examples, the seen words (the newest 40 of his ledger and the words already kept), the
+  count (6 at most) and the node's grade band as the child's age band.
+- **The answer** (`grinds/spelling-items.answer.schema.json`): `words`, each a `word` and one plain `sentence` that uses it. Never the answer
+  (VISION.md): the sentence carries no spelling hint, and the app drops a word whose sentence does not use it or names letters or spelling.
+- **The check** (`checkFreshWords`, `src/grist/spelling-items.ts`), run on every word before it is kept: one plain word of lower-case letters;
+  not a seen word, not a word of the node and not a duplicate; and `placeWords` (`src/learn/spelling/place-words.ts`) places it on this node. A
+  word it places on another node (`rain` for short a, `plan` for a blend) is dropped. A lone letter (short a) cannot be placed by place-words
+  at all, so a word placed on no node that shows the letter is kept. A word that fails any rule is dropped, never repaired.
+- **The stock** (`spellingStock`, `src/learn/fresh-store.ts`): `createStock` with cap 6 and low water 2 (PROVISIONAL), kept per node in
+  `storageStockStore` (`sf-spelling-stock:<profile id>`), served oldest first and once, never a word in the ledger.
+- **The ask** (`createSpellingAsk`): resolves to none, and sends nothing, when the node still has 2 or more unseen words (`UNSEEN_FLOOR`),
+  offline, with no licence (the gate in `src/shell/licence-gate.ts`), with no device key, or when the node was already asked in this sitting;
+  a failed or late grist (120 s) or an answer that is not words also resolves to none. The stock stays as it was.
+- **The triggers** (`spelling-flow.ts`, never awaited, one ask in flight for the whole stock): `opened` when the world opens on a node's turn,
+  `served` when a stocked word is taken, `rightAfterMiss` when a round on words he has seen lands as `to-confirm`. The ask's own gate means
+  only a node with under 2 unseen words ever reaches the mill.
+- **The round**: `stockThenMaker(stock, the node's unseen words, then its words)`: the stock's words first, then the unseen built words, then the
+  seen ones. The stock is asked for a word only when it holds one.
+- **Waiting**: a node whose words are all seen, with nothing in its stock, has `waiting` set on its turn and the world says "New words are on
+  their way" beside the drill (wording PROVISIONAL). It carries on with the words he has, and the node is not solid until a fresh word is right.
+
+**What the ask-ahead costs and saves.** One grist for a node at most per sitting (a page load), and only for a node he has all but met, so
+a sitting costs as many grists as it has nodes in that state, in practice 0 to 3; each asks for 6 words, enough for two rounds. It saves the
+wait he would meet at Prove it: without it a pattern whose words are all seen can never go solid, and a drill that waited on the mill would stall.
+Offline or unlicensed it costs nothing and he plays the words he has.
 
 ## How to add a node
 

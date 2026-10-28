@@ -141,6 +141,7 @@ docs/kestrel-sweeps.md # the Spelling world's two sweeps (2026-10-25): every cal
 docs/motion.md # the motion rules (src/look/motion.ts): what moves, how long (named durations and easings held equal to index.css's tokens by a test), reduced motion, pause when hidden, native-feel CSS
 docs/never-the-answer.md # the never-the-answer rule, the teaching turn that replaces a leak, the red-team list, the parent-ask decision, and the sweep of every grind
 docs/what-the-tutor-is-told.md # the table of what a tutor-talk turn carries (settings, learner, goal, progress, screen) and why the rest is not sent
+docs/grinds.md # every grind, what it asks and where the app side lives; the spelling-items grind (fresh words, the check, the stock) in full
 docs/hosting.md # where the app is served (GitHub Pages at /spell-forge/, the VPS at the root of kestrel.allmymind.org), how the base is chosen at build time, the VPS deploy, the nginx site and certificate it needs
 docs/best-practices-audit.md # the 2026-10-10 audit of SpellForge against the PWA best practices (31 checklist lines)
 docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain application data (BSV)
