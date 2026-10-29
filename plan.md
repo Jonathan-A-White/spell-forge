@@ -1,5 +1,25 @@
 # Word Progress Tracking - Implementation Plan
 
+<!-- toc -->
+
+- [Overview](#overview)
+- [Scope: Active lists only](#scope-active-lists-only)
+- [Part 1: Grade Goal Setting](#part-1-grade-goal-setting)
+  - [1A. Add `gradeGoal` to Profile type](#1a-add-gradegoal-to-profile-type)
+  - [1B. Update profile repository](#1b-update-profile-repository)
+  - [1C. Update readiness calculation](#1c-update-readiness-calculation)
+  - [1D. Add grade goal to settings](#1d-add-grade-goal-to-settings)
+- [Part 2: Word Detail View](#part-2-word-detail-view)
+  - [2A. Create WordDetailView component](#2a-create-worddetailview-component)
+  - [2B. Add navigation route](#2b-add-navigation-route)
+  - [2C. Make words clickable in health categories](#2c-make-words-clickable-in-health-categories)
+- [Part 3: Tests](#part-3-tests)
+  - [3A. Unit tests for grade goal readiness calculation](#3a-unit-tests-for-grade-goal-readiness-calculation)
+  - [3B. Unit tests for word detail data computation](#3b-unit-tests-for-word-detail-data-computation)
+- [File Change Summary](#file-change-summary)
+
+<!-- /toc -->
+
 ## Overview
 Add per-word progress tracking with a full-page detail view, and introduce a configurable grade goal that redefines "ready" based on what percentage of words need to be at familiar+ level.
 

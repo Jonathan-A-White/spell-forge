@@ -7,6 +7,62 @@
 
 ---
 
+<!-- toc -->
+
+- [1. Vision](#1-vision)
+- [2. Primary User: Paul](#2-primary-user-paul)
+- [3. Design Principles](#3-design-principles)
+- [4. Technical Architecture](#4-technical-architecture)
+  - [4.1 Stack](#41-stack)
+  - [4.2 Data Model (Dexie.js / IndexedDB)](#42-data-model-dexiejs--indexeddb)
+  - [4.3 Offline-First Architecture](#43-offline-first-architecture)
+  - [4.4 Phonics Engine](#44-phonics-engine)
+- [5. Feature Specification by Phase](#5-feature-specification-by-phase)
+  - [Phase 1: Core Learning Loop (MVP)](#phase-1-core-learning-loop-mvp)
+  - [Phase 2: Adaptive Intelligence](#phase-2-adaptive-intelligence)
+  - [Phase 3: Community & Customization](#phase-3-community--customization)
+  - [Phase 4: Advanced Learning & Beyond Spelling](#phase-4-advanced-learning--beyond-spelling)
+- [6. Phonics Engine Deep Dive](#6-phonics-engine-deep-dive)
+  - [6.1 Pattern Categories](#61-pattern-categories)
+  - [6.2 Word Decomposition Pipeline](#62-word-decomposition-pipeline)
+  - [6.3 Implementation](#63-implementation)
+- [7. Visual Accessibility Deep Dive](#7-visual-accessibility-deep-dive)
+  - [7.1 Double Vision Considerations](#71-double-vision-considerations)
+  - [7.2 Research-Backed Background Colors](#72-research-backed-background-colors)
+  - [7.3 Post-Diagnosis Adjustment](#73-post-diagnosis-adjustment)
+- [8. Session UX Flow](#8-session-ux-flow)
+  - [8.1 Daily Flow (Child's Perspective)](#81-daily-flow-childs-perspective)
+  - [8.2 List Cycle Flow (Parent or Child)](#82-list-cycle-flow-parent-or-child)
+- [9. Non-Functional Requirements](#9-non-functional-requirements)
+  - [9.1 Performance](#91-performance)
+  - [9.2 Compatibility](#92-compatibility)
+  - [9.3 Data Safety](#93-data-safety)
+  - [9.4 Accessibility (WCAG 2.1 AA Target)](#94-accessibility-wcag-21-aa-target)
+- [10. Testing Strategy: BDD from Day One](#10-testing-strategy-bdd-from-day-one)
+  - [10.1 Philosophy](#101-philosophy)
+  - [10.2 Tooling](#102-tooling)
+  - [10.3 Test Layers](#103-test-layers)
+  - [10.4 Directory Structure](#104-directory-structure)
+  - [10.5 Example Feature Scenarios](#105-example-feature-scenarios)
+  - [10.6 BDD Workflow](#106-bdd-workflow)
+  - [10.7 CI Pipeline](#107-ci-pipeline)
+  - [10.8 Coverage Expectations](#108-coverage-expectations)
+- [11. Success Metrics](#11-success-metrics)
+  - [For Paul (and any individual child)](#for-paul-and-any-individual-child)
+  - [For the Product](#for-the-product)
+- [12. Tech Debt & Architecture Notes](#12-tech-debt--architecture-notes)
+  - [12.1 Module Boundaries](#121-module-boundaries)
+  - [12.2 Key Design Decisions Log](#122-key-design-decisions-log)
+  - [12.3 Risks & Mitigations](#123-risks--mitigations)
+- [13. Development Roadmap](#13-development-roadmap)
+  - [Phase 1: MVP (Weeks 1-6)](#phase-1-mvp-weeks-1-6)
+  - [Phase 2: Adaptive Intelligence (Weeks 7-12)](#phase-2-adaptive-intelligence-weeks-7-12)
+  - [Phase 3: Community & Customization (Weeks 13-18)](#phase-3-community--customization-weeks-13-18)
+  - [Phase 4: Beyond Spelling (Weeks 19+)](#phase-4-beyond-spelling-weeks-19)
+- [14. Open Questions](#14-open-questions)
+
+<!-- /toc -->
+
 ## 1. Vision
 
 SpellForge is a modular, themeable, offline-first PWA that helps children master spelling through adaptive learning techniques, spaced repetition backed by research, and reward mechanics that meet each child where they are. It is designed first for Paul — a resistant 3rd grader with double vision who loves building creatures out of Plus-Plusses, Legos, and is deep into the Wings of Fire series — but architected so that any parent can customize it for any child with any interests at any level.

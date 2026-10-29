@@ -6,6 +6,19 @@ rule-by-rule diff between that prototype and spec v0.13 §3.7 rules (a)–(f), w
 line of `license.ts` that now enforces each rule (mw-5wuz6.2). Tests:
 `tests/unit/bsv-contracts-license.test.ts`.
 
+<!-- toc -->
+
+- [Rules (a)–(f)](#rules-af)
+- [Data output bytes the contract reads](#data-output-bytes-the-contract-reads)
+- [Not enforced, and open](#not-enforced-and-open)
+- [Other differences from the prototype](#other-differences-from-the-prototype)
+- [`spend`, under a SIGHASH_SINGLE|FORKID (0x43) preimage](#spend-under-a-sighash_singleforkid-0x43-preimage)
+- [Why FB-1 needs the prevouts list as an argument](#why-fb-1-needs-the-prevouts-list-as-an-argument)
+- [No circular hashes](#no-circular-hashes)
+- [Not enforced, and open](#not-enforced-and-open-1)
+
+<!-- /toc -->
+
 ## Rules (a)–(f)
 
 | Rule | Spec v0.13 §3.7 | Enforced at `license.ts` | Prototype | What changed, and why |

@@ -66,3 +66,5 @@ the sessions have nothing to quote, or when you said they do not show it.
 - The first sentence answers the question, or says the sessions do not.
 - The answer to his problem is nowhere in `answer` or `examples`, in any form (the decision above).
 - Nothing in `answer` or `examples` would worry the parent without reason, or flatter him without reason.
+
+<!-- toc: none -->

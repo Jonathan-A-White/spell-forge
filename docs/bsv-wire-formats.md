@@ -16,6 +16,21 @@ and checked by `tests/unit/bsv-wire-vectors.test.ts`, which also opens and rebui
 Notation: `‖` is byte concatenation with no separator and no length prefix. Integers are
 big-endian. Strings are ASCII unless stated. "Hex" is lowercase.
 
+<!-- toc -->
+
+- [Library choice: WebCrypto (`crypto.subtle`)](#library-choice-webcrypto-cryptosubtle)
+- [1. Epoch key `k(e)` and commitment `c(e)`](#1-epoch-key-ke-and-commitment-ce)
+- [2. Seed-to-P-256 derivation (wrap keys and the issuer reader key)](#2-seed-to-p-256-derivation-wrap-keys-and-the-issuer-reader-key)
+- [3. The wrap of `k(e)` to a P-256 key](#3-the-wrap-of-ke-to-a-p-256-key)
+- [4. The `W` payload encryption under `k(e)`](#4-the-w-payload-encryption-under-ke)
+- [5. The records that carry them today (mw-jeswf.3)](#5-the-records-that-carry-them-today-mw-jeswf3)
+- [Negative vectors](#negative-vectors)
+- [Sizes against the spec's estimates](#sizes-against-the-specs-estimates)
+- [Open points](#open-points)
+- [Not pinned yet](#not-pinned-yet)
+
+<!-- /toc -->
+
 ## Library choice: WebCrypto (`crypto.subtle`)
 
 The browser implementation uses **WebCrypto** (`crypto.subtle`), not `@noble/curves`,

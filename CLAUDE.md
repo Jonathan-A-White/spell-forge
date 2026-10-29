@@ -148,3 +148,5 @@ docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain appli
 docs/bsv-testnet.md # the two testnet scripts behind the BSV Debug screen: keys kept outside the repo
 docs/bsv-wire-formats.md # the nftgate wire formats pinned byte for byte (spec section 8 Q14)
 ```
+
+<!-- toc: none -->

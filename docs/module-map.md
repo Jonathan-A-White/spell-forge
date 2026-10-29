@@ -11,6 +11,28 @@ awk '/^```/{f=!f; next} !f' docs/module-map.md | grep -o '`[^` ]*`' | tr -d '`' 
   | grep -E '/|\.(tsx?|md|json|css|ya?ml)$' | sort -u | while read -r p; do test -e "$p" || echo "missing: $p"; done
 ```
 
+<!-- toc -->
+
+- [1. Modules](#1-modules)
+  - [1a. Foundations and engines (no screens)](#1a-foundations-and-engines-no-screens)
+  - [1b. Feature modules (screens)](#1b-feature-modules-screens)
+  - [1c. The app shell](#1c-the-app-shell)
+- [2. Collisions](#2-collisions)
+- [3. Proposed refactors](#3-proposed-refactors)
+  - [R1. Lift the BSV chain layer out of the app](#r1-lift-the-bsv-chain-layer-out-of-the-app)
+  - [R2. Split the tutor into the child's Tutor and the Grown-ups screen](#r2-split-the-tutor-into-the-childs-tutor-and-the-grown-ups-screen)
+  - [R3. Split `src/contracts/types.ts` by domain, and turn the bsv import around](#r3-split-srccontractstypests-by-domain-and-turn-the-bsv-import-around)
+  - [R4. One grist job runner, one device key](#r4-one-grist-job-runner-one-device-key)
+  - [R5. Break `src/App.tsx` into a screen registry and per-domain controllers](#r5-break-srcapptsx-into-a-screen-registry-and-per-domain-controllers)
+  - [R6. Screens stop touching Dexie](#r6-screens-stop-touching-dexie)
+  - [R7. One file per schema version in `src/data/db.ts`](#r7-one-file-per-schema-version-in-srcdatadbts)
+  - [R8. Registries for the practice games and the settings sections](#r8-registries-for-the-practice-games-and-the-settings-sections)
+- [4. Rule breaks](#4-rule-breaks)
+- [5. Library candidates](#5-library-candidates)
+- [6. Where the proof-on-fresh rule lives (2026-10-27, Kestrel 20a)](#6-where-the-proof-on-fresh-rule-lives-2026-10-27-kestrel-20a)
+
+<!-- /toc -->
+
 ## 1. Modules
 
 SpellForge has no workspaces. A module is a folder under `src/` with a barrel file (the rule in `CLAUDE.md`), plus the files directly under `src/`. Sizes are lines of TypeScript at the base commit. "Imports" lists the other app modules and the vendors the module reaches; the full graph was read from the `import` statements.

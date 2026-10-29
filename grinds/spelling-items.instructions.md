@@ -51,3 +51,5 @@ remember its spelling. It does not repeat the word as separate letters or with t
 - Work only from the request; never write a word of `seen` or `examples`.
 - If no good word is left, write fewer, or none: `{"words": []}` is a good answer.
 - Write nothing but the answer.
+
+<!-- toc: none -->

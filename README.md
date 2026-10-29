@@ -6,6 +6,38 @@ An offline-first spelling app that helps kids learn through adaptive techniques,
 
 Built for children like Paul — a 3rd grader with double vision who loves creature-building games — but architected to be customizable for any child with any interests.
 
+<!-- toc -->
+
+- [Philosophy](#philosophy)
+- [Features](#features)
+  - [Learning Engine](#learning-engine)
+  - [Engagement Detection](#engagement-detection)
+  - [Practice and Games](#practice-and-games)
+  - [Coin Economy](#coin-economy)
+  - [Themes and Rewards](#themes-and-rewards)
+  - [Progress Tracking](#progress-tracking)
+  - [Multi-Layer Audio](#multi-layer-audio)
+  - [OCR Word Import](#ocr-word-import)
+  - [Accessibility (First-Class)](#accessibility-first-class)
+  - [Let the tutor do it (the form door)](#let-the-tutor-do-it-the-form-door)
+  - [Data and Offline](#data-and-offline)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Install and Run](#install-and-run)
+  - [Build for Production](#build-for-production)
+- [Development](#development)
+  - [Subsystem Tests](#subsystem-tests)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+  - [Key Design Patterns](#key-design-patterns)
+  - [Database Schema (Dexie v1)](#database-schema-dexie-v1)
+- [CI/CD](#cicd)
+- [Credits](#credits)
+- [License](#license)
+
+<!-- /toc -->
+
 ## Philosophy
 
 1. **Help children hack themselves** — track what works for each child, adapt automatically

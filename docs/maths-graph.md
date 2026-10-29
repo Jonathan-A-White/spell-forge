@@ -7,6 +7,23 @@ fraction is bigger), each node says which nodes it rests on, and the graph is va
 data and pure code under `src/learn/maths/`; the Maths world (`src/worlds/maths/`, below) is the screen that reads it. It is the twin of the spelling graph (`docs/spelling-graph.md`)
 and the two share no code, so each can change on its own.
 
+<!-- toc -->
+
+- [The files](#the-files)
+- [The grade bands](#the-grade-bands)
+- [The node shape](#the-node-shape)
+- [The Maths world (`src/worlds/maths/`)](#the-maths-world-srcworldsmaths)
+- [Proving on a problem he has not met (Kestrel 20a)](#proving-on-a-problem-he-has-not-met-kestrel-20a)
+- [What the maths loop handles today](#what-the-maths-loop-handles-today)
+- [The SAT Math domains](#the-sat-math-domains)
+- [The competition tier](#the-competition-tier)
+- [The goals](#the-goals)
+- [The sweep of problem kinds](#the-sweep-of-problem-kinds)
+- [The nodes](#the-nodes)
+- [How to add a node](#how-to-add-a-node)
+
+<!-- /toc -->
+
 ## The files
 
 - `items.ts`: the shapes (`MathsNode`, `MathsItem`, `SolidRule`), the seven grade bands, `checkAnswer` (does what the child gave

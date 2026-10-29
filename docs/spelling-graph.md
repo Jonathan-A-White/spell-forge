@@ -5,6 +5,20 @@ Each node is one thing to learn (a letter sound, short a, `sh`, `a_e`), each nod
 validated over `@learn-kit/graph` (`learn-kit/graph`, pinned by commit in `package.json`): a directed acyclic graph, no unknown
 need, no need of a higher level. It is data and pure code under `src/learn/spelling/`; no screen reads it yet.
 
+<!-- toc -->
+
+- [The files](#the-files)
+- [The grade bands](#the-grade-bands)
+- [The node shape](#the-node-shape)
+- [The strategy nodes](#the-strategy-nodes)
+  - [The sweep of memory-aid kinds](#the-sweep-of-memory-aid-kinds)
+- [The placement](#the-placement)
+- [Proving on a word he has not met (Kestrel 20a)](#proving-on-a-word-he-has-not-met-kestrel-20a)
+- [Fresh words for a pattern he has all seen (Kestrel 20b)](#fresh-words-for-a-pattern-he-has-all-seen-kestrel-20b)
+- [How to add a node](#how-to-add-a-node)
+
+<!-- /toc -->
+
 ## The files
 
 - `items.ts`: the shapes (`SpellingNode`, `SpellingItem`, `SolidRule`), the six grade bands, `nodeProblems` (what is wrong with a

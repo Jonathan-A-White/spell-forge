@@ -10,6 +10,16 @@ How to read it. Rows C1 to C31 are the checklist lines in the checklist's own or
 bash docs/check-best-practices-audit.sh
 ```
 
+<!-- toc -->
+
+- [1. Checklist rows](#1-checklist-rows)
+- [2. Rules added 2026-10-09](#2-rules-added-2026-10-09)
+- [3. Later rules (2026-10-10)](#3-later-rules-2026-10-10)
+- [4. Commands run (2026-10-10, on the base commit)](#4-commands-run-2026-10-10-on-the-base-commit)
+- [Ranked fix stories](#ranked-fix-stories)
+
+<!-- /toc -->
+
 ## 1. Checklist rows
 
 | ID | Rule (checklist line) | Status | Evidence | Fix (smallest) | Size |

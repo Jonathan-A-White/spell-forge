@@ -3,6 +3,17 @@
 Measured with sCrypt compiler `1.20.0+commit.693498a` (pinned in `COMPILER`, installed by
 `sh scripts/bsv-contracts-setup.sh`), compiled via `npm run bsv:contracts:build`.
 
+<!-- toc -->
+
+- [License, spec v0.13 §3.7 (mw-5wuz6.2)](#license-spec-v013-37-mw-5wuz62)
+- [Fuel(C), spec v0.13 §3.7 `spend` (mw-yo97u.2)](#fuelc-spec-v013-37-spend-mw-yo97u2)
+- [Real testnet transactions with Fuel(C) (mw-yo97u.5)](#real-testnet-transactions-with-fuelc-mw-yo97u5)
+- [Real testnet transactions with gated records (mw-jeswf.4)](#real-testnet-transactions-with-gated-records-mw-jeswf4)
+- [Real testnet transactions (mw-5wuz6.6)](#real-testnet-transactions-mw-5wuz66)
+- [Prototype measurement (mw-5wuz6.1)](#prototype-measurement-mw-5wuz61)
+
+<!-- /toc -->
+
 ## License, spec v0.13 §3.7 (mw-5wuz6.2)
 
 Measured on the transactions `tests/unit/bsv-contracts-license.test.ts` builds

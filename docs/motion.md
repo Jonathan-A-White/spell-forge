@@ -4,6 +4,18 @@ The rules for anything that moves in SpellForge (Kestrel look, story A, mw-79en7
 (`DURATION`, `EASING`, `reducedMotion()`, exported from `src/look`); the same numbers are the `@theme static` block of `src/index.css`;
 `tests/unit/motion.test.ts` holds the two equal and fails on a raw duration anywhere else under `src/`.
 
+<!-- toc -->
+
+- [What moves](#what-moves)
+- [How long](#how-long)
+- [Reduced motion](#reduced-motion)
+- [Pause when hidden](#pause-when-hidden)
+- [The door's scene (story B, mw-79en7t.77)](#the-doors-scene-story-b-mw-79en7t77)
+- [The children's worlds (story D, mw-79en7t.79)](#the-childrens-worlds-story-d-mw-79en7t79)
+- [Native feel (topic 08)](#native-feel-topic-08)
+
+<!-- /toc -->
+
 ## What moves
 
 Motion tells the child something happened; it never decorates a wait or hides one.

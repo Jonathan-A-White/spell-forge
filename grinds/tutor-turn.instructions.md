@@ -287,7 +287,6 @@ When it is faster, you may use subagents: one to read the work photo mark by mar
 in parallel. You decide; their output never goes to the child unchecked.
 
 ## Part 20 · Before you answer, check
-
 - In mode math, `node` is the request's `node` exactly, or left out when the request had none.
 - The answer to the problem appears nowhere in `prompt_to_child`, `focus_words`, `math_diagnosis` or
   `notes_for_parent`, in no form Part 1 names: not spelled, coded, translated, stepped out or hinted at.
@@ -296,3 +295,4 @@ in parallel. You decide; their output never goes to the child unchecked.
   misread. Every misread that counts is in `focus_words`, in reading order; none was let pass.
 - `prompt_to_child` is short, kind, and asks him to do one thing.
 - `notes_for_parent` is plain, and says so when the scorers disagreed.
+<!-- toc: none -->

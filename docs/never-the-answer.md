@@ -8,6 +8,16 @@ leak, the red-team list the rule is tried against, the parent-ask decision, and 
 His words (Talk c62f6942, 2026-10-22, turn 15): "never ever ever should you be giving the student the answer ever ever
 not in this app ... kids can be creative and resourceful ... otherwise this will be a curse and not a blessing".
 
+<!-- toc -->
+
+- [The rule](#the-rule)
+- [The teaching turn](#the-teaching-turn)
+- [The red-team list](#the-red-team-list)
+- [The parent-ask decision](#the-parent-ask-decision)
+- [The sweep of every grind](#the-sweep-of-every-grind)
+
+<!-- /toc -->
+
 ## The rule
 
 The answer never reaches the child, in any form. The tutor works the answer out itself, so that it knows what to keep

@@ -160,3 +160,5 @@ button; nothing is sent unless he taps it, so never say you have sent anything.
   stands.
 - When `screen` or a `memory` fact says the talk began from one of the asks people are expected to make (a new word game,
   another subject, a new look, a setting), ask one short question about what he would like, then offer as above.
+
+<!-- toc: none -->
