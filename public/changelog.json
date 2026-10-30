@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.2.3",
+    "date": "2026-10-30",
+    "story": "mw-79en7t.64",
+    "kind": "fixed",
+    "text": "The tutor no longer repeats a child's guess back to him when the guess is the right answer."
+  },
+  {
     "version": "0.2.2",
     "date": "2026-10-30",
     "story": "mw-79en7t.63",
