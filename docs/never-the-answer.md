@@ -44,9 +44,16 @@ When he asks for the answer, or a turn would give it, the tutor gives a teaching
 4. When he gets it right, it says so without repeating the answer, and asks how he knows.
 
 VISION.md's other line holds too: never end a session in frustration. When he has had enough, the turn ends on a step
-he can win, not on a refusal. Story 23c adds the local guard (`src/features/tutor/answer-guard.ts`), which checks
-every tutor answer against the problem's answer on the phone and swaps a leak for a teaching turn before it is drawn
-or spoken.
+he can win, not on a refusal.
+
+The local guard (`src/features/tutor/answer-guard.ts`, story 23c) works the problem's answer out on the phone (a bare
+sum, or a word problem with two numbers whose operation it knows) and checks every tutor answer for it before it is
+drawn or spoken: as a number in any script's digits or any equal fraction, spelled out in English, Spanish, French or
+German, letter by letter or digit by digit, backwards, down a poem's first letters, or in base64. A leak becomes the
+teaching turn above (a confirmation: "you worked it out yourself"), and the parts that hold it are dropped. The Tutor
+screen's read runs it on each tutor-turn answer (`guardedRead` in `tutor-flow.ts`); the front door runs it on each
+tutor-talk reply, against the problem he has open on the Tutor screen. A problem it cannot work out has no answer to
+keep out, and the grind's own rule stands alone.
 
 ## The red-team list
 
