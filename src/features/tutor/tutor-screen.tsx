@@ -17,7 +17,7 @@ import { ReadingLoop } from './reading-loop';
 import { SayAgainButton, Waiting } from './pictures';
 import { SharedPicture } from './shared-picture';
 import type { SharedItem } from '../../share/share-target';
-import { deviceKey, failHalfSent, sendProblem, TutorUserError } from './tutor-flow';
+import { deviceKey, failHalfSent, guardedRead, sendProblem, TutorUserError } from './tutor-flow';
 import type { ProblemSource, TutorDeps } from './tutor-flow';
 import { TutorSpeechBar } from './speech-bar';
 import { usePauseTutorOnLeave } from './use-pause-tutor-on-leave';
@@ -103,7 +103,7 @@ export function TutorScreen({ profile, onBack, onProfileChange, deps = {}, share
     const d = depsRef.current;
     const inFlight = new GristInFlight({
       getKey: d.getKey ?? deviceKey,
-      read: d.read,
+      read: guardedRead(d.read),
       fetchImpl: d.fetchImpl,
       now: d.now,
     });

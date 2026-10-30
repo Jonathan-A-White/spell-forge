@@ -9,8 +9,9 @@ import type { HoldRecorder, Recording } from '../../audio';
 import type { TutorHistoryEntry, TutorRequest, TutorSession, TutorStrictness, TutorTurn } from '../../contracts/types';
 import { bsvWalletRepo, profileRepo, tutorRepo } from '../../data/repositories';
 import { MATHS_NODES, PROBLEM_KIND_NODES } from '../../learn/maths';
-import { READING_AUDIO_BYTES_PER_SECOND, TUTOR_TURN_GRIND, UploadTimeoutError, gristFileFromBlob, sendGrist, shrinkPhoto, uploadTimeoutMs } from '../../grist';
+import { READING_AUDIO_BYTES_PER_SECOND, TUTOR_TURN_GRIND, UploadTimeoutError, gristFileFromBlob, readAnswer, sendGrist, shrinkPhoto, uploadTimeoutMs } from '../../grist';
 import type { GristInFlightDeps, GristPhoto } from '../../grist';
+import { answerOfProblem, guardTutorAnswer } from './answer-guard';
 
 /** The seams the screen runs on; each defaults to the real thing, tests replace them. */
 export interface TutorDeps {
@@ -290,6 +291,24 @@ export async function sendMath(
     await tutorRepo.markFailed(turn.id, sayWhy(error, MATH_NOT_SENT));
   }
   return (await tutorRepo.getTurn(turn.id)) ?? turn;
+}
+
+/**
+ * The read the screen's in-flight client runs (the factory's own when `read` is absent), with the never-the-answer guard over each
+ * answer before it is kept, drawn or spoken: the answer to the turn's problem (read off the photo, or the problem it was sent with) is
+ * worked out here, and a reply that holds it becomes a teaching turn (answer-guard.ts). A wait, a refusal, and a teaching answer pass as they came.
+ */
+export function guardedRead(read: GristInFlightDeps['read'] = (params) => readAnswer(params)): NonNullable<GristInFlightDeps['read']> {
+  return async (params) => {
+    const result = await read(params);
+    if ('pending' in result || result.answer.status !== 'answered') return result;
+    const turn = (await tutorRepo.listWaiting()).find((waiting) => waiting.txid === params.txid);
+    const session = turn ? await tutorRepo.getSession(turn.sessionId) : undefined;
+    const problems = [result.answer.answer.target_text, turn?.request.target_text, session?.targetText];
+    const answers = problems.map((problem) => (problem ? answerOfProblem(problem) : undefined));
+    const guarded = guardTutorAnswer(result.answer.answer, answers);
+    return guarded === result.answer.answer ? result : { ...result, answer: { ...result.answer, answer: guarded } };
+  };
 }
 
 /** Fails the turns a closed app left half-sent, so a reload never waits on them for ever. */

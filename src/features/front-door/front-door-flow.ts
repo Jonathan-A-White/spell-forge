@@ -8,10 +8,11 @@
 import { emptyProfile, valuesOf, type LearnResult } from 'learn-kit/learner';
 import { createTalks, defineRegistry, type AskOptions, type MemoryUpdate, type OutgoingPicture, type TalkStore, type TutorStore } from 'voice-kit/talks';
 import { createDexieStore } from 'voice-kit/talks/dexie';
-import { profileRepo } from '../../data/repositories';
+import { profileRepo, tutorRepo } from '../../data/repositories';
 import { NO_LICENCE_LINE, gateGrind } from '../../shell/licence-gate';
 import { openWorld, type ViewId } from '../../shell/worlds';
 import type { MakerOffer } from '../requests/file-from-talk';
+import { answerOfProblem, guardTalkAnswer } from '../tutor/answer-guard';
 import { foldProfileUpdate, turnRef, type ProfileUpdate } from './getting-to-know';
 import { buildTutorTalkRequest, type TutorTalkInput, type TutorTalkRequest } from './tutor-talk-request';
 
@@ -53,6 +54,8 @@ export interface FrontDoorFlowDeps {
   context?: () => FrontDoorContext | Promise<FrontDoorContext>;
   /** The clock: Date.now when absent. */
   now?: () => number;
+  /** The answers no reply may give away (answer-guard.ts); the answer to his open homework problem on the Tutor screen when absent. */
+  answers?: () => Promise<readonly (string | undefined)[]>;
 }
 
 export type FrontDoorReply =
@@ -97,6 +100,12 @@ export function frontDoorRegistry(open: (view: ViewId) => void) {
   });
 }
 
+/** The answer to the homework problem he has open on the Tutor screen, worked out on the phone; none when he has none open. */
+async function openProblemAnswers(profileId: string): Promise<(string | undefined)[]> {
+  const problem = (await tutorRepo.getActiveSession(profileId))?.targetText;
+  return problem ? [answerOfProblem(problem)] : [];
+}
+
 /** What the flow answers without a licence: the worlds, as pictures, with the gate's one line. */
 const offerTheWorlds = (): FrontDoorReply => ({ kind: 'offer-worlds', line: NO_LICENCE_LINE, worlds: [...TALK_WORLDS] });
 
@@ -105,6 +114,9 @@ export function createFrontDoorFlow(deps: FrontDoorFlowDeps): FrontDoorFlow {
   const store = deps.store ?? createDexieStore({ name: FRONT_DOOR_TALKS_DB, indexedDB: globalThis.indexedDB, IDBKeyRange: globalThis.IDBKeyRange });
   const now = deps.now ?? Date.now;
   const registry = frontDoorRegistry(deps.open);
+  // the never-the-answer guard: a reply that gives the answer away is a teaching turn before the talk keeps it or he sees or hears it
+  const answers = deps.answers ?? (() => openProblemAnswers(deps.profileId));
+  const send: TutorTalkSend = async (request, files) => guardTalkAnswer(await deps.send(request, files), await answers());
   let queue: Promise<unknown> = Promise.resolve();
 
   async function turnOnce(talkId: string, message: string, options?: AskOptions): Promise<FrontDoorReply> {
@@ -116,7 +128,7 @@ export function createFrontDoorFlow(deps: FrontDoorFlowDeps): FrontDoorFlow {
     const context: FrontDoorContext = (await deps.context?.()) ?? { goals: [] };
     const talks = createTalks<TutorTalkRequest, TutorTalkAnswer>({
       store,
-      send: deps.send,
+      send,
       now,
       maxPictures: FRONT_DOOR_MAX_PICTURES,
       answerText: (answer) => answer.words,
