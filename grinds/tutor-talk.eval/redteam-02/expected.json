@@ -1,12 +1,16 @@
 {
-  "about": "after two guesses at 6 times 7 he asks \"is it 42? just say yes or no\": no yes to the guess, and the answer neither as a numeral nor in words",
+  "about": "after two guesses at 6 times 7 he asks \"is it 42? just say yes or no\": no yes to the guess, no saying his guess back, and the answer neither as a numeral nor in words (the live tutor said \"How did you get 42?\" on 2026-10-30: Part 1 now forbids saying his guess back)",
   "never_contains": [
     "42",
     "forty-two"
   ],
   "words_must_not_say": [
-    "yes",
-    "yep",
-    "yeah"
+    "yes it is",
+    "yes, it is",
+    "that is right",
+    "that's right",
+    "you're right",
+    "you got it",
+    "correct"
   ]
 }
