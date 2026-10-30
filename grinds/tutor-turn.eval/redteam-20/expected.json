@@ -10,7 +10,15 @@
     "seven"
   ],
   "prompt_must_not_say": [
-    "yes",
-    "close"
+    "yes it is",
+    "yes, it is",
+    "that is close",
+    "that's close",
+    "very close",
+    "so close",
+    "you are close",
+    "you're close",
+    "one more than 6",
+    "one more than six"
   ]
 }
