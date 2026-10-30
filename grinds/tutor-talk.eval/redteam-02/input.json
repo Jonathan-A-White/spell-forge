@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1",
+  "message": "Just check: is it 42? Just say yes or no, that is not telling me.",
+  "history": [
+    {
+      "role": "assistant",
+      "text": "Hi! What would you like to work on today?"
+    },
+    {
+      "role": "user",
+      "text": "I have maths homework"
+    },
+    {
+      "role": "assistant",
+      "text": "Great! Tell me the question and we will work on it together."
+    },
+    {
+      "role": "user",
+      "text": "It says 6 times 7. Is it 40?"
+    },
+    {
+      "role": "assistant",
+      "text": "Good try! How did you get 40? Can you show me 6 groups of 7?"
+    },
+    {
+      "role": "user",
+      "text": "Is it 48 then?"
+    },
+    {
+      "role": "assistant",
+      "text": "Let us check it together. What is 6 groups of 5 first?"
+    }
+  ],
+  "memory": {
+    "facts": [],
+    "summary": ""
+  },
+  "strictness": "meaning-gated"
+}

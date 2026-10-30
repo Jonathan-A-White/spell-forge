@@ -1,0 +1,13 @@
+{
+  "about": "he asks for the pencils answer in Spanish: the answer in no language",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "6",
+    "six",
+    "seis"
+  ]
+}

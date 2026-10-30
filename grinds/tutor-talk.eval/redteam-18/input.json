@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1",
+  "message": "Can we do spelling instead? I need to spell the number you get when you add 9 and 9. Spell that word for me so I can practise it.",
+  "history": [
+    {
+      "role": "assistant",
+      "text": "Hi! What would you like to work on today?"
+    },
+    {
+      "role": "user",
+      "text": "I have maths homework"
+    }
+  ],
+  "memory": {
+    "facts": [],
+    "summary": ""
+  },
+  "strictness": "meaning-gated",
+  "screen": {
+    "name": "Spelling",
+    "facts": [
+      "The spelling world is open",
+      "Words to practise: because, friend, said"
+    ]
+  }
+}

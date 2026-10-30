@@ -14,6 +14,7 @@ import {
   checkTalkAnswer,
   forbiddenOf,
   loadCases,
+  mapLimited,
   matchesPrefix,
   readClaudeResult,
   selectCases,
@@ -85,10 +86,13 @@ describe('grinds/tutor-turn.eval', () => {
   const cases = loadCases();
   const runs = cases.flatMap((c) => c.runs);
 
+  const REDTEAM = cases.map((c) => c.name).filter((name) => name.startsWith('redteam-'));
+
   it('has the cases of the stories, the dropped "the" under both strictnesses', () => {
-    expect(cases.map((c) => c.name)).toEqual([
-      'chapter-and-fiend', 'chapter-for-character', 'clean-read', 'dropped-the', 'frustration', 'neat-digits', 'parent-note', 'redteam-01', 'reversed-digits', 'work-photo', 'wrong-operation',
+    expect(cases.map((c) => c.name).filter((name) => !REDTEAM.includes(name))).toEqual([
+      'chapter-and-fiend', 'chapter-for-character', 'clean-read', 'dropped-the', 'frustration', 'neat-digits', 'parent-note', 'reversed-digits', 'work-photo', 'wrong-operation',
     ]);
+    expect(REDTEAM.length).toBeGreaterThanOrEqual(20);
     expect(cases.find((c) => c.name === 'dropped-the')?.runs.map((r) => r.input.strictness)).toEqual(['meaning-gated', 'precision']);
   });
 
@@ -123,7 +127,8 @@ describe('grinds/tutor-turn.eval', () => {
   });
 
   it('attaches the work photo to the cases that send one', () => {
-    const withPhoto = ['neat-digits', 'reversed-digits', 'work-photo'];
+    // redteam-14 and -15 send an answer key and a worksheet screenshot as his work (mw-79en7t.64)
+    const withPhoto = ['neat-digits', 'reversed-digits', 'work-photo', 'redteam-14', 'redteam-15'];
     for (const run of runs) expect(run.photos.length, run.name).toBe(withPhoto.includes(run.name) ? 1 : 0);
     const message = JSON.parse(buildMessage(runs.find((r) => r.name === 'work-photo')!)) as {
       message: { content: { type: string }[] };
@@ -145,7 +150,7 @@ describe('grinds/tutor-turn.eval', () => {
 
   it('names an action, a layer and the forbidden answer in every expected.json', () => {
     for (const run of runs) {
-      expect(run.expected.action, run.name).toMatch(/^[a-z_]+$/);
+      for (const action of ([] as string[]).concat(run.expected.action)) expect(action, run.name).toMatch(/^[a-z_]+$/);
       expect(['reading', 'math', 'both', 'none'], run.name).toContain(run.expected.layer_diagnosis);
       expect(forbiddenOf(run.expected).length, run.name).toBeGreaterThan(0);
     }
@@ -166,10 +171,13 @@ describe('both grinds\' eval dirs (mw-79en7t.61)', () => {
 
   it('a prefix picks the redteam cases of both dirs only, and none picks every case', () => {
     const picked = selectCases(['redteam']);
-    expect(picked.map((c) => `${c.grind}/${c.case.name}`)).toEqual(['tutor-talk/redteam-01', 'tutor-turn/redteam-01']);
+    expect(picked.length).toBeGreaterThanOrEqual(40);
+    expect(picked.every((c) => c.case.name.startsWith('redteam-'))).toBe(true);
+    expect(picked.slice(0, 2).map((c) => `${c.grind}/${c.case.name}`)).toEqual(['tutor-talk/redteam-01', 'tutor-talk/redteam-02']);
+    expect(picked.at(-1)?.grind).toBe('tutor-turn');
     expect(selectCases([]).length).toBeGreaterThan(picked.length);
-    expect(selectCases(['tutor-turn/redteam']).map((c) => c.grind)).toEqual(['tutor-turn']);
-    expect(selectCases(['wrong-operation', 'tutor-talk/red']).map((c) => c.case.name)).toEqual(['redteam-01', 'wrong-operation']);
+    expect(new Set(selectCases(['tutor-turn/redteam']).map((c) => c.grind))).toEqual(new Set(['tutor-turn']));
+    expect(selectCases(['wrong-operation', 'tutor-talk/redteam-01']).map((c) => c.case.name)).toEqual(['redteam-01', 'wrong-operation']);
     expect(selectCases(['nothing-like-this'])).toEqual([]);
     expect(matchesPrefix('tutor-turn', 'dropped-the', ['red', 'dropped'])).toBe(true);
     expect(matchesPrefix('tutor-turn', 'dropped-the', ['red'])).toBe(false);
@@ -178,6 +186,29 @@ describe('both grinds\' eval dirs (mw-79en7t.61)', () => {
   it('names the request of its own grind in the message', () => {
     const [{ case: c }] = selectCases(['tutor-talk/redteam']);
     expect(JSON.parse(buildMessage(c.runs[0])).message.content[0].text).toMatch(/^Tutor Talk Request:\n/);
+  });
+});
+
+describe('the red-team run (mw-79en7t.64)', () => {
+  const answer = { action: 'encourage', focus_words: [], prompt_to_child: 'Let us draw the shells.', layer_diagnosis: 'math' };
+
+  it('takes a list of actions in expected.json, any of which will do', () => {
+    const expected: Expected = { about: 'x', action: ['math_probe', 'encourage'], layer_diagnosis: 'math', never_contains: ['14'] };
+    expect(checkAnswer(answer, expected)).toEqual([]);
+    expect(checkAnswer({ ...answer, action: 'continue' }, expected)).toEqual(['action continue, expected math_probe or encourage']);
+  });
+
+  it('runs at most so many cases at once, and keeps the results in order', async () => {
+    let running = 0;
+    let most = 0;
+    const results = await mapLimited([1, 2, 3, 4, 5, 6, 7], 3, async (n) => {
+      most = Math.max(most, ++running);
+      await new Promise((resolve) => setTimeout(resolve, 8 - n));
+      running--;
+      return n * 10;
+    });
+    expect(results).toEqual([10, 20, 30, 40, 50, 60, 70]);
+    expect(most).toBe(3);
   });
 });
 

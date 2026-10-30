@@ -6,7 +6,8 @@
 // attached when the request names them. It spends fuel, so it is not in the gate:
 // `npm run tutor:eval [prefix ...]`, a prefix of a case's name or of `<grind>/<case>` (`npm run tutor:eval -- redteam`).
 // Every expected.json forbids the answer in `never_contains` (tutor-turn's older `answer_must_not_appear` is the
-// same list). Exits non-zero when any case fails; answers are kept in a temp dir.
+// same list). Exits non-zero when any case fails; answers are kept in a temp dir. At most TUTOR_EVAL_JOBS (default 6)
+// claude processes run at once, so a run of every case does not swamp the host.
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -31,7 +32,8 @@ export const GRINDS: Record<GrindKind, { dir: string; label: string }> = {
 /** A case's expected.json: what the answer must be, and what must never appear in it. */
 export interface Expected {
   about: string;
-  action: string;
+  /** The action, or the actions any of which will do (a red-team case: every teaching turn is right). */
+  action: string | string[];
   layer_diagnosis: string;
   /** The problem's answer, as a numeral and in words: never in prompt_to_child, focus_words or math_diagnosis. */
   never_contains?: string[];
@@ -154,7 +156,8 @@ const words = (text: string, list: string[]): string[] => list.filter((w) => new
 export function checkAnswer(answer: unknown, expected: Expected): string[] {
   if (!isTutorAnswer(answer)) return ['not a valid Tutor Turn Answer'];
   const problems: string[] = [];
-  if (answer.action !== expected.action) problems.push(`action ${answer.action}, expected ${expected.action}`);
+  const actions = ([] as string[]).concat(expected.action);
+  if (!actions.includes(answer.action)) problems.push(`action ${answer.action}, expected ${actions.join(' or ')}`);
   if (answer.layer_diagnosis !== expected.layer_diagnosis) {
     problems.push(`layer_diagnosis ${answer.layer_diagnosis}, expected ${expected.layer_diagnosis}`);
   }
@@ -342,6 +345,20 @@ function runClaude(run: EvalRun, grind: Grind, model: string): Promise<string> {
   });
 }
 
+/** `work` over `items`, at most `jobs` at once, the results in the order of `items`. */
+export async function mapLimited<T, R>(items: T[], jobs: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await work(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(jobs, items.length)) }, worker));
+  return results;
+}
+
 async function main(): Promise<void> {
   const picked = selectCases(process.argv.slice(2));
   if (picked.length === 0) {
@@ -355,26 +372,25 @@ async function main(): Promise<void> {
   const outDir = mkdtempSync(join(tmpdir(), 'tutor-eval-'));
   const runs = picked.flatMap((p) => p.case.runs.map((run) => ({ run, label: `${p.grind}/${run.name}` })));
   const models = [...grinds.keys()].map((kind) => `${kind} ${modelOf(kind)} (effort ${grinds.get(kind)!.effort})`).join(', ');
-  console.log(`tutor:eval: ${picked.length} cases with ${models}; answers in ${outDir}`);
+  const jobs = Number(process.env.TUTOR_EVAL_JOBS) || 6;
+  console.log(`tutor:eval: ${picked.length} cases with ${models}, ${jobs} at once; answers in ${outDir}`);
 
-  const results = await Promise.all(
-    runs.map(async ({ run, label }) => {
-      let problems: string[];
-      try {
-        const answer = readClaudeResult(await runClaude(run, grinds.get(run.grind)!, modelOf(run.grind)));
-        writeFileSync(join(outDir, `${label.replace('/', '.').replace('/', '.')}.json`), JSON.stringify(answer, null, 2) + '\n');
-        problems = checkRun(run, answer);
-        console.log(`\n${problems.length === 0 ? 'PASS' : 'FAIL'} ${label}: ${run.expected.about}`);
-        if (run.grind === 'tutor-talk' && isTalkAnswer(answer)) console.log(`  "${answer.words}"`);
-        else if (isTutorAnswer(answer)) console.log(`  ${answer.action} / ${answer.layer_diagnosis}: "${answer.prompt_to_child}"`);
-      } catch (error) {
-        problems = [error instanceof Error ? error.message : String(error)];
-        console.log(`\nFAIL ${label}: ${run.expected.about}`);
-      }
-      for (const problem of problems) console.log(`  - ${problem}`);
-      return { run, ok: problems.length === 0 };
-    }),
-  );
+  const results = await mapLimited(runs, jobs, async ({ run, label }) => {
+    let problems: string[];
+    try {
+      const answer = readClaudeResult(await runClaude(run, grinds.get(run.grind)!, modelOf(run.grind)));
+      writeFileSync(join(outDir, `${label.replace('/', '.').replace('/', '.')}.json`), JSON.stringify(answer, null, 2) + '\n');
+      problems = checkRun(run, answer);
+      console.log(`\n${problems.length === 0 ? 'PASS' : 'FAIL'} ${label}: ${run.expected.about}`);
+      if (run.grind === 'tutor-talk' && isTalkAnswer(answer)) console.log(`  "${answer.words}"`);
+      else if (isTutorAnswer(answer)) console.log(`  ${answer.action} / ${answer.layer_diagnosis}: "${answer.prompt_to_child}"`);
+    } catch (error) {
+      problems = [error instanceof Error ? error.message : String(error)];
+      console.log(`\nFAIL ${label}: ${run.expected.about}`);
+    }
+    for (const problem of problems) console.log(`  - ${problem}`);
+    return { run, ok: problems.length === 0 };
+  });
 
   const passedCases = picked.filter((p) => p.case.runs.every((r) => results.find((x) => x.run === r)?.ok));
   const passedRuns = results.filter((r) => r.ok).length;

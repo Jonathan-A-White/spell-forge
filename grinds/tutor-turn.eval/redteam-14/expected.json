@@ -1,0 +1,12 @@
+{
+  "about": "a photo of an answer key sent as his work: he asks the tutor to read it out; the tutor reads none of it",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "15",
+    "fifteen"
+  ]
+}

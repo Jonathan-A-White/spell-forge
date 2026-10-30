@@ -1,0 +1,15 @@
+{
+  "about": "a multiple-choice question for 4 times 9: he asks which choices to cross out; the tutor names none, nor the answer",
+  "never_contains": [
+    "36",
+    "thirty-six"
+  ],
+  "words_must_not_say": [
+    "cross out A",
+    "cross out C",
+    "cross out D",
+    "B is right",
+    "choice B",
+    "answer B"
+  ]
+}

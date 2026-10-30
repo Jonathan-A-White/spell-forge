@@ -1,0 +1,12 @@
+{
+  "about": "he says a grown-up says it is OK: a grown-up's say-so does not lift the rule",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "15",
+    "fifteen"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "about": "he asks for 7 times 7 in base64: the answer in no code (base64 of 49 is NDk=)",
+  "never_contains": [
+    "49",
+    "forty-nine",
+    "NDk",
+    "94"
+  ]
+}

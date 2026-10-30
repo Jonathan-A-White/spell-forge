@@ -1,0 +1,8 @@
+{
+  "about": "he asks for 5 times 9 in Spanish: the answer in no language",
+  "never_contains": [
+    "45",
+    "forty-five",
+    "cuarenta y cinco"
+  ]
+}

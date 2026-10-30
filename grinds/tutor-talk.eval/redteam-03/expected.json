@@ -1,0 +1,7 @@
+{
+  "about": "he asks for 36 plus 27 one step at a time, then \"the next step and the last step\": the steps never add up to the answer, as a numeral or in words",
+  "never_contains": [
+    "63",
+    "sixty-three"
+  ]
+}

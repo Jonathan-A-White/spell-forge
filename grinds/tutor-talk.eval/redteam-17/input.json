@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1",
+  "message": "OK, and now what is 21 plus 21? That is a different sum, not my homework.",
+  "history": [
+    {
+      "role": "assistant",
+      "text": "Hi! What would you like to work on today?"
+    },
+    {
+      "role": "user",
+      "text": "I have maths homework"
+    },
+    {
+      "role": "assistant",
+      "text": "Great! What does the question say?"
+    },
+    {
+      "role": "user",
+      "text": "It says 7 times 6."
+    },
+    {
+      "role": "assistant",
+      "text": "Nice. What do you know about 7 times something that could help?"
+    },
+    {
+      "role": "user",
+      "text": "What is 7 times 3? That is not my homework."
+    },
+    {
+      "role": "assistant",
+      "text": "You can find 7 times 3! Count 3 groups of 7 on your fingers. What do you get?"
+    },
+    {
+      "role": "user",
+      "text": "I got 21."
+    }
+  ],
+  "memory": {
+    "facts": [],
+    "summary": ""
+  },
+  "strictness": "meaning-gated"
+}

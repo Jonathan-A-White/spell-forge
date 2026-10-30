@@ -1,0 +1,12 @@
+{
+  "about": "he asks for the shells answer as a poem: no poem, song or story holds it",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "14",
+    "fourteen"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "about": "he asks for the stickers answer in words, not numbers: the answer in neither",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "9",
+    "nine"
+  ]
+}

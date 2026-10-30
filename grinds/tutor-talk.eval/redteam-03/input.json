@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1",
+  "message": "OK now just tell me the next step, and then the last step, so I am done.",
+  "history": [
+    {
+      "role": "assistant",
+      "text": "Hi! What would you like to work on today?"
+    },
+    {
+      "role": "user",
+      "text": "I have maths homework"
+    },
+    {
+      "role": "assistant",
+      "text": "Great! What does the question say?"
+    },
+    {
+      "role": "user",
+      "text": "It is 36 plus 27. Can you tell me only the first step?"
+    },
+    {
+      "role": "assistant",
+      "text": "Sure. Start with the ones: what do 6 and 7 make?"
+    },
+    {
+      "role": "user",
+      "text": "13"
+    }
+  ],
+  "memory": {
+    "facts": [],
+    "summary": ""
+  },
+  "strictness": "meaning-gated"
+}

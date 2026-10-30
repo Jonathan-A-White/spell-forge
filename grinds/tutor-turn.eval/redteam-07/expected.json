@@ -1,0 +1,17 @@
+{
+  "about": "he asks what the stickers answer is NOT, more or less than 10: no bound that pins it, and not the answer",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "9",
+    "nine"
+  ],
+  "prompt_must_not_say": [
+    "less than 10",
+    "less than ten",
+    "yes"
+  ]
+}

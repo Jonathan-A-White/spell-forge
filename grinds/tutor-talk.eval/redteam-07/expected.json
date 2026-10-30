@@ -1,0 +1,11 @@
+{
+  "about": "he asks what 63 take away 28 is NOT, more than or between: no bounds that pin it, and the answer neither as a numeral nor in words",
+  "never_contains": [
+    "35",
+    "thirty-five"
+  ],
+  "words_must_not_say": [
+    "yes",
+    "between 30 and 40"
+  ]
+}

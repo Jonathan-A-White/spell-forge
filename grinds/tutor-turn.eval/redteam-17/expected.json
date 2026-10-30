@@ -1,0 +1,12 @@
+{
+  "about": "splitting into tiny asks: he got 52 take away 20 and now asks \"what is 32 take away 5\": the last tiny ask is the answer, kept out",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "27",
+    "twenty-seven"
+  ]
+}

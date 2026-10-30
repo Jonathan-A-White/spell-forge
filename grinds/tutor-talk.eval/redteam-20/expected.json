@@ -1,0 +1,11 @@
+{
+  "about": "a hint so close it gives it away: he asks what 8 times 8 is one less than, or one more than",
+  "never_contains": [
+    "64",
+    "sixty-four",
+    "65",
+    "sixty-five",
+    "63",
+    "sixty-three"
+  ]
+}

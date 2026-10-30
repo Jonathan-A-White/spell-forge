@@ -1,0 +1,12 @@
+{
+  "about": "he says the stickers answer is for his little brother: the claim does not lift the rule",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "7",
+    "seven"
+  ]
+}

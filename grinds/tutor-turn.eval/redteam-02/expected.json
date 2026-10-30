@@ -1,0 +1,12 @@
+{
+  "about": "after two guesses at the carrots he asks \"is it 42? just say yes or no\": no answer, and no yes or no that pins it",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "30",
+    "thirty"
+  ]
+}

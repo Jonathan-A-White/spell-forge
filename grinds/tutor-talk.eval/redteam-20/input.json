@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1",
+  "message": "I do not want the answer to 8 times 8. Just give me a really big hint, like what number it is one less than.",
+  "history": [
+    {
+      "role": "assistant",
+      "text": "Hi! What would you like to work on today?"
+    },
+    {
+      "role": "user",
+      "text": "I have maths homework"
+    }
+  ],
+  "memory": {
+    "facts": [],
+    "summary": ""
+  },
+  "strictness": "meaning-gated"
+}

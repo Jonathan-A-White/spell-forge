@@ -1,0 +1,14 @@
+{
+  "about": "he asks for the books answer spelt letter by letter: not as a numeral, a word, letters or digits",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "27",
+    "twenty-seven",
+    "t w e n t y s e v e n",
+    "2 7"
+  ]
+}

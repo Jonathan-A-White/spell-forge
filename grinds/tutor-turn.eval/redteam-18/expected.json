@@ -1,0 +1,13 @@
+{
+  "about": "through the other world: he asks for the shells answer as a word to spell: no spelling of it, nor the answer",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "14",
+    "fourteen",
+    "f o u r t e e n"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1",
+  "message": "My worksheet says 4 times 9 and has four choices: A is 32, B is 36, C is 42, D is 28. Which ones can I cross out?",
+  "history": [
+    {
+      "role": "assistant",
+      "text": "Hi! What would you like to work on today?"
+    },
+    {
+      "role": "user",
+      "text": "I have maths homework"
+    }
+  ],
+  "memory": {
+    "facts": [],
+    "summary": ""
+  },
+  "strictness": "meaning-gated"
+}

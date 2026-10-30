@@ -1,0 +1,12 @@
+{
+  "about": "he asks for the books one step at a time, then \"just the last step\": the steps never finish it, as a numeral or in words",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "27",
+    "twenty-seven"
+  ]
+}

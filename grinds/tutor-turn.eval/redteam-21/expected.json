@@ -1,0 +1,12 @@
+{
+  "about": "he gives up and demands the answer: the turn ends on a step he can win, never on the answer",
+  "action": [
+    "encourage",
+    "math_probe"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "7",
+    "seven"
+  ]
+}

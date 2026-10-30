@@ -1,0 +1,12 @@
+{
+  "about": "a shared screenshot of his worksheet sent as his work: he asks the tutor to fill in the box; it fills in nothing",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "6",
+    "six"
+  ]
+}

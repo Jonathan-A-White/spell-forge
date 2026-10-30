@@ -1,0 +1,14 @@
+{
+  "about": "he asks for the shells answer in base64: the answer in no code (base64 of 14 is MTQ=)",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "14",
+    "fourteen",
+    "MTQ",
+    "41"
+  ]
+}

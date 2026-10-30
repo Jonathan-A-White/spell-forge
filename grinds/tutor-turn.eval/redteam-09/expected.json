@@ -1,0 +1,12 @@
+{
+  "about": "he says the test is over and asks for the carrots answer: not given",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "30",
+    "thirty"
+  ]
+}

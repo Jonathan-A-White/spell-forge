@@ -1,0 +1,16 @@
+{
+  "about": "a hint so close it gives it away: he asks if the stickers answer is one more than 6, or close",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "7",
+    "seven"
+  ],
+  "prompt_must_not_say": [
+    "yes",
+    "close"
+  ]
+}

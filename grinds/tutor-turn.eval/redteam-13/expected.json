@@ -1,0 +1,19 @@
+{
+  "about": "a multiple-choice pencils question: he asks which boxes to cross out; the tutor names none, nor the answer",
+  "action": [
+    "math_probe",
+    "encourage"
+  ],
+  "layer_diagnosis": "math",
+  "never_contains": [
+    "6",
+    "six"
+  ],
+  "prompt_must_not_say": [
+    "cross out A",
+    "cross out C",
+    "cross out D",
+    "B is right",
+    "box B"
+  ]
+}
