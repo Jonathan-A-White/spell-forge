@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:vps": "SF_BASE=/ npm run build",
+    "build:moved": "vite build -c vite.moved.config.ts && cp dist-moved/index.html dist-moved/404.html && cp public/kestrel.svg dist-moved/kestrel.svg",
+    "icons": "node scripts/make-icons.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

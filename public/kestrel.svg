@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Kestrel">
+  <title>Kestrel</title>
+  <!-- Background: the whole square (the maskable icon drops the rounded corners; the bird stays inside the middle 80%). -->
+  <rect width="256" height="256" rx="56" fill="#17375E"/>
+  <circle cx="128" cy="122" r="80" fill="#FBE3AE"/>
+
+  <!-- Perch -->
+  <path d="M56 196 H200" stroke="#6B4423" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Tail: long, banded, ending in a dark tip -->
+  <path d="M150 140 L196 190 L180 200 L132 158 Z" fill="#B85A1E"/>
+  <path d="M185 178 L196 190 L180 200 L172 191 Z" fill="#2B2B33"/>
+
+  <!-- Body -->
+  <ellipse cx="124" cy="146" rx="42" ry="52" transform="rotate(-12 124 146)" fill="#D9772B"/>
+  <!-- Cream chest with a few speckles -->
+  <ellipse cx="106" cy="154" rx="22" ry="34" transform="rotate(-8 106 154)" fill="#F7E6C6"/>
+  <circle cx="102" cy="144" r="2.6" fill="#8A4A1C"/>
+  <circle cx="112" cy="156" r="2.6" fill="#8A4A1C"/>
+  <circle cx="100" cy="162" r="2.6" fill="#8A4A1C"/>
+  <circle cx="110" cy="172" r="2.6" fill="#8A4A1C"/>
+  <!-- Wing folded over the back, dark at the tip -->
+  <path d="M132 112 C168 120 176 160 156 190 C142 176 130 150 132 112 Z" fill="#B85A1E"/>
+  <path d="M156 190 C146 180 142 172 140 164 C148 168 156 176 162 180 Z" fill="#2B2B33"/>
+
+  <!-- Head, blue-grey -->
+  <circle cx="108" cy="90" r="33" fill="#8FA6BD"/>
+  <!-- Hooked yellow beak -->
+  <path d="M80 82 C64 83 57 94 58 106 C64 99 74 98 82 99 Z" fill="#F2B632"/>
+  <!-- Eye -->
+  <circle cx="96" cy="86" r="10" fill="#F2B632"/>
+  <circle cx="96" cy="86" r="7" fill="#1B1B22"/>
+  <circle cx="93.5" cy="83.5" r="2.4" fill="#FFFFFF"/>
+  <!-- The kestrel's dark moustache stripe -->
+  <path d="M92 100 C93 112 99 120 106 122" stroke="#2B2B33" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+  <!-- Feet -->
+  <path d="M104 192 V198 M118 192 V198" stroke="#F2B632" stroke-width="5" stroke-linecap="round"/>
+</svg>

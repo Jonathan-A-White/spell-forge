@@ -1,15 +1,33 @@
 {
-  "name": "SpellForge",
-  "short_name": "SpellForge",
-  "description": "Master spelling through practice and spaced repetition",
-  "start_url": "./",
-  "scope": "./",
+  "name": "Kestrel",
+  "short_name": "Kestrel",
+  "description": "A tutor for your child: spelling and maths, one small step at a time",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0F172A",
   "theme_color": "#0F172A",
   "icons": [
     {
-      "src": "spell-forge.svg",
+      "src": "icons/kestrel-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/kestrel-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/kestrel-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "kestrel.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
