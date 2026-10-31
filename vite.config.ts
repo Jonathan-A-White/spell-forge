@@ -29,7 +29,7 @@ export default defineConfig({
       },
     }),
   ],
-  // /spell-forge/ for GitHub Pages; SF_BASE=/ for the VPS (scripts/app-base.mjs).
+  // '/': the app is served at the root of kestrel.allmymind.org; SF_BASE names another path (scripts/app-base.mjs).
   base: appBase(process.env),
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),

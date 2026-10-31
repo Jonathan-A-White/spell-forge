@@ -1,5 +1,5 @@
-// The hosting half of mw-79en7t.22 (mw-79en7t.75): the same source builds for GitHub Pages (base /spell-forge/, the default) and for the
-// VPS at kestrel.allmymind.org (base /, chosen at build time by SF_BASE). Nothing the build emits may hold the Pages path by hand.
+// The hosting half of mw-79en7t.22 (mw-79en7t.75): the app is built for the root of kestrel.allmymind.org (base /, the default; SF_BASE
+// names another path). GitHub Pages at /spell-forge/ now serves only the moved page (moved/, vite.moved.config.ts). Nothing the build emits may hold the Pages path by hand.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,13 +10,13 @@ import { appBase } from '../../scripts/app-base.mjs';
 const read = (path: string) => readFileSync(path, 'utf-8');
 
 describe('the base the build is made for', () => {
-  it('is the Pages path unless the build is told otherwise', () => {
-    expect(appBase({})).toBe('/spell-forge/');
-    expect(appBase({ SF_BASE: '' })).toBe('/spell-forge/');
+  it('is the root unless the build is told otherwise (the app is served at the root of kestrel.allmymind.org)', () => {
+    expect(appBase({})).toBe('/');
+    expect(appBase({ SF_BASE: '' })).toBe('/');
   });
 
-  it('is the root for the VPS build', () => {
-    expect(appBase({ SF_BASE: '/' })).toBe('/');
+  it('can be a path, for a build served under one (the e2e build is made for /spell-forge/)', () => {
+    expect(appBase({ SF_BASE: '/spell-forge/' })).toBe('/spell-forge/');
   });
 
   it('refuses a base that is not a path with slashes at both ends', () => {
@@ -32,9 +32,9 @@ describe('the base the build is made for', () => {
     expect(read('index.html')).not.toContain('/spell-forge/');
     expect(read('src/sw.ts')).not.toContain('/spell-forge/');
     const manifest = JSON.parse(read('public/manifest.json')) as { start_url: string; scope: string };
-    // Relative to the manifest, so /spell-forge/manifest.json scopes to /spell-forge/ and /manifest.json to /.
-    expect(manifest.start_url).toBe('./');
-    expect(manifest.scope).toBe('./');
+    // The app is served at the root (tests/unit/manifest.test.ts holds the rest of the manifest).
+    expect(manifest.start_url).toBe('/');
+    expect(manifest.scope).toBe('/');
   });
 });
 

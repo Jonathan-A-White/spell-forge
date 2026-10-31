@@ -5,6 +5,10 @@ import { join } from 'node:path';
 import { playwrightTimeouts, playwrightTimingFilter } from 'pwa-kit/test-preset';
 import { previewPort, reuseExistingPreview } from './tests/support/preview-port';
 
+// The app is served at the root now (scripts/app-base.mjs), but the specs open it under /spell-forge/: every build and dev server they start is made for
+// that path, which keeps a base other than / proved to work. (The moved page's spec builds its own, tests/e2e/moved.spec.ts.)
+process.env.SF_BASE = '/spell-forge/';
+
 // One preview server per worktree (tests/support/preview-port.ts): landings on one host run side by side.
 const PREVIEW_PORT = previewPort(process.cwd());
 const PREVIEW_BASE_URL = `http://localhost:${PREVIEW_PORT}`;
