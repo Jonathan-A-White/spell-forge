@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy the moved page to GitHub Pages
 
 on:
   push:
@@ -26,10 +26,12 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run test:unit
-      - run: npm run build
+      # The app is served at https://kestrel.allmymind.org/ now (docs/hosting.md). This address, /spell-forge/, shows a page that says Kestrel
+      # moved, with one tap to save a child's data (IndexedDB does not follow a new origin) and the new link.
+      - run: npm run build:moved
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: dist-moved
 
   deploy:
     needs: build

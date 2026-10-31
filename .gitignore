@@ -42,3 +42,4 @@ packages/bsv/*.tgz
 
 # Phone-width screenshots (tests/e2e/shot.ts)
 /shots/
+dist-moved
