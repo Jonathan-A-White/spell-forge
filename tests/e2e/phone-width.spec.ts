@@ -11,7 +11,7 @@ test.use({ viewport: { width: 390, height: 844 } });
 test('the first screen fits a 390x844 phone with no horizontal scroll', async ({ page }) => {
   await noTapGuard(page);
   await page.goto('/spell-forge/');
-  await expect(page.getByRole('heading', { name: 'Welcome to SpellForge!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel!' })).toBeVisible();
 
   const widths = await page.evaluate(() => ({
     window: window.innerWidth,
@@ -34,7 +34,7 @@ test('the first screen fits a 390x844 phone with no horizontal scroll', async ({
 test('a button is native-feel and the hover washes on Home let a tap through (mw-79en7t.76)', async ({ page }) => {
   await noTapGuard(page);
   await page.goto('/spell-forge/');
-  await expect(page.getByRole('heading', { name: 'Welcome to SpellForge!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel!' })).toBeVisible();
 
   // topic 08: no 300 ms tap delay, no grey flash, no selected label on a control.
   const next = await page.getByRole('button', { name: 'Next' }).evaluate((button) => {

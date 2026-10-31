@@ -46,7 +46,7 @@ test.beforeAll(async ({ browser }) => {
   // The first load makes vite bundle the dependencies and reload the page once; let that happen before the walk starts.
   const warmUp = await browser.newPage();
   await warmUp.goto(`${ORIGIN}${APP_PATH}`);
-  await expect(warmUp.getByRole('heading', { name: 'Welcome to SpellForge!' })).toBeVisible({ timeout: 120_000 });
+  await expect(warmUp.getByRole('heading', { name: 'Welcome to Kestrel!' })).toBeVisible({ timeout: 120_000 });
   await warmUp.waitForLoadState('networkidle');
   await warmUp.close();
 });
@@ -95,7 +95,7 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
 
   // --- Front door: a new child is welcomed, then Home ---
   await page.goto(`${ORIGIN}${APP_PATH}`);
-  await expect(page.getByRole('heading', { name: 'Welcome to SpellForge!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel!' })).toBeVisible();
   await fitsThePhone(page);
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();

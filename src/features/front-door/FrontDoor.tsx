@@ -2,7 +2,7 @@
 // big bar to talk (and has the camera) and there is no keyboard: what he says goes to the front door's flow, and every answer
 // is drawn and spoken through TutorText (M16). With no licence the tutor is asleep: the worlds are offered as big pictures
 // under the gate's one line, and nothing is sent. The flow is given (front-door-flow.ts). Something another app shared with
-// SpellForge (Share > SpellForge, src/share) waits on this screen with a tap to send it, and lands in the talk as his turn
+// Kestrel (Share > Kestrel, src/share) waits on this screen with a tap to send it, and lands in the talk as his turn
 // (share-landing.ts); it is never sent by itself. When the tutor's answer offers to pass an ask on to the maker, the line carries
 // "Send this to the maker" (src/features/requests), sent only on a tap. Behind it all is the door's scene (src/look/scene): a slow
 // WebGL picture in a lazy chunk, or its still fallback with no WebGL or with reduced motion.
@@ -34,7 +34,7 @@ export interface FrontDoorProps {
   open: (view: ViewId) => void;
   /** What the tutor says on opening; spoken and drawn. */
   greeting?: string;
-  /** What another app shared with SpellForge, taken at boot: it waits here for a tap. */
+  /** What another app shared with Kestrel, taken at boot: it waits here for a tap. */
   shared?: SharedItem | null;
   /** Called once the shared item has been sent or turned away (or the tutor is asleep and cannot take it). */
   onSharedUsed?: () => void;
@@ -143,7 +143,7 @@ function SharedCard({ item, sending, onSend, onDrop }: { item: SharedItem; sendi
       data-testid={picture ? 'shared-picture' : 'shared-words'}
       className="space-y-3 rounded-xl border border-sf-border bg-sf-surface p-3"
     >
-      {url && <img src={url} alt="The picture shared with SpellForge" className="mx-auto max-h-64 rounded-lg" />}
+      {url && <img src={url} alt="The picture shared with Kestrel" className="mx-auto max-h-64 rounded-lg" />}
       {item.text && <p className="text-sf-text whitespace-pre-line break-words">{item.text}</p>}
       <div className="flex gap-3">
         <button
@@ -248,7 +248,7 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
   return (
     <div className="p-4 space-y-4 max-w-xl mx-auto">
       <SceneOrFallback />
-      <h1 className="sr-only">SpellForge</h1>
+      <h1 className="sr-only">Kestrel</h1>
       {asleep || offered ? (
         <Worlds open={open} />
       ) : (
@@ -270,7 +270,7 @@ export function FrontDoor({ flow, open, greeting = FRONT_DOOR_GREETING, shared, 
             settings={FRONT_DOOR_COMPOSER_SETTINGS}
             refuseFile={refuseFile}
             labels={LABELS}
-            appName="SpellForge"
+            appName="Kestrel"
             onSend={submit}
           />
         </>

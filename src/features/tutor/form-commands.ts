@@ -212,7 +212,7 @@ type ThemeName = Pick<Theme, 'id' | 'name'>;
 
 /** The Welcome: a name, and a theme chosen from the app's themes (the first, Dragon Forge, when none is chosen). */
 export const welcomeForm = (themes: readonly ThemeName[]): FormSpec => ({
-  name: 'Welcome to SpellForge',
+  name: 'Welcome to Kestrel',
   fields: [
     { name: 'name', label: "What's your name?", required: true, kind: 'text', ...upTo(SHORT_MAX) },
     { name: 'theme', label: 'Pick Your Theme', hint: 'How do you want to earn rewards?', required: false, kind: 'choice', options: themes.map((t) => t.name) },

@@ -146,7 +146,7 @@ describe('UpdateBanner', () => {
   it("renders in the 'ready' state, with Update now that applies the update", () => {
     waitingBuild();
     render(<UpdateBanner view="home" />);
-    expect(screen.getByRole('status')).toHaveTextContent(/new version of SpellForge/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/new version of Kestrel/i);
     fireEvent.click(screen.getByRole('button', { name: 'Update now' }));
     expect((registration.waiting as FakeWorker).messages).toEqual([{ type: 'SKIP_WAITING' }]);
     expect(screen.getByRole('button', { name: 'Updating…' })).toBeDisabled();

@@ -40,7 +40,7 @@ export function QrImport({ onImport, onCancel, existingListNames = [] }: QrImpor
     const decoded = decodeQrPayload(decodedText);
     if (!decoded) {
       setStatus('error');
-      setErrorMessage('This QR code is not a SpellForge word list.');
+      setErrorMessage('This QR code is not a Kestrel word list.');
       stopScanner();
       return;
     }
@@ -109,7 +109,7 @@ export function QrImport({ onImport, onCancel, existingListNames = [] }: QrImpor
             <div id="sf-qr-reader" ref={containerRef} style={{ width: '100%' }} />
           </div>
           <p className="text-sf-muted text-sm text-center">
-            Point your camera at a SpellForge QR code
+            Point your camera at a Kestrel QR code
           </p>
         </div>
       )}

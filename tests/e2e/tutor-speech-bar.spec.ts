@@ -36,7 +36,7 @@ const MS_PER_WORD = Math.ceil((2 * SPEC_TIMEOUT_MS) / TIP.split(/\s+/).length);
 
 async function completeOnboarding(page: Page, name: string): Promise<void> {
   await page.goto(APP_PATH);
-  await expect(page.getByText('Welcome to SpellForge!')).toBeVisible();
+  await expect(page.getByText('Welcome to Kestrel!')).toBeVisible();
   await page.getByPlaceholder('Enter your name').fill(name);
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();

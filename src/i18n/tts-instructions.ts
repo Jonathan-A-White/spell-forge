@@ -44,7 +44,7 @@ const instructions: TtsInstruction[] = [
       'Tap "Install voice data" or "Language".',
       'Find "Spanish" (Espanol) and tap to download.',
       'Choose a regional variant if prompted (Spain, Mexico, etc.).',
-      'Return to SpellForge and the Spanish voice will be available.',
+      'Return to Kestrel and the Spanish voice will be available.',
     ],
   },
   {
@@ -56,7 +56,7 @@ const instructions: TtsInstruction[] = [
       'Scroll to "Spanish" and tap it.',
       'Download a voice (e.g., "Monica" for Spain, "Paulina" for Mexico).',
       'Enhanced voices sound more natural but require more storage.',
-      'Return to SpellForge and the Spanish voice will be available.',
+      'Return to Kestrel and the Spanish voice will be available.',
     ],
   },
 ];

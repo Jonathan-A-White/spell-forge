@@ -45,7 +45,7 @@ async function openOnTheDoor(page: Page): Promise<void> {
   // nothing here talks to the factory
   await page.route('https://postern.allmymind.org/**', (route) => route.abort('internetdisconnected'));
   await page.goto(APP_PATH);
-  await expect(page.getByText('Welcome to SpellForge!')).toBeVisible();
+  await expect(page.getByText('Welcome to Kestrel!')).toBeVisible();
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();

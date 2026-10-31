@@ -48,7 +48,7 @@ test.beforeAll(async ({ browser }) => {
   // The first load makes vite bundle the dependencies and reload the page once; let that happen before the walk starts.
   const warmUp = await browser.newPage();
   await warmUp.goto(APP);
-  await expect(warmUp.getByRole('heading', { name: 'Welcome to SpellForge!' })).toBeVisible({ timeout: 120_000 });
+  await expect(warmUp.getByRole('heading', { name: 'Welcome to Kestrel!' })).toBeVisible({ timeout: 120_000 });
   await warmUp.waitForLoadState('networkidle');
   await warmUp.close();
 });

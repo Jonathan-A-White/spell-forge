@@ -53,7 +53,7 @@ export function QrShare({ listName, words, testDate, onClose }: QrShareProps) {
               />
             </div>
             <p className="text-xs text-sf-muted text-center">
-              Open SpellForge on another device and use &quot;Import via QR&quot; to scan
+              Open Kestrel on another device and use &quot;Import via QR&quot; to scan
             </p>
           </div>
         )}

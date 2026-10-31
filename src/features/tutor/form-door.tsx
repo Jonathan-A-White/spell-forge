@@ -231,7 +231,7 @@ export function FormDoor({ form, command, values, onFill, tutor }: FormDoorProps
         </button>
       )}
       {!ready && !sent && phase.name !== 'asleep' && (
-        <Composer className="sf-composer" settings={SPELLFORGE_COMPOSER_SETTINGS} labels={LABELS} appName="SpellForge" onSend={reply} />
+        <Composer className="sf-composer" settings={SPELLFORGE_COMPOSER_SETTINGS} labels={LABELS} appName="Kestrel" onSend={reply} />
       )}
       <button type="button" onClick={stop} className={SECONDARY} style={TAP}>
         Stop helping

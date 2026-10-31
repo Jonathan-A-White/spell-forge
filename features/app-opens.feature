@@ -5,7 +5,7 @@ Feature: SpellForge opens
   Scenario: AC3: A phone with no profile opens on the welcome
     Given a phone that has never opened SpellForge
     When SpellForge opens
-    Then the welcome "Welcome to SpellForge!" is shown
+    Then the welcome "Welcome to Kestrel!" is shown
 
   Scenario: AC3: A phone with a profile opens on that child's Home
     Given a phone that holds the profile "Rowan"

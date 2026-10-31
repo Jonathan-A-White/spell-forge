@@ -86,7 +86,7 @@ export function FrontDoorWorld({ view }: { view: ViewId | null }) {
           <div className="text-center max-w-sm">
             <p className="text-sf-text text-lg font-bold mb-2">Waiting for other tabs</p>
             <p className="text-sf-text text-sm mb-4">
-              SpellForge is open in another tab. Please close it there, then tap the button below.
+              Kestrel is open in another tab. Please close it there, then tap the button below.
             </p>
             <button
               onClick={() => window.location.reload()}

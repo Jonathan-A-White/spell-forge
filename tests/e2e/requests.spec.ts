@@ -171,7 +171,7 @@ async function startOnTheDoor(page: Page): Promise<Factory> {
   const device = PrivateKey.fromRandom();
   const factory = await stubFactory(page, device, PrivateKey.fromRandom());
   await page.goto(APP_PATH);
-  await expect(page.getByText('Welcome to SpellForge!')).toBeVisible();
+  await expect(page.getByText('Welcome to Kestrel!')).toBeVisible();
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();

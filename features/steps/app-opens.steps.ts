@@ -36,8 +36,8 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     When('SpellForge opens', () => {
       render(createElement(App));
     });
-    Then('the welcome "Welcome to SpellForge!" is shown', async () => {
-      expect(await screen.findByRole('heading', { name: 'Welcome to SpellForge!' })).toBeInTheDocument();
+    Then('the welcome "Welcome to Kestrel!" is shown', async () => {
+      expect(await screen.findByRole('heading', { name: 'Welcome to Kestrel!' })).toBeInTheDocument();
     });
   });
 

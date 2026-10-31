@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Development guide for AI assistants (Builders) working on SpellForge: an offline-first PWA that tutors a child (spelling first, then reading and maths), React 18 / TypeScript / Vite / Dexie. It is being rebuilt as 2.0 under the Land Rush (epic mw-79en7t); this file is the law for that work. Every push to `main` still deploys to production GitHub Pages (`.github/workflows/deploy.yml`) and real children use the app: never change an existing screen's behaviour unless the story says so, and keep new things behind their flag. Do not edit `.github/workflows/` unless a story says so (this host's token cannot push workflow changes). Never bump `package.json`'s version (the landing does).
+Development guide for AI assistants (Builders) working on SpellForge: an offline-first PWA that tutors a child (spelling first, then reading and maths), React 18 / TypeScript / Vite / Dexie. It is being rebuilt as 2.0 under the Land Rush (epic mw-79en7t); this file is the law for that work. The app is Kestrel, served at `https://kestrel.allmymind.org/` (docs/hosting.md); every push to `main` deploys only the moved page to the old GitHub Pages address (`.github/workflows/deploy.yml`), and real children use the app: never change an existing screen's behaviour unless the story says so, and keep new things behind their flag. Do not edit `.github/workflows/` unless a story says so (this host's token cannot push workflow changes). Never bump `package.json`'s version (the landing does).
 
 VISION.md is the Governor's vision for this app: a change that would cross one of its lines stops and says so.
 
@@ -124,7 +124,7 @@ Every grind in `grinds/` keeps one or more example scenarios, `grinds/examples/<
 
 ## CI/CD
 
-- **test.yml** uses `dorny/paths-filter` to run only affected subsystem tests. **deploy.yml** deploys to GitHub Pages on push to `main`: typecheck, test, build, deploy. **ci-pass** aggregates for branch protection. Story 24 moves the app to its own domain and retires these.
+- **test.yml** uses `dorny/paths-filter` to run only affected subsystem tests. **deploy.yml** deploys the moved page (`npm run build:moved`) to GitHub Pages on push to `main`. **ci-pass** aggregates for branch protection. Story 24 moves the app to its own domain and retires these.
 
 ## Read by need
 
@@ -142,7 +142,7 @@ docs/motion.md # the motion rules (src/look/motion.ts): what moves, how long (na
 docs/never-the-answer.md # the never-the-answer rule, the teaching turn that replaces a leak, the red-team list, the parent-ask decision, and the sweep of every grind
 docs/what-the-tutor-is-told.md # the table of what a tutor-talk turn carries (settings, learner, goal, progress, screen) and why the rest is not sent
 docs/grinds.md # every grind, what it asks and where the app side lives; the spelling-items grind (fresh words, the check, the stock) in full
-docs/hosting.md # where the app is served (GitHub Pages at /spell-forge/, the VPS at the root of kestrel.allmymind.org), how the base is chosen at build time, the VPS deploy, the nginx site and certificate it needs
+docs/hosting.md # where Kestrel is served (the VPS at the root of kestrel.allmymind.org; the old Pages address shows the moved page), the base, the VPS deploy, the nginx site and certificate, the name sweep
 docs/best-practices-audit.md # the 2026-10-10 audit of SpellForge against the PWA best practices (31 checklist lines)
 docs/bsv-nft-gated-app-spec.md # the spec: NFT-gated, self-funded on-chain application data (BSV)
 docs/bsv-testnet.md # the two testnet scripts behind the BSV Debug screen: keys kept outside the repo

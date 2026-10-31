@@ -203,7 +203,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
       fireEvent.click(await screen.findByText(`tutor goes to ${id}`));
     });
     Then('the Share screen is shown', async () => {
-      expect(await screen.findByRole('heading', { name: 'Share SpellForge' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Share Kestrel' })).toBeInTheDocument();
     });
   });
 

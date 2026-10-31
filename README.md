@@ -1,6 +1,8 @@
-# SpellForge
+# Kestrel
 
 The app's vision: [VISION.md](VISION.md).
+
+Kestrel is served at <https://kestrel.allmymind.org/>. The repository, the rig and the code names (the `spell-forge` repo, the `SpellForgeDB` database) keep the old name, `spell-forge`: it was called SpellForge until 2026-10-31.
 
 An offline-first spelling app that helps kids learn through adaptive techniques, spaced repetition, mini-games, and rewards they actually care about.
 
@@ -157,7 +159,7 @@ a form turn carries.
 | Testing | Vitest 4, React Testing Library, fake-indexeddb |
 | Linting | ESLint 9, typescript-eslint |
 | CI/CD | GitHub Actions |
-| Hosting | GitHub Pages |
+| Hosting | The VPS, at the root of `kestrel.allmymind.org` (as Lampas is); GitHub Pages at the old address serves only the moved page |
 
 ## Getting Started
 
@@ -261,17 +263,17 @@ Tables: `profiles`, `wordLists`, `words`, `wordStats`, `sessionLogs`, `streaks`,
 ## CI/CD
 
 - **test.yml** — smart conditional testing via `dorny/paths-filter` to run only affected subsystem tests on each push/PR
-- **deploy.yml** — automatic build and deploy to GitHub Pages on push to `main`
+- **deploy.yml** — on push to `main`: typecheck, unit tests, then the moved page (`npm run build:moved`, `moved/`) is deployed to GitHub Pages at the old address, `https://jonathan-a-white.github.io/spell-forge/`
 - **version-bump.yml** — automated version updates
 - **ci-pass** gate job aggregates all test results for branch protection
-- **VPS** — the same source also serves at the root of `https://kestrel.allmymind.org/` (`npm run build:vps`, `scripts/deploy-vps.sh`); see [`docs/hosting.md`](docs/hosting.md)
+- **VPS** — the app is served at the root of `https://kestrel.allmymind.org/` (`npm run build`, base `/`; `scripts/deploy-vps.sh`); see [`docs/hosting.md`](docs/hosting.md)
 
 ## Credits
 
 > "If I have seen further it is by standing on the shoulders of Giants."
 > — Isaac Newton, in a letter to Robert Hooke, 1675
 
-SpellForge stands on other people’s work, so we credit every text, tool, font and idea it is built on, whether or not the licence asks us to.
+Kestrel stands on other people’s work, so we credit every text, tool, font and idea it is built on, whether or not the licence asks us to.
 
 The same list is shown in the app under Settings → About & Credits (source: [`src/features/about/credits.ts`](src/features/about/credits.ts)); a test fails when a runtime dependency in `package.json` is missing from it.
 
@@ -279,7 +281,7 @@ Add or remove a source — a library, a font, a data file, a service — and cha
 
 - [React](https://react.dev) — Draws every screen. Licence: [MIT](https://github.com/facebook/react/blob/main/LICENSE). Changes: None; used as published.
 - [React Router](https://reactrouter.com) — Installed for routing; screens are switched by hand today. Licence: [MIT](https://github.com/remix-run/react-router/blob/main/LICENSE.md). Changes: None; used as published.
-- [Dexie.js](https://dexie.org) — Keeps every profile, word list and score in the browser’s IndexedDB, so SpellForge works offline. Licence: [Apache-2.0](https://github.com/dexie/Dexie.js/blob/master/LICENSE). Changes: None; used as published.
+- [Dexie.js](https://dexie.org) — Keeps every profile, word list and score in the browser’s IndexedDB, so Kestrel works offline. Licence: [Apache-2.0](https://github.com/dexie/Dexie.js/blob/master/LICENSE). Changes: None; used as published.
 - [Tesseract.js](https://github.com/naptha/tesseract.js) — Reads a photo of a spelling list on the device, so the picture never has to leave it. Licence: [Apache-2.0](https://github.com/naptha/tesseract.js/blob/master/LICENSE.md). Changes: None; used as published.
 - [Tesseract OCR English language data](https://github.com/tesseract-ocr/tessdata) — The English model (eng.traineddata) Tesseract.js reads with, bundled so photo import works offline. Licence: [Apache-2.0](https://github.com/tesseract-ocr/tessdata/blob/main/LICENSE). Changes: None; the file is bundled as downloaded.
 - [html5-qrcode](https://github.com/mebjas/html5-qrcode) — Scans a QR code with the camera to import a shared word list. Licence: [Apache-2.0](https://github.com/mebjas/html5-qrcode/blob/master/LICENSE). Changes: None; used as published.
@@ -289,7 +291,7 @@ Add or remove a source — a library, a font, a data file, a service — and cha
 - [BSV SDK](https://github.com/bsv-blockchain/ts-stack/tree/main/packages/sdk) — Makes this device’s key and builds and signs the transactions that prove a licence. Licence: [Open BSV License](https://github.com/bsv-blockchain/ts-stack/blob/main/packages/sdk/LICENSE.txt). Changes: None; used as published.
 - [bsv-kit](https://github.com/Jonathan-A-White/bsv-kit) — Our own shared kit for talking to the factory: it seals the questions the Tutor and photo import send, and opens the answers. Licence: [MIT](https://github.com/Jonathan-A-White/bsv-kit/blob/main/LICENSE). Changes: Written by us; shared with our other apps.
 - [voice-kit](https://github.com/Jonathan-A-White/voice-kit) — Our own shared kit for speaking in the browser: it reads the Tutor’s sentences aloud and gives the Pause, Resume, Restart and Stop bar. Licence: [MIT](https://github.com/Jonathan-A-White/voice-kit/blob/main/LICENSE). Changes: Written by us; shared with our other apps.
-- [pwa-kit](https://github.com/Jonathan-A-White/pwa-kit) — Our own shared kit for installed web apps: it finds each new version of SpellForge and offers it in a quiet bar, and it holds the picture viewer and a few small helpers. Licence: [MIT](https://github.com/Jonathan-A-White/pwa-kit/blob/main/LICENSE). Changes: Written by us; shared with our other apps.
+- [pwa-kit](https://github.com/Jonathan-A-White/pwa-kit) — Our own shared kit for installed web apps: it finds each new version of Kestrel and offers it in a quiet bar, and it holds the picture viewer and a few small helpers. Licence: [MIT](https://github.com/Jonathan-A-White/pwa-kit/blob/main/LICENSE). Changes: Written by us; shared with our other apps.
 - [learn-kit](https://github.com/Jonathan-A-White/learn-kit) — Our own shared kit for learning graphs: it checks that each thing to learn rests only on things that come before it, which is how the spelling path is ordered from the first letter sounds up. Licence: [MIT](https://github.com/Jonathan-A-White/learn-kit/blob/main/LICENSE). Changes: Written by us; shared with our other apps.
 - [Workbox](https://developer.chrome.com/docs/workbox) — Keeps the app on the device so it opens with no connection. Licence: [MIT](https://github.com/GoogleChrome/workbox/blob/v7/LICENSE). Changes: None; used as published.
 - [OGL](https://github.com/oframe/ogl) — Draws the slow moving picture behind the front door with WebGL, loaded only on a phone that can show it and has not asked for less motion. Licence: [Unlicense](https://github.com/oframe/ogl#unlicense). Changes: None; used as published.
@@ -297,7 +299,7 @@ Add or remove a source — a library, a font, a data file, a service — and cha
 - [Vite](https://vite.dev) — Builds and bundles the app. Licence: [MIT](https://github.com/vitejs/vite/blob/main/LICENSE). Changes: None; used as published.
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app) — Builds the service worker that keeps the app available offline. Licence: [MIT](https://github.com/vite-pwa/vite-plugin-pwa/blob/main/LICENSE). Changes: None; used as published.
 - [Patrick Hand](https://fonts.google.com/specimen/Patrick+Hand) — The handwriting font on printed practice sheets. The font by Patrick Wagesreiter reaches us through Fontsource. Licence: [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/). Changes: The printed sheets embed a Latin-only subset of the font, converted to base64.
-- [OpenDyslexic](https://opendyslexic.org) — The font the dyslexia-friendly preset asks for, used only if it is installed on the device. Licence: [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/). Changes: None; SpellForge does not ship the font, it only names it.
+- [OpenDyslexic](https://opendyslexic.org) — The font the dyslexia-friendly preset asks for, used only if it is installed on the device. Licence: [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/). Changes: None; Kestrel does not ship the font, it only names it.
 - [Feather icons](https://feathericons.com) — Several of the small line icons on the Settings screen follow Feather’s shapes. Licence: [MIT](https://github.com/feathericons/feather/blob/main/LICENSE). Changes: Redrawn inline as SVG and recoloured with the theme.
 - [Fry Instant Words](https://en.wikipedia.org/wiki/Sight_word) — Edward Fry’s list of the most common English words seeds the dictionary that corrects photo-import misreads. Licence: [Published word list, no licence stated](https://en.wikipedia.org/wiki/Sight_word). Changes: Mixed with common K–8 spelling vocabulary and sorted alphabetically.
 - [SM-2 spaced repetition](https://super-memory.com/english/ol/sm2.htm) — Piotr Woźniak’s SuperMemo algorithm decides when a word comes back for review. Licence: [Published algorithm, no licence stated](https://super-memory.com/english/ol/sm2.htm). Changes: Adapted for children: gentler intervals and word buckets (new, learning, familiar, mastered, review).

@@ -1,4 +1,4 @@
-// src/features/about/about-screen.tsx — About: why we credit, then everything SpellForge builds on (mw-vtjxh4.4).
+// src/features/about/about-screen.tsx — About: why we credit, then everything Kestrel builds on (mw-vtjxh4.4).
 
 import { useEffect, useState } from 'react';
 import { tutorRepo } from '../../data/repositories';
@@ -60,7 +60,7 @@ export function AboutScreen({ onBack, fetchFn, registration }: AboutScreenProps)
       </div>
 
       <div className="max-w-lg md:max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <FirstLine>The version, how fast the tutor last answered, and what SpellForge is built on.</FirstLine>
+        <FirstLine>The version, how fast the tutor last answered, and what Kestrel is built on.</FirstLine>
         <section>
           <figure>
             <blockquote className="text-xl font-bold text-sf-heading">&ldquo;{NEWTON_QUOTE}&rdquo;</blockquote>

@@ -193,7 +193,7 @@ export function Settings(props: SettingsProps) {
       case 'importFilterWords':
         return <ImportFilterSettings filterPhrases={importFilterWords ?? []} onUpdate={(phrases) => save(key, phrases.join('\n'))} />;
       case 'link.share':
-        return <RowButton title="Share SpellForge" description="Send the app link, show QR code" lead={<ShareSettingsIcon />} onClick={() => props.onShare?.()} />;
+        return <RowButton title="Share Kestrel" description="Send the app link, show QR code" lead={<ShareSettingsIcon />} onClick={() => props.onShare?.()} />;
       case 'action.export':
         return <RowButton title="Export Profile" description="Download a backup of all your data" lead={<ExportIcon />} onClick={() => props.onExportProfile?.()} />;
       case 'action.import':
@@ -220,7 +220,7 @@ export function Settings(props: SettingsProps) {
       case 'link.conversations':
         return <RowButton title="Conversations" description="Every talk with the tutor, to search and read" lead={<TalkIcon />} onClick={() => props.onOpenConversations?.()} />;
       case 'link.about':
-        return <RowButton title="About & Credits" description="Who and what SpellForge is built on" lead={<InfoIcon />} onClick={() => props.onOpenAbout?.()} />;
+        return <RowButton title="About & Credits" description="Who and what Kestrel is built on" lead={<InfoIcon />} onClick={() => props.onOpenAbout?.()} />;
       case 'debugMode':
         return <RowButton title="Debug Mode" description="Show tap targets, click log, and element info" lead={<BugIcon />} leadClass="font-mono text-xs font-bold" selected={now(key) === 'on'} pressed={now(key) === 'on'} onClick={() => save(key, now(key) === 'on' ? 'off' : 'on')} />;
       case 'tutorPreview':
@@ -254,7 +254,7 @@ export function Settings(props: SettingsProps) {
           </section>
         );
       })}
-      <p className="w-full text-center text-xs text-sf-muted pt-2 select-none">{`SpellForge v${APP_VERSION}`}</p>
+      <p className="w-full text-center text-xs text-sf-muted pt-2 select-none">{`Kestrel v${APP_VERSION}`}</p>
     </div>
   );
 }

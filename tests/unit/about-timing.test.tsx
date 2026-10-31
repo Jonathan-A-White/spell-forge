@@ -54,7 +54,7 @@ describe('About, under Grown-ups', () => {
     ]);
     render(<AboutScreen onBack={() => undefined} />);
     const timing = await screen.findByText(/Last tutor answer: 1840 ms/);
-    const version = screen.getByText(`SpellForge v${APP_VERSION}`);
+    const version = screen.getByText(`Kestrel v${APP_VERSION}`);
     expect(timing.closest('section')).toBe(version.closest('section'));
   });
 
@@ -71,7 +71,7 @@ describe('About, under Grown-ups', () => {
 
   it('says so, plainly, when the tutor has not answered yet', async () => {
     render(<AboutScreen onBack={() => undefined} />);
-    const version = screen.getByText(`SpellForge v${APP_VERSION}`);
+    const version = screen.getByText(`Kestrel v${APP_VERSION}`);
     expect(await within(version.closest('section')!).findByText(/No tutor answer yet/)).toBeTruthy();
   });
 });

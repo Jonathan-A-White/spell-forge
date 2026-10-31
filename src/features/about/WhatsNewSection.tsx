@@ -27,7 +27,7 @@ export function WhatsNewSection({ fetchFn, registration, versionNote }: WhatsNew
     <section>
       <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-3">Updates</h2>
       <div className="p-4 rounded-xl border-2 border-sf-border bg-sf-surface space-y-3">
-        <p className="text-sm text-sf-text">{`SpellForge v${APP_VERSION}`}</p>
+        <p className="text-sm text-sf-text">{`Kestrel v${APP_VERSION}`}</p>
         {versionNote}
         {entries && entries.length > 0 ? (
           <button type="button" className={BUTTON_CLASS} onClick={() => setOpen(true)}>

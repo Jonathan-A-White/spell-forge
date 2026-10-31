@@ -66,7 +66,7 @@ describe('the Shell at boot', () => {
 
   it('does not ask while there is no learner (the welcome screen)', async () => {
     render(createElement(AppProvider, null, createElement(Shell)));
-    await screen.findByText(/Welcome to SpellForge/);
+    await screen.findByText(/Welcome to Kestrel/);
     expect(persist).not.toHaveBeenCalled();
   });
 

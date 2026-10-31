@@ -23,7 +23,7 @@ export function FirstRun({ onComplete }: FirstRunProps) {
   if (step === 0) {
     return (
       <div className="min-h-screen bg-sf-bg flex flex-col items-center justify-center p-8">
-        <h1 className="text-4xl font-bold text-sf-heading mb-4">Welcome to SpellForge!</h1>
+        <h1 className="text-4xl font-bold text-sf-heading mb-4">Welcome to Kestrel!</h1>
         <p className="text-sf-text mb-8 text-center max-w-md">
           Let's set up your profile so you can start practicing spelling.
         </p>

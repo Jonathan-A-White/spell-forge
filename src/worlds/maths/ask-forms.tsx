@@ -232,7 +232,7 @@ export function DoForm({ item, value, onChange, onSpoken, disabled }: AskProps):
           className="sf-composer"
           settings={DO_COMPOSER_SETTINGS}
           labels={DO_LABELS}
-          appName="SpellForge"
+          appName="Kestrel"
           onSend={(message) => onSpoken(message.text)}
         />
       )}

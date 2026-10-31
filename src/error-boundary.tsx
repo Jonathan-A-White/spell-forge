@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
             Something went wrong
           </h1>
           <p style={{ marginBottom: '1.5rem', textAlign: 'center', maxWidth: '24rem' }}>
-            SpellForge ran into a problem. Try reloading the app.
+            Kestrel ran into a problem. Try reloading the app.
           </p>
           {this.state.errorMessage && (
             <p style={{

@@ -202,7 +202,7 @@ describe('the Welcome wizard', () => {
   const form = welcomeForm(themes);
 
   it('asks for a name, and offers the themes as a choice', () => {
-    expect(form.name).toBe('Welcome to SpellForge');
+    expect(form.name).toBe('Welcome to Kestrel');
     expect(requiredNames(form)).toEqual(['name']);
     expect(field(form, 'theme').kind).toBe('choice');
     expect(field(form, 'theme').options).toEqual(themes.map((t) => t.name));

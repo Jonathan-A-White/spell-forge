@@ -49,7 +49,7 @@ export function Requests({ requests, names, onAsk, onBack }: RequestsProps) {
       </div>
 
       <p className="text-sf-text">
-        Tell the tutor what SpellForge should do that it does not. The tutor offers to pass it on, and nothing is sent until you tap Send.
+        Tell the tutor what Kestrel should do that it does not. The tutor offers to pass it on, and nothing is sent until you tap Send.
       </p>
 
       <section aria-label="Things people ask for" className="space-y-3">

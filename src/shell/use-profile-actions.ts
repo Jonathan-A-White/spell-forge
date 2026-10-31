@@ -80,7 +80,7 @@ export function useProfileActions(learner: Learner, setView: (view: ViewId) => v
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `spellforge-${activeProfile.name.toLowerCase().replace(/\s+/g, '-')}-backup.json`;
+    a.download = `kestrel-${activeProfile.name.toLowerCase().replace(/\s+/g, '-')}-backup.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [activeProfile]);

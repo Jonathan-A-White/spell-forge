@@ -1,4 +1,4 @@
-// src/features/about/credits.ts — Everything SpellForge builds on, credited by name (mw-vtjxh4.4).
+// src/features/about/credits.ts — Everything Kestrel builds on, credited by name (mw-vtjxh4.4).
 //
 // Every runtime dependency in package.json must be named in `packages` of one entry, every package a credit names
 // must still be in package.json, and every font or data file under public/ must be named in `files`:
@@ -19,7 +19,7 @@ export interface Credit {
   packages?: string[];
   /** Bundled files this credit covers: repo-relative paths, or a directory ending in '/'. */
   files?: string[];
-  /** What SpellForge uses it for. */
+  /** What Kestrel uses it for. */
   use: string;
   licence: { name: string; url: string };
   /** What we changed, or that we changed nothing. */
@@ -29,7 +29,7 @@ export interface Credit {
 export const NEWTON_QUOTE = 'If I have seen further it is by standing on the shoulders of Giants.';
 export const NEWTON_ATTRIBUTION = 'Isaac Newton, in a letter to Robert Hooke, 1675';
 export const WHY_WE_CREDIT =
-  'SpellForge stands on other people’s work, so we credit every text, tool, font and idea it is built on, whether or not the licence asks us to.';
+  'Kestrel stands on other people’s work, so we credit every text, tool, font and idea it is built on, whether or not the licence asks us to.';
 
 export const CREDITS: readonly Credit[] = [
   // Libraries
@@ -56,7 +56,7 @@ export const CREDITS: readonly Credit[] = [
     name: 'Dexie.js',
     url: 'https://dexie.org',
     packages: ['dexie'],
-    use: 'Keeps every profile, word list and score in the browser’s IndexedDB, so SpellForge works offline.',
+    use: 'Keeps every profile, word list and score in the browser’s IndexedDB, so Kestrel works offline.',
     licence: { name: 'Apache-2.0', url: 'https://github.com/dexie/Dexie.js/blob/master/LICENSE' },
     changes: 'None; used as published.',
   },
@@ -149,7 +149,7 @@ export const CREDITS: readonly Credit[] = [
     name: 'pwa-kit',
     url: 'https://github.com/Jonathan-A-White/pwa-kit',
     packages: ['pwa-kit'],
-    use: 'Our own shared kit for installed web apps: it finds each new version of SpellForge and offers it in a quiet bar, and it holds the picture viewer and a few small helpers.',
+    use: 'Our own shared kit for installed web apps: it finds each new version of Kestrel and offers it in a quiet bar, and it holds the picture viewer and a few small helpers.',
     licence: { name: 'MIT', url: 'https://github.com/Jonathan-A-White/pwa-kit/blob/main/LICENSE' },
     changes: 'Written by us; shared with our other apps.',
   },
@@ -222,7 +222,7 @@ export const CREDITS: readonly Credit[] = [
     url: 'https://opendyslexic.org',
     use: 'The font the dyslexia-friendly preset asks for, used only if it is installed on the device.',
     licence: { name: 'SIL Open Font License 1.1', url: 'https://openfontlicense.org/open-font-license-official-text/' },
-    changes: 'None; SpellForge does not ship the font, it only names it.',
+    changes: 'None; Kestrel does not ship the font, it only names it.',
   },
   {
     kind: 'idea',

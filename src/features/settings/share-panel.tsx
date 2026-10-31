@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useAlive } from 'pwa-kit/alive';
 import { generateQrSvg } from './qr-code';
 
-const APP_URL = 'https://jonathan-a-white.github.io/spell-forge/';
+const APP_URL = 'https://kestrel.allmymind.org/';
 
 interface SharePanelProps {
   onBack: () => void;
@@ -42,8 +42,8 @@ export function SharePanel({ onBack }: SharePanelProps) {
   const handleNativeShare = useCallback(async () => {
     try {
       await navigator.share({
-        title: 'SpellForge',
-        text: 'Check out SpellForge — a fun spelling practice app for kids!',
+        title: 'Kestrel',
+        text: 'Check out Kestrel — a fun spelling practice app for kids!',
         url: APP_URL,
       });
     } catch {
@@ -65,13 +65,13 @@ export function SharePanel({ onBack }: SharePanelProps) {
           >
             <BackArrowIcon />
           </button>
-          <h1 className="text-xl font-bold text-sf-heading">Share SpellForge</h1>
+          <h1 className="text-xl font-bold text-sf-heading">Share Kestrel</h1>
         </div>
       </div>
 
       <div className="max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto px-4 py-6 space-y-6">
         <p className="text-sf-text text-sm">
-          Share SpellForge with other parents, teachers, or kids so they can practice spelling too!
+          Share Kestrel with other parents, teachers, or kids so they can practice spelling too!
         </p>
 
         {/* Copy to clipboard */}

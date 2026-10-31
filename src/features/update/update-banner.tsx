@@ -15,7 +15,7 @@ export function UpdateBanner({ view }: { view: string }) {
       role="status"
       className="flex items-center justify-center gap-3 px-3 py-2 text-sm bg-sf-primary text-sf-primary-text"
     >
-      <span>A new version of SpellForge is ready.</span>
+      <span>A new version of Kestrel is ready.</span>
       <button
         type="button"
         onClick={applyUpdate}
