@@ -13,6 +13,16 @@ The app's base is chosen at build time by `scripts/app-base.mjs` (`SF_BASE`, def
 `tests/unit/manifest.test.ts` hold this. The Playwright specs open the app under `/spell-forge/` (`playwright.config.ts` sets `SF_BASE`), so a base
 other than `/` stays proved to work; the moved page's own spec is `tests/e2e/moved.spec.ts`.
 
+<!-- toc -->
+
+- [The moved page (the old address)](#the-moved-page-the-old-address)
+- [The name sweep (mw-79en7t.22): every `spell-forge` and `SpellForge` in `src/`, `public/` and `index.html`](#the-name-sweep-mw-79en7t22-every-spell-forge-and-spellforge-in-src-public-and-indexhtml)
+- [Deploying to the VPS](#deploying-to-the-vps)
+- [The VPS site (set up once, by hands steps)](#the-vps-site-set-up-once-by-hands-steps)
+- [Live checks (after landing, the Mayor's)](#live-checks-after-landing-the-mayors)
+
+<!-- /toc -->
+
 ## The moved page (the old address)
 
 `moved/index.html` and `src/moved/` (built by `vite.moved.config.ts` into `dist-moved/`, with `404.html` a copy so any old deep link lands on it). It
