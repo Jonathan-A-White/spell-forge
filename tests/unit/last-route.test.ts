@@ -142,3 +142,51 @@ describe('the trail of places he visited', () => {
     expect(window.history.length).toBe(length);
   });
 });
+
+// mw-79en7t.84: Home is a place he can be, but never where a reopen lands (the door is); a drill or a world still resumes.
+describe('a reopen whose last place was Home', () => {
+  it('lands on the fallback (the door), with Home still under it', async () => {
+    visit(route('practice'));
+    visit(viewRoute('home'));
+    reopen();
+    expect(restoreLastRoute('door')).toBe('door');
+    expect((window.history.state as { sfView?: string }).sfView).toBe('door');
+    expect(await goBack()).toBe('home');
+    expect(await goBack()).toBe('practice');
+    expect(await goBack()).toBe('__guard__');
+  });
+
+  it('an existing install (a kept route and a trail on Home) lands on the door', () => {
+    localStorage.setItem('sf-last-route', viewRoute('home'));
+    localStorage.setItem(TRAIL_KEY, JSON.stringify([viewRoute('home')]));
+    expect(restoreLastRoute('door')).toBe('door');
+  });
+
+  it('with the fallback Home (an unlicensed app) lands on Home as before', () => {
+    visit(viewRoute('home'));
+    reopen();
+    expect(restoreLastRoute('home')).toBe('home');
+  });
+
+  it('keeps the door as the place left, so the next reopen lands there too', () => {
+    visit(viewRoute('home'));
+    reopen();
+    restoreLastRoute('door');
+    expect(savedTrail()).toEqual([viewRoute('home'), viewRoute('door')]);
+    expect(readLastRoute()).toBe(viewRoute('door'));
+    forgetTrail();
+    expect(restoreLastRoute('door')).toBe('door');
+  });
+
+  it('a drill still resumes, and Back from it walks a trail that passes through Home', async () => {
+    visit(viewRoute('home'));
+    visit(route('practice'));
+    visit(route('quiz'));
+    reopen();
+    expect(restoreLastRoute('door')).toBe('quiz');
+    expect(await goBack()).toBe('practice');
+    expect(await goBack()).toBe('home');
+    expect(await goBack()).toBe('__guard__');
+  });
+});
+

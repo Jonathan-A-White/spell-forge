@@ -25,3 +25,22 @@ Feature: SpellForge opens
     And the licence is known to be missing
     When SpellForge opens
     Then Home greets "Hey, Rowan!"
+
+  Scenario: AC4: A phone last left on Home opens on the front door, not on Home (mw-79en7t.84)
+    Given a phone that holds the profile "Rowan"
+    And the phone last left on Home
+    When SpellForge opens
+    Then the tutor greets with "Hello! I am your tutor."
+
+  Scenario: AC5: With the licence known to be missing a phone last left on Home opens on Home
+    Given a phone that holds the profile "Rowan"
+    And the phone last left on Home
+    And the licence is known to be missing
+    When SpellForge opens
+    Then Home greets "Hey, Rowan!"
+
+  Scenario: AC6: A phone last left inside a world opens there
+    Given a phone that holds the profile "Rowan"
+    And the phone last left on Word Lists, after Home
+    When SpellForge opens
+    Then the screen "Word Lists" is shown

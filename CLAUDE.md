@@ -66,7 +66,7 @@ Subsystem tests (run the relevant one after a change): `test:phonics` (src/core/
 - React 18 + TypeScript 5.9 + Vite 7 (`vite-plugin-pwa`, injectManifest: the worker is `src/sw.ts`)
 - Tailwind CSS 4 (via `@tailwindcss/vite` plugin)
 - Dexie.js 4 for IndexedDB (offline-first data layer)
-- Screens: `src/shell/WorldSwitch.tsx` picks the world of a route and `src/shell/screens/<world>.tsx` the screen (ids and routes are `src/shell/worlds.ts`); a reopen lands where he left off (`src/shell/last-route.ts`); `react-router-dom` is installed and unused
+- Screens: `src/shell/WorldSwitch.tsx` picks the world of a route and `src/shell/screens/<world>.tsx` the screen (ids and routes are `src/shell/worlds.ts`); a reopen lands where he left off, never on Home (`src/shell/last-route.ts`); `react-router-dom` is installed and unused
 - Vitest 4 + React Testing Library + fake-indexeddb for testing; Playwright for e2e
 
 ### Source Layout
