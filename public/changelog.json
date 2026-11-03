@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.2.5",
+    "date": "2026-11-03",
+    "story": "mw-79en7t.82",
+    "kind": "fixed",
+    "text": "Kestrel now opens on the tutor to talk to, for everyone, with no hidden switch; Home is one tap away on the \"Home\" button."
+  },
+  {
     "version": "0.2.4",
     "date": "2026-11-01",
     "story": "mw-79en7t.22",
