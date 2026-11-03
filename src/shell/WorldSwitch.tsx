@@ -13,7 +13,7 @@ function GetLicence() {
   return (
     <p className="bg-sf-bg px-4 py-2 text-center">
       <a className="text-sf-primary underline font-bold" href={STORE_URL} target="_blank" rel="noopener noreferrer">
-        Get a licence
+        Get a license
       </a>
     </p>
   );

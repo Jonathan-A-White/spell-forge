@@ -15,7 +15,7 @@ const worlds: WorldScreens = {
   'grown-ups': stub('grown-ups'),
 };
 const CHECKED_AT = '2026-10-24T10:00:00Z';
-const NAME = 'Get a licence';
+const NAME = 'Get a license';
 
 afterEach(() => {
   cleanup();

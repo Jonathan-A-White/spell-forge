@@ -86,7 +86,7 @@ test('part 1: the Grown-ups screens at 390x844 pass axe and fit the phone', asyn
   await expect(howIsItGoing).toBeVisible();
   await looksRight(page, 'look-how-is-it-going');
 
-  const licence = page.getByRole('region', { name: 'Licence' });
+  const licence = page.getByRole('region', { name: 'License' });
   await licence.scrollIntoViewIfNeeded();
   await expect(licence.getByRole('button', { name: 'Buy' })).toBeVisible();
   await looksRight(page, 'look-licence');
@@ -223,7 +223,7 @@ for (const [age, look] of [[7, 'young'], [13, 'teen']] as const) {
 
     // --- Maths: the first question is a card too ---
     expect(await tutorSaysGo(page, 'maths-home')).toBe(true);
-    await expect(page.getByRole('heading', { name: 'Maths' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Math' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Not sure' })).toBeVisible();
     await expect(page.locator('.sf-turn')).toBeVisible();
     await looksRight(page, `look-maths-age${age}`);

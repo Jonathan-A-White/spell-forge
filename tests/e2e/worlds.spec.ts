@@ -115,12 +115,15 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
   // --- Maths: the card on Home, a tap a child can make; it starts by finding out what he knows, with the first question ---
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
-  await page.getByRole('button', { name: /Maths/ }).click();
-  await expect(page.getByRole('heading', { name: 'Maths' })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/maths/i);
+  await page.getByRole('button', { name: /^Math/ }).click();
+  await expect(page.getByRole('heading', { name: 'Math' })).toBeVisible();
   await expect(page.getByText(/see what you know/i)).toBeVisible();
   await expect(page.getByLabel('Your answer')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Check' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Not sure' })).toBeVisible();
+  // mw-79en7t.83: nothing a child can read in the Math world says "maths"
+  await expect(page.locator('body')).not.toContainText(/maths/i);
   await fitsThePhone(page);
   await shot(page, 'worlds-maths');
 
@@ -133,7 +136,7 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
   await shot(page, 'worlds-grown-ups');
 
   // --- Get a licence: not shown before the licence is known, shown with none, opens STORE_URL ---
-  const getLicence = page.getByRole('link', { name: 'Get a licence' });
+  const getLicence = page.getByRole('link', { name: 'Get a license' });
   await expect(getLicence).toHaveCount(0);
   await page.evaluate(
     `import('${APP_PATH}src/shell/licence-gate.ts').then((gate) => gate.setLicenceStatus({ state: 'none', checkedAt: '2026-10-24T10:00:00Z' }))`,

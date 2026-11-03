@@ -172,7 +172,7 @@ export function SpellingWorld({ flow: given, profileId, focus, onSpeak, audioBus
           // a card made again for each turn, so that each turn enters (index.css .sf-turn)
           <div key={turn.key} className="sf-turn flex flex-col gap-4">
             {turn.stage === 'placement' && (
-              <p className="text-sf-muted text-sm">Let&apos;s see what you know. Listen, then tap the way the word is spelt.</p>
+              <p className="text-sf-muted text-sm">Let&apos;s see what you know. Listen, then tap the way the word is spelled.</p>
             )}
             <div className="flex items-center gap-3">
               {showing && (
@@ -233,9 +233,9 @@ function Pick({ turn, result, onHear, onPick }: { turn: SpellingTurn; result: un
 function Feedback({ turn, result }: { turn: SpellingTurn; result: { answer: SpellingAnswer } }) {
   const { answer } = result;
   let line: string;
-  if (turn.stage === 'placement') line = answer.counted ? 'Right! Well done.' : `Not quite yet. It is spelt ${turn.items[0].word}.`;
+  if (turn.stage === 'placement') line = answer.counted ? 'Right! Well done.' : `Not quite yet. It is spelled ${turn.items[0].word}.`;
   else if (answer.counted) line = answer.solid ? 'All right! You have got this one.' : 'All right! Well done.';
-  else line = `You spelt ${answer.correct} of ${answer.total} right. That's okay, we will come back to these.`;
+  else line = `You spelled ${answer.correct} of ${answer.total} right. That's okay, we will come back to these.`;
   return (
     <p role="status" className="text-sf-text text-lg">
       {line}

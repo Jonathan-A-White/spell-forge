@@ -43,7 +43,7 @@ describe('Buy', () => {
   it('with no licence found, says so plainly, stays Buy, and the licence state is unlicensed', async () => {
     render(<Licence getKey={getKey} check={async () => none} />);
     fireEvent.click(screen.getByRole('button', { name: 'Buy' }));
-    expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringMatching(/no licence/i));
+    expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringMatching(/no license/i));
     expect(screen.getByRole('button', { name: 'Buy' })).toBeTruthy();
     expect(licenceState()).toBe('unlicensed');
   });
@@ -67,7 +67,7 @@ describe('Buy', () => {
 describe('Get a licence', () => {
   it("opens the store's address in a new tab, beside Buy", () => {
     render(<Licence getKey={getKey} check={async () => none} />);
-    const link = screen.getByRole('link', { name: 'Get a licence' });
+    const link = screen.getByRole('link', { name: 'Get a license' });
     expect(link.getAttribute('href')).toBe(STORE_URL);
     expect(link.getAttribute('target')).toBe('_blank');
     expect(screen.getByRole('button', { name: 'Buy' })).toBeTruthy();
@@ -81,6 +81,6 @@ describe('with a licence', () => {
     const button = screen.getByRole('button', { name: 'licensed' });
     expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Buy' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Get a licence' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Get a license' })).toBeNull();
   });
 });

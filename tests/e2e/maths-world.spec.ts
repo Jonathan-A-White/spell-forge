@@ -166,7 +166,7 @@ test('the Maths world: placement, hear, see, do and a homework picture, at 390x8
 
   // --- Placement: a problem and a way to answer it, with "Not sure" for a child who reads little; no picture yet ---
   expect(await tutorSaysGo(page, 'maths-home')).toBe(true);
-  await expect(page.getByRole('heading', { name: 'Maths' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Math' })).toBeVisible();
   const placementLine = page.getByText(/Let's see what you know/);
   await expect(placementLine).toBeVisible();
   await expect(page.getByRole('button', { name: 'Not sure' })).toBeVisible();

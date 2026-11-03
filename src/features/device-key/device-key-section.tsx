@@ -29,7 +29,7 @@ export function DeviceKeySection() {
       <h2 className="text-sm font-bold text-sf-muted uppercase tracking-wider mb-1">
         This device&apos;s key
       </h2>
-      <p className="text-xs text-sf-muted mb-3">Give this to whoever issues your licence</p>
+      <p className="text-xs text-sf-muted mb-3">Give this to whoever issues your license</p>
       {wallet && <DevicePublicKey wif={wallet.material} />}
       {wallet === null && (
         <button

@@ -210,13 +210,13 @@ describe('the mnemonic-picture grind names both kinds of node', () => {
   const props = (request.properties ?? {}) as Record<string, { description?: string }>;
 
   it('in its instructions', () => {
-    expect(instructions).toMatch(/maths concept/i);
+    expect(instructions).toMatch(/math concept/i);
     expect(instructions).toMatch(/spelling pattern/i);
   });
 
   it('in its request schema', () => {
     for (const key of ['nodeId', 'name', 'words']) {
-      expect(props[key]?.description, `${key} description`).toMatch(/maths/i);
+      expect(props[key]?.description, `${key} description`).toMatch(/math/i);
       expect(props[key]?.description, `${key} description`).toMatch(/spelling/i);
     }
   });

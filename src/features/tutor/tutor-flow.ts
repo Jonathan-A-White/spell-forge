@@ -67,7 +67,7 @@ export class TutorUserError extends Error {
 export const NO_KEY = "This device has no key yet. Open Settings and tap \"This device's key\" to make one.";
 const OFFLINE = 'The tutor cannot be reached right now. Check the internet and try again.';
 const UPLOAD_TOO_SLOW = 'Sending took too long. Check your connection and try again.';
-const NO_LICENCE = 'This device holds no licence to use the factory.';
+const NO_LICENCE = 'This device holds no license to use the factory.';
 const NOT_SENT = 'The problem could not be sent. You can try again.';
 const CUT_OFF = 'The problem did not get sent. You can try again.';
 const READING_NOT_SENT = 'Your reading could not be sent. You can try again.';

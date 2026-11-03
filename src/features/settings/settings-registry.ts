@@ -201,7 +201,7 @@ const OTHER_ROWS: readonly SettingsRow<SettingsSectionId>[] = [
   { key: 'link.share', section: 'share', label: 'Share Kestrel', hint: 'Send the app link, show QR code', dependsOn: needs('share') },
   { key: 'action.export', section: 'data', label: 'Export Profile', hint: 'Download a backup of all your data', dependsOn: needs('export') },
   { key: 'action.import', section: 'data', label: 'Import Profile', hint: 'Restore from a backup file', dependsOn: needs('import') },
-  { key: 'deviceKey', section: 'deviceKey', label: "This device's key", hint: 'Give this to whoever issues your licence' },
+  { key: 'deviceKey', section: 'deviceKey', label: "This device's key", hint: 'Give this to whoever issues your license' },
   { key: 'link.requests', section: 'maker', label: 'Requests to the maker', hint: 'Ask for something new, and see what was asked', dependsOn: needs('requests') },
   { key: 'link.conversations', section: 'maker', label: 'Conversations', hint: 'Every talk with the tutor, to search and read', dependsOn: needs('conversations') },
   { key: 'link.about', section: 'about', label: 'About & Credits', hint: 'Who and what Kestrel is built on', dependsOn: needs('about') },

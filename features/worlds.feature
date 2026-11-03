@@ -35,8 +35,8 @@ Feature: The four worlds
   Scenario: AC1: Home opens Maths, which starts by finding out what the child knows
     Given a phone that holds the profile "Rowan"
     When SpellForge opens
-    And "Maths" is tapped on Home
-    Then the screen "Maths" is shown
+    And "Math" is tapped on Home
+    Then the screen "Math" is shown
     And Maths asks "Let's see what you know"
 
   Scenario: AC1: Get a licence opens the store where there is no licence
@@ -45,27 +45,27 @@ Feature: The four worlds
     When SpellForge opens
     And the tutor says go to "settings"
     Then the screen "Settings" is shown
-    And "Get a licence" opens the store
+    And "Get a license" opens the store
 
   Scenario: AC1: Get a licence is not shown in Spelling
     Given a phone that holds the profile "Rowan"
     And the phone holds no licence
     When SpellForge opens
     And the tutor says go to "progress"
-    Then there is no "Get a licence"
+    Then there is no "Get a license"
 
   Scenario: AC1: Get a licence is not shown with a licence
     Given a phone that holds the profile "Rowan"
     And the phone holds a licence
     When SpellForge opens
     And the tutor says go to "settings"
-    Then there is no "Get a licence"
+    Then there is no "Get a license"
 
   Scenario: AC1: Get a licence is not shown before the licence is known
     Given a phone that holds the profile "Rowan"
     When SpellForge opens
     And the tutor says go to "settings"
-    Then there is no "Get a licence"
+    Then there is no "Get a license"
 
   Scenario: AC1: The app is shared from the Grown-ups world
     Given a phone that holds the profile "Rowan"

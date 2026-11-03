@@ -164,7 +164,7 @@ const early: MathsNode[] = [
       return [
         `Count by ${step}s: ${start}, ${start + step}, ${start + 2 * step}, __`,
         String(start + 3 * step),
-        'Each step jumps the same amount. Find the jump between two neighbours.',
+        'Each step jumps the same amount. Find the jump between two neighbors.',
       ];
     },
   }),

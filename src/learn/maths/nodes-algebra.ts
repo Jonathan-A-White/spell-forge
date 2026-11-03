@@ -330,7 +330,7 @@ const upper: MathsNode[] = [
       const amount = 2 + ((i * 3) % 7);
       const [cost, unit] = cycle<readonly [string, string]>(
         [
-          [`A taxi ride costs a fixed $${fixed} plus $${rate} for every kilometre`, 'kilometres'],
+          [`A taxi ride costs a fixed $${fixed} plus $${rate} for every kilometer`, 'kilometers'],
           [`A gym charges $${fixed} to join plus $${rate} for every month`, 'months'],
           [`A plumber charges $${fixed} to turn up plus $${rate} for every hour`, 'hours'],
         ],

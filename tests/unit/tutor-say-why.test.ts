@@ -13,7 +13,7 @@ describe('sayWhy', () => {
   });
 
   it('says the device holds no licence when the factory says so', () => {
-    expect(sayWhy(new door.RefusedError(door.LICENCE_REQUIRED, 401))).toBe('This device holds no licence to use the factory.');
+    expect(sayWhy(new door.RefusedError(door.LICENCE_REQUIRED, 401))).toBe('This device holds no license to use the factory.');
   });
 
   it('passes on the words of a grist the mill would refuse for its shape, nothing having been sent', () => {

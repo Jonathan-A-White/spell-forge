@@ -38,7 +38,7 @@ describe('the door: Worlds as big illustrated cards over the scene (AC1)', () =>
     setLicenceStatus({ state: 'none', checkedAt: '2026-10-24T10:00:00Z' });
     render(<FrontDoor flow={flow} open={() => undefined} />);
     const cards = within(screen.getByRole('region', { name: 'Worlds' })).getAllByRole('button');
-    expect(cards.map((card) => card.textContent)).toEqual([expect.stringContaining('Spelling'), expect.stringContaining('Maths')]);
+    expect(cards.map((card) => card.textContent)).toEqual([expect.stringContaining('Spelling'), expect.stringContaining('Math')]);
     for (const card of cards) {
       expect(card).toHaveClass('sf-world-card');
       const art = card.querySelector('svg');
