@@ -11,6 +11,7 @@
 //   npm run test:e2e -- tutor-reread
 
 import { test, expect, type Page } from '@playwright/test';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +30,7 @@ async function completeOnboarding(page: Page, name: string): Promise<void> {
   await page.getByPlaceholder('Enter your name').fill(name);
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
 }
 
@@ -111,7 +113,6 @@ test.describe('a reread shows only the missed word (mw-ke5k7i)', () => {
 
     await completeOnboarding(page, 'Reread Kid');
     await seedRereadSession(page);
-    await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
     await page.reload();
     await page.getByRole('button', { name: /Tutor/ }).click();
 
@@ -160,7 +161,6 @@ test.describe("'Read it' is Postern's bar (mw-kuy7rx.19)", () => {
 
     await completeOnboarding(page, 'Bar Kid');
     await seedRereadSession(page, false);
-    await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
     await page.reload();
     await page.getByRole('button', { name: /Tutor/ }).click();
 

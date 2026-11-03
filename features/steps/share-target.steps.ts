@@ -11,7 +11,6 @@ import { installSpeech, type SpeechFake } from 'voice-kit/testing/speech';
 import { clips, installMic } from 'voice-kit/testing/mic';
 import App from '../../src/App';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
-import { TUTOR_FLAG_STORAGE_KEY } from '../../src/debug';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
 import { FRONT_DOOR_TALKS_DB } from '../../src/features/front-door/front-door-flow';
@@ -175,9 +174,8 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
   });
 
-  Scenario("AC3: With the Tutor on, a shared picture waits in the front door's talk and is not sent", ({ Given, And, When, Then }) => {
-    Given('the Tutor is on and the phone holds the profile "Rowan"', async () => {
-      localStorage.setItem(TUTOR_FLAG_STORAGE_KEY, '1');
+  Scenario("AC3: A shared picture waits in the front door's talk and is not sent", ({ Given, And, When, Then }) => {
+    Given('the phone holds the profile "Rowan"', async () => {
       await phoneWithVoice();
       await holdsProfile();
     });
@@ -197,8 +195,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
   });
 
   Scenario("AC3: Tapping Send this picture lands the shared picture in the talk as the learner's turn", ({ Given, And, When, Then }) => {
-    Given('the Tutor is on and the phone holds the profile "Rowan"', async () => {
-      localStorage.setItem(TUTOR_FLAG_STORAGE_KEY, '1');
+    Given('the phone holds the profile "Rowan"', async () => {
       await phoneWithVoice();
       await holdsProfile();
       await holdsDeviceKey();
@@ -230,8 +227,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
   });
 
   Scenario('AC3: A share lands on the door even when the app was last left on another screen', ({ Given, And, When, Then }) => {
-    Given('the Tutor is on and the phone holds the profile "Rowan"', async () => {
-      localStorage.setItem(TUTOR_FLAG_STORAGE_KEY, '1');
+    Given('the phone holds the profile "Rowan"', async () => {
       await phoneWithVoice();
       await holdsProfile();
     });
@@ -244,18 +240,6 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
       expect(await screen.findByText(/Hello! I am your tutor/)).toBeInTheDocument();
       expect(await screen.findByTestId('shared-picture')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Send this picture' })).toBeInTheDocument();
-    });
-  });
-
-  Scenario('AC5: With the Tutor off, a shared picture opens Home and is dropped', ({ Given, And, When, Then }) => {
-    Given('the phone holds the profile "Rowan"', () => holdsProfile());
-    And('Photos has shared the picture "homework.png" to SpellForge', () => sharedPicture('homework.png'));
-    When('SpellForge opens at the address the worker redirected to', openAtRedirect);
-    Then('Home greets "Hey, Rowan!"', async () => {
-      expect(await screen.findByRole('heading', { name: 'Hey, Rowan!' })).toBeInTheDocument();
-    });
-    And('no share waits', async () => {
-      expect(await shareDb.shares.count()).toBe(0);
     });
   });
 });

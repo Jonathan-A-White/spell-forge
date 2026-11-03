@@ -15,6 +15,7 @@ import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { previewPort } from '../support/preview-port';
 import { STORE_URL } from '../../src/shell/store';
 import { shot } from './shot';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -100,6 +101,7 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
   await fitsThePhone(page);
   await shot(page, 'worlds-front-door');

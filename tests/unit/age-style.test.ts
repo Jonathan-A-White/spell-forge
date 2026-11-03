@@ -1,5 +1,6 @@
 // mw-79en7t.78 (Kestrel look C): the look follows the learner's age: young under 10, teen from 10, unknown when the tutor
 // has not learned it. The Shell sets data-sf-age from the open learner; the theme engine keeps a set of tokens for each look.
+import { leaveTheDoor } from '../support/leave-the-door';
 import { createElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -71,6 +72,7 @@ describe('the Shell sets data-sf-age', () => {
       ...(learnerProfile ? { learner: learnerProfile } : {}),
     });
     render(createElement(AppProvider, null, createElement(Shell)));
+    await leaveTheDoor();
     await screen.findByText(/Hey, Rowan!/);
   }
 

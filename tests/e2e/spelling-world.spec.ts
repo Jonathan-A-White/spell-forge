@@ -13,6 +13,7 @@ import type { ChildProcess } from 'node:child_process';
 import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { previewPort } from '../support/preview-port';
 import { shot } from './shot';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -155,6 +156,7 @@ test('the Spelling world: placement, a drill with a picture, and a game that tak
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
   await seedPicturesWordsAndACoin(page);
   await page.reload();

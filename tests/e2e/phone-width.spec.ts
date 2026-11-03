@@ -3,6 +3,7 @@
 // Run: npx playwright test --project=phone (it builds the app and serves it on this worktree's own port, tests/support/preview-port.ts).
 import { expect, test } from '@playwright/test';
 import { shot } from './shot';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 
 // The spec sets its own viewport, so it passes in any project.
@@ -48,6 +49,7 @@ test('a button is native-feel and the hover washes on Home let a tap through (mw
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 
   // Home's cards each hold a hover wash over the whole card; none of them takes the pointer, and a tap on the middle of one lands on its card.

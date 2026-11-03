@@ -52,10 +52,11 @@ Feature: The Grown-ups world
     And the learners "Rowan" and "Ada" are listed, the tutor knowing nothing of them yet
     And the first line is "Tap who is learning today, or add someone new."
 
-  Scenario: AC1: Tapping a learner on Who is learning opens Home for them
+  Scenario: AC1: Tapping a learner on Who is learning opens the front door, and its Home button Home, for them
     Given a phone that holds the profiles "Rowan" and "Ada"
     When SpellForge opens
     And the learner "Ada" is tapped
+    And the front door is left by its Home button
     Then Home greets "Hey, Ada!"
 
   Scenario: AC1: How is it going shows each subject in plain words
@@ -93,6 +94,7 @@ Feature: The Grown-ups world
   Scenario: AC1: Settings opens from Home with a first line and a search box
     Given a phone that holds the profile "Rowan"
     When SpellForge opens
+    And the front door is left by its Home button
     And "Settings" is tapped on Home
     Then the screen "Settings" is shown
     And the first line is "Change how the app looks and works, or search for any setting."
@@ -101,6 +103,7 @@ Feature: The Grown-ups world
   Scenario: AC3: About & Credits opens from Settings
     Given a phone that holds the profile "Rowan"
     When SpellForge opens
+    And the front door is left by its Home button
     And "Settings" is tapped on Home
     And "About & Credits" is tapped in Settings
     Then the screen "About & Credits" is shown

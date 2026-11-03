@@ -15,6 +15,7 @@ import { appLink } from '../../src/share/share-out';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
+import { leaveTheDoorIfShown } from '../../tests/support/leave-the-door';
 
 const feature = await loadFeature('features/worlds.feature');
 
@@ -49,7 +50,7 @@ function TutorGo({ id }: { id: string }) {
 }
 
 /** The app with a stand-in tutor button for each screen a scenario sends the child to. */
-function renderApp(): void {
+async function renderApp(): Promise<void> {
   render(
     createElement(
       AppProvider,
@@ -58,6 +59,8 @@ function renderApp(): void {
       ...['progress', 'about', 'settings', 'share'].map((id) => createElement(TutorGo, { id, key: id })),
     ),
   );
+  // The app opens on the tutor's front door; Home is its Home button.
+  await leaveTheDoorIfShown();
 }
 
 const holdProfile = async (_ctx: unknown, name: string): Promise<void> => {

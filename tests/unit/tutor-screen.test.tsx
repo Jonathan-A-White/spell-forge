@@ -1,4 +1,4 @@
-// mw-bhvxcn.8: the Tutor screen behind sf-tutor. A fake grist client (sendGrist, getKey, read) stands in for the
+// mw-bhvxcn.8: the Tutor screen. A fake grist client (sendGrist, getKey, read) stands in for the
 // factory; the tutor's own Dexie tables, the profile repository and the real GristInFlight run for real.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -13,7 +13,6 @@ import { TUTOR_TURN_GRIND } from '../../src/grist';
 import type { ReadAnswerParams, ReadAnswerResult, SendGristParams } from '../../src/grist';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
 import { mergeSetting, validateSettings } from '../../src/accessibility/settings';
-import { useTutorFlag, TUTOR_FLAG_STORAGE_KEY } from '../../src/debug/debug-state';
 import { paulProfile } from '../fixtures/profiles';
 
 const key = PrivateKey.fromRandom();
@@ -85,7 +84,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('the sf-tutor flag and the Home tile', () => {
+describe('the Home tile (mw-79en7t.82: no flag, always there)', () => {
   const home = () =>
     render(
       <HomeScreen
@@ -108,29 +107,16 @@ describe('the sf-tutor flag and the Home tile', () => {
     onNavigate.mockClear();
   });
 
-  it('is off by default: Home shows no Tutor tile', () => {
-    home();
-    expect(screen.queryByText('Tutor')).not.toBeInTheDocument();
-  });
-
-  it('with the flag on, Home shows a Tutor tile that opens the tutor view', () => {
-    localStorage.setItem(TUTOR_FLAG_STORAGE_KEY, '1');
+  it('with nothing switched on, Home shows a Tutor tile that opens the tutor view', () => {
     home();
     fireEvent.click(screen.getByRole('button', { name: /Tutor/ }));
     expect(onNavigate).toHaveBeenCalledWith('tutor');
   });
 
-  it("the flag's storage key is sf-tutor, and the hook reads it", () => {
-    expect(TUTOR_FLAG_STORAGE_KEY).toBe('sf-tutor');
-    function Probe() {
-      return <span>{useTutorFlag() ? 'on' : 'off'}</span>;
-    }
-    const { unmount } = render(<Probe />);
-    expect(screen.getByText('off')).toBeInTheDocument();
-    unmount();
-    localStorage.setItem('sf-tutor', '1');
-    render(<Probe />);
-    expect(screen.getByText('on')).toBeInTheDocument();
+  it("an old 'sf-tutor' of 0 does not hide the tile", () => {
+    localStorage.setItem('sf-tutor', '0');
+    home();
+    expect(screen.getByRole('button', { name: /Tutor/ })).toBeInTheDocument();
   });
 });
 

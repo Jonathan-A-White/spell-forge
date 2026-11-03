@@ -162,10 +162,9 @@ async function openAsShared(page: Page, id: string): Promise<void> {
   await page.reload();
 }
 
-/** A phone that has never held SpellForge, the Tutor on, a child called Rowan and the device's key; the door is open and has greeted. */
+/** A phone that has never held SpellForge, a child called Rowan and the device's key; the door is open and has greeted. */
 async function startOnTheDoor(page: Page): Promise<Factory> {
   await noTapGuard(page);
-  await page.addInitScript(() => localStorage.setItem('sf-tutor', '1'));
   await page.addInitScript(speechInitScript({ msPerWord: 5, baseMs: 5, voicesDelayMs: 5 }));
   await page.addInitScript(micInitScript({ clip: clips.english, grantMs: 5, openMs: 5, silenceMs: 5 }));
   const device = PrivateKey.fromRandom();

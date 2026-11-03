@@ -20,6 +20,7 @@ import { MathsWorld } from '../../src/worlds/maths/MathsWorld';
 import { Homework } from '../../src/worlds/maths/homework';
 import { canDo, type MathsFormId } from '../../src/worlds/maths/drill-forms';
 import { createMathsFlow, memoryKeep, type MathsFlow } from '../../src/worlds/maths/maths-flow';
+import { leaveTheDoor } from '../../tests/support/leave-the-door';
 
 const feature = await loadFeature('features/maths-world.feature');
 
@@ -67,9 +68,10 @@ const holdProfile = async (_ctx: unknown, name: string): Promise<void> => {
   });
 };
 
-/** The app, opened: Home greets the child before a scenario goes anywhere (the boot lands on Home when it has the profile). */
+/** The app, opened: Home greets the child before a scenario goes anywhere (the boot lands on the front door; its Home button is tapped). */
 async function renderApp(): Promise<void> {
   render(createElement(AppProvider, null, createElement(Shell), createElement(TutorGo, { id: 'maths-home' })));
+  await leaveTheDoor();
   await screen.findByRole('heading', { name: /^Hey, / });
 }
 

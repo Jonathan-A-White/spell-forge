@@ -4,8 +4,8 @@
 // the Grown-ups home, read from the progress each world keeps for the learner (put in localStorage here, as the worlds write it). Each
 // screen sits inside the window with nothing to scroll sideways.
 //
-// The app is served with `vite` (dev) on a port of its own, because the walk imports the spelling graph's node ids. The Tutor is behind
-// its flag (localStorage 'sf-tutor'), switched on here. The store, and every other address the Licence check could reach, is answered by
+// The app is served with `vite` (dev) on a port of its own, because the walk imports the spelling graph's node ids. The app opens on the tutor's door (left by its Home
+// button). The store, and every other address the Licence check could reach, is answered by
 // page.route: the test never reaches the network.
 //
 // Run: npx playwright test grown-ups (the chromium project; the port is this worktree's own, plus four, or SF_E2E_PORT).
@@ -17,6 +17,7 @@ import { previewPort } from '../support/preview-port';
 import { spellingGraph } from '../../src/learn/spelling';
 import { STORE_URL } from '../../src/shell/store';
 import { shot } from './shot';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -105,6 +106,7 @@ test('Who is learning, the PIN gate, Licence, Settings, at 390x844', async ({ pa
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 
   // --- Who is learning: the learner, what the tutor knows of them, the first line; tapping them opens Home ---
@@ -116,8 +118,8 @@ test('Who is learning, the PIN gate, Licence, Settings, at 390x844', async ({ pa
   await fitsThePhone(page);
   await shot(page, 'grown-ups-who-is-learning');
   await page.getByRole('button', { name: /^Rowan/ }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
-  await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 

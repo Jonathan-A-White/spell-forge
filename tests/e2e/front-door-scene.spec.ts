@@ -37,10 +37,9 @@ const paint = (page: Page): Promise<Paint> =>
     preloaded: [...document.querySelectorAll('link[rel="modulepreload"], script[src]')].map((el) => el.getAttribute('href') ?? el.getAttribute('src') ?? ''),
   }));
 
-/** A phone that has never held SpellForge, the Tutor on: it is set up once (a child called Rowan), then opened again on the door. */
+/** A phone that has never held SpellForge: it is set up once (a child called Rowan), then opened again on the door. */
 async function openOnTheDoor(page: Page): Promise<void> {
   await noTapGuard(page);
-  await page.addInitScript(() => localStorage.setItem('sf-tutor', '1'));
   await page.addInitScript(speechInitScript({ msPerWord: 5, baseMs: 5, voicesDelayMs: 5 }));
   // nothing here talks to the factory
   await page.route('https://postern.allmymind.org/**', (route) => route.abort('internetdisconnected'));

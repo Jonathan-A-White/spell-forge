@@ -15,6 +15,7 @@
 //   npm run test:e2e -- word-list-photo-import
 
 import { test, expect, type Page } from '@playwright/test';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +42,7 @@ async function completeOnboarding(page: Page, name: string): Promise<void> {
   await page.getByPlaceholder('Enter your name').fill(name);
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
 }
 

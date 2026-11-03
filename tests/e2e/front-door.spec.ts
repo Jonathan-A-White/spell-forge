@@ -1,5 +1,5 @@
 // tests/e2e/front-door.spec.ts: the front door at a phone's 390x844, in a real browser (Chromium), against the BUILT app (the one
-// server playwright.config.ts builds and serves; Kestrel 13e, mw-79en7t.67). With the Tutor on, the app opens on the door: the tutor
+// server playwright.config.ts builds and serves; Kestrel 13e, mw-79en7t.67). The app opens on the door, for everyone: the tutor
 // greets by voice and there is no keyboard; he talks with the big bar; something shared from another app (a screenshot, a highlighted
 // passage) waits with Send this picture / Not this one, is never sent by itself, lands in the talk as his turn once sent, and is not
 // landed again on the next boot (the reload). voice-kit's honest speech and microphone fakes stand in for the phone's voice and ear.
@@ -162,10 +162,9 @@ async function openAsShared(page: Page, id: string): Promise<void> {
   await page.reload();
 }
 
-/** A phone that has never held SpellForge, the Tutor on, a child called Rowan and the device's key; the door is open and has greeted. */
+/** A phone that has never held SpellForge, a child called Rowan and the device's key; the door is open and has greeted. */
 async function startOnTheDoor(page: Page): Promise<Factory> {
   await noTapGuard(page);
-  await page.addInitScript(() => localStorage.setItem('sf-tutor', '1'));
   await page.addInitScript(speechInitScript({ msPerWord: 5, baseMs: 5, voicesDelayMs: 5 }));
   await page.addInitScript(micInitScript({ clip: clips.english, grantMs: 5, openMs: 5, silenceMs: 5 }));
   const device = PrivateKey.fromRandom();
@@ -303,14 +302,38 @@ test('the door has a way out: a Home button takes him to Home, and Settings is r
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 });
 
-test('with the Tutor off the app opens on Home, as it always did, with no door', async ({ page }) => {
+/** A phone that has never held SpellForge, a child called Rowan set up, with nothing in storage touched but what the spec says. */
+async function firstScreenAfterSetup(page: Page, oldTutorSwitch?: string): Promise<void> {
   await noTapGuard(page);
+  if (oldTutorSwitch !== undefined) await page.addInitScript((value) => localStorage.setItem('sf-tutor', value), oldTutorSwitch);
   await page.goto(APP_PATH);
   await expect(page.getByText('Welcome to Kestrel!')).toBeVisible();
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+}
+
+test('the first screen after setup is the door, with no Developer setting touched (mw-79en7t.82)', async ({ page }) => {
+  await firstScreenAfterSetup(page);
+  await expect(page.getByText('Hello! I am your tutor.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hold to talk' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toHaveCount(0);
+  await fitsThePhone(page);
+  await shot(page, 'front-door-first-screen');
+});
+
+test("an old 'sf-tutor' of 0 does not keep anyone out of the door (mw-79en7t.82)", async ({ page }) => {
+  await firstScreenAfterSetup(page, '0');
+  await expect(page.getByText('Hello! I am your tutor.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toHaveCount(0);
+});
+
+test('from Home the tutor is reached by its tile, and Back from there is as before (mw-79en7t.82)', async ({ page }) => {
+  await firstScreenAfterSetup(page);
+  await page.getByRole('button', { name: 'Home' }).click();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
-  await expect(page.getByText('Hello! I am your tutor.')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Hold to talk' })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Tutor/ }).click();
+  await expect(page.getByRole('heading', { name: 'Tutor', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 });

@@ -132,6 +132,10 @@ describe('the tap guard in the Shell', () => {
         <Go id="settings" />
       </AppProvider>,
     );
+    // the door is the landing; its Home button is tapped once the guard has let go of the screen change
+    await screen.findByText(/Hello! I am your tutor/);
+    await new Promise((r) => setTimeout(r, TAP_GUARD_MS + 100));
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
     await screen.findByText(/Hey, Rowan!/);
     await new Promise((r) => setTimeout(r, TAP_GUARD_MS + 100));
 

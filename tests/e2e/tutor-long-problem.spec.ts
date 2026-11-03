@@ -11,6 +11,7 @@
 //   npm run test:e2e -- tutor-long-problem
 
 import { test, expect, type Page } from '@playwright/test';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +29,7 @@ async function completeOnboarding(page: Page, name: string): Promise<void> {
   await page.getByPlaceholder('Enter your name').fill(name);
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
 }
 
@@ -92,7 +94,6 @@ test.describe('a long problem stays readable while he holds (mw-kuy7rx.6)', () =
 
     await completeOnboarding(page, 'Long Kid');
     await seedLongProblemSession(page, PROBLEM);
-    await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
     await page.reload();
     await page.getByRole('button', { name: /Tutor/ }).click();
 

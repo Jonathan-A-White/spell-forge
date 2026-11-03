@@ -22,7 +22,6 @@ const OLD_PANEL_SETTINGS = [
   'importFilterWords',
   'debugMode',
   'ttsDebug',
-  'tutorPreview',
 ];
 
 const ALL: Capability[] = ['gradeGoal', 'learningStrategy', 'importFilter', 'share', 'export', 'import', 'requests', 'conversations', 'about', 'debugMode', 'ttsDebug'];
@@ -74,7 +73,12 @@ describe('a row with dependsOn hides when it does not apply', () => {
 
   it('the rows every screen has are always drawn', () => {
     const drawn = keysOf(visibleRows(SETTINGS_ROWS, settingsValues([]), ''));
-    for (const key of ['contrastMode', 'accessibilityPreset', 'tutorPreview', 'deviceKey']) expect(drawn).toContain(key);
+    for (const key of ['contrastMode', 'accessibilityPreset', 'deviceKey']) expect(drawn).toContain(key);
+  });
+
+  it("has no 'Tutor (preview)' switch: the tutor's door is the app's landing for everyone (mw-79en7t.82)", () => {
+    expect(keysOf(SETTINGS_ROWS)).not.toContain('tutorPreview');
+    expect(SETTINGS_ROWS.map((r) => r.label)).not.toContain('Tutor (preview)');
   });
 
   it('draws every row when every capability is given', () => {
@@ -91,7 +95,6 @@ describe('search finds a row by its label', () => {
   it.each([
     ['Grade Goal', 'gradeGoal'],
     ['learning order', 'learningStrategy'],
-    ['TUTOR', 'tutorPreview'],
     ['tts', 'ttsDebug'],
     ['appearance', 'contrastMode'],
     ['Accessibility Presets', 'accessibilityPreset'],

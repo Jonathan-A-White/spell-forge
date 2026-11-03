@@ -14,6 +14,7 @@ import type { ChildProcess } from 'node:child_process';
 import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { previewPort } from '../support/preview-port';
 import { shot } from './shot';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -157,9 +158,9 @@ test('the Maths world: placement, hear, see, do and a homework picture, at 390x8
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
   const homework = await seedPicturesAndHomework(page);
-  await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 

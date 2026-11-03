@@ -1,5 +1,6 @@
 // M9 (story 12c, mw-79en7t.34): the page never scrolls: one scroll box inside #root, a scroll guard that puts the
 // document back at the top, and a focus that does not scroll. A screen drawn in the Shell has exactly one scrolling element.
+import { leaveTheDoor } from '../support/leave-the-door';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -49,6 +50,7 @@ describe('one scroll box per screen', () => {
         <Shell />
       </AppProvider>,
     );
+    await leaveTheDoor();
     await screen.findByText(/Hey, Rowan!/);
 
     const boxes = container.querySelectorAll('[data-scroll-box]');

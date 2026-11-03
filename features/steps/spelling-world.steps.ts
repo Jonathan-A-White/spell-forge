@@ -22,6 +22,7 @@ import { spellingStock } from '../../src/learn/fresh-store';
 import { SPELLING_NODES, spellingNode, type SpellingItem, type SpellingNode } from '../../src/learn/spelling';
 import { SpellingWorld } from '../../src/worlds/spelling/SpellingWorld';
 import { createSpellingFlow, memoryKeep, type SpellingFlow } from '../../src/worlds/spelling/spelling-flow';
+import { leaveTheDoor } from '../../tests/support/leave-the-door';
 
 const feature = await loadFeature('features/spelling-world.feature');
 
@@ -61,11 +62,12 @@ function TutorGo({ id }: { id: string }) {
   return createElement('button', { onClick: () => go(id) }, `tutor goes to ${id}`);
 }
 
-/** The app, opened: Home greets the child before a scenario goes anywhere (the boot lands on Home when it has the profile). */
+/** The app, opened: Home greets the child before a scenario goes anywhere (the boot lands on the front door; its Home button is tapped). */
 async function renderApp(): Promise<void> {
   render(
     createElement(AppProvider, null, createElement(Shell), ...['spelling-home', 'practice-games'].map((id) => createElement(TutorGo, { id, key: id }))),
   );
+  await leaveTheDoor();
   await screen.findByRole('heading', { name: /^Hey, / });
 }
 

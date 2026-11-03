@@ -23,6 +23,7 @@ import { Licence } from '../../src/worlds/grown-ups/Licence';
 import { NOTHING_YET } from '../../src/worlds/grown-ups/describe-learner';
 import { spellingGraph } from '../../src/learn/spelling';
 import { storageGraphStore } from '../../src/worlds/spelling';
+import { leaveTheDoor } from '../../tests/support/leave-the-door';
 
 const feature = await loadFeature('features/grown-ups.feature');
 
@@ -199,12 +200,13 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     And('the first line is {string}', firstLineIs);
   });
 
-  Scenario('AC1: Tapping a learner on Who is learning opens Home for them', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Tapping a learner on Who is learning opens the front door, and its Home button Home, for them', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profiles {string} and {string}', holdProfiles);
     When('SpellForge opens', openApp);
     And('the learner {string} is tapped', async (_ctx, name: string) => {
       fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${name}`) }));
     });
+    And('the front door is left by its Home button', leaveTheDoor);
     Then('Home greets {string}', async (_ctx, greeting: string) => {
       expect(await screen.findByRole('heading', { name: greeting })).toBeInTheDocument();
     });
@@ -287,6 +289,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
   Scenario('AC1: Settings opens from Home with a first line and a search box', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     When('SpellForge opens', openApp);
+    And('the front door is left by its Home button', leaveTheDoor);
     And('{string} is tapped on Home', tappedOnHome);
     Then('the screen {string} is shown', screenShown);
     And('the first line is {string}', firstLineIs);
@@ -298,6 +301,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
   Scenario('AC3: About & Credits opens from Settings', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     When('SpellForge opens', openApp);
+    And('the front door is left by its Home button', leaveTheDoor);
     And('{string} is tapped on Home', tappedOnHome);
     And('{string} is tapped in Settings', async (_ctx, label: string) => {
       fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${label}`) }));

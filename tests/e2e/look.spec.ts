@@ -14,6 +14,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { emptyProfile, learn } from 'learn-kit/learner';
 import { DURATION, EASING } from '../../src/look';
 import { shot } from './shot';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -51,6 +52,7 @@ test('part 1: the Grown-ups screens at 390x844 pass axe and fit the phone', asyn
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 
   // the Shell has set the look: no age is known of a new child
@@ -62,10 +64,10 @@ test('part 1: the Grown-ups screens at 390x844 pass axe and fit the phone', asyn
   await expect(page.getByRole('heading', { name: 'Who is learning?' })).toBeVisible();
   await looksRight(page, 'look-who-is-learning');
   await page.getByRole('button', { name: /^Rowan/ }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 
   // --- the Grown-ups home: the PIN is chosen the first time; How is it going? and Licence are sections of it ---
-  await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
   await page.getByRole('button', { name: /^Tutor/ }).click();
@@ -160,16 +162,16 @@ async function theTutorKnowsTheAge(page: Page, age: number): Promise<void> {
   }, learner);
 }
 
-/** A new child, Rowan, welcomed; the tutor knows their age and the Tutor (preview) is on, so the app opens on the front door. */
+/** A new child, Rowan, welcomed; the tutor knows their age; the front door is left for Home. */
 async function aChildOfAge(page: Page, age: number): Promise<void> {
   await noTapGuard(page);
   await page.goto('/spell-forge/');
   await page.getByPlaceholder('Enter your name').fill('Rowan');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
   await theTutorKnowsTheAge(page, age);
-  await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 }

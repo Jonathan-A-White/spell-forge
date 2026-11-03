@@ -12,6 +12,7 @@ import { WORLDS, VIEWS, viewRoute, type ViewId, type WorldId } from '../../src/s
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
+import { leaveTheDoor } from '../support/leave-the-door';
 
 const stub = (world: WorldId): ComponentType<{ view: ViewId | null }> =>
   function Stub({ view }) {
@@ -68,7 +69,7 @@ describe('Shell', () => {
     return <button onClick={() => go(id)}>{`go ${id}`}</button>;
   }
 
-  it("opens on Home and switches the view when the tutor says go, by id or by route", async () => {
+  it("opens on the door, Home one tap away, and switches the view when the tutor says go, by id or by route", async () => {
     render(
       <AppProvider>
         <Shell />
@@ -77,6 +78,7 @@ describe('Shell', () => {
         <Go id="no-such-screen" />
       </AppProvider>,
     );
+    await leaveTheDoor();
     expect(await screen.findByText(/Hey, Rowan!/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('go about'));
@@ -98,6 +100,7 @@ describe('Shell', () => {
         <Go id="about" />
       </AppProvider>,
     );
+    await leaveTheDoor();
     await screen.findByText(/Hey, Rowan!/);
     fireEvent.click(screen.getByText('go about'));
     await screen.findByRole('heading', { name: /about/i });

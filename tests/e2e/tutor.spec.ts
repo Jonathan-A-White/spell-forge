@@ -1,7 +1,7 @@
 // tests/e2e/tutor.spec.ts
 //
-// Proves mw-bhvxcn.8 against a real production build in real Chromium: with the sf-tutor flag off Home has no
-// Tutor tile; with it on the tile opens the Tutor screen; a typed problem goes to the factory as a problem-in
+// Proves mw-bhvxcn.8 against a real production build in real Chromium: Home has a
+// Tutor tile (mw-79en7t.82: no flag) that opens the Tutor screen; a typed problem goes to the factory as a problem-in
 // grist, the screen shows a spinner and the seconds, and the answer's target_text shows large in the child's own
 // font and size; a reload brings the problem back from Dexie.
 //
@@ -16,6 +16,7 @@
 //
 
 import { test, expect, type Page } from '@playwright/test';
+import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -43,6 +44,7 @@ async function completeOnboarding(page: Page, name: string): Promise<void> {
   await page.getByPlaceholder('Enter your name').fill(name);
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Start Forging!' }).click();
+  await leaveTheDoor(page);
   await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
 }
 
@@ -155,7 +157,7 @@ async function stubFactory(page: Page, device: PrivateKey, mill: PrivateKey): Pr
   return factory;
 }
 
-test.describe('the Tutor screen behind sf-tutor (mw-bhvxcn.8)', () => {
+test.describe("the Tutor screen, from Home's tile (mw-bhvxcn.8)", () => {
   test('a typed problem goes out, is read back, and shows large; a reload keeps it', async ({ page }) => {
     test.setTimeout(180_000);
     mkdirSync(SHOTS, { recursive: true });
@@ -170,11 +172,7 @@ test.describe('the Tutor screen behind sf-tutor (mw-bhvxcn.8)', () => {
     await completeOnboarding(page, 'Tutor Kid');
     await giveDeviceKey(page, device);
 
-    // --- Flag off: nothing new on Home ---
-    await expect(page.getByRole('button', { name: /Tutor/ })).toHaveCount(0);
-
-    // --- Flag on: the Tutor tile ---
-    await page.evaluate(() => localStorage.setItem('sf-tutor', '1'));
+    // --- Home has the Tutor tile, with no switch to find ---
     await page.reload();
     const tile = page.getByRole('button', { name: /Tutor/ });
     await expect(tile).toBeVisible();

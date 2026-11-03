@@ -1,5 +1,6 @@
 // M11 (story 12c, mw-79en7t.34): ask the phone to keep SpellForge's storage (navigator.storage.persist()) once, after the
 // first learner exists and never before: a refusal at first launch teaches Chrome the app is not engaged.
+import { leaveTheDoor } from '../support/leave-the-door';
 import { cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -80,6 +81,7 @@ describe('the Shell at boot', () => {
       status: 'active',
     });
     render(createElement(AppProvider, null, createElement(Shell)));
+    await leaveTheDoor();
     await screen.findByText(/Hey, Rowan!/);
     await waitFor(() => expect(persist).toHaveBeenCalledTimes(1));
   });
