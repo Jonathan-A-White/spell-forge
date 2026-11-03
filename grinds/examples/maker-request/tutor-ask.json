@@ -3,8 +3,8 @@
   "request": {
     "schemaVersion": "1",
     "kind": "tutor-ask",
-    "text": "Can you read my maths book out loud to me?",
-    "summary": "Read a maths book aloud",
+    "text": "Can you read my math book out loud to me?",
+    "summary": "Read a math book aloud",
     "reference": "0b6f2c1e-6f3a-4a56-9f2a-2f3d5e7a9c10",
     "who": "5d1c7a0e-3b2f-4e8a-8c6d-1a2b3c4d5e6f",
     "app_version": "0.1.181"

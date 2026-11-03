@@ -22,7 +22,7 @@
             "maxLength": 20
           },
           "sentence": {
-            "description": "One plain sentence for a child of the band that uses the word, so its meaning is clear. It never spells the word out, never says how it is spelt and never hints at its spelling.",
+            "description": "One plain sentence for a child of the band that uses the word, so its meaning is clear. It never spells the word out, never says how it is spelled and never hints at its spelling.",
             "type": "string",
             "minLength": 1,
             "maxLength": 160

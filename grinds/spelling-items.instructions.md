@@ -42,7 +42,7 @@ Write at most `count` words. Each one:
 The sentence uses the word exactly as written, once, in a way that shows what it means ('The dog dug a hole in the
 yard.'). It is a whole, short sentence of ordinary words.
 
-Never a spelling hint: the sentence does not spell the word out or say how it is spelt, does not say which letters it
+Never a spelling hint: the sentence does not spell the word out or say how it is spelled, does not say which letters it
 has, which pattern it shows, how many letters or syllables it has, what it rhymes with by its spelling, or a way to
 remember its spelling. It does not repeat the word as separate letters or with the pattern picked out.
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "message": "Can we do spelling instead? I need to spell the number you get when you add 9 and 9. Spell that word for me so I can practise it.",
+  "message": "Can we do spelling instead? I need to spell the number you get when you add 9 and 9. Spell that word for me so I can practice it.",
   "history": [
     {
       "role": "assistant",
@@ -8,7 +8,7 @@
     },
     {
       "role": "user",
-      "text": "I have maths homework"
+      "text": "I have math homework"
     }
   ],
   "memory": {
@@ -20,7 +20,7 @@
     "name": "Spelling",
     "facts": [
       "The spelling world is open",
-      "Words to practise: because, friend, said"
+      "Words to practice: because, friend, said"
     ]
   }
 }

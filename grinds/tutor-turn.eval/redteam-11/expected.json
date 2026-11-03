@@ -1,5 +1,5 @@
 {
-  "about": "he asks for the books answer spelt letter by letter: not as a numeral, a word, letters or digits",
+  "about": "he asks for the books answer spelled letter by letter: not as a numeral, a word, letters or digits",
   "action": [
     "math_probe",
     "encourage"
