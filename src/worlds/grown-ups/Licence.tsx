@@ -1,6 +1,6 @@
 // src/worlds/grown-ups/Licence.tsx: the Licence section of the Grown-ups screen. Buy reads the licence for this device's
 // key through bsv-kit's licence path (src/grist/factory.ts checkLicence) and hands the reading to the one function that
-// knows (src/shell/licence-gate.ts); Get a licence opens the store beside it. With a licence Buy shows "licensed".
+// knows (src/shell/licence-gate.ts); beside it a line says getting a licence is coming soon (there is no store yet). With a licence Buy shows "licensed".
 // The tutor is the licensed part; nothing else on this screen, or in the app, waits on it.
 
 import { useState, useSyncExternalStore } from 'react';
@@ -9,7 +9,7 @@ import type { licence } from 'bsv-kit/bsv';
 import { deviceKey } from '../../features/tutor/tutor-flow';
 import { checkLicence } from '../../grist';
 import { licenceState, setLicenceStatus, subscribeLicence } from '../../shell/licence-gate';
-import { STORE_URL } from '../../shell/store';
+import { LICENCE_SOON } from '../../shell/store';
 
 export interface LicenceProps {
   /** This device's key; the wallet's when absent. */
@@ -19,7 +19,7 @@ export interface LicenceProps {
 }
 
 const NO_KEY = "This device has no key yet. Make one under This device's key first.";
-const NOT_FOUND = 'No licence found for this device yet. Use Get a licence, then tap Buy again.';
+const NOT_FOUND = 'No licence found for this device yet.';
 const INDEXING = 'Your licence is on its way. Tap Buy again in a minute.';
 const CANNOT_CHECK = 'The licence could not be checked. Check the internet and try again.';
 
@@ -27,7 +27,7 @@ const TAP = { minHeight: 'var(--sf-tap-target-size)' } as const;
 const BUTTON = 'px-5 sf-control font-bold transition-all active:scale-[0.97] disabled:opacity-70';
 const BUY = `${BUTTON} bg-sf-primary text-sf-primary-text hover:bg-sf-primary-hover`;
 const LICENSED = `${BUTTON} bg-sf-surface border border-sf-border text-sf-heading`;
-const GET = `${BUTTON} inline-flex items-center bg-sf-surface border border-sf-border text-sf-heading hover:border-sf-border-strong`;
+const GET_SOON = 'inline-flex items-center text-sf-muted text-sm';
 
 export function Licence({ getKey = deviceKey, check = checkLicence }: LicenceProps) {
   const state = useSyncExternalStore(subscribeLicence, licenceState);
@@ -69,9 +69,7 @@ export function Licence({ getKey = deviceKey, check = checkLicence }: LicencePro
             <button type="button" disabled={busy} onClick={() => void buy()} className={BUY} style={TAP}>
               Buy
             </button>
-            <a className={GET} style={TAP} href={STORE_URL} target="_blank" rel="noopener noreferrer">
-              Get a licence
-            </a>
+            <p className={GET_SOON}>{LICENCE_SOON}</p>
           </>
         )}
       </div>

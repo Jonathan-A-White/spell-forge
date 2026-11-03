@@ -12,7 +12,6 @@ import { frontierOf, order } from 'learn-kit/graph';
 import { Shell } from '../../src/shell/Shell';
 import { AppProvider } from '../../src/shell/app-context';
 import { licenceState, setLicenceStatus } from '../../src/shell/licence-gate';
-import { STORE_URL } from '../../src/shell/store';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
@@ -134,9 +133,9 @@ const buyTapped = async (_ctx: unknown, label: string): Promise<void> => {
   fireEvent.click(screen.getByRole('button', { name: label }));
 };
 
-const noLink = async (_ctx: unknown, name: string): Promise<void> => {
+const noLink = async (_ctx: unknown, line: string): Promise<void> => {
   await screen.findByRole('button', { name: 'licensed' });
-  expect(screen.queryByRole('link', { name })).toBeNull();
+  expect(screen.queryByText(line)).toBeNull();
 };
 
 describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
@@ -270,7 +269,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     And('there is no {string}', noLink);
   });
 
-  Scenario('AC1: Licence Buy says so when no licence is found, and Get a licence opens the store', ({ Given, And, When, Then }) => {
+  Scenario('AC1: Licence Buy says so when no licence is found, and getting a licence says it is coming soon', ({ Given, And, When, Then }) => {
     Given('a phone that holds no licence yet', holdsNoLicenceYet);
     And('the licence check finds none', licenceCheckFinds(NONE));
     When('the grown-up opens the Licence section', opensLicence);
@@ -278,11 +277,9 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     Then('the Licence section says {string}', async (_ctx, line: string) => {
       expect((await screen.findByRole('status')).textContent).toBe(line);
     });
-    And('{string} opens the store', (_ctx, name: string) => {
-      const link = screen.getByRole('link', { name });
-      expect(link.getAttribute('href')).toBe(STORE_URL);
-      expect(link.getAttribute('target')).toBe('_blank');
-      expect(link.getAttribute('rel')).toContain('noopener');
+    And('the section says {string} and opens nothing', (_ctx, line: string) => {
+      expect(screen.getByText(line)).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /licence/i })).toBeNull();
     });
   });
 

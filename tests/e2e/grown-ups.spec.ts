@@ -1,12 +1,11 @@
 // tests/e2e/grown-ups.spec.ts: the Grown-ups world at a phone's 390x844, in a real browser (Chromium). A grown-up picks who is learning
 // (Who is learning), opens Grown-ups from the Tutor (the PIN gate: choose a PIN and a question the first time, the PIN after), finds the
-// Licence section (Buy, Get a licence opening the store) and Settings (a first line and a search box); How is it going is a section of
+// Licence section (Buy, and a line that getting a licence is coming soon) and Settings (a first line and a search box); How is it going is a section of
 // the Grown-ups home, read from the progress each world keeps for the learner (put in localStorage here, as the worlds write it). Each
 // screen sits inside the window with nothing to scroll sideways.
 //
 // The app is served with `vite` (dev) on a port of its own, because the walk imports the spelling graph's node ids. The app opens on the tutor's door (left by its Home
-// button). The store, and every other address the Licence check could reach, is answered by
-// page.route: the test never reaches the network.
+// button). Getting a licence opens nothing: the spec counts the pages the context opens.
 //
 // Run: npx playwright test grown-ups (the chromium project; the port is this worktree's own, plus four, or SF_E2E_PORT).
 import { expect, test, type Page } from '@playwright/test';
@@ -15,7 +14,6 @@ import { order } from 'learn-kit/graph';
 import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { previewPort } from '../support/preview-port';
 import { spellingGraph } from '../../src/learn/spelling';
-import { STORE_URL } from '../../src/shell/store';
 import { shot } from './shot';
 import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
@@ -96,9 +94,8 @@ async function makeSolidInSpelling(page: Page, count: number): Promise<void> {
 test('Who is learning, the PIN gate, Licence, Settings, at 390x844', async ({ page, context }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
-  await context.route(`${new URL(STORE_URL).origin}/**`, (route) =>
-    route.fulfill({ status: 200, contentType: 'text/html', body: '<title>store</title>' }),
-  );
+  const opened: string[] = [];
+  context.on('page', (opener) => opened.push(opener.url()));
   await noTapGuard(page);
 
   // --- a new child is welcomed, then Home (the Tutor is switched on once Home is shown: with it on, a child picked opens the front door) ---
@@ -140,7 +137,7 @@ test('Who is learning, the PIN gate, Licence, Settings, at 390x844', async ({ pa
   await fitsThePhone(page);
   await page.getByRole('button', { name: 'Save' }).click();
 
-  // --- Grown-ups, and its Licence section: Buy reads the licence, Get a licence opens the store ---
+  // --- Grown-ups, and its Licence section: Buy reads the licence, getting a licence says it is coming soon and opens nothing ---
   await expect(page.getByRole('heading', { name: 'Grown-ups', exact: true })).toBeVisible();
   await expect(page.getByTestId('first-line')).toBeVisible();
 
@@ -160,14 +157,13 @@ test('Who is learning, the PIN gate, Licence, Settings, at 390x844', async ({ pa
   await expect(licence.getByText('The tutor needs a licence. Everything else works without one.')).toBeVisible();
   await licence.getByRole('button', { name: 'Buy' }).click();
   await expect(licence.getByRole('status')).toHaveText("This device has no key yet. Make one under This device's key first.");
-  const getLicence = licence.getByRole('link', { name: 'Get a licence' });
+  const getLicence = licence.getByText('Getting a licence: coming soon.');
   await expect(getLicence).toBeVisible();
   await fitsThePhone(page);
   await shot(page, 'grown-ups-licence');
-  const [store] = await Promise.all([context.waitForEvent('page'), getLicence.click()]);
-  await store.waitForLoadState();
-  expect(new URL(store.url()).href).toBe(new URL(STORE_URL).href);
-  await store.close();
+  await expect(licence.getByRole('link')).toHaveCount(0);
+  await getLicence.click();
+  expect(opened).toEqual([]);
 
   // --- leaving locks it again ---
   await page.getByRole('button', { name: /Back/ }).click();

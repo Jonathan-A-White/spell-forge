@@ -1,10 +1,10 @@
 Feature: The Grown-ups world
-  The grown-up's side of SpellForge sits behind a PIN: Who is learning, How is it going, Licence (Buy and Get a licence) and
+  The grown-up's side of SpellForge sits behind a PIN: Who is learning, How is it going, Licence (Buy, and a line that getting a licence is coming soon) and
   Settings. Only the tutor needs a licence; none of these screens waits on one.
 
   The sweep (Kestrel 17e, mw-79en7t.53): every grown-up screen of the old app, and its place now.
     - parent-screen: the Grown-ups screen behind the PIN, src/worlds/grown-ups/parent-screen.tsx, opened by the Tutor's Grown-ups
-      button through GrownUps and the PIN gate; its sections are This week, Sessions, Ask the tutor, Licence (Buy, Get a licence),
+      button through GrownUps and the PIN gate; its sections are This week, Sessions, Ask the tutor, Licence (Buy, and the coming-soon line),
       Tutor settings and Notes for the tutor. The old Settings entry points (Home, the tutor's "go") stay.
     - parent-sessions-view: This week and Sessions, src/worlds/grown-ups/parent-sessions-view.tsx, drawn inside the Grown-ups screen;
       a session line opens that session's page (src/features/tutor/parent-session-page.tsx).
@@ -81,15 +81,15 @@ Feature: The Grown-ups world
     When the grown-up opens the Licence section
     And "Buy" is tapped
     Then the Licence section shows "licensed"
-    And there is no "Get a licence"
+    And there is no "Getting a licence: coming soon."
 
-  Scenario: AC1: Licence Buy says so when no licence is found, and Get a licence opens the store
+  Scenario: AC1: Licence Buy says so when no licence is found, and getting a licence says it is coming soon
     Given a phone that holds no licence yet
     And the licence check finds none
     When the grown-up opens the Licence section
     And "Buy" is tapped
-    Then the Licence section says "No licence found for this device yet. Use Get a licence, then tap Buy again."
-    And "Get a licence" opens the store
+    Then the Licence section says "No licence found for this device yet."
+    And the section says "Getting a licence: coming soon." and opens nothing
 
   Scenario: AC1: Settings opens from Home with a first line and a search box
     Given a phone that holds the profile "Rowan"

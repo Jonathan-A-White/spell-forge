@@ -1,6 +1,6 @@
 Feature: The four worlds
   SpellForge has four worlds: the Front door, Spelling, Maths and Grown-ups. Every old screen lives in its world and is reached
-  from it, or when the tutor says go. Get a licence is the Grown-ups world's way to the store, and shows only where a licence is
+  from it, or when the tutor says go. Getting a licence says it is coming soon (there is no store yet) in the Grown-ups world, and shows only where a licence is
   known to be missing. The app is shared from the phone's own sheet, not from a screen of its own.
 
   Scenario: AC1: Home is the Front door
@@ -39,33 +39,33 @@ Feature: The four worlds
     Then the screen "Maths" is shown
     And Maths asks "Let's see what you know"
 
-  Scenario: AC1: Get a licence opens the store where there is no licence
+  Scenario: AC1: Getting a licence says it is coming soon where there is no licence
     Given a phone that holds the profile "Rowan"
     And the phone holds no licence
     When SpellForge opens
     And the tutor says go to "settings"
     Then the screen "Settings" is shown
-    And "Get a licence" opens the store
+    And the screen says "Getting a licence: coming soon." and opens nothing
 
-  Scenario: AC1: Get a licence is not shown in Spelling
+  Scenario: AC1: Getting a licence is not shown in Spelling
     Given a phone that holds the profile "Rowan"
     And the phone holds no licence
     When SpellForge opens
     And the tutor says go to "progress"
-    Then there is no "Get a licence"
+    Then there is no "Getting a licence: coming soon."
 
-  Scenario: AC1: Get a licence is not shown with a licence
+  Scenario: AC1: Getting a licence is not shown with a licence
     Given a phone that holds the profile "Rowan"
     And the phone holds a licence
     When SpellForge opens
     And the tutor says go to "settings"
-    Then there is no "Get a licence"
+    Then there is no "Getting a licence: coming soon."
 
-  Scenario: AC1: Get a licence is not shown before the licence is known
+  Scenario: AC1: Getting a licence is not shown before the licence is known
     Given a phone that holds the profile "Rowan"
     When SpellForge opens
     And the tutor says go to "settings"
-    Then there is no "Get a licence"
+    Then there is no "Getting a licence: coming soon."
 
   Scenario: AC1: The app is shared from the Grown-ups world
     Given a phone that holds the profile "Rowan"

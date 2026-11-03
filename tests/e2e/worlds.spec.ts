@@ -1,19 +1,17 @@
 // tests/e2e/worlds.spec.ts: the four worlds walked in a real browser at a phone's 390x844. A new child is welcomed (Front door), opens
 // My Words (Spelling), Maths (placement's first question) and Settings (Grown-ups); a stand-in for the tutor's "go" answer opens an old screen through the shell's openView;
-// Get a licence opens STORE_URL; each screen sits inside the window with nothing to scroll sideways.
+// Getting a licence says it is coming soon and opens nothing (the store does not exist yet); each screen sits inside the window with nothing to scroll sideways.
 //
 // Two things the built app cannot show, so this spec serves the app with `vite` (dev), whose modules are the app's own live instances:
 //  - nothing in the app reads a licence yet (mw-6ww.111), so the licence state is handed to src/shell/licence-gate.ts the way that story will;
 //  - (nothing else: Maths is reached by a tap on Home's Maths card, like the other worlds).
 // No tutor answer says "go" yet, so the "go" function is taken from the shell's own context provider (React's fiber tree).
-// The store itself is answered by page.route: the test never reaches the network.
 //
 // Run: npx playwright test worlds (the chromium project; the port is this worktree's own, plus one, or SF_E2E_PORT).
 import { expect, test, type Page } from '@playwright/test';
 import type { ChildProcess } from 'node:child_process';
 import { killGroup, spawnGroup } from '../support/spawned-processes';
 import { previewPort } from '../support/preview-port';
-import { STORE_URL } from '../../src/shell/store';
 import { shot } from './shot';
 import { leaveTheDoor } from './door';
 import { noTapGuard } from './tap-guard';
@@ -84,12 +82,11 @@ async function tutorSaysGo(page: Page, id: string): Promise<boolean> {
   }, id);
 }
 
-test('the four worlds, an old screen from the tutor, and Get a licence, at 390x844', async ({ page, context }) => {
+test('the four worlds, an old screen from the tutor, and getting a licence, at 390x844', async ({ page, context }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
-  await context.route(`${new URL(STORE_URL).origin}/**`, (route) =>
-    route.fulfill({ status: 200, contentType: 'text/html', body: '<title>store</title>' }),
-  );
+  const opened: string[] = [];
+  context.on('page', (opener) => opened.push(opener.url()));
 
   // the walk taps faster than a child, so the tap guard is off (tests/e2e/tap-guard.ts)
   await noTapGuard(page);
@@ -132,8 +129,8 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
   await fitsThePhone(page);
   await shot(page, 'worlds-grown-ups');
 
-  // --- Get a licence: not shown before the licence is known, shown with none, opens STORE_URL ---
-  const getLicence = page.getByRole('link', { name: 'Get a licence' });
+  // --- Getting a licence: not shown before the licence is known, shown with none as a plain line, and opens nothing ---
+  const getLicence = page.getByText('Getting a licence: coming soon.');
   await expect(getLicence).toHaveCount(0);
   await page.evaluate(
     `import('${APP_PATH}src/shell/licence-gate.ts').then((gate) => gate.setLicenceStatus({ state: 'none', checkedAt: '2026-10-24T10:00:00Z' }))`,
@@ -141,10 +138,9 @@ test('the four worlds, an old screen from the tutor, and Get a licence, at 390x8
   await expect(getLicence).toBeVisible();
   await fitsThePhone(page);
   await shot(page, 'worlds-get-a-licence');
-  const [store] = await Promise.all([context.waitForEvent('page'), getLicence.click()]);
-  await store.waitForLoadState();
-  expect(new URL(store.url()).href).toBe(new URL(STORE_URL).href);
-  await store.close();
+  await expect(page.getByRole('link', { name: /licence/i })).toHaveCount(0);
+  await getLicence.click();
+  expect(opened).toEqual([]);
 
   // --- The tutor says go: an old screen in each of two worlds, and a screen that is not one opens nothing ---
   expect(await tutorSaysGo(page, 'progress')).toBe(true);

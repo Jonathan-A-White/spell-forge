@@ -1,5 +1,5 @@
 // mw-79en7t.51 (Kestrel 17c): the Licence section of the Grown-ups screen. Buy reads the licence through bsv-kit's
-// licence path and hands the reading to the one function that knows (licenceState); Get a licence opens the store;
+// licence path and hands the reading to the one function that knows (licenceState); getting a licence is a coming-soon line;
 // with a licence Buy shows "licensed".
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PrivateKey } from '@bsv/sdk';
@@ -7,7 +7,7 @@ import { licence } from 'bsv-kit/bsv';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { checkLicence } from '../../src/grist';
 import { licenceState, setLicenceStatus } from '../../src/shell/licence-gate';
-import { STORE_URL } from '../../src/shell/store';
+import { LICENCE_SOON } from '../../src/shell/store';
 import { Licence } from '../../src/worlds/grown-ups/Licence';
 
 const CHECKED_AT = '2026-10-25T10:00:00Z';
@@ -64,12 +64,11 @@ describe('Buy', () => {
   });
 });
 
-describe('Get a licence', () => {
-  it("opens the store's address in a new tab, beside Buy", () => {
+describe('Getting a licence', () => {
+  it('says it is coming soon beside Buy, and opens nothing', () => {
     render(<Licence getKey={getKey} check={async () => none} />);
-    const link = screen.getByRole('link', { name: 'Get a licence' });
-    expect(link.getAttribute('href')).toBe(STORE_URL);
-    expect(link.getAttribute('target')).toBe('_blank');
+    expect(screen.getByText(LICENCE_SOON)).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
     expect(screen.getByRole('button', { name: 'Buy' })).toBeTruthy();
   });
 });
@@ -81,6 +80,6 @@ describe('with a licence', () => {
     const button = screen.getByRole('button', { name: 'licensed' });
     expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Buy' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Get a licence' })).toBeNull();
+    expect(screen.queryByText(LICENCE_SOON)).toBeNull();
   });
 });

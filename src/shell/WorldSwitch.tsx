@@ -4,18 +4,14 @@ import { useSyncExternalStore } from 'react';
 import { HOME_VIEW, VIEWS, viewAtRoute, worldAtRoute, type ViewId } from './worlds';
 import { WORLD_SCREENS, type WorldScreens } from './world-screens';
 import { licenceState, subscribeLicence } from './licence-gate';
-import { STORE_URL } from './store';
+import { LICENCE_SOON } from './store';
 
-/** The Grown-ups world's way to a licence: shown only where the licence is known to be missing. */
+/** The Grown-ups world's line about getting a licence: shown only where the licence is known to be missing. */
 function GetLicence() {
   const state = useSyncExternalStore(subscribeLicence, licenceState);
   if (state !== 'unlicensed') return null;
   return (
-    <p className="bg-sf-bg px-4 py-2 text-center">
-      <a className="text-sf-primary underline font-bold" href={STORE_URL} target="_blank" rel="noopener noreferrer">
-        Get a licence
-      </a>
-    </p>
+    <p className="bg-sf-bg px-4 py-2 text-center text-sf-muted text-sm">{LICENCE_SOON}</p>
   );
 }
 

@@ -10,7 +10,6 @@ import { AppProvider } from '../../src/shell/app-context';
 import { useApp } from '../../src/shell/app-state';
 import { setLicenceStatus } from '../../src/shell/licence-gate';
 import { shareApp } from '../../src/shell/share-app';
-import { STORE_URL } from '../../src/shell/store';
 import { appLink } from '../../src/share/share-out';
 import { db } from '../../src/data/db';
 import { profileRepo } from '../../src/data/repositories';
@@ -141,7 +140,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
   });
 
-  Scenario('AC1: Get a licence opens the store where there is no licence', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a licence says it is coming soon where there is no licence', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     And('the phone holds no licence', () => setLicenceStatus({ state: 'none', checkedAt: CHECKED_AT }));
     When('SpellForge opens', renderApp);
@@ -151,15 +150,13 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     Then('the screen {string} is shown', async (_ctx, heading: string) => {
       expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
     });
-    And('{string} opens the store', (_ctx, name: string) => {
-      const link = screen.getByRole('link', { name });
-      expect(link.getAttribute('href')).toBe(STORE_URL);
-      expect(link.getAttribute('target')).toBe('_blank');
-      expect(link.getAttribute('rel')).toContain('noopener');
+    And('the screen says {string} and opens nothing', (_ctx, line: string) => {
+      expect(screen.getByText(line)).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /licence/i })).toBeNull();
     });
   });
 
-  Scenario('AC1: Get a licence is not shown in Spelling', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a licence is not shown in Spelling', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     And('the phone holds no licence', () => setLicenceStatus({ state: 'none', checkedAt: CHECKED_AT }));
     When('SpellForge opens', renderApp);
@@ -168,11 +165,11 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
     Then('there is no {string}', async (_ctx, name: string) => {
       await screen.findByRole('heading', { name: 'Progress' });
-      expect(screen.queryByRole('link', { name })).toBeNull();
+      expect(screen.queryByText(name)).toBeNull();
     });
   });
 
-  Scenario('AC1: Get a licence is not shown with a licence', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a licence is not shown with a licence', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     And('the phone holds a licence', () =>
       setLicenceStatus({ state: 'held', outpoint: { txid: 'ab', vout: 0 }, collection: 'spell-forge', checkedAt: CHECKED_AT }),
@@ -183,11 +180,11 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
     Then('there is no {string}', async (_ctx, name: string) => {
       await screen.findByRole('heading', { name: 'Settings' });
-      expect(screen.queryByRole('link', { name })).toBeNull();
+      expect(screen.queryByText(name)).toBeNull();
     });
   });
 
-  Scenario('AC1: Get a licence is not shown before the licence is known', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a licence is not shown before the licence is known', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     When('SpellForge opens', renderApp);
     And('the tutor says go to {string}', async (_ctx, id: string) => {
@@ -195,7 +192,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
     Then('there is no {string}', async (_ctx, name: string) => {
       await screen.findByRole('heading', { name: 'Settings' });
-      expect(screen.queryByRole('link', { name })).toBeNull();
+      expect(screen.queryByText(name)).toBeNull();
     });
   });
 
