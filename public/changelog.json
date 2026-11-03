@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.2.6",
+    "date": "2026-11-03",
+    "story": "mw-79en7t.85",
+    "kind": "fixed",
+    "text": "\"Get a licence\" no longer sends you to a web page that does not exist; it now says getting a licence is coming soon."
+  },
+  {
     "version": "0.2.5",
     "date": "2026-11-03",
     "story": "mw-79en7t.82",
