@@ -24,14 +24,14 @@ const citesADomain = (node: MathsNode): boolean => SAT_DOMAINS.some((domain) => 
 /** An 800 on the maths SAT: every 9-12 node that prepares for a SAT Math content domain, and so everything those rest on. */
 export const SAT_MATHS_800: Goal = {
   id: 'sat-maths-800',
-  title: 'An 800 on the maths SAT',
+  title: 'An 800 on the math SAT',
   targets: nodesInBand('9-12').filter(citesADomain).map((node) => node.id),
 };
 
 /** Being competitive at the maths competitions: the whole competition tier (AMC 8 and AMC 10 topics), and so everything it rests on. */
 export const COMPETITION: Goal = {
   id: 'competition',
-  title: 'Competitive at maths competitions',
+  title: 'Competitive at math competitions',
   targets: nodesInBand('competition').map((node) => node.id),
 };
 

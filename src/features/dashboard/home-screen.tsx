@@ -250,9 +250,9 @@ export function HomeScreen({
             />
           </div>
 
-          {/* Maths — its own world, placed on first entry */}
+          {/* Math — its own world, placed on first entry */}
           <NavCard
-            title="Maths"
+            title="Math"
             subtitle="Numbers and problems"
             icon={<MathsIcon />}
             onClick={() => onNavigate('maths-home')}
