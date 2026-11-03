@@ -33,7 +33,6 @@ import {
 import { APP_VERSION } from '../../version';
 import { FirstLine } from './first-line';
 import { DeviceKeySection } from '../../features/device-key';
-import { useTutorFlagSwitch } from '../../debug/debug-state';
 
 export interface SettingsProps {
   profile: { name: string; themeId: string; gradeGoal?: number };
@@ -110,7 +109,6 @@ export function Settings(props: SettingsProps) {
   const { profile, settings, importFilterWords, onImportProfile } = props;
   const [query, setQuery] = useState('');
   const importInputRef = useRef<HTMLInputElement>(null);
-  const [tutorOn, toggleTutor] = useTutorFlagSwitch();
 
   const has: Capability[] = [];
   const offers: [Capability, unknown][] = [
@@ -143,7 +141,6 @@ export function Settings(props: SettingsProps) {
         case 'importFilterWords': return (importFilterWords ?? []).join('\n');
         case 'debugMode': return onOff(props.debugModeEnabled);
         case 'ttsDebug': return onOff(props.ttsDebugEnabled);
-        case 'tutorPreview': return onOff(tutorOn);
         default: return undefined;
       }
     },
@@ -159,7 +156,6 @@ export function Settings(props: SettingsProps) {
         case 'importFilterWords': return props.onImportFilterWordsChange?.(value.split('\n').filter((p) => p !== ''));
         case 'debugMode': return toggled(props.debugModeEnabled, value, props.onToggleDebugMode);
         case 'ttsDebug': return toggled(props.ttsDebugEnabled, value, props.onToggleTtsDebug);
-        case 'tutorPreview': return toggled(tutorOn, value, toggleTutor);
         default: return undefined;
       }
     },
@@ -223,8 +219,6 @@ export function Settings(props: SettingsProps) {
         return <RowButton title="About & Credits" description="Who and what Kestrel is built on" lead={<InfoIcon />} onClick={() => props.onOpenAbout?.()} />;
       case 'debugMode':
         return <RowButton title="Debug Mode" description="Show tap targets, click log, and element info" lead={<BugIcon />} leadClass="font-mono text-xs font-bold" selected={now(key) === 'on'} pressed={now(key) === 'on'} onClick={() => save(key, now(key) === 'on' ? 'off' : 'on')} />;
-      case 'tutorPreview':
-        return <RowButton title="Tutor (preview)" description="Show the Tutor tile on Home" lead={<TerminalIcon />} leadClass="font-mono text-xs font-bold" selected={now(key) === 'on'} pressed={now(key) === 'on'} onClick={() => save(key, now(key) === 'on' ? 'off' : 'on')} />;
       case 'ttsDebug':
         return <RowButton title="TTS Debug Log" description="Show speech synthesis diagnostics on screen" lead={<TerminalIcon />} leadClass="font-mono text-xs font-bold" selected={now(key) === 'on'} pressed={now(key) === 'on'} onClick={() => save(key, now(key) === 'on' ? 'off' : 'on')} />;
       default:

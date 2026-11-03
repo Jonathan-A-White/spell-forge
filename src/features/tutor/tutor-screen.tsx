@@ -1,4 +1,4 @@
-// src/features/tutor/tutor-screen.tsx — The Tutor (sf-tutor), step one: bring a problem in by camera (the photo
+// src/features/tutor/tutor-screen.tsx — The Tutor, step one: bring a problem in by camera (the photo
 // sends itself) or typed behind a small keyboard icon, and see it read back large, in the child's own font and size
 // (mw-bhvxcn.8). The start screen is photo-first and speaks its prompt (mw-kuy7rx.9); how strict the tutor is
 // lives in Tutor settings, not here.

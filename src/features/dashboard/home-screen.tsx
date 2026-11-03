@@ -6,7 +6,6 @@ import { countMasteredWords, computeProgressPercent } from '../../core/mastery';
 import { ThemedHero } from './themed-hero';
 import { monsterCollection } from '../rewards';
 import { themeEngine } from '../../themes';
-import { useTutorFlag } from '../../debug/debug-state';
 
 const THEME_ICONS: Record<string, string> = {
   'dragon-forge': '\u{1F409}',   // dragon
@@ -47,7 +46,6 @@ export function HomeScreen({
   onSwitchProfile,
   hasMultipleProfiles,
 }: HomeScreenProps) {
-  const tutorOn = useTutorFlag();
   const activeLists = wordLists.filter((l) => l.active && !l.archived);
   const activeListIds = new Set(activeLists.map((l) => l.id));
   const activeWords = allWords.filter((w) => activeListIds.has(w.listId));
@@ -262,17 +260,15 @@ export function HomeScreen({
             iconColor="text-sky-500"
           />
 
-          {/* Tutor — only while the sf-tutor flag is on */}
-          {tutorOn && (
-            <NavCard
-              title="Tutor"
-              subtitle="Help with a problem"
-              icon={<TutorIcon />}
-              onClick={() => onNavigate('tutor')}
-              accent="from-indigo-500/20 to-sky-500/10"
-              iconColor="text-indigo-500"
-            />
-          )}
+          {/* Tutor — one tap from Home, for a child who left the front door */}
+          <NavCard
+            title="Tutor"
+            subtitle="Help with a problem"
+            icon={<TutorIcon />}
+            onClick={() => onNavigate('tutor')}
+            accent="from-indigo-500/20 to-sky-500/10"
+            iconColor="text-indigo-500"
+          />
 
           {/* My Words — combined word lists + add words */}
           <button

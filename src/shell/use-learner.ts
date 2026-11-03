@@ -87,7 +87,7 @@ export function useLearner(setView: (view: ViewId) => void, landingRef: MutableR
       // If loading profile data fails, proceed with empty data
     }
 
-    // Where he lands: a share waiting for the tutor, or the screen he was on when he left, else the front door (Tutor on) or Home.
+    // Where he lands: a share waiting for the tutor, or the screen he was on when he left, else the front door (Home while the licence is known to be missing).
     setView(landingRef.current ?? landingView());
     landingRef.current = null;
     eventBus.emit({ type: 'profile:switched', payload: { profileId: profile.id } });

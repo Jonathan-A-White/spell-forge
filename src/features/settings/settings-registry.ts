@@ -183,14 +183,6 @@ export const SETTINGS_DEFS: readonly SettingDef<string, SettingsSectionId>[] = [
     dependsOn: needs('debugMode'),
   }),
   setting({
-    key: 'tutorPreview',
-    default: 'off',
-    allowed: ON_OFF,
-    section: 'developer',
-    label: 'Tutor (preview)',
-    hint: 'Show the Tutor tile on Home',
-  }),
-  setting({
     key: 'ttsDebug',
     default: 'off',
     allowed: ON_OFF,
