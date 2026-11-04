@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.2.8",
+    "date": "2026-11-04",
+    "story": "mw-79en7t.84",
+    "kind": "fixed",
+    "text": "Kestrel now opens on the tutor, not the old Home, on a phone last left on Home; a drill or world you were in still reopens where you left it."
+  },
+  {
     "version": "0.2.7",
     "date": "2026-11-04",
     "story": "mw-79en7t.83",
