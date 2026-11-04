@@ -6,6 +6,7 @@
 import type { PrivateKey } from '@bsv/sdk';
 import { door, licence } from 'bsv-kit/bsv';
 import { grist } from 'bsv-kit/grist';
+import { chainConfig } from '../bsv/config';
 import { gristConfig } from './config';
 import { uploadTimeoutMs } from './limits';
 import { LicenceRequiredError, gateGrind } from '../shell/licence-gate';
@@ -178,10 +179,12 @@ export async function readAnswer<T>(params: ReadAnswerParams<T>): Promise<ReadAn
 }
 
 /**
- * The collection a tutor licence is minted in. PROVISIONAL, as src/shell/store.ts is: mw-6ww.111 decides the gate, the
- * collection and the issuer key; until then Postern's collection is read and no issuer is named.
+ * The collection a tutor licence is minted in: the app's own, named once in src/bsv/config.ts, which is also where the
+ * backend's POSTERN_APPS maps this app's key (spellforge-leaderboard-testnet), so Buy and the tutor's door count the
+ * same licence. A licence in 'postern' is a cockpit key's and does not count here. PROVISIONAL, as src/shell/store.ts
+ * is: mw-6ww.111 decides the gate, the collection and the issuer key; until then no issuer is named.
  */
-export const LICENCE_COLLECTION = 'postern';
+export const LICENCE_COLLECTION = chainConfig.collectionId;
 
 /**
  * Whether this device's key holds a licence, read from the chain through bsv-kit's licence path (the Grown-ups
