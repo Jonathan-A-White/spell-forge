@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.2.9",
+    "date": "2026-11-04",
+    "story": "mw-79en7t.87",
+    "kind": "fixed",
+    "text": "Buy in Grown-ups now finds the license that was issued for this app, so the tutor no longer goes to sleep after tapping it."
+  },
+  {
+    "version": "0.2.9",
+    "date": "2026-11-04",
+    "story": "mw-79en7t.86",
+    "kind": "fixed",
+    "text": "On Home, the Math and Tutor buttons now line up with the other buttons in two even columns."
+  },
+  {
     "version": "0.2.8",
     "date": "2026-11-04",
     "story": "mw-79en7t.84",
