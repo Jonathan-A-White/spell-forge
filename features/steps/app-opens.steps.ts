@@ -10,6 +10,7 @@ import { profileRepo } from '../../src/data/repositories';
 import { DEFAULT_SETTINGS } from '../../src/accessibility/defaults';
 import type { licence } from 'bsv-kit/bsv';
 import { setLicenceStatus } from '../../src/shell/licence-gate';
+import { forgetTrail } from '../../src/shell/last-route';
 
 const feature = await loadFeature('features/app-opens.feature');
 
@@ -18,6 +19,9 @@ const freshPhone = async (): Promise<void> => {
   cleanup();
   setLicenceStatus(undefined);
   localStorage.clear();
+  // a new page life: no history of the last scenario's, as a swiped-away phone has none
+  window.history.replaceState(null, '', window.location.pathname);
+  forgetTrail();
   // jsdom has no canvas; the themes draw on one.
   HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(null);
   await db.delete();
@@ -81,6 +85,38 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     When('SpellForge opens', opens);
     Then('Home greets "Hey, Rowan!"', async () => {
       expect(await screen.findByRole('heading', { name: 'Hey, Rowan!' })).toBeInTheDocument();
+    });
+  });
+
+  const leftOn = (...routes: string[]) => () => {
+    localStorage.setItem('sf-last-route', routes[routes.length - 1]);
+    localStorage.setItem('sf-trail', JSON.stringify(routes));
+  };
+  const homeGreets = async () => {
+    expect(await screen.findByRole('heading', { name: 'Hey, Rowan!' })).toBeInTheDocument();
+  };
+
+  Scenario('AC4: A phone last left on Home opens on the front door, not on Home (mw-79en7t.84)', ({ Given, And, When, Then }) => {
+    Given('a phone that holds the profile "Rowan"', holdsRowan);
+    And('the phone last left on Home', leftOn('/front-door/home'));
+    When('SpellForge opens', opens);
+    Then('the tutor greets with "Hello! I am your tutor."', greetsOnTheDoor);
+  });
+
+  Scenario('AC5: With the licence known to be missing a phone last left on Home opens on Home', ({ Given, And, When, Then }) => {
+    Given('a phone that holds the profile "Rowan"', holdsRowan);
+    And('the phone last left on Home', leftOn('/front-door/home'));
+    And('the licence is known to be missing', () => setLicenceStatus({ state: 'none' } as licence.LicenceStatus));
+    When('SpellForge opens', opens);
+    Then('Home greets "Hey, Rowan!"', homeGreets);
+  });
+
+  Scenario('AC6: A phone last left inside a world opens there', ({ Given, And, When, Then }) => {
+    Given('a phone that holds the profile "Rowan"', holdsRowan);
+    And('the phone last left on Word Lists, after Home', leftOn('/front-door/home', '/spelling/word-lists'));
+    When('SpellForge opens', opens);
+    Then('the screen "Word Lists" is shown', async () => {
+      expect(await screen.findByRole('heading', { name: 'Word Lists' })).toBeInTheDocument();
     });
   });
 });

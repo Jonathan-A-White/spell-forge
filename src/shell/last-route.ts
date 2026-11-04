@@ -2,8 +2,10 @@
 // child out of his drill: the route of the screen he is on, and the last 20 places he visited (the trail), are kept in
 // localStorage, and a cold open rebuilds the browser's own history from them, so Back walks the trail as if he had never
 // left. Every history entry carries its place in the trail (history.state.i); the trail is kept up to the entry he is on.
-// A route that no longer exists is let go, and a reopen with nothing to go back to lands on the front door (Home).
-import { HOME_VIEW, TRANSIENT_VIEWS, viewAtRoute, type ViewId } from './worlds';
+// A route that no longer exists is let go, and a reopen with nothing to go back to lands on the fallback boot gives (the door, or
+// Home while the licence is known to be missing: landing.ts). Home is a place he can be and stays in the trail, but a cold open
+// never lands on it: it lands on the fallback with Home left under it, one Back away (mw-79en7t.84).
+import { HOME_VIEW, TRANSIENT_VIEWS, viewAtRoute, viewRoute, type ViewId } from './worlds';
 
 const ROUTE_KEY = 'sf-last-route';
 const TRAIL_KEY = 'sf-trail';
@@ -126,10 +128,10 @@ export function forgetTrail(): void {
 }
 
 /**
- * Called once at boot. Returns the screen to open on: the last one he was at, else `fallback` (Home). The browser's history is
- * rebuilt from the kept trail (a guard, then each place, the last one current) so Back walks it, past the oldest
- * landing on the guard, which stays on Home. A reload or a remount (the history is still there, numbered) only
- * re-learns where in the trail he is.
+ * Called once at boot. Returns the screen to open on: the last one he was at, else `fallback` (the door). When the last place
+ * was Home, the fallback is put on top of it (Home stays one Back away). The browser's history is rebuilt from the kept
+ * trail (a guard, then each place, the last one current) so Back walks it, past the oldest landing on the guard, which
+ * stays on Home. A reload or a remount (the history is still there, numbered) only re-learns where in the trail he is.
  */
 export function restoreLastRoute(fallback: ViewId = HOME_VIEW): ViewId {
   forgetTrail();
@@ -137,6 +139,11 @@ export function restoreLastRoute(fallback: ViewId = HOME_VIEW): ViewId {
   const legacy = readLastRoute();
   if (entries.length === 0 && legacy) entries = [legacy];
   if (entries.length === 0) return fallback;
+
+  // Home is never where a cold open lands: the fallback goes over it (with the fallback Home itself, nothing changes).
+  const cold = !(typeof entryState()?.i === 'number' && entryState()?.sfView !== GUARD);
+  const leftOnHome = viewAtRoute(entries[entries.length - 1])?.id === HOME_VIEW;
+  if (cold && leftOnHome && fallback !== HOME_VIEW && isKeptRoute(viewRoute(fallback))) entries.push(viewRoute(fallback));
 
   const here = entries[entries.length - 1];
   const view = viewAtRoute(here)!.id as ViewId;
@@ -156,5 +163,12 @@ export function restoreLastRoute(fallback: ViewId = HOME_VIEW): ViewId {
   trail = entries;
   base = 1;
   cursor = entries.length;
+  // Stored at once, so a remount before the shell notes the move (React's strict mode) finds the same trail.
+  persistTrail();
+  try {
+    store()?.setItem(ROUTE_KEY, entries[entries.length - 1]);
+  } catch {
+    // As in saveLastRoute.
+  }
   return view;
 }

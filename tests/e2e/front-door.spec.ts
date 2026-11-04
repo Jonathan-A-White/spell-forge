@@ -337,3 +337,55 @@ test('from Home the tutor is reached by its tile, and Back from there is as befo
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
 });
+
+/** A swipe away and a fresh open: a page of its own (no history, no page state) over the same phone storage. */
+async function reopenOnAFreshPage(page: Page): Promise<Page> {
+  const fresh = await page.context().newPage();
+  await page.close();
+  await noTapGuard(fresh);
+  await fresh.goto(APP_PATH);
+  return fresh;
+}
+
+test('an existing install last left on Home reopens on the door (mw-79en7t.84)', async ({ page }) => {
+  await firstScreenAfterSetup(page);
+  await expect(page.getByText('Hello! I am your tutor.')).toBeVisible();
+  // storage as an install from before the door has it: sf-last-route and the trail on Home, no sf-tutor
+  await page.evaluate(() => {
+    localStorage.removeItem('sf-tutor');
+    localStorage.setItem('sf-last-route', '/front-door/home');
+    localStorage.setItem('sf-trail', JSON.stringify(['/front-door/home']));
+  });
+
+  const reopened = await reopenOnAFreshPage(page);
+  await expect(reopened.getByText('Hello! I am your tutor.')).toBeVisible();
+  await expect(reopened.getByRole('button', { name: 'Hold to talk' })).toBeVisible();
+  await expect(reopened.getByRole('heading', { name: 'Hey, Rowan!' })).toHaveCount(0);
+  await shot(reopened, 'front-door-reopen-from-home');
+
+  // Home is one tap away, and Back from it is as it was
+  await reopened.getByRole('button', { name: 'Home' }).click();
+  await expect(reopened.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+});
+
+test('on the door, Home and then a swipe away: the next open is the door (mw-79en7t.84)', async ({ page }) => {
+  await firstScreenAfterSetup(page);
+  await page.getByRole('button', { name: 'Home' }).click();
+  await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+
+  const reopened = await reopenOnAFreshPage(page);
+  await expect(reopened.getByText('Hello! I am your tutor.')).toBeVisible();
+  await expect(reopened.getByRole('heading', { name: 'Hey, Rowan!' })).toHaveCount(0);
+});
+
+test('a swipe away inside a world resumes there, and Back from it passes through Home (mw-79en7t.84)', async ({ page }) => {
+  await firstScreenAfterSetup(page);
+  await page.getByRole('button', { name: 'Home' }).click();
+  await page.getByRole('button', { name: /My Words/ }).click();
+  await expect(page.getByRole('heading', { name: 'Word Lists' })).toBeVisible();
+
+  const reopened = await reopenOnAFreshPage(page);
+  await expect(reopened.getByRole('heading', { name: 'Word Lists' })).toBeVisible();
+  await reopened.goBack();
+  await expect(reopened.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+});
