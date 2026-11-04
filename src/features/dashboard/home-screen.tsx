@@ -214,7 +214,7 @@ export function HomeScreen({
             );
           })()}
 
-          {/* 2x2 navigation grid */}
+          {/* Navigation grid: two columns on a phone, four wide; Math and Tutor are tiles in it like the rest */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <NavCard
               title="Progress"
@@ -248,27 +248,26 @@ export function HomeScreen({
               accent="from-orange-500/20 to-amber-500/10"
               iconColor="text-orange-500"
             />
+            {/* Math — its own world, placed on first entry */}
+            <NavCard
+              title="Math"
+              subtitle="Numbers and problems"
+              icon={<MathsIcon />}
+              onClick={() => onNavigate('maths-home')}
+              accent="from-sky-500/20 to-blue-500/10"
+              iconColor="text-sky-500"
+            />
+
+            {/* Tutor — one tap from Home, for a child who left the front door */}
+            <NavCard
+              title="Tutor"
+              subtitle="Help with a problem"
+              icon={<TutorIcon />}
+              onClick={() => onNavigate('tutor')}
+              accent="from-indigo-500/20 to-sky-500/10"
+              iconColor="text-indigo-500"
+            />
           </div>
-
-          {/* Math — its own world, placed on first entry */}
-          <NavCard
-            title="Math"
-            subtitle="Numbers and problems"
-            icon={<MathsIcon />}
-            onClick={() => onNavigate('maths-home')}
-            accent="from-sky-500/20 to-blue-500/10"
-            iconColor="text-sky-500"
-          />
-
-          {/* Tutor — one tap from Home, for a child who left the front door */}
-          <NavCard
-            title="Tutor"
-            subtitle="Help with a problem"
-            icon={<TutorIcon />}
-            onClick={() => onNavigate('tutor')}
-            accent="from-indigo-500/20 to-sky-500/10"
-            iconColor="text-indigo-500"
-          />
 
           {/* My Words — combined word lists + add words */}
           <button
