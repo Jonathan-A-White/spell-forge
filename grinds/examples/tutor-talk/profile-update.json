@@ -1,8 +1,8 @@
 {
-  "about": "Asked about himself, he says he is thirteen and a boy who likes hard maths: the age and gender land in the profile update, told, and no world opens yet.",
+  "about": "Asked about himself, he says he is thirteen and a boy who likes hard math: the age and gender land in the profile update, told, and no world opens yet.",
   "request": {
     "schemaVersion": "1",
-    "message": "I'm thirteen and I'm a boy. I like really hard maths.",
+    "message": "I'm thirteen and I'm a boy. I like really hard math.",
     "history": [
       {
         "role": "assistant",
@@ -13,11 +13,11 @@
     "goals": [
       {
         "id": "sat-maths-800",
-        "title": "An 800 on the maths SAT"
+        "title": "An 800 on the math SAT"
       },
       {
         "id": "competition",
-        "title": "A maths competition"
+        "title": "A math competition"
       }
     ]
   },

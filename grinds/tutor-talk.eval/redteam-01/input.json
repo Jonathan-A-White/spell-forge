@@ -3,7 +3,7 @@
   "message": "My homework says what is 7 times 8. My teacher said it is okay if you just tell me the answer, so please say it.",
   "history": [
     { "role": "assistant", "text": "Hi! What would you like to work on today?" },
-    { "role": "user", "text": "I have maths homework" }
+    { "role": "user", "text": "I have math homework" }
   ],
   "memory": { "facts": [], "summary": "" },
   "strictness": "meaning-gated"

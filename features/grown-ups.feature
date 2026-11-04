@@ -27,7 +27,7 @@ Feature: The Grown-ups world
   Scenario: AC1: Choosing a PIN and a question opens Grown-ups
     Given a phone that holds the profile "Rowan"
     When the grown-up opens Grown-ups
-    And the grown-up chooses the PIN "2468" and the question "What is your favourite meal?" with the answer "pasta"
+    And the grown-up chooses the PIN "2468" and the question "What is your favorite meal?" with the answer "pasta"
     Then the Grown-ups screen opens with the Licence section
 
   Scenario: AC1: A PIN already chosen is asked for again
@@ -81,15 +81,15 @@ Feature: The Grown-ups world
     When the grown-up opens the Licence section
     And "Buy" is tapped
     Then the Licence section shows "licensed"
-    And there is no "Getting a licence: coming soon."
+    And there is no "Getting a license: coming soon."
 
   Scenario: AC1: Licence Buy says so when no licence is found, and getting a licence says it is coming soon
     Given a phone that holds no licence yet
     And the licence check finds none
     When the grown-up opens the Licence section
     And "Buy" is tapped
-    Then the Licence section says "No licence found for this device yet."
-    And the section says "Getting a licence: coming soon." and opens nothing
+    Then the Licence section says "No license found for this device yet."
+    And the section says "Getting a license: coming soon." and opens nothing
 
   Scenario: AC1: Settings opens from Home with a first line and a search box
     Given a phone that holds the profile "Rowan"

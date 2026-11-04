@@ -29,7 +29,7 @@ export interface Credit {
 export const NEWTON_QUOTE = 'If I have seen further it is by standing on the shoulders of Giants.';
 export const NEWTON_ATTRIBUTION = 'Isaac Newton, in a letter to Robert Hooke, 1675';
 export const WHY_WE_CREDIT =
-  'Kestrel stands on other people’s work, so we credit every text, tool, font and idea it is built on, whether or not the licence asks us to.';
+  'Kestrel stands on other people’s work, so we credit every text, tool, font and idea it is built on, whether or not the license asks us to.';
 
 export const CREDITS: readonly Credit[] = [
   // Libraries
@@ -119,7 +119,7 @@ export const CREDITS: readonly Credit[] = [
     name: 'BSV SDK',
     url: 'https://github.com/bsv-blockchain/ts-stack/tree/main/packages/sdk',
     packages: ['@bsv/sdk'],
-    use: 'Makes this device’s key and builds and signs the transactions that prove a licence.',
+    use: 'Makes this device’s key and builds and signs the transactions that prove a license.',
     licence: {
       name: 'Open BSV License',
       url: 'https://github.com/bsv-blockchain/ts-stack/blob/main/packages/sdk/LICENSE.txt',
@@ -230,7 +230,7 @@ export const CREDITS: readonly Credit[] = [
     url: 'https://feathericons.com',
     use: 'Several of the small line icons on the Settings screen follow Feather’s shapes.',
     licence: { name: 'MIT', url: 'https://github.com/feathericons/feather/blob/main/LICENSE' },
-    changes: 'Redrawn inline as SVG and recoloured with the theme.',
+    changes: 'Redrawn inline as SVG and recolored with the theme.',
   },
   // Texts, word lists and algorithms
   {
@@ -238,7 +238,7 @@ export const CREDITS: readonly Credit[] = [
     name: 'Fry Instant Words',
     url: 'https://en.wikipedia.org/wiki/Sight_word',
     use: 'Edward Fry’s list of the most common English words seeds the dictionary that corrects photo-import misreads.',
-    licence: { name: 'Published word list, no licence stated', url: 'https://en.wikipedia.org/wiki/Sight_word' },
+    licence: { name: 'Published word list, no license stated', url: 'https://en.wikipedia.org/wiki/Sight_word' },
     changes: 'Mixed with common K–8 spelling vocabulary and sorted alphabetically.',
   },
   {
@@ -246,7 +246,7 @@ export const CREDITS: readonly Credit[] = [
     name: 'SM-2 spaced repetition',
     url: 'https://super-memory.com/english/ol/sm2.htm',
     use: 'Piotr Woźniak’s SuperMemo algorithm decides when a word comes back for review.',
-    licence: { name: 'Published algorithm, no licence stated', url: 'https://super-memory.com/english/ol/sm2.htm' },
+    licence: { name: 'Published algorithm, no license stated', url: 'https://super-memory.com/english/ol/sm2.htm' },
     changes: 'Adapted for children: gentler intervals and word buckets (new, learning, familiar, mastered, review).',
   },
   // Outside services and platform features
@@ -262,7 +262,7 @@ export const CREDITS: readonly Credit[] = [
     kind: 'service',
     name: 'WhatsOnChain',
     url: 'https://whatsonchain.com',
-    use: 'Looks up and broadcasts BSV transactions for the licence and record features.',
+    use: 'Looks up and broadcasts BSV transactions for the license and record features.',
     licence: { name: 'WhatsOnChain API terms', url: 'https://docs.whatsonchain.com' },
     changes: 'None; we call the public API.',
   },

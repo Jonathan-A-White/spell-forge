@@ -5,7 +5,7 @@
 // screen sits inside the window with nothing to scroll sideways.
 //
 // The app is served with `vite` (dev) on a port of its own, because the walk imports the spelling graph's node ids. The app opens on the tutor's door (left by its Home
-// button). Getting a licence opens nothing: the spec counts the pages the context opens.
+// button). Getting a license opens nothing: the spec counts the pages the context opens.
 //
 // Run: npx playwright test grown-ups (the chromium project; the port is this worktree's own, plus four, or SF_E2E_PORT).
 import { expect, test, type Page } from '@playwright/test';
@@ -148,16 +148,18 @@ test('Who is learning, the PIN gate, Licence, Settings, at 390x844', async ({ pa
   const spelling = page.getByRole('region', { name: 'Spelling' });
   await expect(spelling.getByTestId('solid-count')).toContainText('12 skills');
   await expect(spelling.getByText('Working on next:')).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Maths' }).getByTestId('no-data')).toHaveText('Nothing to show for maths yet.');
+  await expect(page.getByRole('region', { name: 'Math' }).getByTestId('no-data')).toHaveText('Nothing to show for math yet.');
+  // mw-79en7t.83: nothing on the Grown-ups screen says "maths"
+  await expect(page.locator('body')).not.toContainText(/maths/i);
   await fitsThePhone(page);
   await shot(page, 'grown-ups-how-is-it-going');
 
-  const licence = page.getByRole('region', { name: 'Licence' });
+  const licence = page.getByRole('region', { name: 'License' });
   await licence.scrollIntoViewIfNeeded();
-  await expect(licence.getByText('The tutor needs a licence. Everything else works without one.')).toBeVisible();
+  await expect(licence.getByText('The tutor needs a license. Everything else works without one.')).toBeVisible();
   await licence.getByRole('button', { name: 'Buy' }).click();
   await expect(licence.getByRole('status')).toHaveText("This device has no key yet. Make one under This device's key first.");
-  const getLicence = licence.getByText('Getting a licence: coming soon.');
+  const getLicence = licence.getByText('Getting a license: coming soon.');
   await expect(getLicence).toBeVisible();
   await fitsThePhone(page);
   await shot(page, 'grown-ups-licence');

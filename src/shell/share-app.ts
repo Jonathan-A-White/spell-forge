@@ -5,7 +5,7 @@ import { appLink, shareOut, type ShareOutResult } from '../share/share-out';
 export function shareApp(): Promise<ShareOutResult> {
   return shareOut({
     title: 'Kestrel',
-    text: 'Try Kestrel, an app that helps children practise spelling.',
+    text: 'Try Kestrel, an app that helps children practice spelling.',
     url: appLink(),
   });
 }

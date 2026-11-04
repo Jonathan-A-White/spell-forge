@@ -140,7 +140,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
   });
 
-  Scenario('AC1: Getting a licence says it is coming soon where there is no licence', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a license says it is coming soon where there is no licence', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     And('the phone holds no licence', () => setLicenceStatus({ state: 'none', checkedAt: CHECKED_AT }));
     When('SpellForge opens', renderApp);
@@ -156,7 +156,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
   });
 
-  Scenario('AC1: Getting a licence is not shown in Spelling', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a license is not shown in Spelling', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     And('the phone holds no licence', () => setLicenceStatus({ state: 'none', checkedAt: CHECKED_AT }));
     When('SpellForge opens', renderApp);
@@ -169,7 +169,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
   });
 
-  Scenario('AC1: Getting a licence is not shown with a licence', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a license is not shown with a licence', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     And('the phone holds a licence', () =>
       setLicenceStatus({ state: 'held', outpoint: { txid: 'ab', vout: 0 }, collection: 'spell-forge', checkedAt: CHECKED_AT }),
@@ -184,7 +184,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
     });
   });
 
-  Scenario('AC1: Getting a licence is not shown before the licence is known', ({ Given, When, And, Then }) => {
+  Scenario('AC1: Getting a license is not shown before the licence is known', ({ Given, When, And, Then }) => {
     Given('a phone that holds the profile {string}', holdProfile);
     When('SpellForge opens', renderApp);
     And('the tutor says go to {string}', async (_ctx, id: string) => {

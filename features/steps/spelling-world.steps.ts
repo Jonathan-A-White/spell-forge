@@ -302,7 +302,7 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
   Scenario('AC4: A round missed and then spelt right again is no proof, the pattern is solid only on words he has not met', ({ Given, When, Then }) => {
     Given('a Spelling world on a pattern of 7 words that needs 3 right out of 4, past its placement', onFivePattern);
     When('the child finishes the round with 1 word right', () => finishRound(1));
-    Then('Spelling says "You spelt 1 of 3 right"', () => statusSays('You spelt 1 of 3 right'));
+    Then('Spelling says "You spelled 1 of 3 right"', () => statusSays('You spelled 1 of 3 right'));
     When('"Next" is tapped', nextRound);
     Then('the next round has 2 words the child has not met and 1 he has', async () => {
       const words = await roundWords();

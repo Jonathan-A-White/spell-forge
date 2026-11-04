@@ -1,4 +1,4 @@
-// "Get a licence" (mw-79en7t.85): the store at store.allmymind.org does not exist (NXDOMAIN), so until the store is decided
+// "Get a license" (mw-79en7t.85): the store at store.allmymind.org does not exist (NXDOMAIN), so until the store is decided
 // (mw-6ww.111) the Grown-ups world says plainly that getting a licence is coming soon, and opens nothing.
 import { createElement, type ComponentType } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -19,7 +19,7 @@ const worlds: WorldScreens = {
 };
 const CHECKED_AT = '2026-10-24T10:00:00Z';
 const NONE: licence.LicenceStatus = { state: 'none', checkedAt: CHECKED_AT };
-const COMING_SOON = 'Getting a licence: coming soon.';
+const COMING_SOON = 'Getting a license: coming soon.';
 
 afterEach(() => {
   cleanup();
@@ -32,7 +32,7 @@ function noLinkToAStore(container: HTMLElement) {
   expect(container.querySelectorAll('a[target="_blank"]')).toHaveLength(0);
 }
 
-describe('Get a licence', () => {
+describe('Get a license', () => {
   it('says the line is coming soon, in Lampas\'s words', () => {
     expect(LICENCE_SOON).toBe(COMING_SOON);
   });

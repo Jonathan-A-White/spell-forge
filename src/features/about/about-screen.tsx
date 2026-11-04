@@ -81,7 +81,7 @@ export function AboutScreen({ onBack, fetchFn, registration }: AboutScreenProps)
                 </p>
                 <p className="text-sm text-sf-text mt-1">{credit.use}</p>
                 <p className="text-xs text-sf-muted mt-1">
-                  Licence: <ExternalLink href={credit.licence.url}>{credit.licence.name}</ExternalLink>
+                  License: <ExternalLink href={credit.licence.url}>{credit.licence.name}</ExternalLink>
                 </p>
                 <p className="text-xs text-sf-muted mt-1">
                   <span className="font-bold">Changes:</span> {credit.changes}

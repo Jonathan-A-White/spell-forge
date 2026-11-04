@@ -207,7 +207,7 @@ describe('the door on Pick a question', () => {
     // the select opens on the first question, which is not yet a choice
     expect(first.form.fields.map((f) => f.value)).toEqual(['', '', '']);
 
-    await say('the favourite meal one');
+    await say('the favorite meal one');
     await waitFor(() => expect((screen.getByLabelText('Question') as HTMLSelectElement).value).toBe(QUESTIONS[2]));
     await say('pasta');
     await waitFor(() => expect((screen.getByLabelText('Your answer') as HTMLInputElement).value).toBe('Pasta'));

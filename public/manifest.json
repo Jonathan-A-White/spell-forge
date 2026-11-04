@@ -1,7 +1,7 @@
 {
   "name": "Kestrel",
   "short_name": "Kestrel",
-  "description": "A tutor for your child: spelling and maths, one small step at a time",
+  "description": "A tutor for your child: spelling and math, one small step at a time",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

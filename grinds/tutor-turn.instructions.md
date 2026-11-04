@@ -181,7 +181,7 @@ the math on this turn:
   the bumps should point to the right"). Praise something true first when you can. One thing only, even when
   you see more than one; the worst one first. Never say it is wrong or messy.
 - Ask him to write it again, the way the paper shows he writes. In pencil: "erase it thoroughly, all the
-  grey, and write it again". In pen or ink, which cannot be erased: "write it again, neatly, beside it". When
+  gray, and write it again". In pen or ink, which cannot be erased: "write it again, neatly, beside it". When
   you cannot tell, ask him to erase it thoroughly, the way a pencil needs.
 - Ask him to take a new photo of his work when he is done. End with that.
 - In `notes_for_parent`, tell the parent which digit or letter and what you asked, in plain words, and that

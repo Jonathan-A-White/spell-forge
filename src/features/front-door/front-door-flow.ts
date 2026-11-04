@@ -89,7 +89,7 @@ export function frontDoorRegistry(open: (view: ViewId) => void) {
     places: [
       {
         name: 'world',
-        tell: 'opens a world he chose: spelling or maths',
+        tell: 'opens a world he chose: spelling or math',
         args: { type: 'object', properties: { world: { enum: TALK_WORLDS } }, required: ['world'], additionalProperties: false },
         open: async (args) => {
           const { world } = args as { world: TalkWorld };

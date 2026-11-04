@@ -419,10 +419,10 @@ const high: MathsNode[] = [
       const r = 3 + ((i * 2) % 8);
       const equation = `(x ${plus(-h)})${sup(2)} + (y ${plus(-k)})${sup(2)} = ${r * r}`;
       const mode = i % 3;
-      const hint = 'The brackets show the centre with the opposite sign. The number on the right is the radius squared.';
+      const hint = 'The brackets show the center with the opposite sign. The number on the right is the radius squared.';
       if (mode === 0) return [`A circle has the equation ${equation}. What is its radius?`, String(r), hint];
-      if (mode === 1) return [`A circle has the equation ${equation}. What is the x-coordinate of its centre?`, String(h), hint];
-      return [`A circle has the equation ${equation}. What is the y-coordinate of its centre?`, String(k), hint];
+      if (mode === 1) return [`A circle has the equation ${equation}. What is the x-coordinate of its center?`, String(h), hint];
+      return [`A circle has the equation ${equation}. What is the y-coordinate of its center?`, String(k), hint];
     },
   }),
   mathsNode({
@@ -533,7 +533,7 @@ const contest: MathsNode[] = [
         ? [
             `How many diagonals does ${aOrAn(name)} have?`,
             String((sides * (sides - 3)) / 2),
-            'Each corner joins by a diagonal to every other corner except itself and its neighbours. Count that for each corner, then halve, since each diagonal is counted from both of its ends.',
+            'Each corner joins by a diagonal to every other corner except itself and its neighbors. Count that for each corner, then halve, since each diagonal is counted from both of its ends.',
           ]
         : [
             `How big, in degrees, is each angle of a regular ${name}?`,

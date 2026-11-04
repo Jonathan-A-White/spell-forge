@@ -142,7 +142,7 @@ describe('the front door sends to the tutor-talk grind (mw-79en7t.67)', () => {
     const cases: [unknown, RegExp][] = [
       [new door.BackendUnreachableError('offline'), /cannot be reached/],
       [new UploadTimeoutError(new door.ApiTimeoutError(true)), /took too long/],
-      [new door.RefusedError(door.LICENCE_REQUIRED, 401), /no licence/],
+      [new door.RefusedError(door.LICENCE_REQUIRED, 401), /no license/],
     ];
     for (const [error, words] of cases) {
       const { send } = deps({ sendGrist: vi.fn(async () => { throw error; }) });

@@ -16,7 +16,7 @@ export { argsOf };
 export const QUESTIONS = [
   'What is the name of your first pet?',
   'What street did you grow up on?',
-  'What is your favourite meal?',
+  'What is your favorite meal?',
   'What was your first school called?',
 ] as const;
 /** The last option of Question: he writes the question himself in Write your question. */

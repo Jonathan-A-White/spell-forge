@@ -100,7 +100,7 @@ export function HowIsItGoing({ spelling, maths, inside }: HowIsItGoingDrawProps)
         </>
       )}
       <WorldSection title="Spelling" graph={spellingGraph} progress={spelling} />
-      <WorldSection title="Maths" graph={mathsGraph} progress={maths} />
+      <WorldSection title="Math" graph={mathsGraph} progress={maths} />
     </div>
   );
 }

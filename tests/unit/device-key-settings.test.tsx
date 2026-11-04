@@ -66,7 +66,7 @@ describe("Settings: This device's key (debug mode off)", () => {
     render(<SettingsPanel {...baseProps} />);
 
     expect(await screen.findByRole('heading', { name: "This device's key" })).toBeInTheDocument();
-    expect(screen.getByText('Give this to whoever issues your licence')).toBeInTheDocument();
+    expect(screen.getByText('Give this to whoever issues your license')).toBeInTheDocument();
     const shown = await screen.findByTestId('bsv-device-public-key');
     expect(shown.textContent).toBe(publicKeyHex);
     expect(shown.textContent).toMatch(/^0[23][0-9a-f]{64}$/);

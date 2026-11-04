@@ -7,7 +7,7 @@ Feature: The children's worlds look and move well at phone width
   Scenario: AC1: With no licence the door offers the worlds as big illustrated cards
     Given the phone has no licence
     When the front door opens
-    Then "Spelling" and "Maths" are each a card with a picture, over the scene
+    Then "Spelling" and "Math" are each a card with a picture, over the scene
 
   Scenario: AC2: A Maths question is a card that enters
     Given a Maths world with its first question

@@ -16,7 +16,7 @@ Feature: The Spelling world
     When SpellForge opens
     And the tutor says go to "spelling-home"
     And the child taps the wrong spelling
-    Then Spelling says "It is spelt"
+    Then Spelling says "It is spelled"
     And there is a "Next" button
 
   Scenario: AC1: After the placement a drill plays with the pattern's picture beside it
@@ -49,7 +49,7 @@ Feature: The Spelling world
   Scenario: AC4: A round missed and then spelt right again is no proof, the pattern is solid only on words he has not met
     Given a Spelling world on a pattern of 7 words that needs 3 right out of 4, past its placement
     When the child finishes the round with 1 word right
-    Then Spelling says "You spelt 1 of 3 right"
+    Then Spelling says "You spelled 1 of 3 right"
     When "Next" is tapped
     Then the next round has 2 words the child has not met and 1 he has
     When the child finishes the round with all 3 words right

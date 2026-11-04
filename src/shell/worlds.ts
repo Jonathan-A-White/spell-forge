@@ -13,7 +13,7 @@ export interface World {
 export const WORLDS: readonly World[] = [
   { id: 'front-door', title: 'Front door' },
   { id: 'spelling', title: 'Spelling' },
-  { id: 'maths', title: 'Maths' },
+  { id: 'maths', title: 'Math' },
   { id: 'grown-ups', title: 'Grown-ups' },
 ];
 

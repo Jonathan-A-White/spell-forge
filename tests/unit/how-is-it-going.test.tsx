@@ -29,7 +29,7 @@ describe('How is it going', () => {
     const percent = Math.round(goalProgress(SAT_MATHS_800, mathsGraph, solid) * 100);
     render(<HowIsItGoing maths={{ solid, goal: SAT_MATHS_800, drillsLastWeek: 0 }} />);
 
-    const section = within(screen.getByRole('region', { name: 'Maths' }));
+    const section = within(screen.getByRole('region', { name: 'Math' }));
     expect(section.getByText(SAT_MATHS_800.title, { exact: false })).toBeTruthy();
     expect(section.getByTestId('goal-progress').textContent).toContain(`${percent}%`);
     expect(section.getByTestId('last-week').textContent).toMatch(/no drills/i);
@@ -42,8 +42,8 @@ describe('How is it going', () => {
     expect(within(spelling).getByTestId('no-data').textContent).toBe('Nothing to show for spelling yet.');
     expect(within(spelling).queryByTestId('solid-count')).toBeNull();
     // a world the caller gave nothing for is the same
-    const maths = screen.getByRole('region', { name: 'Maths' });
-    expect(within(maths).getByTestId('no-data').textContent).toBe('Nothing to show for maths yet.');
+    const maths = screen.getByRole('region', { name: 'Math' });
+    expect(within(maths).getByTestId('no-data').textContent).toBe('Nothing to show for math yet.');
   });
 
   it('ignores solid ids that are no node of the graph', () => {

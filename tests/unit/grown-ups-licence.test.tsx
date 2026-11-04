@@ -43,7 +43,7 @@ describe('Buy', () => {
   it('with no licence found, says so plainly, stays Buy, and the licence state is unlicensed', async () => {
     render(<Licence getKey={getKey} check={async () => none} />);
     fireEvent.click(screen.getByRole('button', { name: 'Buy' }));
-    expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringMatching(/no licence/i));
+    expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringMatching(/no license/i));
     expect(screen.getByRole('button', { name: 'Buy' })).toBeTruthy();
     expect(licenceState()).toBe('unlicensed');
   });
@@ -64,7 +64,7 @@ describe('Buy', () => {
   });
 });
 
-describe('Getting a licence', () => {
+describe('Getting a license', () => {
   it('says it is coming soon beside Buy, and opens nothing', () => {
     render(<Licence getKey={getKey} check={async () => none} />);
     expect(screen.getByText(LICENCE_SOON)).toBeTruthy();

@@ -8,7 +8,7 @@
   ],
   "properties": {
     "words": {
-      "description": "The words to practise, in reading order, one entry per word or short phrase as written. Empty when nothing is readable.",
+      "description": "The words to practice, in reading order, one entry per word or short phrase as written. Empty when nothing is readable.",
       "type": "array",
       "maxItems": 200,
       "items": {
@@ -43,7 +43,7 @@
             "minLength": 1
           },
           "node": {
-            "description": "The `id` of the one node in the request's `nodes` that this word practises. Leave it out when none of them fits.",
+            "description": "The `id` of the one node in the request's `nodes` that this word practices. Leave it out when none of them fits.",
             "type": "string",
             "minLength": 1
           }

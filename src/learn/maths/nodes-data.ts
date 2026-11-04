@@ -87,9 +87,9 @@ const early: MathsNode[] = [
       const [first, second, third] = cycle(
         [
           ['shirts', 'pairs of trousers', 'hats'],
-          ['flavours of ice cream', 'kinds of cone', 'kinds of sprinkles'],
+          ['flavors of ice cream', 'kinds of cone', 'kinds of sprinkles'],
           ['starters', 'main dishes', 'desserts'],
-          ['colours of paint', 'sizes of brush', 'kinds of paper'],
+          ['colors of paint', 'sizes of brush', 'kinds of paper'],
           ['bus routes', 'train routes', 'ferry routes'],
         ] as const,
         i,
@@ -398,14 +398,14 @@ const contest: MathsNode[] = [
       const colours = 3 + ((i * 2) % 6);
       if (i % 2 === 0) {
         return [
-          `A drawer holds plenty of socks in ${colours} colours. You pull socks out in the dark. What is the fewest you must pull to be sure of a matching pair?`,
+          `A drawer holds plenty of socks in ${colours} colors. You pull socks out in the dark. What is the fewest you must pull to be sure of a matching pair?`,
           String(colours + 1),
           'Imagine the worst luck: take as many as you can without success, and the very next pull must work.',
         ];
       }
       const want = 3 + (i % 3);
       return [
-        `A drawer holds plenty of socks in ${colours} colours. You pull socks out in the dark. What is the fewest you must pull to be sure of ${want} socks of the same colour?`,
+        `A drawer holds plenty of socks in ${colours} colors. You pull socks out in the dark. What is the fewest you must pull to be sure of ${want} socks of the same color?`,
         String(colours * (want - 1) + 1),
         'Imagine the worst luck: take as many as you can without success, and the very next pull must work.',
       ];

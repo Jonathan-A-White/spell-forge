@@ -8,7 +8,7 @@ Feature: The Maths world
     Given a phone that holds the profile "Rowan"
     When SpellForge opens
     And the tutor says go to "maths-home"
-    Then the screen "Maths" is shown
+    Then the screen "Math" is shown
     And Maths says "Let's see what you know"
     And there is a problem with a box for the answer and a "Not sure" button
 

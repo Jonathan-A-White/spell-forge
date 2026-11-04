@@ -8,7 +8,7 @@ export interface ScreenReport {
   facts: string[];
 }
 
-export const MATHS_SCREEN_NAME = 'Maths';
+export const MATHS_SCREEN_NAME = 'Math';
 
 /** How often a world with nothing to ask looks again for a review that has come due. */
 export const IDLE_LOOK_MS = 60_000;

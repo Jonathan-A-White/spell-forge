@@ -87,7 +87,7 @@ describe('Scenario: a Tutor turn goes out through bsv-kit and its answer lands o
     const noLicence = factoryFor(key);
     noLicence.failPost = { status: 401, error: 'no licence' };
     const first = await sendProblem({ profileId: 'p1', strictness: 'meaning-gated', source: { kind: 'text', text: 'Spell cat.' } }, { getKey, fetchImpl: noLicence.fetch });
-    expect((await tutorRepo.listTurns(first.id))[0]).toMatchObject({ status: 'failed', failureReason: 'This device holds no licence to use the factory.' });
+    expect((await tutorRepo.listTurns(first.id))[0]).toMatchObject({ status: 'failed', failureReason: 'This device holds no license to use the factory.' });
 
     const down = factoryFor(key);
     down.failPost = { status: 503, error: 'standby' };

@@ -109,7 +109,7 @@ describe('the front door without a licence (AC3)', () => {
     expect(screen.queryByRole('button', { name: 'Hold to talk' })).toBeNull();
     const spelling = screen.getByRole('button', { name: 'Spelling' });
     expect(spelling.querySelector('svg, img, [role="img"]')).not.toBeNull();
-    expect(screen.getByRole('button', { name: /Maths/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Math/ })).toBeInTheDocument();
     expect(flow.start).not.toHaveBeenCalled();
     expect(speech.log).toEqual([]);
 

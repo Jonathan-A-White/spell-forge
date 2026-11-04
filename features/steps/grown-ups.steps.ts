@@ -96,7 +96,7 @@ const typePin = (digits: string): void => {
 };
 
 const choosePin = async (_ctx: unknown, pin: string): Promise<void> => {
-  await setParentPin(pin, 'What is your favourite meal?', 'pasta');
+  await setParentPin(pin, 'What is your favorite meal?', 'pasta');
 };
 
 const opensGrownUps = async (): Promise<void> => {
@@ -111,7 +111,7 @@ const typesPin = async (_ctx: unknown, pin: string): Promise<void> => {
 
 const grownUpsOpen = async (): Promise<void> => {
   expect(await screen.findByRole('heading', { name: 'Grown-ups' })).toBeInTheDocument();
-  expect(await screen.findByRole('heading', { name: 'Licence' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'License' })).toBeInTheDocument();
 };
 
 // --- the Licence section ---
@@ -228,8 +228,8 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
       expect(section.getByTestId('last-week').textContent).toContain(`${Number(drills)} drills`);
     });
     And('the Maths section says there is nothing to show yet', () => {
-      const section = within(screen.getByRole('region', { name: 'Maths' }));
-      expect(section.getByTestId('no-data').textContent).toMatch(/nothing to show for maths yet/i);
+      const section = within(screen.getByRole('region', { name: 'Math' }));
+      expect(section.getByTestId('no-data').textContent).toMatch(/nothing to show for math yet/i);
     });
   });
 
@@ -253,8 +253,8 @@ describeFeature(feature, ({ Scenario, BeforeEachScenario }) => {
       expect(section.queryByTestId('last-week')).toBeNull();
     });
     And('its Maths section says there is nothing to show yet', () => {
-      const section = within(screen.getByRole('region', { name: 'Maths' }));
-      expect(section.getByTestId('no-data').textContent).toMatch(/nothing to show for maths yet/i);
+      const section = within(screen.getByRole('region', { name: 'Math' }));
+      expect(section.getByTestId('no-data').textContent).toMatch(/nothing to show for math yet/i);
     });
   });
 

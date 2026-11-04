@@ -40,7 +40,7 @@ const type = (value: string) => fireEvent.change(screen.getByLabelText('Your ans
 describe('MathsWorld', () => {
   it("shows the placement's first question with a way to answer it", async () => {
     await renderWorld();
-    expect(await screen.findByRole('heading', { name: 'Maths' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Math' })).toBeInTheDocument();
     const q = (await flow.question())!;
     expect(await screen.findByText(q.item.problem)).toBeInTheDocument();
     expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe('MathsWorld', () => {
     const q = (await flow.question())!;
     await screen.findByText(q.item.problem);
     const report = reports[reports.length - 1];
-    expect(report.name).toBe('Maths');
+    expect(report.name).toBe('Math');
     expect(report.facts.join('\n')).toContain(q.nodeName);
     expect(report.facts.join('\n')).toContain(q.item.problem);
     expect(report.facts.join('\n')).not.toContain(`answer: ${q.item.answer}`);
