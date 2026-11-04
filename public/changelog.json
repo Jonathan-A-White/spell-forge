@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.2.7",
+    "date": "2026-11-04",
+    "story": "mw-79en7t.83",
+    "kind": "new",
+    "text": "Kestrel now says math, and uses American spelling in everything it shows and speaks."
+  },
+  {
     "version": "0.2.6",
     "date": "2026-11-03",
     "story": "mw-79en7t.85",
