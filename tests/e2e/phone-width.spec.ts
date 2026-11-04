@@ -64,3 +64,45 @@ test('a button is native-feel and the hover washes on Home let a tap through (mw
   await expect(page.getByRole('heading', { name: 'Word Lists' })).toBeVisible();
   await shot(page, 'native-feel-home-tap');
 });
+
+// mw-79en7t.86: Home's Math and Tutor tiles sat outside the tile grid, so they ran together, out of line, short of the right edge.
+// A layout claim is proven on the rendered boxes: the six tiles share two columns of one width, a gap apart.
+for (const width of [390, 360]) {
+  test(`Home's tiles line up in two columns at ${width} wide (mw-79en7t.86)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await noTapGuard(page);
+    await page.goto('/spell-forge/');
+    await expect(page.getByRole('heading', { name: 'Welcome to Kestrel!' })).toBeVisible();
+    await page.getByPlaceholder('Enter your name').fill('Rowan');
+    await page.getByRole('button', { name: 'Next' }).click();
+    await page.getByRole('button', { name: 'Start Forging!' }).click();
+    await leaveTheDoor(page);
+    await expect(page.getByRole('heading', { name: 'Hey, Rowan!' })).toBeVisible();
+
+    const box = async (name: string) => {
+      const found = await page.getByRole('button', { name: new RegExp(`^${name}`) }).first().boundingBox();
+      expect(found, name).not.toBeNull();
+      return found!;
+    };
+    const [progress, learn, games, quiz, math, tutor] = [
+      await box('Progress'), await box('Learn'), await box('Games'), await box('Quiz'), await box('Math'), await box('Tutor'),
+    ];
+    const near = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThanOrEqual(1);
+
+    const gap = learn.x - (progress.x + progress.width);
+    expect(gap).toBeGreaterThan(0);
+    // the first row: two columns of one width
+    near(progress.width, learn.width);
+    // Math is the left column, Tutor the right: the same widths and edges as Progress/Games and Learn/Quiz above
+    near(math.x, games.x);
+    near(math.width, games.width);
+    near(tutor.x, quiz.x);
+    near(tutor.width, quiz.width);
+    near(tutor.x - (math.x + math.width), gap);
+    near(tutor.x + tutor.width, quiz.x + quiz.width);
+    near(math.y, tutor.y);
+    // a row's gap below the row above
+    near(math.y - (games.y + games.height), gap);
+    await shot(page, `home-tiles-${width}`);
+  });
+}
