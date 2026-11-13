@@ -10,6 +10,7 @@ import {
   type WorkerLike,
 } from 'pwa-kit/app-update';
 import { APP_VERSION } from '../../src/version';
+import type { ChangelogEntry, ReadChangelog } from 'pwa-kit/whats-new';
 import { UpdateBanner, startUpdates, updateBarShownOn } from '../../src/features/update';
 
 const startSpy = vi.hoisted(() => vi.fn());
@@ -77,6 +78,14 @@ class FakeRegistration implements UpdateRegistration {
   }
 }
 
+// A changelog line after the running version, and one at it: the first is news for this build, the second is not.
+const line = (version: string): ChangelogEntry => ({ version, date: '2026-11-13', story: 'mw-x', kind: 'fixed', text: 'A fix.' });
+const [major, minor, patch] = APP_VERSION.split('.').map(Number);
+const AFTER = `${major}.${minor}.${patch + 1}`;
+const withNews: ReadChangelog = async () => [line(AFTER), line(APP_VERSION)];
+const withoutNews: ReadChangelog = async () => [line(APP_VERSION)];
+const settle = () => act(async () => {});
+
 let container: FakeContainer;
 let registration: FakeRegistration;
 let reload: Mock<() => void>;
@@ -96,24 +105,26 @@ afterEach(() => {
 
 describe('startUpdates', () => {
   it("starts startAppUpdates with the app's version and the browser's registration", () => {
-    ({ stop } = startUpdates(registration, { container, reload }));
+    ({ stop } = startUpdates(registration, { container, reload, read: withNews }));
     expect(startSpy).toHaveBeenCalledTimes(1);
     const [deps, options] = startSpy.mock.calls[0];
     expect(deps).toEqual({ container, registration, reload });
-    expect(options).toMatchObject({ version: APP_VERSION });
+    expect(options).toMatchObject({ version: APP_VERSION, hasNewsSince: expect.any(Function) });
   });
 
-  it("goes 'none' -> 'ready' when the registration finds a waiting worker", () => {
-    ({ stop } = startUpdates(registration, { container, reload }));
+  it("goes 'none' -> 'ready' when the registration finds a waiting worker", async () => {
+    ({ stop } = startUpdates(registration, { container, reload, read: withNews }));
     expect(getUpdateState()).toBe('none');
     act(() => registration.install(new FakeWorker()));
+    await settle();
     expect(getUpdateState()).toBe('ready');
   });
 
-  it('applyUpdate asks the waiting worker to skip waiting, then reloads when it has taken over', () => {
+  it('applyUpdate asks the waiting worker to skip waiting, then reloads when it has taken over', async () => {
     const worker = new FakeWorker();
     registration.waiting = worker;
-    ({ stop } = startUpdates(registration, { container, reload }));
+    ({ stop } = startUpdates(registration, { container, reload, read: withNews }));
+    await settle();
     expect(getUpdateState()).toBe('ready');
     act(() => applyUpdate());
     expect(worker.messages).toEqual([{ type: 'SKIP_WAITING' }]);
@@ -126,25 +137,72 @@ describe('startUpdates', () => {
   it('offers no first install: with no controller the worker has nothing to wait behind', () => {
     container.controller = null;
     registration.waiting = new FakeWorker();
-    ({ stop } = startUpdates(registration, { container, reload }));
+    ({ stop } = startUpdates(registration, { container, reload, read: withNews }));
     expect(getUpdateState()).toBe('none');
   });
 });
 
-describe('UpdateBanner', () => {
-  const waitingBuild = () => {
-    registration.waiting = new FakeWorker();
-    ({ stop } = startUpdates(registration, { container, reload }));
-  };
-
-  it("renders nothing in the 'none' state", () => {
-    ({ stop } = startUpdates(registration, { container, reload }));
+// The judge is pwa-kit/whats-new's hasNewsSince over the waiting build's changelog (mw-6ww.175.47).
+describe('startUpdates: a build with no news', () => {
+  it('raises no banner and is taken quietly when the changelog has no line after the running version', async () => {
+    const worker = new FakeWorker();
+    registration.waiting = worker;
+    ({ stop } = startUpdates(registration, { container, reload, read: withoutNews }));
+    await settle();
+    expect(getUpdateState()).toBe('none');
+    expect(worker.messages).toEqual([{ type: 'SKIP_WAITING' }]);
     const { container: out } = render(<UpdateBanner view="home" />);
     expect(out).toBeEmptyDOMElement();
   });
 
-  it("renders in the 'ready' state, with Update now that applies the update", () => {
-    waitingBuild();
+  it('raises the banner and waits for the tap when the changelog has a line after the running version', async () => {
+    const worker = new FakeWorker();
+    registration.waiting = worker;
+    ({ stop } = startUpdates(registration, { container, reload, read: withNews }));
+    await settle();
+    expect(getUpdateState()).toBe('ready');
+    expect(worker.messages).toEqual([]);
+  });
+
+  it('offers the build, and takes nothing quietly, when the changelog cannot be read', async () => {
+    const worker = new FakeWorker();
+    registration.waiting = worker;
+    ({ stop } = startUpdates(registration, { container, reload, read: async () => null }));
+    await settle();
+    expect(getUpdateState()).toBe('ready');
+    expect(worker.messages).toEqual([]);
+  });
+
+  it("reads the changelog from the page's base when no reader is given", async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify([line(APP_VERSION)])));
+    vi.stubGlobal('fetch', fetchSpy);
+    try {
+      registration.waiting = new FakeWorker();
+      ({ stop } = startUpdates(registration, { container, reload }));
+      await settle();
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringMatching(/changelog\.json$/), { cache: 'no-store' });
+      expect(getUpdateState()).toBe('none');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('UpdateBanner', () => {
+  const waitingBuild = async () => {
+    registration.waiting = new FakeWorker();
+    ({ stop } = startUpdates(registration, { container, reload, read: withNews }));
+    await settle();
+  };
+
+  it("renders nothing in the 'none' state", () => {
+    ({ stop } = startUpdates(registration, { container, reload, read: withNews }));
+    const { container: out } = render(<UpdateBanner view="home" />);
+    expect(out).toBeEmptyDOMElement();
+  });
+
+  it("renders in the 'ready' state, with Update now that applies the update", async () => {
+    await waitingBuild();
     render(<UpdateBanner view="home" />);
     expect(screen.getByRole('status')).toHaveTextContent(/new version of Kestrel/i);
     fireEvent.click(screen.getByRole('button', { name: 'Update now' }));
@@ -152,8 +210,8 @@ describe('UpdateBanner', () => {
     expect(screen.getByRole('button', { name: 'Updating…' })).toBeDisabled();
   });
 
-  it('is dismissible', () => {
-    waitingBuild();
+  it('is dismissible', async () => {
+    await waitingBuild();
     render(<UpdateBanner view="home" />);
     fireEvent.click(screen.getByRole('button', { name: 'Later' }));
     expect(screen.queryByRole('status')).toBeNull();
@@ -162,8 +220,8 @@ describe('UpdateBanner', () => {
   // jsdom has no layout, so elementFromPoint cannot say what covers what. The assertion is on layout
   // instead: the bar is a plain block in the document flow (never fixed, absolute or sticky, no z-index), so it
   // takes its own room above the screen and covers none of it; and it is not mounted at all on a child's screens.
-  it('is a block in the flow, not an overlay', () => {
-    waitingBuild();
+  it('is a block in the flow, not an overlay', async () => {
+    await waitingBuild();
     render(<UpdateBanner view="home" />);
     const bar = screen.getByRole('status');
     expect(bar.className).not.toMatch(/\b(fixed|absolute|sticky|z-\d+)\b/);
@@ -171,16 +229,16 @@ describe('UpdateBanner', () => {
 
   it.each(['tutor', 'practice', 'practice-games', 'quiz', 'learning', 'record-test-results', 'qr-import', 'loading', 'onboarding'])(
     'is not mounted on %s, the child screens',
-    (view) => {
-      waitingBuild();
+    async (view) => {
+      await waitingBuild();
       expect(updateBarShownOn(view)).toBe(false);
       const { container: out } = render(<UpdateBanner view={view} />);
       expect(out).toBeEmptyDOMElement();
     },
   );
 
-  it.each(['home', 'settings', 'about', 'progress'])('is mounted on %s, the grown-up screens', (view) => {
-    waitingBuild();
+  it.each(['home', 'settings', 'about', 'progress'])('is mounted on %s, the grown-up screens', async (view) => {
+    await waitingBuild();
     expect(updateBarShownOn(view)).toBe(true);
     render(<UpdateBanner view={view} />);
     expect(screen.getByRole('status')).toBeInTheDocument();
