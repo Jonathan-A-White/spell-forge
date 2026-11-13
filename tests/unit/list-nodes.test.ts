@@ -26,6 +26,15 @@ describe('listNodeIds', () => {
     expect(await listNodeIds(profileId)).toEqual(['short-vowel-dge', 'vowel-team-igh', 'digraph-sh', 'suffix-ing']);
   });
 
+  it('orders two lists made in the same instant by list id, and words by the order they were added', async () => {
+    const same = new Date('2026-10-20');
+    const first = await listWith('A', same, ['shop', 'jumping']);
+    const second = await listWith('B', same, ['badge']);
+    const [earlier, later] = first < second ? [first, second] : [second, first];
+    const nodesOf = { [first]: ['digraph-sh', 'suffix-ing'], [second]: ['short-vowel-dge'] };
+    expect(await listNodeIds(profileId)).toEqual([...nodesOf[earlier], ...nodesOf[later]]);
+  });
+
   it('leaves out words with no node, and lists that are not active', async () => {
     await listWith('Plain', new Date('2026-10-01'), ['zap']);
     await listWith('Done', new Date('2026-10-02'), ['shop'], { active: false });

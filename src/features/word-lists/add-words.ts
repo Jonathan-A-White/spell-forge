@@ -28,9 +28,12 @@ export async function addWordsToList({ listId, profileId, words, placed = [] }: 
   const placement = new Map(placed.map((p) => [p.word, p]));
   const held = new Set((await wordRepo.getByListId(listId)).map((w) => w.text));
   const added: Word[] = [];
+  let last = 0;
 
   for (const text of normalizeWords(words)) {
     if (held.has(text)) continue;
+    // Each word of one call gets its own millisecond, so createdAt is the order the words were added (listNodeIds reads it).
+    last = Math.max(Date.now(), last + 1);
     const word = await wordRepo.create({
       listId,
       profileId,
@@ -40,7 +43,7 @@ export async function addWordsToList({ listId, profileId, words, placed = [] }: 
       patterns: [],
       imageUrl: null,
       imageCached: false,
-      createdAt: new Date(),
+      createdAt: new Date(last),
       ...nodeFields(placement.get(text)),
     });
     await statsRepo.create({
