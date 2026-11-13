@@ -33,19 +33,28 @@ export interface AddTurnParams {
 /** A turn can take an answer only while it is still out. */
 const isOut = (turn: TutorTurn) => turn.status === 'sending' || turn.status === 'waiting';
 
+/** Newest first; sessions with an equal startedAt fall back to id, so the order is the same on every read. */
+const newestFirst = (a: TutorSession, b: TutorSession) =>
+  b.startedAt.getTime() - a.startedAt.getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
+
 export const tutorRepo = {
   async createSession(params: CreateSessionParams): Promise<TutorSession> {
-    const session: TutorSession = {
-      id: uuidv4(),
-      profileId: params.profileId,
-      startedAt: new Date(),
-      strictness: params.strictness,
-      status: 'active',
-      ...(params.problemKind ? { problemKind: params.problemKind } : {}),
-      ...(params.targetText ? { targetText: params.targetText } : {}),
-    };
-    await db.tutorSessions.add(session);
-    return session;
+    return db.transaction('rw', db.tutorSessions, async () => {
+      // Each of a profile's sessions gets its own millisecond, so startedAt is the order they were started in.
+      const held = await db.tutorSessions.where('profileId').equals(params.profileId).toArray();
+      const latest = held.reduce((max, s) => Math.max(max, s.startedAt.getTime()), 0);
+      const session: TutorSession = {
+        id: uuidv4(),
+        profileId: params.profileId,
+        startedAt: new Date(Math.max(Date.now(), latest + 1)),
+        strictness: params.strictness,
+        status: 'active',
+        ...(params.problemKind ? { problemKind: params.problemKind } : {}),
+        ...(params.targetText ? { targetText: params.targetText } : {}),
+      };
+      await db.tutorSessions.add(session);
+      return session;
+    });
   },
 
   async getSession(id: string): Promise<TutorSession | undefined> {
@@ -55,15 +64,13 @@ export const tutorRepo = {
   /** The profile's newest session that has not ended, if any: what a reload picks back up. */
   async getActiveSession(profileId: string): Promise<TutorSession | undefined> {
     const sessions = await db.tutorSessions.where('profileId').equals(profileId).toArray();
-    return sessions
-      .filter((s) => s.status === 'active')
-      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())[0];
+    return sessions.filter((s) => s.status === 'active').sort(newestFirst)[0];
   },
 
   /** Every session the profile has had, newest first: the Sessions list. Nothing is ever deleted. */
   async listSessions(profileId: string): Promise<TutorSession[]> {
     const sessions = await db.tutorSessions.where('profileId').equals(profileId).toArray();
-    return sessions.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+    return sessions.sort(newestFirst);
   },
 
   /** The problem the session is about, as read off the photo or as the child corrected it. */

@@ -1,6 +1,6 @@
 // mw-bhvxcn.6: TutorSession and TutorTurn rows in Dexie, and the repository that keeps them: a turn is
 // found by its txid when its answer comes, and an answer for a session that has moved on is kept, marked stale.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../src/data/db';
 import { tutorRepo } from '../../src/data/repositories';
 import type { TutorAnswer, TutorRequest } from '../../src/contracts';
@@ -44,6 +44,34 @@ describe('tutorRepo', () => {
     expect(session.startedAt).toBeInstanceOf(Date);
     expect(session.endedAt).toBeUndefined();
     expect(await tutorRepo.getSession(session.id)).toEqual(session);
+  });
+
+  describe('two sessions started in one millisecond', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('come back newest first, the same way every time (listSessions and getActiveSession)', async () => {
+      for (let run = 0; run < 20; run++) {
+        await db.tutorSessions.clear();
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-11-13T10:00:00.000Z'));
+        const first = await tutorRepo.createSession({ profileId: 'p1', strictness: 'meaning-gated' });
+        const second = await tutorRepo.createSession({ profileId: 'p1', strictness: 'meaning-gated' });
+        const third = await tutorRepo.createSession({ profileId: 'p1', strictness: 'meaning-gated' });
+        vi.useRealTimers();
+
+        expect((await tutorRepo.listSessions('p1')).map((s) => s.id)).toEqual([third.id, second.id, first.id]);
+        expect((await tutorRepo.getActiveSession('p1'))?.id).toBe(third.id);
+      }
+    });
+
+    it('are ordered by id when the rows themselves hold equal startedAt', async () => {
+      const startedAt = new Date('2026-11-13T10:00:00.000Z');
+      const rows = ['a', 'b', 'c'].map((id) => ({ id, profileId: 'p1', startedAt, strictness: 'meaning-gated' as const, status: 'active' as const }));
+      await db.tutorSessions.bulkAdd(rows);
+      const ids = (await tutorRepo.listSessions('p1')).map((s) => s.id);
+      expect(ids).toEqual(['c', 'b', 'a']);
+      expect((await tutorRepo.getActiveSession('p1'))?.id).toBe('c');
+    });
   });
 
   it('numbers turns in the order they are added and lists them by index', async () => {
