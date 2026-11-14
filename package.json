@@ -54,7 +54,7 @@
     "jspdf": "^4.2.1",
     "learn-kit": "github:Jonathan-A-White/learn-kit#866354a9c617f35bf9e85159e72bab0a27b6f02e",
     "ogl": "^1.0.11",
-    "pwa-kit": "github:Jonathan-A-White/pwa-kit#182d2890c5d57c93d5b978da2981276d8f3f3e80",
+    "pwa-kit": "github:Jonathan-A-White/pwa-kit#ac66874a0bdfc4bc4052390b38499594e250f567",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -99,7 +99,7 @@
   "allowScripts": {
     "github:Jonathan-A-White/bsv-kit#4dbd874edc1f5d6c151b0980ccaa9fcc60799d6a": true,
     "github:Jonathan-A-White/learn-kit#866354a9c617f35bf9e85159e72bab0a27b6f02e": true,
-    "github:Jonathan-A-White/pwa-kit#182d2890c5d57c93d5b978da2981276d8f3f3e80": true,
+    "github:Jonathan-A-White/pwa-kit#ac66874a0bdfc4bc4052390b38499594e250f567": true,
     "github:Jonathan-A-White/voice-kit#c5f76b2b7044d00eaecc827a7cbdce5b802768b0": true
   }
 }

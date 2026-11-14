@@ -138,6 +138,6 @@ describe('the panel is a thin wrapper, on the kit at its pinned commit', () => {
 
   it('pwa-kit is pinned at a commit that holds pwa-kit/settings and pwa-kit/requests (0.14.0)', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { dependencies: Record<string, string> };
-    expect(pkg.dependencies['pwa-kit']).toBe('github:Jonathan-A-White/pwa-kit#182d2890c5d57c93d5b978da2981276d8f3f3e80');
+    expect(pkg.dependencies['pwa-kit']).toBe('github:Jonathan-A-White/pwa-kit#ac66874a0bdfc4bc4052390b38499594e250f567');
   });
 });
