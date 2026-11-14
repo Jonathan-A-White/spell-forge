@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
+import { newestFirstBy, sortNewestFirst } from '../../core/sort-with-tie-break';
 import type {
   TutorAttachmentKind,
   TutorBlob,
@@ -34,8 +35,7 @@ export interface AddTurnParams {
 const isOut = (turn: TutorTurn) => turn.status === 'sending' || turn.status === 'waiting';
 
 /** Newest first; sessions with an equal startedAt fall back to id, so the order is the same on every read. */
-const newestFirst = (a: TutorSession, b: TutorSession) =>
-  b.startedAt.getTime() - a.startedAt.getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
+const newestFirst = newestFirstBy<TutorSession>((s) => s.startedAt, (s) => s.id);
 
 export const tutorRepo = {
   async createSession(params: CreateSessionParams): Promise<TutorSession> {
@@ -169,7 +169,7 @@ export const tutorRepo = {
   async lastAnswerMs(): Promise<number | undefined> {
     const turns = await db.tutorTurns.where('status').anyOf('answered', 'stale').toArray();
     const answered = turns.filter((t): t is TutorTurn & { answeredAt: Date } => Boolean(t.txid) && t.answeredAt instanceof Date);
-    const last = answered.sort((a, b) => b.answeredAt.getTime() - a.answeredAt.getTime())[0];
+    const last = sortNewestFirst(answered, (t) => t.answeredAt, (t) => t.id)[0];
     return last ? Math.max(0, last.answeredAt.getTime() - last.sentAt.getTime()) : undefined;
   },
 

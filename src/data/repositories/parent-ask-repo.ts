@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
+import { sortNewestFirst } from '../../core/sort-with-tie-break';
 import type { ParentAsk, ParentAskRequest, ParentAskResult } from '../../contracts/types';
 
 export interface AddParentAskParams {
@@ -37,7 +38,7 @@ export const parentAskRepo = {
   /** Every ask the profile has made, newest first. Nothing is ever deleted. */
   async listForProfile(profileId: string): Promise<ParentAsk[]> {
     const asks = await db.parentAsks.where('profileId').equals(profileId).toArray();
-    return asks.sort((a, b) => b.askedAt.getTime() - a.askedAt.getTime());
+    return sortNewestFirst(asks, (a) => a.askedAt, (a) => a.id);
   },
 
   /** Every ask, for any profile, that the factory has and has not yet answered. */

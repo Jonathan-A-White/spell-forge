@@ -34,6 +34,14 @@ describe('bsvTokenRepo', () => {
     expect(listed).toEqual([tokenB, tokenA]);
   });
 
+  it('lists tokens of an equal mintedAt in the same order on 20 runs (greater origin first)', async () => {
+    const mintedAt = new Date('2025-10-07T10:00:00.000Z');
+    await db.bsvTokens.bulkPut([tokenB, tokenA].map((t) => ({ ...t, mintedAt })));
+    for (let run = 0; run < 20; run++) {
+      expect(await bsvTokenRepo.list()).toEqual([tokenB, tokenA]);
+    }
+  });
+
   it('updates the current outpoint and holder address for a token by its origin', async () => {
     await bsvTokenRepo.put(tokenA);
 

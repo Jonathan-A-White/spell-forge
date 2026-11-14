@@ -4,6 +4,7 @@
 // interval, never around crypto.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import { PrivateKey } from '@bsv/sdk';
 import { db } from '../../src/data/db';
 import { bsvWalletRepo, profileRepo, statsRepo, wordListRepo, wordRepo } from '../../src/data/repositories';
@@ -20,6 +21,7 @@ import {
   pollPhotoImports,
   startPhotoImport,
   startPhotoImportQueue,
+  usePhotoImportStatus,
 } from '../../src/features/word-lists/photo-import';
 import type { PhotoImportDeps } from '../../src/features/word-lists/photo-import';
 import { addWordsToList } from '../../src/features/word-lists/add-words';
@@ -442,5 +444,28 @@ describe('forgetSettledPhotoImports', () => {
     await forgetSettledPhotoImports('list-a');
 
     expect((await db.photoImports.toArray()).map((r) => r.id).sort()).toEqual(['c', 'd']);
+  });
+});
+
+describe('the newest import of a list (mw-6ww.175.63)', () => {
+  const sentAt = new Date('2025-10-07T10:00:00.000Z');
+  const row = (id: string, status: 'reading' | 'failed') => ({
+    id,
+    listId,
+    profileId,
+    mime: 'image/jpeg',
+    language: 'en',
+    sentAt,
+    deadline: new Date(sentAt.getTime() + PHOTO_IMPORT_DEADLINE_MS),
+    status,
+  });
+
+  it('reports the same import (the greater id) for rows of an equal sentAt on 20 runs', async () => {
+    await db.photoImports.bulkPut([row('a', 'reading'), row('b', 'failed')]);
+    for (let run = 0; run < 20; run++) {
+      const { result, unmount } = renderHook(() => usePhotoImportStatus(listId));
+      await waitFor(() => expect(result.current).toBe('failed'));
+      unmount();
+    }
   });
 });

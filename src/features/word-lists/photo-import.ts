@@ -9,6 +9,7 @@ import { PrivateKey } from '@bsv/sdk';
 import { v4 as uuidv4 } from 'uuid';
 import type { PhotoImport, PhotoImportStatus } from '../../contracts/types';
 import { db } from '../../data/db';
+import { sortNewestFirst } from '../../core/sort-with-tie-break';
 import { bsvWalletRepo, profileRepo, wordListRepo } from '../../data/repositories';
 import { setVisibleInterval } from '../../shell/visible-interval';
 import { filterImportWords } from '../../ocr';
@@ -259,8 +260,7 @@ export function usePhotoImportStatus(listId: string | null | undefined): PhotoIm
     if (!listId) return;
     const subscription = liveQuery(async () => {
       const rows = await db.photoImports.where('listId').equals(listId).toArray();
-      rows.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
-      return rows[0]?.status ?? null;
+      return sortNewestFirst(rows, (r) => r.sentAt, (r) => r.id)[0]?.status ?? null;
     }).subscribe({ next: setStatus, error: () => setStatus(null) });
     return () => subscription.unsubscribe();
   }, [listId]);

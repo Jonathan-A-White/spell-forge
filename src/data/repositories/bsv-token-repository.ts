@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { sortNewestFirst } from '../../core/sort-with-tie-break';
 import type { LicenseToken, Outpoint } from '../../bsv/license-token';
 
 export const bsvTokenRepo = {
@@ -9,7 +10,11 @@ export const bsvTokenRepo = {
 
   /** Newest-minted first. */
   async list(): Promise<LicenseToken[]> {
-    const rows = await db.bsvTokens.orderBy('mintedAt').reverse().toArray();
+    const rows = sortNewestFirst(
+      await db.bsvTokens.toArray(),
+      (row) => row.mintedAt,
+      (row) => `${row.origin.txid}:${row.origin.vout}`,
+    );
     return rows.map((row) => ({
       origin: row.origin,
       current: row.current,
