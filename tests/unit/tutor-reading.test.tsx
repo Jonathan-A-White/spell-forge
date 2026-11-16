@@ -821,13 +821,15 @@ describe('pickReadingResult', () => {
 });
 
 describe("the tutor's speaking bar (mw-kuy7rx.20, mw-m7v5kc.4)", () => {
-  // voice-kit/testing's honest synthesiser on real timers; the first sentence is long enough (about 2 s) to be caught speaking
+  // voice-kit/testing's honest synthesiser; each word takes a minute (msPerWord), so a sentence is still being spoken
+  // however slow the host is: the tests end it with stop(), never wait for it. A real-time sentence of about 2 s was
+  // finished before 'Read it' was pressed on a loaded host (mw-6ww.175.78).
   const LONG = `${Array(30).fill('slowly').join(' ')}. Then tell me.`;
   let speech: SpeechFake;
   const barRegion = () => screen.queryByRole('region', { name: 'Tutor speech' });
 
   beforeEach(() => {
-    speech = installSpeech(window);
+    speech = installSpeech(window, { msPerWord: 60_000 });
   });
 
   afterEach(() => {
