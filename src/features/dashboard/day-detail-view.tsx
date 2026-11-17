@@ -4,24 +4,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAlive } from 'pwa-kit/alive';
 import type { SessionLog, Word } from '../../contracts/types';
 import { db } from '../../data/db';
+import { orderAttempts, orderSessions, type WordAttempt } from './day-order';
 
 interface DayDetailViewProps {
   profileId: string;
   dateKey: string; // "YYYY-MM-DD"
   sessions: SessionLog[];
   onBack: () => void;
-}
-
-interface WordAttempt {
-  wordId: string;
-  wordText: string;
-  correct: boolean;
-  responseTimeMs: number;
-  techniqueId: string;
-  struggled: boolean;
-  scaffoldingUsed: boolean;
-  userInput?: string;
-  timestamp: Date;
 }
 
 export function DayDetailView({ profileId, dateKey, sessions, onBack }: DayDetailViewProps) {
@@ -75,9 +64,8 @@ export function DayDetailView({ profileId, dateKey, sessions, onBack }: DayDetai
         }
       }
 
-      attempts.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
       if (!alive()) return;
-      setWordAttempts(attempts);
+      setWordAttempts(orderAttempts(attempts));
       setLoading(false);
     }
     load();
@@ -148,9 +136,7 @@ export function DayDetailView({ profileId, dateKey, sessions, onBack }: DayDetai
             <p className="text-sf-muted text-sm">No sessions this day</p>
           ) : (
             <ul className="space-y-3">
-              {sessions
-                .slice()
-                .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
+              {orderSessions(sessions)
                 .map((session, i) => {
                   const start = new Date(session.startedAt);
                   const end = session.endedAt ? new Date(session.endedAt) : null;

@@ -22,7 +22,7 @@ export function deriveActive(wordLists: WordList[], allWords: Word[], allStats: 
     .map((l) => l.testDate)
     .filter((d): d is Date => d instanceof Date)
     .filter((d) => d.getTime() >= todayStart.getTime()) // exclude past test dates
-    .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+    .reduce<Date | null>((first, d) => (first === null || d.getTime() < first.getTime() ? d : first), null);
   const daysUntilTest = nearestTestDate
     ? Math.max(0, Math.ceil((nearestTestDate.getTime() - now) / 86400000))
     : null;

@@ -1,6 +1,7 @@
 // src/features/word-lists/test-history.tsx — Test history trend view across all tests
 
 import type { TestResult, WordList } from '../../contracts/types';
+import { newestTestFirst } from './test-order';
 
 interface TestHistoryProps {
   testResults: TestResult[];
@@ -18,9 +19,7 @@ export function TestHistory({
   onBack,
 }: TestHistoryProps) {
   const listMap = new Map(wordLists.map((l) => [l.id, l]));
-  const sorted = [...testResults].sort(
-    (a, b) => new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
-  );
+  const sorted = newestTestFirst(testResults);
 
   const avgScore = testResults.length > 0
     ? Math.round(testResults.reduce((sum, r) => sum + r.finalPercent, 0) / testResults.length)

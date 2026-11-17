@@ -66,10 +66,13 @@ export interface ScanRecordsOptions {
 function byNewestFirst(a: AddressHistoryEntry, b: AddressHistoryEntry): number {
   const heightA = a.height ?? 0;
   const heightB = b.height ?? 0;
-  if (heightA === 0 && heightB === 0) return 0;
-  if (heightA === 0) return -1;
-  if (heightB === 0) return 1;
-  return heightB - heightA;
+  if (heightA !== heightB) {
+    if (heightA === 0) return -1;
+    if (heightB === 0) return 1;
+    return heightB - heightA;
+  }
+  // One height (or both unconfirmed): the greater txid first, so the order is the same on every read.
+  return a.txid < b.txid ? 1 : a.txid > b.txid ? -1 : 0;
 }
 
 /**
