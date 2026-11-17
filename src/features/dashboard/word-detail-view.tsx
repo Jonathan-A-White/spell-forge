@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAlive } from 'pwa-kit/alive';
-import type { Word, WordStats, WordBucket, WordLearningProgress, TechniqueResult } from '../../contracts/types';
-import { sortNewestFirst } from '../../core/sort-with-tie-break';
+import type { Word, WordStats, WordBucket, WordLearningProgress } from '../../contracts/types';
+import { newestAttemptsFirst } from './attempt-order';
 import { db } from '../../data/db';
 
 const MASTERED_MIN_DAYS = 3;
@@ -36,19 +36,6 @@ function formatDate(date: Date): string {
 
 function formatResponseTime(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
-}
-
-/**
- * A word's attempts, newest first. A TechniqueResult has no id, so attempts at one millisecond are broken by
- * their place in the stored history: the later one first.
- */
-export function newestAttemptsFirst(history: readonly TechniqueResult[]): TechniqueResult[] {
-  const placed = history.map((result, index) => ({ result, key: String(index).padStart(9, '0') }));
-  return sortNewestFirst(
-    placed,
-    (p) => new Date(p.result.timestamp),
-    (p) => p.key,
-  ).map((p) => p.result);
 }
 
 function getDifficultyLabel(score: number): string {

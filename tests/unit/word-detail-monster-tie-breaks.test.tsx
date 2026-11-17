@@ -2,7 +2,8 @@
 // tie on their timestamp, over 20 shuffles of the input (class equal-timestamp-sort-has-no-tiebreak).
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { newestAttemptsFirst, WordDetailView } from '../../src/features/dashboard/word-detail-view';
+import { WordDetailView } from '../../src/features/dashboard/word-detail-view';
+import { newestAttemptsFirst } from '../../src/features/dashboard/attempt-order';
 import { MonsterStable } from '../../src/features/rewards/monster-stable';
 import { db } from '../../src/data/db';
 import type { CompletedCreature, Profile, TechniqueResult, Word, WordStats } from '../../src/contracts/types';
