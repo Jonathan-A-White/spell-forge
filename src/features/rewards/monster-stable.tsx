@@ -2,6 +2,7 @@
 
 import type { Profile, CompletedCreature } from '../../contracts/types';
 import { themeEngine } from '../../themes';
+import { newestFirstBy } from '../../core/sort-with-tie-break';
 import { CreatureArt, RarityBadge, LevelStars } from './creature-art';
 
 interface MonsterStableProps {
@@ -40,10 +41,11 @@ const RARITY_SORT_ORDER: Record<string, number> = {
 
 export function MonsterStable({ profile, collection, onBack }: MonsterStableProps) {
   // Sort by rarity (best first), then newest
+  const newestFirst = newestFirstBy<CompletedCreature>((c) => new Date(c.completedAt), (c) => c.id);
   const sorted = [...collection].sort((a, b) => {
     const rarityDiff = (RARITY_SORT_ORDER[a.rarity] ?? 5) - (RARITY_SORT_ORDER[b.rarity] ?? 5);
     if (rarityDiff !== 0) return rarityDiff;
-    return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+    return newestFirst(a, b);
   });
 
   // Group by theme
