@@ -89,6 +89,21 @@ describe('sessionLine', () => {
   it('lists newest first', () => {
     expect(sessionLines([old, stopped, readRight, mathFound]).map((l) => l.sessionId)).toEqual(['s1', 's2', 's3', 's4']);
   });
+
+  it('puts sessions that started in the same millisecond in one fixed order, however the rows come in', () => {
+    const same = '2025-10-07T09:00:00Z';
+    const rows = ['a', 'b', 'c', 'd'].map((id) => ({ session: session(id, same), turns: [] }));
+    let seed = 11;
+    const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    for (let i = 0; i < 20; i++) {
+      const shuffled = [...rows];
+      for (let j = shuffled.length - 1; j > 0; j--) {
+        const k = Math.floor(random() * (j + 1));
+        [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+      }
+      expect(sessionLines(shuffled).map((l) => l.sessionId)).toEqual(['d', 'c', 'b', 'a']);
+    }
+  });
 });
 
 describe('the Grown-ups screen\'s This week and Sessions', () => {

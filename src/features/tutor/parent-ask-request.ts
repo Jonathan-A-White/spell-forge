@@ -2,6 +2,7 @@
 // question, and the child's last 20 sessions as compact text, newest first. A session is a few lines: the day, the
 // problem, the words he misread, how the maths went, and the tutor's notes for the parent. No ids, no names.
 
+import { sortNewestFirst } from '../../core/sort-with-tie-break';
 import type { ParentAskRequest, ReadingResult, TutorTurn } from '../../contracts/types';
 import { tutorRepo } from '../../data/repositories';
 import { parentDiagnosesOf, parentNotesOf } from './session-json';
@@ -57,9 +58,11 @@ function summaryOf({ session, turns }: SessionWithTurns): string {
 
 /** The question, trimmed and whole, and the latest sessions (those with at least one turn) as text, newest first. */
 export function buildParentAskRequest(question: string, rows: SessionWithTurns[], pictures = 0): ParentAskRequest {
-  const sessions = rows
-    .filter((row) => row.turns.length > 0)
-    .sort((a, b) => b.session.startedAt.getTime() - a.session.startedAt.getTime())
+  const sessions = sortNewestFirst(
+    rows.filter((row) => row.turns.length > 0),
+    (row) => row.session.startedAt,
+    (row) => row.session.id,
+  )
     .slice(0, PARENT_ASK_SESSIONS)
     .map(summaryOf);
   return { question: question.trim(), sessions, pictures };

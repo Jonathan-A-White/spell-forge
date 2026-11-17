@@ -1,6 +1,7 @@
 // src/features/tutor/parent-sessions.ts — The Grown-ups screen's 'This week' sentences and the Sessions as plain
 // lines (mw-kuy7rx.3), worked out from the tutor's sessions and turns. Nothing here reads Dexie or the grist.
 
+import { sortNewestFirst } from '../../core/sort-with-tie-break';
 import type { ReadingResult, TutorSession, TutorTurn } from '../../contracts/types';
 
 export interface SessionWithTurns {
@@ -69,9 +70,9 @@ export function sessionLine(session: TutorSession, turns: TutorTurn[]): SessionL
   return { sessionId: session.id, date: plainDate(session.startedAt), what: firstWords(session.targetText), how: howItWent(session, turns) };
 }
 
-/** Newest first. */
+/** Newest first; sessions that started in the same millisecond come in order of their id. */
 export function sessionLines(rows: SessionWithTurns[]): SessionLineData[] {
-  return [...rows].sort((a, b) => b.session.startedAt.getTime() - a.session.startedAt.getTime()).map((r) => sessionLine(r.session, r.turns));
+  return sortNewestFirst(rows, (r) => r.session.startedAt, (r) => r.session.id).map((r) => sessionLine(r.session, r.turns));
 }
 
 /** Whole minutes from the start to the last thing that happened in the session; at least one. */
