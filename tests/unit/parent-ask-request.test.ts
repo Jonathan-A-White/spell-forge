@@ -33,6 +33,26 @@ describe('buildParentAskRequest', () => {
     expect(request.sessions[2]).toContain('2025-10-05');
   });
 
+  it('puts sessions that started in the same millisecond in one fixed order, however the rows come in', () => {
+    const same = '2025-10-07T09:00:00Z';
+    const rows: SessionWithTurns[] = ['a', 'b', 'c', 'd'].map((id) => ({
+      session: session(id, same, { targetText: `Problem ${id}` }),
+      turns: [turn(id, 1, 'math', same, { action: 'continue' })],
+    }));
+    const order = (list: SessionWithTurns[]) => buildParentAskRequest('q', list).sessions.map((text) => /Problem (\w)/.exec(text)?.[1]);
+    const expected = ['d', 'c', 'b', 'a'];
+    let seed = 7;
+    const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    for (let i = 0; i < 20; i++) {
+      const shuffled = [...rows];
+      for (let j = shuffled.length - 1; j > 0; j--) {
+        const k = Math.floor(random() * (j + 1));
+        [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+      }
+      expect(order(shuffled)).toEqual(expected);
+    }
+  });
+
   it('puts the problem, the misread words, how the maths went and the tutor\'s notes in a session\'s summary', () => {
     const [summary] = buildParentAskRequest('q', [mathWithNotes]).sessions;
     expect(summary).toContain('What is 12 times 4?');
