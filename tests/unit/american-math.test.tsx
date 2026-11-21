@@ -120,6 +120,7 @@ describe('the shown text is American', () => {
   const SHOWN = [
     'src/worlds/grown-ups/Licence.tsx',
     'src/worlds/grown-ups/where-to-start.tsx',
+    'src/worlds/grown-ups/times-tables-row.tsx',
     'src/features/about/about-screen.tsx',
     'src/features/device-key/device-key-section.tsx',
     'src/features/settings/settings-registry.ts',
