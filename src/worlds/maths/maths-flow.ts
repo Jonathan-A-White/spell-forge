@@ -11,7 +11,20 @@ import { createForms, answerPlacement, applyPlacement, placementItem, planDrill,
 import { MemoryFreshStore, markAsked, recordAnswer, type FreshStore, type Verdict } from 'learn-kit/fresh';
 import { below, review, setLevel, teach, type Graph, type GraphStore } from 'learn-kit/graph';
 import { missedLast } from '../../learn/fresh-store';
-import { checkAnswer, makeProblems, mathsGraph, problemKey, type MathsItem, type MathsNode, type SolidRule } from '../../learn/maths';
+import {
+  TIMES_TABLES,
+  allTablesSolid,
+  checkAnswer,
+  makeProblems,
+  mathsGraph,
+  openNext,
+  problemKey,
+  recordTableTry,
+  tidyTables,
+  type MathsItem,
+  type MathsNode,
+  type SolidRule,
+} from '../../learn/maths';
 import type { MathsKept, MathsKeep } from './maths-store';
 
 export { memoryKeep, storageGraphStore, storageKeep } from './maths-store';
@@ -100,10 +113,26 @@ export async function placeAt(deps: PlaceAtDeps, nodeId: string): Promise<void> 
   for (const need of needs) {
     if ((await store.get(need.id))?.level !== 'solid') await setLevel(store, graph, need.id, 'solid', GROWN_UP, now);
   }
-  if ((await store.get(nodeId))?.level !== 'solid') await teach(store, graph, nodeId, now, 'switch');
+  const notSolid = (await store.get(nodeId))?.level !== 'solid';
+  if (notSolid) await teach(store, graph, nodeId, now, 'switch');
   const started = await startPlacementFromStore(graph, store);
   const kept = await keep.load();
-  await keep.save({ ...kept, placement: { ...started, current: null, done: 'finished' } });
+  // at the times tables the child starts with ×1 alone, a school's way; tables a grown-up chose before are left as they are
+  const tables = nodeId === TIMES_TABLES && notSolid && !(kept.tables && kept.tables.length > 0) ? { tables: [1] } : {};
+  await keep.save({ ...kept, ...tables, placement: { ...started, current: null, done: 'finished' } });
+}
+
+/**
+ * A grown-up's choice of the times tables open for the child (Grown-ups > Math: times tables): 'times-tables' asks only these, and the next opens
+ * itself when the newest is solid. No tables at all goes back to the mix 'times-tables' asked before there were tables. Tries already kept stay.
+ */
+export async function setOpenTables(keep: MathsKeep, tables: readonly number[]): Promise<void> {
+  const kept = await keep.load();
+  const open = tidyTables(tables);
+  const next: MathsKept = { ...kept };
+  if (open.length > 0) next.tables = open;
+  else delete next.tables;
+  await keep.save(next);
 }
 
 /** 'Redo the placement test': forgets the placement, so the child's next entry runs it again (it does not ask what is solid already). */
@@ -136,16 +165,20 @@ export function createMathsFlow(deps: MathsFlowDeps): MathsFlow {
    * ledger. A node whose generator has no problem left that he has not seen (a few nodes make only a handful) starts its ledger over, so that it
    * can be proved at all.
    */
-  const makeItems: ItemMaker<MathsItem> = async (node, ask) => {
+  const itemMaker = (useTables: boolean): ItemMaker<MathsItem> => async (node, ask) => {
     const maths = node as MathsNode;
     const avoid = ask.avoid ?? [...(await fresh.getAsked(maths.id))];
-    let made = makeProblems(maths, { count: ask.count, seed: ask.seed, avoid });
+    // the times tables a grown-up has open (none: the node as it always was); the placement test never narrows to them
+    const open = useTables && maths.openItem ? (await load()).tables : undefined;
+    let made = makeProblems(maths, { count: ask.count, seed: ask.seed, avoid, open });
     if (avoid.length > 0 && !made.some((m) => m.fresh)) {
       await fresh.putAsked(maths.id, []);
-      made = makeProblems(maths, { count: ask.count, seed: ask.seed });
+      made = makeProblems(maths, { count: ask.count, seed: ask.seed, open });
     }
-    return made.map(({ index, item }) => ({ key: `${maths.id}:${index}`, form: TYPE_FORM, payload: item }));
+    return made.map(({ index, item }) => ({ key: `${maths.id}:${index}${open && open.length > 0 ? `:t${open.join('.')}` : ''}`, form: TYPE_FORM, payload: item }));
   };
+  const makeItems = itemMaker(true);
+  const makePlacementItems = itemMaker(false);
 
   let kept: MathsKept | undefined;
   let current: MathsQuestion | null = null;
@@ -178,7 +211,7 @@ export function createMathsFlow(deps: MathsFlowDeps): MathsFlow {
   });
 
   async function placementQuestion(state: PlacementState): Promise<MathsQuestion | null> {
-    const made = await placementItem(graph, state, makeItems, mathsForms, lastPlacementKey ? { key: lastPlacementKey, form: TYPE_FORM, payload: null } : undefined);
+    const made = await placementItem(graph, state, makePlacementItems, mathsForms, lastPlacementKey ? { key: lastPlacementKey, form: TYPE_FORM, payload: null } : undefined);
     if (!made) return null;
     lastPlacementKey = made.key;
     return questionOf('placement', made.key, made.payload as MathsItem, state.current as string);
@@ -246,10 +279,24 @@ export function createMathsFlow(deps: MathsFlowDeps): MathsFlow {
     const wasSolid = (await store.get(node.id))?.level === 'solid';
     if (verdict === 'missed' || verdict === 'known') {
       const k = await load();
-      const tries = [...(k.tries[node.id] ?? []), verdict === 'known'].slice(-node.solid.of);
-      await save({ ...k, tries: { ...k.tries, [node.id]: tries } });
-      await review(store, graph, node.id, verdict === 'known', now());
-      if (verdict === 'known' && triesSolid(tries, node.solid) && (await store.get(node.id))?.level !== 'solid') {
+      const counted = verdict === 'known';
+      const tries = [...(k.tries[node.id] ?? []), counted].slice(-node.solid.of);
+      // the times tables a grown-up has open: the try is also the table's own, the next table opens when the newest is solid, and the node is solid
+      // only when all of ×1 to ×12 are open and solid (the node's own tries do not decide it)
+      const tabled = node.id === TIMES_TABLES && (k.tables?.length ?? 0) > 0 && question.item.table !== undefined;
+      const isSolid = (t: readonly boolean[]): boolean => triesSolid(t, node.solid);
+      let tableTries = k.tableTries ?? {};
+      let tables = k.tables;
+      if (tabled) {
+        tableTries = recordTableTry(tableTries, question.item.table as number, counted, node.solid.of);
+        tables = openNext(k.tables as number[], tableTries, isSolid);
+      }
+      await save({ ...k, tries: { ...k.tries, [node.id]: tries }, ...(tabled ? { tables, tableTries } : {}) });
+      const nodeSolid = tabled ? allTablesSolid(tables as number[], tableTries, isSolid) : triesSolid(tries, node.solid);
+      // learn-kit's review makes a node solid from its own schedule: a times-tables node with tables closed, or not yet solid, is not put to it
+      const held = tabled && !nodeSolid && !wasSolid;
+      if (!held) await review(store, graph, node.id, counted, now());
+      if (counted && nodeSolid && (await store.get(node.id))?.level !== 'solid') {
         await setLevel(store, graph, node.id, 'solid', 'drill', now());
       }
     } else if (verdict === 'seen' && wasSolid) {
