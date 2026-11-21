@@ -9,7 +9,7 @@
 // a fresh problem's right answer is counted (docs/maths-graph.md). Nothing here touches the network or the screen: MathsWorld.tsx draws what this returns.
 import { createForms, answerPlacement, applyPlacement, placementItem, planDrill, startPlacementFromStore, type DrillItem, type Forms, type ItemMaker, type PlacementState } from 'learn-kit/drill';
 import { MemoryFreshStore, markAsked, recordAnswer, type FreshStore, type Verdict } from 'learn-kit/fresh';
-import { review, setLevel, type Graph, type GraphStore } from 'learn-kit/graph';
+import { below, review, setLevel, teach, type Graph, type GraphStore } from 'learn-kit/graph';
 import { missedLast } from '../../learn/fresh-store';
 import { checkAnswer, makeProblems, mathsGraph, problemKey, type MathsItem, type MathsNode, type SolidRule } from '../../learn/maths';
 import type { MathsKept, MathsKeep } from './maths-store';
@@ -72,6 +72,44 @@ export interface MathsFlowDeps {
   now?: () => number;
   /** Seeds the items a sitting picks; the clock's second when absent. */
   seed?: number;
+}
+
+/** What a grown-up placement needs: the child's graph store and keep, the graph and the clock (Date.now when absent). */
+export interface PlaceAtDeps {
+  store: GraphStore;
+  keep: MathsKeep;
+  graph?: Graph<MathsNode>;
+  now?: () => number;
+}
+
+/** The `how` of a node a grown-up marked solid (Grown-ups > Maths: where to start). */
+export const GROWN_UP = 'grown-up';
+
+/**
+ * A grown-up places the child at a topic ("school has its own pace"): every node the topic needs, however far down, is solid with source
+ * 'grown-up' (a node already solid, however it got there, is left as it is: a placement never lowers what he proved himself); the topic itself, if
+ * not solid, becomes the node being learned, so the next sitting starts there (another node being learned is put back to not yet); what comes
+ * after it is not touched. The placement is marked done, so the child's next sitting asks nothing of the placement test. Throws, writing nothing,
+ * on a node the graph does not have.
+ */
+export async function placeAt(deps: PlaceAtDeps, nodeId: string): Promise<void> {
+  const { store, keep } = deps;
+  const graph = (deps.graph ?? mathsGraph) as Graph<MathsNode>;
+  const now = (deps.now ?? Date.now)();
+  const needs = below(graph, nodeId); // throws on an unknown node, before anything is written
+  for (const need of needs) {
+    if ((await store.get(need.id))?.level !== 'solid') await setLevel(store, graph, need.id, 'solid', GROWN_UP, now);
+  }
+  if ((await store.get(nodeId))?.level !== 'solid') await teach(store, graph, nodeId, now, 'switch');
+  const started = await startPlacementFromStore(graph, store);
+  const kept = await keep.load();
+  await keep.save({ ...kept, placement: { ...started, current: null, done: 'finished' } });
+}
+
+/** 'Redo the placement test': forgets the placement, so the child's next entry runs it again (it does not ask what is solid already). */
+export async function redoPlacement(keep: MathsKeep): Promise<void> {
+  const kept = await keep.load();
+  await keep.save({ ...kept, placement: null });
 }
 
 /** Is the node solid by its rule: `right` of its last `of` tries counted? Fewer tries than `of` are held to the same `right`. */
