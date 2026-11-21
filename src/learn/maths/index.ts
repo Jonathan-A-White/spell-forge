@@ -23,3 +23,18 @@ export { DATA_NODES } from './nodes-data.ts';
 export { AMC_TOPICS, COMPETITION_THEORY_NODES } from './nodes-competition.ts';
 export { COMPETITION, MATHS_GOALS, PROBLEM_KIND_NODES, SAT_DOMAINS, SAT_MATHS_800, mathsScaffold } from './goals.ts';
 export type { Operation, ProblemKind, ProblemKindNode } from './goals.ts';
+export {
+  ALL_TABLES,
+  FACTS_PER_TABLE,
+  SCHOOL_ORDER,
+  TIMES_TABLES,
+  allTablesSolid,
+  newestTable,
+  nextTable,
+  openNext,
+  recordTableTry,
+  tidyTables,
+  timesFact,
+  timesItem,
+} from './times-tables.ts';
+export type { TableTries } from './times-tables.ts';
