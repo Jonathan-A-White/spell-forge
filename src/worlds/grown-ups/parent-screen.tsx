@@ -14,6 +14,7 @@ import { HowIsItGoing } from './HowIsItGoing';
 import { Licence } from './Licence';
 import { ParentSessions, ParentThisWeek } from './parent-sessions-view';
 import { useWorldProgress } from './world-progress';
+import { WhereToStart } from './where-to-start';
 
 export interface ParentScreenProps {
   profileId: string;
@@ -48,6 +49,7 @@ export function ParentScreen({ profileId, onBack, onProfileChange, deps }: Paren
           <>
             <FirstLine>How your child is getting on, and how to help the tutor help them.</FirstLine>
             {progress && <HowIsItGoing {...progress} inside />}
+            <WhereToStart profileId={profileId} />
             <ParentThisWeek profileId={profileId} />
             <ParentSessions profileId={profileId} onOpen={setOpenId} />
             <AskTheTutor profileId={profileId} deps={deps} />
