@@ -820,16 +820,55 @@ describe('pickReadingResult', () => {
   });
 });
 
+// The speech fake's clock, moved by the test and by nothing else: what the fake does at 'a time' (list its voices after 50 ms,
+// start an utterance at once) happens when the test says so, never when a loaded host gets round to a timer (mw-d7scnbh).
+interface ManualClock {
+  now(): number;
+  setTimeout(fn: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+  /** Runs everything due within `ms`, in order, including what those timers set going. */
+  advance(ms: number): void;
+}
+function manualClock(): ManualClock {
+  let now = 0;
+  let next = 1;
+  const timers = new Map<number, { at: number; fn: () => void }>();
+  return {
+    now: () => now,
+    setTimeout(fn, ms) {
+      const id = next++;
+      timers.set(id, { at: now + ms, fn });
+      return id;
+    },
+    clearTimeout(handle) {
+      timers.delete(handle as number);
+    },
+    advance(ms) {
+      const to = now + ms;
+      for (;;) {
+        const due = [...timers.entries()].filter(([, t]) => t.at <= to).sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
+        if (!due) break;
+        timers.delete(due[0]);
+        now = Math.max(now, due[1].at);
+        due[1].fn();
+      }
+      now = to;
+    },
+  };
+}
+
 describe("the tutor's speaking bar (mw-kuy7rx.20, mw-m7v5kc.4)", () => {
   // voice-kit/testing's honest synthesiser; each word takes a minute (msPerWord), so a sentence is still being spoken
   // however slow the host is: the tests end it with stop(), never wait for it. A real-time sentence of about 2 s was
   // finished before 'Read it' was pressed on a loaded host (mw-6ww.175.78).
   const LONG = `${Array(30).fill('slowly').join(' ')}. Then tell me.`;
   let speech: SpeechFake;
+  let clock: ManualClock;
   const barRegion = () => screen.queryByRole('region', { name: 'Tutor speech' });
 
   beforeEach(() => {
-    speech = installSpeech(window, { msPerWord: 60_000 });
+    clock = manualClock();
+    speech = installSpeech(window, { msPerWord: 60_000, clock });
   });
 
   afterEach(() => {
@@ -855,6 +894,11 @@ describe("the tutor's speaking bar (mw-kuy7rx.20, mw-m7v5kc.4)", () => {
     const button = await screen.findByRole('button', { name: 'Read it' });
     act(() => void sayAsTutor(LONG));
     await screen.findByRole('button', { name: 'Pause' });
+    // the fake lists its voices (50 ms) and then starts the first sentence: on the fake's clock, so a slow host cannot be
+    // still waiting for them when 'Read it' is pressed (Pause would drop a sentence that never started)
+    act(() => clock.advance(50));
+    act(() => clock.advance(0));
+    expect(speech.spoken()).toHaveLength(1);
 
     fireEvent.pointerDown(button);
     await screen.findByRole('button', { name: 'Resume' });
@@ -865,7 +909,8 @@ describe("the tutor's speaking bar (mw-kuy7rx.20, mw-m7v5kc.4)", () => {
     // Resume stays after the reading; pressing it speaks on from the kept sentence
     fireEvent.click(await screen.findByRole('button', { name: 'Resume' }));
     expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
-    await waitFor(() => expect(speech.spoken()).toHaveLength(2));
+    act(() => clock.advance(0));
+    expect(speech.spoken()).toHaveLength(2);
     expect(speech.spoken()[1]).toBe(speech.spoken()[0]);
   });
 
