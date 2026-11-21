@@ -5,6 +5,7 @@
 
 import { cycle, frac, hundredths, neg, sup, tenths } from './format.ts';
 import { mathsNode, type MathsNode } from './items.ts';
+import { timesItem } from './times-tables.ts';
 
 /** What the story problems of the early nodes count, a new kind as the index goes round. */
 const CREATURES = ['cats', 'ducks', 'birds', 'frogs', 'fish'];
@@ -153,6 +154,7 @@ const middle: MathsNode[] = [
     band: '3-5',
     name: 'Times tables',
     needs: ['multiply-equal-groups'],
+    openItem: timesItem,
     item: (i) => {
       const a = 2 + ((i * 3 + 1) % 9);
       const b = 2 + ((i * 7 + 2) % 9);

@@ -14,6 +14,7 @@ and the two share no code, so each can change on its own.
 - [The node shape](#the-node-shape)
 - [The Maths world (`src/worlds/maths/`)](#the-maths-world-srcworldsmaths)
 - [Proving on a problem he has not met (Kestrel 20a)](#proving-on-a-problem-he-has-not-met-kestrel-20a)
+- [The times tables (mw-w87e3oc.2)](#the-times-tables-mw-w87e3oc2)
 - [What the maths loop handles today](#what-the-maths-loop-handles-today)
 - [The SAT Math domains](#the-sat-math-domains)
 - [The competition tier](#the-competition-tier)
@@ -46,6 +47,7 @@ and the two share no code, so each can change on its own.
 - `format.ts`: how the operations and algebra nodes write a number into a problem (`−3`, `x − 4`, `2³`) and an answer (`-3`, `3/4`).
 - `graph.ts`: assembles the node files into `MATHS_NODES`, checks every node with `nodeProblems`, and validates the whole with
   learn-kit's `validate` into `mathsGraph`; `COMPETITION_NODES` is the competition tier of every strand. A node that breaks a rule stops the module from loading, so a test fails by name.
+- `times-tables.ts`: the times tables one at a time (see "The times tables" below): the school order, the facts of an open table, when the next table opens and when the node is solid.
 - `index.ts`: the barrel; import from `src/learn/maths`.
 
 ## The grade bands
@@ -123,6 +125,21 @@ A problem answered wrong is put to the child once more, at the front of the sitt
 whose right answer is `to-confirm`, and the question after it is a different problem. Many nodes make only a handful of distinct problems
 (`fair-shares` makes five). When a node has no problem left that he has not seen, its ledger starts over so that it can still be proved;
 nothing is lost, the kit only reads freshness against what is kept.
+
+## The times tables (mw-w87e3oc.2)
+
+A school teaches the tables one at a time, so `times-tables` can be asked one table at a time (`times-tables.ts`, the state in `MathsKept.tables`
+and `tableTries`, the rules in `maths-flow.ts`). The node carries an `openItem(index, open)`: with some tables open (`makeProblems(node, { open })`) every
+problem is `a × n` or `n × a`, `a` from 0 to 12, for an open table `n` (the item's `table` says which), the open tables taking turns. With none
+open the node asks as it always did (2 to 10, mixed), and so does the placement test.
+
+- Open by default: a grown-up placement at Times tables (`placeAt`) opens ×1 alone; tables a grown-up chose before are left. Without that, none is open.
+- The next table opens in the school order ×1, ×2, ×5, ×10, ×3, ×4, ×6, ×7, ×8, ×9, ×11, ×12 (the first not open) when the newest open table is
+  solid by the node's rule (`right` of `of`) over its own tries (`tableTries`, counted tries only, a table's own facts).
+- Grown-ups > Math: Times tables (`src/worlds/grown-ups/times-tables-row.tsx`) ticks each table ×0 to ×12 to open or close it; none ticked is the old mix.
+- The node is solid only when all of ×1 to ×12 are open and solid (×0 is not needed): while tables are open, its own last tries decide nothing, and
+  learn-kit's `review` is not put the answer until then (it would make the node solid from its own schedule). Things that need `times-tables`
+  (`divide-equal-groups` and the rest) open only then.
 
 ## What the maths loop handles today
 

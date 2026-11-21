@@ -2,6 +2,7 @@
 // (see docs/maths-graph.md).
 
 import type { GraphNode } from 'learn-kit/graph';
+import { ALL_TABLES } from './times-tables.ts';
 
 /**
  * The grade bands, youngest first. A band's index in this list is the level of the nodes in it. `competition` is the tier above 9-12:
@@ -33,6 +34,8 @@ export interface MathsItem {
   answer: string;
   /** A nudge that leads to the answer without saying it. */
   hint: string;
+  /** The times table a fact of 'times-tables' belongs to (7 for 7 × 8 asked as one of the sevens); absent on every other item. */
+  table?: number;
 }
 
 /** The rule for a node to count as solid: `right` of the child's last `of` tries right. */
@@ -52,6 +55,8 @@ export interface MathsNode extends GraphNode {
   items: readonly MathsItem[];
   /** The item at this index, the same every time: the generator that `items` is the start of. */
   item: (index: number) => MathsItem;
+  /** Only 'times-tables' has one: the item at an index when just the `open` tables are asked (src/learn/maths/times-tables.ts). */
+  openItem?: (index: number, open: readonly number[]) => MathsItem;
   /** One line the child reads, in words a child of the band knows. */
   name: string;
 }
@@ -80,22 +85,25 @@ export interface MadeProblem {
  * `count` problems of a node from a place in its generator that the seed picks (`seed % ITEM_SPAN`), the same for the same seed. Problems whose keys
  * are not in `avoid` (the node's seen ledger) come first, each problem once, found in a window past the first index that reaches `ITEM_SPAN` indexes
  * past the seen ones; if the window holds fewer than `count`, the rest are the seen problems from the first index on, as before there was a ledger.
+ * A node with an `openItem` (times-tables) asks only the `open` tables when the ask names some; with none it asks as it always did.
  */
-export function makeProblems(node: MathsNode, ask: { count: number; seed: number; avoid?: readonly string[] }): MadeProblem[] {
+export function makeProblems(node: MathsNode, ask: { count: number; seed: number; avoid?: readonly string[]; open?: readonly number[] }): MadeProblem[] {
   const first = ask.seed % ITEM_SPAN;
+  const openTables = ask.open;
+  const produce = (index: number): MathsItem => (node.openItem && openTables && openTables.length > 0 ? node.openItem(index, openTables) : node.item(index));
   const seen = new Set(ask.avoid ?? []);
   const made: MadeProblem[] = [];
   const taken = new Set<string>();
   const reach = first + ITEM_SPAN + seen.size;
   for (let index = first; index < reach && made.length < ask.count; index += 1) {
-    const item = node.item(index);
+    const item = produce(index);
     const key = problemKey(item);
     if (seen.has(key) || taken.has(key)) continue;
     taken.add(key);
     made.push({ index, item, fresh: true });
   }
   for (let index = first; made.length < ask.count; index += 1) {
-    const item = node.item(index);
+    const item = produce(index);
     if (taken.has(problemKey(item)) && index < reach) continue; // a different seen problem if the node has one, else the same again
     taken.add(problemKey(item));
     made.push({ index, item, fresh: false });
@@ -194,7 +202,8 @@ export function nodeProblems(node: MathsNode): string[] {
   }
   if (node.level !== bandLevel(node.band)) problems.push(`${node.id}: level ${node.level} is not band ${node.band}'s ${bandLevel(node.band)}`);
   const generated = Array.from({ length: CHECKED_ITEMS }, (_, i) => node.item(i));
-  for (const item of [...node.items, ...generated]) problems.push(...itemProblems(node.id, item));
+  const openGenerated = node.openItem ? ALL_TABLES.flatMap((table) => Array.from({ length: 2 * 13 }, (_, i) => (node.openItem as NonNullable<MathsNode['openItem']>)(i, [table]))) : [];
+  for (const item of [...node.items, ...generated, ...openGenerated]) problems.push(...itemProblems(node.id, item));
   if (new Set(node.items.map((i) => i.problem)).size < node.items.length) problems.push(`${node.id}: asks the same problem twice`);
   return [...new Set(problems)];
 }
@@ -206,6 +215,8 @@ export function mathsNode(spec: {
   name: string;
   needs?: readonly string[];
   item: (index: number) => readonly [problem: string, answer: string, hint: string];
+  /** The item at an index when only some tables are open (the node 'times-tables'). */
+  openItem?: (index: number, open: readonly number[]) => MathsItem;
   /** How many items to list on the node (the start of what `item` makes). */
   count?: number;
   solid?: SolidRule;
@@ -225,6 +236,7 @@ export function mathsNode(spec: {
     solid: spec.solid ?? DEFAULT_SOLID[spec.band],
     items: Array.from({ length: spec.count ?? DEFAULT_ITEM_COUNT }, (_, i) => item(i)),
     item,
+    ...(spec.openItem ? { openItem: spec.openItem } : {}),
     name: spec.name,
   };
 }

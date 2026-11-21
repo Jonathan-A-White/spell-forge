@@ -3,6 +3,7 @@
 // per child, in localStorage: a few hundred nodes at most, read and written whole, with no network and no Dexie version of its own.
 import type { GraphStore, NodeState } from 'learn-kit/graph';
 import type { PlacementState } from 'learn-kit/drill';
+import type { TableTries } from '../../learn/maths';
 
 /** What the flow keeps besides the graph's node states. */
 export interface MathsKept {
@@ -10,6 +11,13 @@ export interface MathsKept {
   placement: PlacementState | null;
   /** The last tries at each node, oldest first: true for a right answer that counted (no hint). Cut to the node's `of` by the flow. */
   tries: Record<string, boolean[]>;
+  /**
+   * The times tables open for the child, smallest first (0 to 12): 'times-tables' asks only these. Absent until a grown-up places him at times-tables
+   * or ticks a table, and then the node is asked as it always was (2 to 10, mixed).
+   */
+  tables?: number[];
+  /** The last tries at each open table's own facts, by table number, true for a right answer that counted: what opens the next table. */
+  tableTries?: TableTries;
 }
 
 export interface MathsKeep {
