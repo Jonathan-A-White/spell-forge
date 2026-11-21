@@ -14,6 +14,7 @@ and the two share no code, so each can change on its own.
 - [The node shape](#the-node-shape)
 - [The Maths world (`src/worlds/maths/`)](#the-maths-world-srcworldsmaths)
 - [Proving on a problem he has not met (Kestrel 20a)](#proving-on-a-problem-he-has-not-met-kestrel-20a)
+- [The times tables (mw-w87e3oc.2)](#the-times-tables-mw-w87e3oc2)
 - [What the maths loop handles today](#what-the-maths-loop-handles-today)
 - [The SAT Math domains](#the-sat-math-domains)
 - [The competition tier](#the-competition-tier)
