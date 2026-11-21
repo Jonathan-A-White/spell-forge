@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.2.20",
+    "date": "2026-11-21",
+    "story": "mw-w87e3oc.2",
+    "kind": "new",
+    "text": "Math can now drill the times tables one table at a time, starting with the ones, and a grown-up can open or close each table."
+  },
+  {
     "version": "0.2.18",
     "date": "2026-11-21",
     "story": "mw-w87e3oc.1",
